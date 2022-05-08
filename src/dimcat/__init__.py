@@ -14,3 +14,12 @@ except PackageNotFoundError:  # pragma: no cover
     __version__ = "unknown"
 finally:
     del version, PackageNotFoundError
+
+from .analyzer import (
+    ChordSymbolBigrams,
+    ChordSymbolUnigrams,
+    PitchClassVectors,
+    TPCrange,
+)
+from .data import Corpus
+from .writer import TSVwriter
