@@ -37,7 +37,7 @@ dimcat
     DIgital Musicology Corpus Analysis Toolkit
 
 
-A longer description of your project goes here...
+Library and commandline tool for analyzing symbolic music corpora.
 
 
 .. _pyscaffold-notes:
