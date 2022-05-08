@@ -139,13 +139,16 @@ class Corpus(Data):
         """
         super().__init__()
         self.pieces = {}
-        """IDs and metadata of those pieces that have not been filtered out.
-        {(corpus, fname) ->
-            {
-             'metadata' -> {key->value},
-             'matched_files' -> [namedtuple]
+        """
+        IDs and metadata of those pieces that have not been filtered out.::
+
+            {(corpus, fname) ->
+                {
+                 'metadata' -> {key->value},
+                 'matched_files' -> [namedtuple]
+                }
             }
-        }
+
         """
         if data is None:
             self._data = Parse()
@@ -193,6 +196,7 @@ class Corpus(Data):
         return results
 
     def _result_to_pandas(self, result, short_ids=False):
+        """Turns an {ix -> result} into a Series or DataFrame."""
         key = list(result.keys())[0]
         if len(result) == 1 and not isinstance(key[0], str):
             series = pd.Series(result.values(), index=[key])
