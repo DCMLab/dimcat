@@ -228,3 +228,8 @@ class ChordSymbolBigrams(ChordSymbolAnalyzer):
         df = pd.DataFrame(bigrams)
         counts = df.groupby([0, 1]).size().sort_values(ascending=False)
         return counts
+
+    def process_data(self, data: Data) -> Data:
+        result = super().process_data(data)
+        result._result_to_pandas = dict_of_series_result_to_series
+        return result

@@ -196,6 +196,7 @@ class Corpus(Data):
         return results
 
     def _result_to_pandas(self, result, short_ids=False):
+        """Turns an {ix -> result} into a Series or DataFrame."""
         key = list(result.keys())[0]
         if len(result) == 1 and not isinstance(key[0], str):
             series = pd.Series(result.values(), index=[key])

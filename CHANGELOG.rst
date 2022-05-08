@@ -5,6 +5,4 @@ Changelog
 Version 0.1
 ===========
 
-- Feature A added
-- FIX: nasty bug #1729 fixed
-- add your changes here!
+* installs system-wide commands ``dimcat unigrams`` and ``dimcat bigrams`` for creating TSV files
