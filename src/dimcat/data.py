@@ -139,13 +139,16 @@ class Corpus(Data):
         """
         super().__init__()
         self.pieces = {}
-        """IDs and metadata of those pieces that have not been filtered out.
-        {(corpus, fname) ->
-            {
-             'metadata' -> {key->value},
-             'matched_files' -> [namedtuple]
+        """
+        IDs and metadata of those pieces that have not been filtered out.::
+
+            {(corpus, fname) ->
+                {
+                 'metadata' -> {key->value},
+                 'matched_files' -> [namedtuple]
+                }
             }
-        }
+
         """
         if data is None:
             self._data = Parse()

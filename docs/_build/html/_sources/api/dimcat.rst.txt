@@ -1,0 +1,53 @@
+dimcat package
+==============
+
+Submodules
+----------
+
+dimcat.analyzer module
+----------------------
+
+.. automodule:: dimcat.analyzer
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+dimcat.data module
+------------------
+
+.. automodule:: dimcat.data
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+dimcat.pipeline module
+----------------------
+
+.. automodule:: dimcat.pipeline
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+dimcat.skeleton module
+----------------------
+
+.. automodule:: dimcat.skeleton
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+dimcat.utils module
+-------------------
+
+.. automodule:: dimcat.utils
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Module contents
+---------------
+
+.. automodule:: dimcat
+   :members:
+   :undoc-members:
+   :show-inheritance:

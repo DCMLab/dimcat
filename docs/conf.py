@@ -72,6 +72,7 @@ extensions = [
     "sphinx.ext.ifconfig",
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
+    "sphinx.ext.githubpages",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -88,7 +89,7 @@ master_doc = "index"
 
 # General information about the project.
 project = "dimcat"
-copyright = "2022, johentsch"
+copyright = "2022, Digital and Cognitive Musicology Lab @ École Polytechnique Fédérale de Lausanne"
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
