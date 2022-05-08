@@ -26,8 +26,8 @@ import sys
 
 from dimcat import __version__
 
-__author__ = "johentsch"
-__copyright__ = "johentsch"
+__author__ = "Digital and Cognitive Musicology Lab"
+__copyright__ = "École Polytechnique Fédérale de Lausanne"
 __license__ = "GPL-3.0-or-later"
 
 _logger = logging.getLogger(__name__)

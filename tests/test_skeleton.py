@@ -1,9 +1,8 @@
 import pytest
-
 from dimcat.skeleton import fib, main
 
-__author__ = "johentsch"
-__copyright__ = "johentsch"
+__author__ = "Digital and Cognitive Musicology Lab"
+__copyright__ = "École Polytechnique Fédérale de Lausanne"
 __license__ = "GPL-3.0-or-later"
 
 
