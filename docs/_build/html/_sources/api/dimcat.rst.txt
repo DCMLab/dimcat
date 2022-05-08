@@ -12,6 +12,14 @@ dimcat.analyzer module
    :undoc-members:
    :show-inheritance:
 
+dimcat.cli module
+-----------------
+
+.. automodule:: dimcat.cli
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 dimcat.data module
 ------------------
 
@@ -28,18 +36,18 @@ dimcat.pipeline module
    :undoc-members:
    :show-inheritance:
 
-dimcat.skeleton module
-----------------------
-
-.. automodule:: dimcat.skeleton
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 dimcat.utils module
 -------------------
 
 .. automodule:: dimcat.utils
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+dimcat.writer module
+--------------------
+
+.. automodule:: dimcat.writer
    :members:
    :undoc-members:
    :show-inheritance:
