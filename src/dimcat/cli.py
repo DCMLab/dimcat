@@ -11,6 +11,7 @@ from ms3.cli import check_and_create, check_dir
 
 from .analyzer import ChordSymbolBigrams, ChordSymbolUnigrams
 from .data import Corpus
+from .grouper import CorpusGrouper, ModeGrouper, YearGrouper
 from .pipeline import Pipeline
 from .slicer import LocalKeySlicer, NoteSlicer
 from .writer import TSVwriter
@@ -78,6 +79,13 @@ def get_arg_parser():
         help="""Output directory.""",
     )
     input_args.add_argument(
+        "-g",
+        "--groupers",
+        metavar="{CorpusGrouper, YearGrouper, ModeGrouper}",
+        nargs="+",
+        help="""List of slicers to apply before analyzing.""",
+    )
+    input_args.add_argument(
         "-s",
         "--slicers",
         metavar="{NoteSlicer, LocalKeySlicer}",
@@ -125,11 +133,22 @@ The library offers you the following commands. Add the flag -h to one of them to
     return parser
 
 
-def apply_slicers(corpus, slicers):
-    if len(slicers) == 0:
+def apply_pipeline(corpus, slicers, groupers):
+    if slicers is None:
+        slicers = []
+    if groupers is None:
+        groupers = []
+    if len(slicers) == 0 and len(groupers) == 0:
         return corpus
     available_slicers = {"noteslicer": NoteSlicer(), "localkeyslicer": LocalKeySlicer()}
-    pipeline = Pipeline([available_slicers[sl.lower()] for sl in slicers])
+    available_groupers = {
+        "corpusgrouper": CorpusGrouper(),
+        "yeargrouper": YearGrouper(),
+        "modegrouper": ModeGrouper(),
+    }
+    steps = [available_slicers[sl.lower()] for sl in slicers]
+    steps += [available_groupers[gr.lower()] for gr in groupers]
+    pipeline = Pipeline(steps)
     return pipeline.process_data(corpus)
 
 
@@ -139,8 +158,8 @@ def main(args):
     if len(corpus.pieces) == 0:
         _logger.error(f"Didn't find anything to analyze here in {args.dir}")
         return
-    sliced = apply_slicers(corpus, args.slicers)
-    processed = args.func(sliced)
+    pre_processed = apply_pipeline(corpus, args.slicers, args.groupers)
+    processed = args.func(pre_processed)
     if args.out is not None:
         _ = TSVwriter(directory=args.out, suffix=args.func.__name__).process_data(
             processed
