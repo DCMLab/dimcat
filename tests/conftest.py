@@ -16,7 +16,10 @@ from dimcat.analyzer import (
     TPCrange,
 )
 from dimcat.data import Corpus
+from dimcat.grouper import CorpusGrouper, ModeGrouper, YearGrouper
+from dimcat.pipeline import Pipeline
 from dimcat.slicer import LocalKeySlicer, NoteSlicer
+from ms3 import pretty_dict
 
 # Directory holding your clones of DCMLab/unittest_metacorpus & DCMLab/pleyel_quartets
 CORPUS_DIR = "~"
@@ -47,7 +50,7 @@ def corpus_path(request):
         #        "TSV + scores"
     ],
 )
-def corpus(request, corpus_path):
+def corpus(corpus_path, request):
     obj, tsv, scores = request.param
     initialized_obj = obj(directory=corpus_path, parse_tsv=tsv, parse_scores=scores)
     print(
@@ -58,25 +61,41 @@ def corpus(request, corpus_path):
 
 
 @pytest.fixture(
-    scope="session",
-    params=[
-        TPCrange(),
-        PitchClassVectors(),
-        ChordSymbolUnigrams(),
-        ChordSymbolBigrams(),
-    ],
-    ids=["TPCrange", "PitchClassVectors", "ChordSymbolUnigrams", "ChordSymbolBigrams"],
+    params=[True, False],
+    ids=["concat_groups", ""],
 )
-def analyzer(request):
+def concat_groups(request):
     return request.param
 
 
 @pytest.fixture(
-    scope="session",
-    params=[NoteSlicer(), LocalKeySlicer()],
-    ids=["NoteSlicer", "LocalKeySlicer"],
+    params=[
+        TPCrange,
+        PitchClassVectors,
+        ChordSymbolUnigrams,
+        ChordSymbolBigrams,
+    ],
+    ids=["TPCrange", "PitchClassVectors", "ChordSymbolUnigrams", "ChordSymbolBigrams"],
 )
-def sliced_data(request, corpus):
+def analyzer(concat_groups, request):
+    return request.param(concat_groups=concat_groups)
+
+
+@pytest.fixture(
+    scope="session",
+    params=[
+        LocalKeySlicer(),
+        NoteSlicer(),
+    ],
+    ids=[
+        "LocalKeySlicer",
+        "NoteSlicer",
+    ],
+)
+def slicer(request, corpus):
+    global SLICING_COUNTER
+    SLICING_COUNTER += 1
+    print(f"calls on sliced_data: {SLICING_COUNTER}")
     sliced_data = request.param.process_data(corpus)
     print(f"\nBefore: {len(corpus.indices[()])}, after: {len(sliced_data.indices[()])}")
     assert len(sliced_data.sliced) > 0
@@ -84,3 +103,53 @@ def sliced_data(request, corpus):
     for group, index_group in corpus.indices.items():
         assert len(sliced_data.indices[group]) > len(index_group)
     return sliced_data
+
+
+@pytest.fixture(
+    scope="session",
+)
+def sliced_data(slicer):
+    return slicer
+
+
+@pytest.fixture(
+    scope="session",
+    params=[
+        CorpusGrouper(),
+        YearGrouper(),
+    ],
+    ids=["CorpusGrouper", "YearGrouper"],
+)
+def grouper(request, corpus):
+    grouped_data = request.param.process_data(corpus)
+    print(f"\n{pretty_dict(grouped_data.indices)}")
+    assert () not in grouped_data.indices
+    return grouped_data
+
+
+@pytest.fixture(
+    scope="session",
+)
+def grouped_data(grouper):
+    return grouper
+
+
+@pytest.fixture(
+    scope="session",
+    params=[
+        Pipeline([LocalKeySlicer(), ModeGrouper()]),
+    ],
+    ids=["ModeGrouper"],
+)
+def pipeline(request, corpus):
+    grouped_data = request.param.process_data(corpus)
+    print(f"\n{pretty_dict(grouped_data.indices)}")
+    assert () not in grouped_data.indices
+    return grouped_data
+
+
+@pytest.fixture(
+    scope="session",
+)
+def pipelined_data(pipeline):
+    return pipeline
