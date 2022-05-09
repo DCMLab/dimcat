@@ -25,7 +25,12 @@ def dict_of_series_result_to_dataframe(result, short_ids=False):
         if nlevels == 1:
             df.index.rename(level_names[0], inplace=True)
         else:
-            df.index.rename(level_names[:nlevels], inplace=True)
+            new_names = list(df.index.names)
+            for i, name in enumerate(level_names):
+                if i < nlevels:
+                    new_names[i] = name
+            df.index.rename(new_names, inplace=True)
+
     return df
 
 
