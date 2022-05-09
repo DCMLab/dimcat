@@ -11,6 +11,8 @@ from ms3.cli import check_and_create, check_dir
 
 from .analyzer import ChordSymbolBigrams, ChordSymbolUnigrams
 from .data import Corpus
+from .pipeline import Pipeline
+from .slicer import LocalKeySlicer, NoteSlicer
 from .writer import TSVwriter
 
 __author__ = "Digital and Cognitive Musicology Lab"
@@ -76,6 +78,13 @@ def get_arg_parser():
         help="""Output directory.""",
     )
     input_args.add_argument(
+        "-s",
+        "--slicers",
+        metavar="{NoteSlicer, LocalKeySlicer}",
+        nargs="+",
+        help="""List of slicers to apply before analyzing.""",
+    )
+    input_args.add_argument(
         "-l",
         "--loglevel",
         metavar="{c, e, w, i, d}",
@@ -116,13 +125,22 @@ The library offers you the following commands. Add the flag -h to one of them to
     return parser
 
 
+def apply_slicers(corpus, slicers):
+    if len(slicers) == 0:
+        return corpus
+    available_slicers = {"noteslicer": NoteSlicer(), "localkeyslicer": LocalKeySlicer()}
+    pipeline = Pipeline([available_slicers[sl.lower()] for sl in slicers])
+    return pipeline.process_data(corpus)
+
+
 def main(args):
     setup_logging(args.loglevel)
     corpus = Corpus(directory=args.dir)
     if len(corpus.pieces) == 0:
         _logger.error(f"Didn't find anything to analyze here in {args.dir}")
         return
-    processed = args.func(corpus)
+    sliced = apply_slicers(corpus, args.slicers)
+    processed = args.func(sliced)
     if args.out is not None:
         _ = TSVwriter(directory=args.out, suffix=args.func.__name__).process_data(
             processed
