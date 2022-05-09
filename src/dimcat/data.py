@@ -33,18 +33,24 @@ class Data(ABC):
         self.processed = {}
         """Subclasses store processed data here."""
 
+        self.applied_pipeline = []
+        """The sequence of applied PipelineSteps that has led to the current state."""
+
+        self.index_levels = {
+            "indices": ["corpus", "fname"],
+            "groups": [],
+            "slices": [],
+            "processed": [],
+        }
+        """Keeps track of index level names. Also used for automatic naming of output files."""
+
         self.sliced = {}
         """Dict for sliced data facets."""
 
         self.slice_info = {}
         """Dict holding metadata of slices (e.g. the localkey of a segment)."""
 
-        self.applied_groupers = []
-        """List keeping track of the applied groupers. Can be used for naming index levels or
-        generating file names."""
-
-        self.applied_slicers = []
-        """List keeping track of the applied slicers. Can be used for generating file names."""
+        self.group2pandas = "group2dataframe"
 
         if data is not None:
             self.data = data
@@ -100,13 +106,85 @@ class Data(ABC):
         for group in self.indices.items():
             yield group
 
-    def load_processed(self, processed):
-        """Store processed data."""
-        self.processed = processed
+    def load_result(
+        self,
+        pipeline_step,
+        processed_data=None,
+        processed_level_names=None,
+        indices=None,
+        group2pandas=None,
+        grouper=None,
+        slicer=None,
+    ):
+        """Store processed data and keep track of the applied pipeline_steps."""
+        self.applied_pipeline.append(pipeline_step)
+        if processed_data is not None:
+            self.processed = processed_data
+        if processed_level_names is not None:
+            if isinstance(processed_level_names, str):
+                processed_level_names = [processed_level_names]
+            self.index_levels["processed"] = processed_level_names
+        if indices is not None:
+            if isinstance(indices, str):
+                indices = [indices]
+            self.index_levels["indices"] = indices
+        if group2pandas is not None:
+            self.group2pandas = group2pandas
+        if grouper is not None:
+            self.index_levels["groups"].append(grouper)
+        if slicer is not None:
+            self.index_levels["slices"].append(slicer)
 
     @abstractmethod
     def load(self):
         """Load data into memory."""
+
+    def group_of_values2series(self, group_dict):
+        """Turns an {ix -> result} into a Series or DataFrame."""
+        series = pd.Series(group_dict, name=self.index_levels["processed"][0])
+        index_level_names = self.index_levels["indices"]
+        try:
+            if series.index.nlevels == 1:
+                index_level_names = index_level_names[0]
+            series.index.rename(index_level_names, inplace=True)
+        except (TypeError, ValueError):
+            print(series.index)
+            print(f"current: {series.index.names}, new: {index_level_names}")
+            print(self.index_levels)
+            raise
+        return series
+
+    def group_of_series2series(self, group_dict):
+        """Turns an {ix -> result} into a Series or DataFrame."""
+        series = pd.concat(group_dict.values(), keys=group_dict.keys())
+        index_level_names = (
+            self.index_levels["indices"] + self.index_levels["processed"]
+        )
+        try:
+            series.index.rename(index_level_names, inplace=True)
+        except (TypeError, ValueError):
+            print(series.index)
+            print(f"current: {series.index.names}, new: {index_level_names}")
+            print(self.index_levels)
+            raise
+        return series
+
+    def group2dataframe(self, group_dict):
+        df = pd.concat(group_dict.values(), keys=group_dict.keys())
+        index_level_names = (
+            self.index_levels["indices"] + self.index_levels["processed"]
+        )
+        try:
+            df.index.rename(index_level_names, inplace=True)
+        except (TypeError, ValueError):
+            print(df.index)
+            print(f"current: {df.index.names}, new: {index_level_names}")
+            print(self.index_levels)
+            raise
+        return df
+
+    def group2dataframe_unstacked(self, group_dict):
+        return self.group2dataframe(group_dict).unstack()
 
 
 def remove_corpus_from_ids(result):
@@ -173,8 +251,9 @@ class Corpus(Data):
         self.processed = dict(data_object.processed)
         self.sliced = dict(data_object.sliced)
         self.slice_info = dict(data_object.slice_info)
-        self.applied_groupers = list(data_object.applied_groupers)
-        self.applied_slicers = list(data_object.applied_slicers)
+        self.applied_pipeline = list(self.applied_pipeline)
+        self.index_levels = dict(data_object.index_levels)
+        self.group2pandas = data_object.group2pandas
 
     def get(self, as_pandas=False):
         if len(self.processed) == 0:
@@ -186,42 +265,23 @@ class Corpus(Data):
                 results = pd.concat(results.values())
             else:
                 results = pd.concat(results.values(), keys=results.keys())
-            n_applied_groupers = len(self.applied_groupers)
-            if n_applied_groupers > 0:
-                results.index.set_names(
-                    self.applied_groupers,
-                    level=list(range(n_applied_groupers)),
-                    inplace=True,
-                )
         return results
 
-    def _result_to_pandas(self, result, short_ids=False):
-        """Turns an {ix -> result} into a Series or DataFrame."""
-        key = list(result.keys())[0]
-        if len(result) == 1 and not isinstance(key[0], str):
-            series = pd.Series(result.values(), index=[key])
-            name = "fnames" if short_ids else "IDs"
-            series.index.rename(name, inplace=True)
-        else:
-            series = pd.Series(result)
-            nlevels = series.index.nlevels
-            level_names = (
-                ["fname", "interval"] if short_ids else ["corpus", "fname", "interval"]
-            )
-            if nlevels == 1:
-                series.index.rename(level_names[0], inplace=True)
-            else:
-                series.index.rename(level_names[:nlevels], inplace=True)
-        return series
+    def convert_group2pandas(self, result_dict):
+        converters = {
+            "group_of_values2series": self.group_of_values2series,
+            "group_of_series2series": self.group_of_series2series,
+            "group2dataframe": self.group2dataframe,
+            "group2dataframe_unstacked": self.group2dataframe_unstacked,
+        }
+        converter = converters[self.group2pandas]
+        return converter(result_dict)
 
     def iter(self, as_pandas=False):
         """Iterate through processed data."""
-        short_ids = "CorpusGrouper" in self.applied_groupers
         for group, result in self.processed.items():
-            if short_ids:
-                result = remove_corpus_from_ids(result)
             if as_pandas:
-                yield group, self._result_to_pandas(result, short_ids=short_ids)
+                yield group, self.convert_group2pandas(result)
             else:
                 yield group, result
 
@@ -314,16 +374,14 @@ class Corpus(Data):
             If concatenate=True: DataFrame with MultiIndex identifying ID, and (eventual) interval.
         """
         for group, index_group in self.iter_groups():
-            result = {
-                index: self.get_item(index, what, unfold) for index in index_group
-            }
+            result = {}
+            for index in index_group:
+                df = self.get_item(index, what, unfold)
+                if df.shape[0] == 0:
+                    continue
+                result[index] = df
             if concatenate:
-                index_level_names = ("corpus", "fname")
-                if any(len(ix) == 3 for ix in index_group):
-                    index_level_names = index_level_names + ("slice",)
-                result = pd.concat(
-                    result.values(), keys=result.keys(), names=index_level_names
-                )
+                result = pd.concat(result.values(), keys=result.keys())
                 result = {tuple(index_group): result}
             yield group, result
 

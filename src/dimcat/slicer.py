@@ -55,6 +55,7 @@ class NoteSlicer(Slicer):
                     slice_info[slice_index] = slice.iloc[0].copy()
             indices[group] = new_index_group
         result = data.copy()
+        result.load_result(self, indices=["corpus", "fname", "slice"])
         result.sliced["notes"] = sliced
         result.slice_info["notes"] = slice_info
         result.indices = indices
@@ -89,6 +90,7 @@ class LocalKeySlicer(Slicer):
                     sliced[slice_index] = expanded[selector]
             indices[group] = new_index_group
         result = data.copy()
+        result.load_result(self, indices=["corpus", "fname", "slice"])
         result.sliced["expanded"] = sliced
         result.slice_info["expanded"] = slice_info
         result.indices = indices

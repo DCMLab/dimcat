@@ -9,36 +9,6 @@ from .pipeline import PipelineStep
 from .utils import grams
 
 
-def dict_of_series_result_to_dataframe(result, short_ids=False):
-    key = list(result.keys())[0]
-    if len(result) == 1 and not isinstance(key[0], str):
-        df = pd.DataFrame(result[key]).T
-        df.index = [key]
-        name = "fnames" if short_ids else "IDs"
-        df.index.rename(name, inplace=True)
-    else:
-        df = pd.concat(result.values(), keys=result.keys()).unstack()
-        nlevels = df.index.nlevels
-        level_names = (
-            ["fname", "interval"] if short_ids else ["corpus", "fname", "interval"]
-        )
-        if nlevels == 1:
-            df.index.rename(level_names[0], inplace=True)
-        else:
-            new_names = list(df.index.names)
-            for i, name in enumerate(level_names):
-                if i < nlevels:
-                    new_names[i] = name
-            df.index.rename(new_names, inplace=True)
-
-    return df
-
-
-def dict_of_series_result_to_series(result, short_ids=False):
-    df = dict_of_series_result_to_dataframe(result, short_ids=short_ids)
-    return df.stack()
-
-
 class FacetAnalyzer(PipelineStep, ABC):
     """Analyzers that work on one particular type of DataFrames."""
 
@@ -54,6 +24,8 @@ class FacetAnalyzer(PipelineStep, ABC):
         self.required_facets = []
         self.concat_groups = concat_groups
         self.config = {}
+        self.group2pandas = None
+        self.level_names = {"indices": "IDs"} if concat_groups else {}
 
     @abstractmethod
     def compute(self, df):
@@ -65,10 +37,19 @@ class FacetAnalyzer(PipelineStep, ABC):
             self.required_facets[0], concatenate=self.concat_groups
         ):
             processed[group] = {
-                ID: self.compute(df, **self.config) for ID, df in dfs.items()
+                "group_ids"
+                if self.concat_groups
+                else ID: self.compute(df, **self.config)
+                for ID, df in dfs.items()
             }
         result = data.copy()
-        result.load_processed(processed)
+        print(f"Storing result of {self} with level_names {self.level_names}")
+        result.load_result(
+            self,
+            processed_data=processed,
+            group2pandas=None,
+            **self.level_names,
+        )
         return result
 
 
@@ -82,9 +63,8 @@ class NotesAnalyzer(FacetAnalyzer):
             By default, computes one result per group.
             Set to False to instead compute one result per group item.
         """
+        super().__init__(concat_groups=concat_groups)
         self.required_facets = ["notes"]
-        self.concat_groups = concat_groups
-        self.config = {}
 
 
 class ChordSymbolAnalyzer(FacetAnalyzer):
@@ -97,13 +77,17 @@ class ChordSymbolAnalyzer(FacetAnalyzer):
             By default, computes one result per group.
             Set to False to instead compute one result per group item.
         """
+        super().__init__(concat_groups=concat_groups)
         self.required_facets = ["expanded"]
-        self.concat_groups = concat_groups
-        self.config = {}
 
 
 class TPCrange(NotesAnalyzer):
     """Computes the range from the minimum to the maximum Tonal Pitch Class (TPC)."""
+
+    def __init__(self, concat_groups=False):
+        super().__init__(concat_groups=concat_groups)
+        self.level_names["processed_level_names"] = "tpc_range"
+        self.group2pandas = "group_of_values2series"
 
     @staticmethod
     def compute(df):
@@ -144,6 +128,8 @@ class PitchClassVectors(NotesAnalyzer):
         """
         super().__init__(concat_groups=concat_groups)
         self.config = dict(pitch_class_format=pitch_class_format, normalize=normalize)
+        self.level_names["processed_level_names"] = pitch_class_format
+        self.group2pandas = "group2dataframe_unstacked"
 
     @staticmethod
     def compute(
@@ -205,36 +191,30 @@ class PitchClassVectors(NotesAnalyzer):
                 pcvs = pd.concat([pcvs, new_values]).sort_index()
         return pcvs
 
-    def process_data(self, data: Data) -> Data:
-        result = super().process_data(data)
-        result._result_to_pandas = dict_of_series_result_to_dataframe
-        return result
-
 
 class ChordSymbolUnigrams(ChordSymbolAnalyzer):
+    def __init__(self, concat_groups=False):
+        super().__init__(concat_groups=concat_groups)
+        self.level_names["processed_level_names"] = "chord"
+
     @staticmethod
     def compute(df):
         if len(df) == 0:
             return pd.Series()
-        return df.chord.value_counts()
-
-    def process_data(self, data: Data) -> Data:
-        result = super().process_data(data)
-        result._result_to_pandas = dict_of_series_result_to_series
-        return result
+        return df.chord.value_counts().rename("count")
 
 
 class ChordSymbolBigrams(ChordSymbolAnalyzer):
+    def __init__(self, concat_groups=False):
+        super().__init__(concat_groups=concat_groups)
+        self.level_names["processed_level_names"] = ["from", "to"]
+        self.group2pandas = "group_of_series2series"
+
     @staticmethod
     def compute(df):
         if len(df) == 0:
             return pd.Series()
         bigrams = grams(df.chord.values, n=2)
         df = pd.DataFrame(bigrams)
-        counts = df.groupby([0, 1]).size().sort_values(ascending=False)
+        counts = df.groupby([0, 1]).size().sort_values(ascending=False).rename("count")
         return counts
-
-    def process_data(self, data: Data) -> Data:
-        result = super().process_data(data)
-        result._result_to_pandas = dict_of_series_result_to_series
-        return result
