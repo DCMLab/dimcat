@@ -22,4 +22,5 @@ from .analyzer import (
     TPCrange,
 )
 from .data import Corpus
+from .slicer import LocalKeySlicer, NoteSlicer
 from .writer import TSVwriter

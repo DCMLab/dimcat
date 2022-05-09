@@ -2,6 +2,11 @@
 Changelog
 =========
 
+Version 0.1.1
+=============
+
+* adds NoteSlicer and LocalKeySlicer
+
 Version 0.1
 ===========
 

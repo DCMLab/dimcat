@@ -16,6 +16,7 @@ from dimcat.analyzer import (
     TPCrange,
 )
 from dimcat.data import Corpus
+from dimcat.slicer import LocalKeySlicer, NoteSlicer
 
 # Directory holding your clones of DCMLab/unittest_metacorpus & DCMLab/pleyel_quartets
 CORPUS_DIR = "~"
@@ -68,3 +69,18 @@ def corpus(request, corpus_path):
 )
 def analyzer(request):
     return request.param
+
+
+@pytest.fixture(
+    scope="session",
+    params=[NoteSlicer(), LocalKeySlicer()],
+    ids=["NoteSlicer", "LocalKeySlicer"],
+)
+def sliced_data(request, corpus):
+    sliced_data = request.param.process_data(corpus)
+    print(f"\nBefore: {len(corpus.indices[()])}, after: {len(sliced_data.indices[()])}")
+    assert len(sliced_data.sliced) > 0
+    assert len(sliced_data.slice_info) > 0
+    for group, index_group in corpus.indices.items():
+        assert len(sliced_data.indices[group]) > len(index_group)
+    return sliced_data
