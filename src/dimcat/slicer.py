@@ -55,7 +55,7 @@ class NoteSlicer(Slicer):
                     slice_info[slice_index] = slice.iloc[0].copy()
             indices[group] = new_index_group
         result = data.copy()
-        result.load_result(self, indices=["corpus", "fname", "slice"])
+        result.track_pipeline(self, indices=["corpus", "fname", "slice"])
         result.sliced["notes"] = sliced
         result.slice_info["notes"] = slice_info
         result.indices = indices
@@ -81,7 +81,11 @@ class LocalKeySlicer(Slicer):
             for index, expanded in dfs.items():
                 if len(expanded) == 0:
                     continue
-                segmented = segment_by_adjacency_groups(expanded, "localkey")
+                try:
+                    segmented = segment_by_adjacency_groups(expanded, "localkey")
+                except AssertionError:
+                    print(f"INDEX: {expanded.index}")
+                    raise
                 for (interval, _), row in segmented.iterrows():
                     slice_index = index + (interval,)
                     new_index_group.append(slice_index)
@@ -90,7 +94,7 @@ class LocalKeySlicer(Slicer):
                     sliced[slice_index] = expanded[selector]
             indices[group] = new_index_group
         result = data.copy()
-        result.load_result(self, indices=["corpus", "fname", "slice"])
+        result.track_pipeline(self, indices=["corpus", "fname", "slice"])
         result.sliced["expanded"] = sliced
         result.slice_info["expanded"] = slice_info
         result.indices = indices

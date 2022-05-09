@@ -106,24 +106,21 @@ class Data(ABC):
         for group in self.indices.items():
             yield group
 
-    def load_result(
+    def track_pipeline(
         self,
         pipeline_step,
-        processed_data=None,
-        processed_level_names=None,
-        indices=None,
         group2pandas=None,
+        indices=None,
+        processed=None,
         grouper=None,
         slicer=None,
     ):
         """Store processed data and keep track of the applied pipeline_steps."""
         self.applied_pipeline.append(pipeline_step)
-        if processed_data is not None:
-            self.processed = processed_data
-        if processed_level_names is not None:
-            if isinstance(processed_level_names, str):
-                processed_level_names = [processed_level_names]
-            self.index_levels["processed"] = processed_level_names
+        if processed is not None:
+            if isinstance(processed, str):
+                processed = [processed]
+            self.index_levels["processed"] = processed
         if indices is not None:
             if isinstance(indices, str):
                 indices = [indices]
@@ -131,7 +128,7 @@ class Data(ABC):
         if group2pandas is not None:
             self.group2pandas = group2pandas
         if grouper is not None:
-            self.index_levels["groups"].append(grouper)
+            self.index_levels["groups"] = self.index_levels["groups"] + [grouper]
         if slicer is not None:
             self.index_levels["slices"].append(slicer)
 
@@ -170,7 +167,11 @@ class Data(ABC):
         return series
 
     def group2dataframe(self, group_dict):
-        df = pd.concat(group_dict.values(), keys=group_dict.keys())
+        try:
+            df = pd.concat(group_dict.values(), keys=group_dict.keys())
+        except TypeError:
+            print(group_dict)
+            raise
         index_level_names = (
             self.index_levels["indices"] + self.index_levels["processed"]
         )
@@ -264,7 +265,16 @@ class Corpus(Data):
             if len(results) == 1 and () in results:
                 results = pd.concat(results.values())
             else:
-                results = pd.concat(results.values(), keys=results.keys())
+                try:
+                    results = pd.concat(
+                        results.values(),
+                        keys=results.keys(),
+                        names=self.index_levels["groups"],
+                    )
+                except ValueError:
+                    print(self.index_levels["groups"])
+                    print(results.keys())
+                    raise
         return results
 
     def convert_group2pandas(self, result_dict):
@@ -381,8 +391,18 @@ class Corpus(Data):
                     continue
                 result[index] = df
             if concatenate:
-                result = pd.concat(result.values(), keys=result.keys())
-                result = {tuple(index_group): result}
+                if len(result) == 1:
+                    # workaround necessary because of nasty "cannot handle overlapping indices;
+                    # use IntervalIndex.get_indexer_non_unique" error
+                    for id, df in result.items():
+                        pass
+                    new_index = [id + (i,) for i in df.index]
+                    new_index = pd.MultiIndex.from_tuples(new_index)
+                    df.index = new_index
+                else:
+                    result = pd.concat(result.values(), keys=result.keys())
+                    result = {tuple(index_group): result}
+
             yield group, result
 
     def get_item(self, index, what, unfold=False, multiindex=False):

@@ -43,13 +43,8 @@ class FacetAnalyzer(PipelineStep, ABC):
                 for ID, df in dfs.items()
             }
         result = data.copy()
-        print(f"Storing result of {self} with level_names {self.level_names}")
-        result.load_result(
-            self,
-            processed_data=processed,
-            group2pandas=None,
-            **self.level_names,
-        )
+        result.track_pipeline(self, group2pandas=self.group2pandas, **self.level_names)
+        result.processed = processed
         return result
 
 
@@ -86,7 +81,7 @@ class TPCrange(NotesAnalyzer):
 
     def __init__(self, concat_groups=False):
         super().__init__(concat_groups=concat_groups)
-        self.level_names["processed_level_names"] = "tpc_range"
+        self.level_names["processed"] = "tpc_range"
         self.group2pandas = "group_of_values2series"
 
     @staticmethod
@@ -128,7 +123,7 @@ class PitchClassVectors(NotesAnalyzer):
         """
         super().__init__(concat_groups=concat_groups)
         self.config = dict(pitch_class_format=pitch_class_format, normalize=normalize)
-        self.level_names["processed_level_names"] = pitch_class_format
+        self.level_names["processed"] = pitch_class_format
         self.group2pandas = "group2dataframe_unstacked"
 
     @staticmethod
@@ -195,7 +190,7 @@ class PitchClassVectors(NotesAnalyzer):
 class ChordSymbolUnigrams(ChordSymbolAnalyzer):
     def __init__(self, concat_groups=False):
         super().__init__(concat_groups=concat_groups)
-        self.level_names["processed_level_names"] = "chord"
+        self.level_names["processed"] = "chord"
 
     @staticmethod
     def compute(df):
@@ -207,7 +202,7 @@ class ChordSymbolUnigrams(ChordSymbolAnalyzer):
 class ChordSymbolBigrams(ChordSymbolAnalyzer):
     def __init__(self, concat_groups=False):
         super().__init__(concat_groups=concat_groups)
-        self.level_names["processed_level_names"] = ["from", "to"]
+        self.level_names["processed"] = ["from", "to"]
         self.group2pandas = "group_of_series2series"
 
     @staticmethod
