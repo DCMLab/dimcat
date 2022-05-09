@@ -1,5 +1,6 @@
 """Class hierarchy for data types."""
 from abc import ABC, abstractmethod
+from typing import List
 
 import pandas as pd
 from ms3 import Parse
@@ -297,7 +298,7 @@ class Corpus(Data):
 
     def load(
         self,
-        directory: str = None,
+        directory: List[str] = None,
         parse_tsv: bool = True,
         parse_scores: bool = False,
         ms: str = None,
@@ -327,9 +328,12 @@ class Corpus(Data):
         if ms is not None:
             self.data.ms = ms
         if directory is not None:
-            self.data.add_dir(
-                directory=directory,
-            )
+            if isinstance(directory, str):
+                directory = [directory]
+            for d in directory:
+                self.data.add_dir(
+                    directory=d,
+                )
         if parse_tsv:
             self.data.parse_tsv()
         if parse_scores:
