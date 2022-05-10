@@ -22,6 +22,7 @@ from .analyzer import (
     TPCrange,
 )
 from .data import Corpus
+from .filter import IsAnnotatedFilter
 from .grouper import CorpusGrouper, ModeGrouper, PieceGrouper, YearGrouper
 from .pipeline import Pipeline
 from .slicer import LocalKeySlicer, NoteSlicer

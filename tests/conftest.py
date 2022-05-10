@@ -16,6 +16,7 @@ from dimcat.analyzer import (
     TPCrange,
 )
 from dimcat.data import Corpus
+from dimcat.filter import IsAnnotatedFilter
 from dimcat.grouper import CorpusGrouper, ModeGrouper, PieceGrouper, YearGrouper
 from dimcat.pipeline import Pipeline
 from dimcat.slicer import LocalKeySlicer, NoteSlicer
@@ -62,13 +63,12 @@ def all_corpora_path():
         #        "TSV + scores"
     ],
 )
-def corpus(all_corpora_path, request):
+def corpus(small_corpora_path, request):
+    path = small_corpora_path
     obj, tsv, scores = request.param
-    initialized_obj = obj(
-        directory=all_corpora_path, parse_tsv=tsv, parse_scores=scores
-    )
+    initialized_obj = obj(directory=path, parse_tsv=tsv, parse_scores=scores)
     print(
-        f"\nInitialized {type(initialized_obj).__name__}(directory='{all_corpora_path}', "
+        f"\nInitialized {type(initialized_obj).__name__}(directory='{path}', "
         f"parse_tsv={tsv}, parse_scores={scores})"
     )
     return initialized_obj
@@ -151,14 +151,14 @@ def grouped_data(grouper):
 @pytest.fixture(
     scope="session",
     params=[
+        Pipeline([IsAnnotatedFilter()]),
         Pipeline([LocalKeySlicer(), ModeGrouper()]),
     ],
-    ids=["ModeGrouper"],
+    ids=["IsAnnotatedFilter", "ModeGrouper"],
 )
 def pipeline(request, corpus):
     grouped_data = request.param.process_data(corpus)
     print(f"\n{pretty_dict(grouped_data.indices)}")
-    assert () not in grouped_data.indices
     return grouped_data
 
 
@@ -167,3 +167,16 @@ def pipeline(request, corpus):
 )
 def pipelined_data(pipeline):
     return pipeline
+
+
+@pytest.fixture(
+    scope="session",
+    params=[
+        IsAnnotatedFilter(),
+    ],
+    ids=["IsAnnotatedFilter"],
+)
+def filter(request, corpus):
+    filtered_data = request.param.process_data(corpus)
+    print(f"\n{pretty_dict(filtered_data.indices)}")
+    return filtered_data

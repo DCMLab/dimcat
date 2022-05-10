@@ -29,6 +29,4 @@ def test_analyzing_groups(analyzer, grouped_data):
 
 def test_analyzing_pipelines(analyzer, pipelined_data):
     data = analyzer.process_data(pipelined_data)
-    assert () not in data.indices
-    assert len(data.index_levels["groups"]) > 0
     print(f"{data.get(as_pandas=True)}")
