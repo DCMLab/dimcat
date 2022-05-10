@@ -27,13 +27,25 @@ CORPUS_DIR = "~"
 
 @pytest.fixture(
     scope="session",
-    params=["pleyel_quartets", "unittest_metacorpus"],
-    ids=["single", "multiple"],
+    params=[
+        "pleyel_quartets",
+        "unittest_metacorpus",
+    ],
+    ids=[
+        "single",
+        "multiple",
+    ],
 )
-def corpus_path(request):
+def small_corpora_path(request):
     """Compose the paths for the test corpora."""
     print("Path was requested")
     path = os.path.join(CORPUS_DIR, request.param)
+    return path
+
+
+@pytest.fixture(scope="session")
+def all_corpora_path():
+    path = os.path.join(CORPUS_DIR, "all_subcorpora")
     return path
 
 
@@ -50,11 +62,13 @@ def corpus_path(request):
         #        "TSV + scores"
     ],
 )
-def corpus(corpus_path, request):
+def corpus(all_corpora_path, request):
     obj, tsv, scores = request.param
-    initialized_obj = obj(directory=corpus_path, parse_tsv=tsv, parse_scores=scores)
+    initialized_obj = obj(
+        directory=all_corpora_path, parse_tsv=tsv, parse_scores=scores
+    )
     print(
-        f"\nInitialized {type(initialized_obj).__name__}(directory='{corpus_path}', "
+        f"\nInitialized {type(initialized_obj).__name__}(directory='{all_corpora_path}', "
         f"parse_tsv={tsv}, parse_scores={scores})"
     )
     return initialized_obj
