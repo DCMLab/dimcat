@@ -118,7 +118,18 @@ class Data(ABC):
         grouper=None,
         slicer=None,
     ):
-        """Store processed data and keep track of the applied pipeline_steps."""
+        """Keep track of the applied pipeline_steps and update index level names and group2pandas
+        conversion method.
+
+        Parameters
+        ----------
+        pipeline_step : :obj:`PipelineStep`
+        group2pandas : :obj:`str`, bool
+        indices : :obj:`str`, bool
+        processed : :obj:`str`, bool
+        grouper : :obj:`str`, bool
+        slicer : :obj:`str`, bool
+        """
         self.applied_pipeline.append(pipeline_step)
         if processed is not None:
             if isinstance(processed, str):
@@ -392,19 +403,22 @@ class Corpus(Data):
         """
         for group, index_group in self.iter_groups():
             result = {}
-            missing_df = False
+            missing_id = []
             for index in index_group:
                 df = self.get_item(index, what, unfold)
                 if df.shape[0] == 0:
-                    missing_df = True
+                    missing_id.append(index)
                     continue
                 result[index] = df
             n_results = len(result)
-            if missing_df:
+            if len(missing_id) > 0:
                 if n_results == 0:
                     print(f"No '{what}' available for {group}.")
                 else:
-                    print(f"Couldn't find '{what}' for all indices in group {group}.")
+                    print(
+                        f"Group {group} is missing '{what}' for the following indices:\n"
+                        f"{missing_id}"
+                    )
             if n_results == 0:
                 continue
             if concatenate:
