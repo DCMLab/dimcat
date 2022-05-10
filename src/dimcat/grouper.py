@@ -1,9 +1,10 @@
 """A Grouper is a PipelineStep that groups rows of the Data together into subsets."""
-from abc import ABC
+from abc import ABC, abstractmethod
 from collections import defaultdict
 
 from .data import Data
 from .pipeline import PipelineStep
+from .utils import get_composition_year
 
 
 class Grouper(PipelineStep, ABC):
@@ -16,6 +17,36 @@ class Grouper(PipelineStep, ABC):
     ``{(*old_groups, new_group) -> [(id)]}``.
     """
 
+    def __init__(self, sort=True):
+        """Groups indices together that belong to the same corpus."""
+        self.sort = sort
+        self.level_names = {}
+
+    @abstractmethod
+    def criterion(self, index: tuple, data: Data) -> str:
+        """"""
+
+    def process_data(self, data: Data) -> Data:
+        indices = {}
+        for group, index_group in data.iter_groups():
+            grouped = defaultdict(list)
+            for index in index_group:
+                new_group = self.criterion(index, data)
+                if new_group is None:
+                    continue
+                grouped[new_group].append(index)
+            for new_group, ids in grouped.items():
+                indices[(new_group,) + group] = ids
+        if self.sort:
+            indices = {key: indices[key] for key in sorted(indices.keys())}
+        result = data.copy()
+        result.track_pipeline(
+            self,
+            **self.level_names,
+        )
+        result.indices = indices
+        return result
+
 
 class CorpusGrouper(Grouper):
     """Groups indices that belong to the same corpus."""
@@ -23,24 +54,10 @@ class CorpusGrouper(Grouper):
     def __init__(self, sort=True):
         """Groups indices together that belong to the same corpus."""
         self.sort = sort
+        self.level_names = dict(grouper="corpus")
 
-    def process_data(self, data: Data) -> Data:
-        indices = {}
-        for group, index_group in data.iter_groups():
-            grouped = defaultdict(list)
-            for index in index_group:
-                grouped[index[0]].append(index)
-            for corpus, ids in grouped.items():
-                indices[group + (corpus,)] = ids
-        if self.sort:
-            indices = {key: indices[key] for key in sorted(indices.keys())}
-        result = data.copy()
-        result.track_pipeline(
-            self,
-            grouper="corpus",
-        )
-        result.indices = indices
-        return result
+    def criterion(self, index: tuple, data: Data) -> str:
+        return index[0]
 
 
 class PieceGrouper(Grouper):
@@ -49,38 +66,10 @@ class PieceGrouper(Grouper):
     def __init__(self, sort=True):
         """Groups indices together that belong to the same corpus."""
         self.sort = sort
+        self.level_names = dict(grouper="fname")
 
-    def process_data(self, data: Data) -> Data:
-        indices = {}
-        for group, index_group in data.iter_groups():
-            grouped = defaultdict(list)
-            for index in index_group:
-                grouped[index[1]].append(index)
-            for piece, ids in grouped.items():
-                indices[group + (piece,)] = ids
-        if self.sort:
-            indices = {key: indices[key] for key in sorted(indices.keys())}
-        result = data.copy()
-        result.track_pipeline(
-            self,
-            grouper="fname",
-        )
-        result.indices = indices
-        return result
-
-
-def get_composition_year(metadata_dict):
-    start = (
-        metadata_dict["composed_start"] if "composed_start" in metadata_dict else None
-    )
-    end = metadata_dict["composed_end"] if "composed_end" in metadata_dict else None
-    if start is None and end is None:
-        raise "Metadata do not include composition dates."
-    if start is None:
-        return end
-    if end is None:
-        return start
-    return round((end + start) / 2, ndigits=1)
+    def criterion(self, index: tuple, data: Data) -> str:
+        return index[1]
 
 
 class YearGrouper(Grouper):
@@ -89,30 +78,21 @@ class YearGrouper(Grouper):
     def __init__(self, sort=True):
         """Groups indices together based on the composition year indicated in the metadata."""
         self.sort = sort
+        self.level_names = dict(grouper="year")
+        self.year_cache = {}
+
+    def criterion(self, index: tuple, data: Data) -> str:
+        ix = index[:2]
+        if ix in self.year_cache:
+            return self.year_cache[ix]
+        metadata_dict = data.pieces[ix]["metadata"]
+        year = get_composition_year(metadata_dict)
+        self.year_cache[ix] = year
+        return year
 
     def process_data(self, data: Data) -> Data:
-        indices = {}
-        years = {}
-        for group, index_group in data.iter_groups():
-            grouped = defaultdict(list)
-            for index in index_group:
-                ix = index[:2]
-                if ix in years:
-                    year = years[ix]
-                else:
-                    year = get_composition_year(data.pieces[ix]["metadata"])
-                    years[ix] = year
-                grouped[year].append(index)
-            for year, ids in grouped.items():
-                indices[group + (year,)] = ids
-        if self.sort:
-            indices = {key: indices[key] for key in sorted(indices.keys())}
-        result = data.copy()
-        result.track_pipeline(
-            self,
-            grouper="year",
-        )
-        result.indices = indices
+        result = super().process_data(data=data)
+        self.year_cache = {}
         return result
 
 
@@ -120,23 +100,21 @@ class ModeGrouper(Grouper):
     """Groups indices based on the mode of a given segment. Requires previous application of
     LocalKeySlicer."""
 
+    def __init__(self, sort=True):
+        """Groups indices together that belong to the same corpus."""
+        self.sort = sort
+        self.level_names = dict(grouper="localkey_is_minor")
+
+    def criterion(self, index: tuple, data: Data) -> str:
+        slice_info = data.slice_info["expanded"][index]
+        try:
+            return slice_info["localkey_is_minor"]
+        except KeyError:
+            print(f"Information on localkey not present in the slice_info of {index}:")
+            print(slice_info)
+
     def process_data(self, data: Data) -> Data:
         assert "expanded" in data.slice_info, (
             "Couldn't find slice_info. " "Have you applied LocalKeySlicer() before?"
         )
-        indices = {}
-        for group, index_group in data.iter_groups():
-            grouped = defaultdict(list)
-            for index in index_group:
-                slice_info = data.slice_info["expanded"][index]
-                mode = slice_info["localkey_is_minor"]
-                grouped[mode].append(index)
-            for mode, ids in grouped.items():
-                indices[group + (mode,)] = ids
-        result = data.copy()
-        result.track_pipeline(
-            self,
-            grouper="is_minor",
-        )
-        result.indices = indices
-        return result
+        return super().process_data(data)

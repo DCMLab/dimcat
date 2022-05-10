@@ -36,3 +36,17 @@ def grams(list_of_sequences, n=2):
         ngrams = list(zip(*(list_of_sequences[i:] for i in range(n))))
         # convert to tuple of strings
         return [tuple(str(g) for g in gram) for gram in ngrams]
+
+
+def get_composition_year(metadata_dict):
+    start = (
+        metadata_dict["composed_start"] if "composed_start" in metadata_dict else None
+    )
+    end = metadata_dict["composed_end"] if "composed_end" in metadata_dict else None
+    if start is None and end is None:
+        raise "Metadata do not include composition dates."
+    if start is None:
+        return end
+    if end is None:
+        return start
+    return round((end + start) / 2, ndigits=1)
