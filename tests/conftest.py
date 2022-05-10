@@ -16,7 +16,7 @@ from dimcat.analyzer import (
     TPCrange,
 )
 from dimcat.data import Corpus
-from dimcat.grouper import CorpusGrouper, ModeGrouper, YearGrouper
+from dimcat.grouper import CorpusGrouper, ModeGrouper, PieceGrouper, YearGrouper
 from dimcat.pipeline import Pipeline
 from dimcat.slicer import LocalKeySlicer, NoteSlicer
 from ms3 import pretty_dict
@@ -116,14 +116,17 @@ def sliced_data(slicer):
     scope="session",
     params=[
         CorpusGrouper(),
+        PieceGrouper(),
         YearGrouper(),
     ],
-    ids=["CorpusGrouper", "YearGrouper"],
+    ids=["CorpusGrouper", "PieceGrouper", "YearGrouper"],
 )
 def grouper(request, corpus):
     grouped_data = request.param.process_data(corpus)
     print(f"\n{pretty_dict(grouped_data.indices)}")
     assert () not in grouped_data.indices
+    lengths = [len(index_list) for index_list in grouped_data.indices.values()]
+    assert 0 not in lengths, "Grouper has created empty groups."
     return grouped_data
 
 

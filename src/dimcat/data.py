@@ -104,6 +104,8 @@ class Data(ABC):
         """
         if len(self.indices) == 0:
             raise ValueError("No data has been loaded.")
+        if any(len(index_list) == 0 for index_list in self.indices.values()):
+            print("Data object contains empty groups.")
         for group in self.indices.items():
             yield group
 
@@ -170,7 +172,7 @@ class Data(ABC):
     def group2dataframe(self, group_dict):
         try:
             df = pd.concat(group_dict.values(), keys=group_dict.keys())
-        except TypeError:
+        except (TypeError, ValueError):
             print(group_dict)
             raise
         index_level_names = (
@@ -389,13 +391,23 @@ class Corpus(Data):
         """
         for group, index_group in self.iter_groups():
             result = {}
+            missing_df = False
             for index in index_group:
                 df = self.get_item(index, what, unfold)
                 if df.shape[0] == 0:
+                    missing_df = True
                     continue
                 result[index] = df
+            n_results = len(result)
+            if missing_df:
+                if n_results == 0:
+                    print(f"No '{what}' available for {group}.")
+                else:
+                    print(f"Couldn't find '{what}' for all indices in group {group}.")
+            if n_results == 0:
+                continue
             if concatenate:
-                if len(result) == 1:
+                if n_results == 1:
                     # workaround necessary because of nasty "cannot handle overlapping indices;
                     # use IntervalIndex.get_indexer_non_unique" error
                     for id, df in result.items():

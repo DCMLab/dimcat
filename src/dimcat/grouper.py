@@ -29,7 +29,7 @@ class CorpusGrouper(Grouper):
         for group, index_group in data.iter_groups():
             grouped = defaultdict(list)
             for index in index_group:
-                grouped[index[0]].append(index[:2])
+                grouped[index[0]].append(index)
             for corpus, ids in grouped.items():
                 indices[group + (corpus,)] = ids
         if self.sort:
@@ -38,6 +38,32 @@ class CorpusGrouper(Grouper):
         result.track_pipeline(
             self,
             grouper="corpus",
+        )
+        result.indices = indices
+        return result
+
+
+class PieceGrouper(Grouper):
+    """Groups indices that belong to the same piece."""
+
+    def __init__(self, sort=True):
+        """Groups indices together that belong to the same corpus."""
+        self.sort = sort
+
+    def process_data(self, data: Data) -> Data:
+        indices = {}
+        for group, index_group in data.iter_groups():
+            grouped = defaultdict(list)
+            for index in index_group:
+                grouped[index[1]].append(index)
+            for piece, ids in grouped.items():
+                indices[group + (piece,)] = ids
+        if self.sort:
+            indices = {key: indices[key] for key in sorted(indices.keys())}
+        result = data.copy()
+        result.track_pipeline(
+            self,
+            grouper="fname",
         )
         result.indices = indices
         return result
