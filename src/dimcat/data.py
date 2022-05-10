@@ -377,9 +377,10 @@ class Corpus(Data):
         unfold : :obj:`bool`, optional
             Pass True if you need repeats to be unfolded.
         concatenate : :obj:`bool`, optional
-            By default, the returned list contains one DataFrame per ID contained in the group.
-            Pass True to instead concatenate the DataFrames. Then, the list will contain only
-            one DataFrame the components of which can be distinguished using its MultiIndex.
+            By default, the returned dict contains one DataFrame per ID in the group.
+            Pass True to instead concatenate the DataFrames. Then, the dict will contain only
+            one entry where the key is a tuple containing all IDs and the value is a DataFrame,
+            the components of which can be distinguished using its MultiIndex.
 
         Yields
         ------
