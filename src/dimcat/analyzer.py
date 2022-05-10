@@ -12,20 +12,20 @@ from .utils import grams
 class FacetAnalyzer(PipelineStep, ABC):
     """Analyzers that work on one particular type of DataFrames."""
 
-    def __init__(self, concat_groups=False):
+    def __init__(self, once_per_group=False):
         """
 
         Parameters
         ----------
-        concat_groups : :obj:`bool`
+        once_per_group : :obj:`bool`
             By default, computes one result per group.
             Set to False to instead compute one result per group item.
         """
         self.required_facets = []
-        self.concat_groups = concat_groups
+        self.once_per_group = once_per_group
         self.config = {}
         self.group2pandas = None
-        self.level_names = {"indices": "IDs"} if concat_groups else {}
+        self.level_names = {"indices": "IDs"} if once_per_group else {}
 
     @abstractmethod
     def compute(self, df):
@@ -34,11 +34,11 @@ class FacetAnalyzer(PipelineStep, ABC):
     def process_data(self, data: Data) -> Data:
         processed = {}
         for group, dfs in data.iter_facet(
-            self.required_facets[0], concatenate=self.concat_groups
+            self.required_facets[0], concatenate=self.once_per_group
         ):
             processed[group] = {
                 "group_ids"
-                if self.concat_groups
+                if self.once_per_group
                 else ID: self.compute(df, **self.config)
                 for ID, df in dfs.items()
             }
@@ -49,38 +49,38 @@ class FacetAnalyzer(PipelineStep, ABC):
 
 
 class NotesAnalyzer(FacetAnalyzer):
-    def __init__(self, concat_groups=False):
+    def __init__(self, once_per_group=False):
         """Analyzers that work on notes tables.
 
         Parameters
         ----------
-        concat_groups : :obj:`bool`
+        once_per_group : :obj:`bool`
             By default, computes one result per group.
             Set to False to instead compute one result per group item.
         """
-        super().__init__(concat_groups=concat_groups)
+        super().__init__(once_per_group=once_per_group)
         self.required_facets = ["notes"]
 
 
 class ChordSymbolAnalyzer(FacetAnalyzer):
-    def __init__(self, concat_groups=False):
+    def __init__(self, once_per_group=False):
         """Analyzers that work on expanded annotation tables.
 
         Parameters
         ----------
-        concat_groups : :obj:`bool`
+        once_per_group : :obj:`bool`
             By default, computes one result per group.
             Set to False to instead compute one result per group item.
         """
-        super().__init__(concat_groups=concat_groups)
+        super().__init__(once_per_group=once_per_group)
         self.required_facets = ["expanded"]
 
 
 class TPCrange(NotesAnalyzer):
     """Computes the range from the minimum to the maximum Tonal Pitch Class (TPC)."""
 
-    def __init__(self, concat_groups=False):
-        super().__init__(concat_groups=concat_groups)
+    def __init__(self, once_per_group=False):
+        super().__init__(once_per_group=once_per_group)
         self.level_names["processed"] = "tpc_range"
         self.group2pandas = "group_of_values2series"
 
@@ -103,12 +103,12 @@ class TPCrange(NotesAnalyzer):
 class PitchClassVectors(NotesAnalyzer):
     """Analyzer that groups notes by their pitch class and aggregates their durations."""
 
-    def __init__(self, concat_groups=False, pitch_class_format="tpc", normalize=False):
+    def __init__(self, once_per_group=False, pitch_class_format="tpc", normalize=False):
         """Analyzer that groups notes by their pitch class and aggregates their durations.
 
         Parameters
         ----------
-        concat_groups : :obj:`bool`
+        once_per_group : :obj:`bool`
             By default, computes one result per group.
             Set to False to instead compute one result per group item.
         pitch_class_format : :obj:`str`, optional
@@ -121,7 +121,7 @@ class PitchClassVectors(NotesAnalyzer):
             By default, the PCVs contain absolute durations in quarter notes. Pass True to normalize
             the PCV for each slice.
         """
-        super().__init__(concat_groups=concat_groups)
+        super().__init__(once_per_group=once_per_group)
         self.config = dict(pitch_class_format=pitch_class_format, normalize=normalize)
         self.level_names["processed"] = pitch_class_format
         self.group2pandas = "group2dataframe_unstacked"
@@ -188,8 +188,8 @@ class PitchClassVectors(NotesAnalyzer):
 
 
 class ChordSymbolUnigrams(ChordSymbolAnalyzer):
-    def __init__(self, concat_groups=False):
-        super().__init__(concat_groups=concat_groups)
+    def __init__(self, once_per_group=False):
+        super().__init__(once_per_group=once_per_group)
         self.level_names["processed"] = "chord"
 
     @staticmethod
@@ -200,8 +200,8 @@ class ChordSymbolUnigrams(ChordSymbolAnalyzer):
 
 
 class ChordSymbolBigrams(ChordSymbolAnalyzer):
-    def __init__(self, concat_groups=False):
-        super().__init__(concat_groups=concat_groups)
+    def __init__(self, once_per_group=False):
+        super().__init__(once_per_group=once_per_group)
         self.level_names["processed"] = ["from", "to"]
         self.group2pandas = "group_of_series2series"
 

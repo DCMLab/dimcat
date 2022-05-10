@@ -62,9 +62,9 @@ def corpus(corpus_path, request):
 
 @pytest.fixture(
     params=[True, False],
-    ids=["concat_groups", ""],
+    ids=["once_per_group", ""],
 )
-def concat_groups(request):
+def once_per_group(request):
     return request.param
 
 
@@ -77,8 +77,8 @@ def concat_groups(request):
     ],
     ids=["TPCrange", "PitchClassVectors", "ChordSymbolUnigrams", "ChordSymbolBigrams"],
 )
-def analyzer(concat_groups, request):
-    return request.param(concat_groups=concat_groups)
+def analyzer(once_per_group, request):
+    return request.param(once_per_group=once_per_group)
 
 
 @pytest.fixture(
@@ -93,9 +93,6 @@ def analyzer(concat_groups, request):
     ],
 )
 def slicer(request, corpus):
-    global SLICING_COUNTER
-    SLICING_COUNTER += 1
-    print(f"calls on sliced_data: {SLICING_COUNTER}")
     sliced_data = request.param.process_data(corpus)
     print(f"\nBefore: {len(corpus.indices[()])}, after: {len(sliced_data.indices[()])}")
     assert len(sliced_data.sliced) > 0
