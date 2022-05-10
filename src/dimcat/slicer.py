@@ -81,11 +81,34 @@ class LocalKeySlicer(Slicer):
             for index, expanded in dfs.items():
                 if len(expanded) == 0:
                     continue
+                if "duration_qb" not in expanded.columns:
+                    print(
+                        f"No localkey slices for {index} because annotation table is missing "
+                        f"the column 'duration_qb'."
+                    )
+                    continue
                 try:
-                    segmented = segment_by_adjacency_groups(expanded, "localkey")
+                    name = "_".join(index)
+                    segmented = segment_by_adjacency_groups(
+                        expanded, "localkey", logger=name
+                    )
                 except AssertionError:
                     print(f"INDEX: {expanded.index}")
                     raise
+                missing_localkey = segmented.localkey.isna()
+                if missing_localkey.any():
+                    if (~missing_localkey).any():
+                        print(f"No localkey known for {index}. Skipping.")
+                        continue
+                    else:
+                        print(
+                            f"{index} has segments with unknown localkey:\n"
+                            f"{segmented[missing_localkey]}"
+                        )
+                        segmented = segmented[~missing_localkey]
+
+                if "localkey_is_minor" not in segmented.columns:
+                    segmented["localkey_is_minor"] = segmented.localkey.str.islower()
                 for (interval, _), row in segmented.iterrows():
                     slice_index = index + (interval,)
                     new_index_group.append(slice_index)
