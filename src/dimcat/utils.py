@@ -50,3 +50,19 @@ def get_composition_year(metadata_dict):
     if end is None:
         return start
     return round((end + start) / 2, ndigits=1)
+
+
+def clean_index_levels(pandas_obj):
+    """Remove index levels "IDs", "corpus" and "fname", if redundant."""
+    idx = pandas_obj.index
+    drop = []
+    if idx.nlevels > 1 and "IDs" in idx.names:
+        drop.append("IDs")
+    if idx.names.count("corpus") > 1:
+        drop.append("corpus")
+    if idx.names.count("fname") > 1:
+        drop.append("fname")
+    if len(drop) > 0:
+        drop_levels = [idx.names.index(name) for name in drop]
+        return pandas_obj.droplevel(drop_levels)
+    return pandas_obj

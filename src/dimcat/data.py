@@ -6,6 +6,8 @@ from typing import List
 import pandas as pd
 from ms3 import Parse
 
+from .utils import clean_index_levels
+
 
 class Data(ABC):
     """
@@ -289,10 +291,10 @@ class Corpus(Data):
             return results
         # default: concatenate to a single pandas object
         if len(results) == 1 and () in results:
-            results = pd.concat(results.values())
+            pandas_obj = pd.concat(results.values())
         else:
             try:
-                results = pd.concat(
+                pandas_obj = pd.concat(
                     results.values(),
                     keys=results.keys(),
                     names=self.index_levels["groups"],
@@ -301,7 +303,7 @@ class Corpus(Data):
                 print(self.index_levels["groups"])
                 print(results.keys())
                 raise
-        return results
+        return clean_index_levels(pandas_obj)
 
     def convert_group2pandas(self, result_dict):
         converters = {
@@ -311,7 +313,8 @@ class Corpus(Data):
             "group2dataframe_unstacked": self.group2dataframe_unstacked,
         }
         converter = converters[self.group2pandas]
-        return converter(result_dict)
+        pandas_obj = converter(result_dict)
+        return clean_index_levels(pandas_obj)
 
     def iter(self, as_dict=False):
         """Iterate through processed data.
