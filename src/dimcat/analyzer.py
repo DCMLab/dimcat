@@ -31,17 +31,35 @@ class FacetAnalyzer(PipelineStep, ABC):
     def compute(self, df):
         """Where the actual computation takes place."""
 
+    def check(self, df):
+        """Test DataFrame for certain properties before computing analysis.
+
+        Returns
+        -------
+        :obj:`bool`
+            True if ``df`` is eligible.
+        :obj:`str`
+            Error message in case ``df`` is not eligible.
+        """
+        return True, ""
+
     def process_data(self, data: Data) -> Data:
         processed = {}
         for group, dfs in data.iter_facet(
             self.required_facets[0], concatenate=self.once_per_group
         ):
-            processed[group] = {
-                "group_ids"
-                if self.once_per_group
-                else ID: self.compute(df, **self.config)
-                for ID, df in dfs.items()
-            }
+            processed_group = {}
+            for ID, df in dfs.items():
+                key = "group_ids" if self.once_per_group else ID
+                eligible, message = self.check(df)
+                if not eligible:
+                    print(f"{ID}: {message}")
+                    continue
+                processed_group[key] = self.compute(df, **self.config)
+            if len(processed_group) == 0:
+                print(f"Group '{group}' will be missing from the processed data.")
+                continue
+            processed[group] = processed_group
         result = data.copy()
         result.track_pipeline(self, group2pandas=self.group2pandas, **self.level_names)
         result.processed = processed
@@ -205,11 +223,22 @@ class ChordSymbolBigrams(ChordSymbolAnalyzer):
         self.level_names["processed"] = ["from", "to"]
         self.group2pandas = "group_of_series2series"
 
+    def check(self, df):
+        if df.shape[0] < 2:
+            return False, "DataFrame has only one row, cannot compute bigram."
+        return True, ""
+
     @staticmethod
     def compute(df):
         if len(df) == 0:
             return pd.Series()
         bigrams = grams(df.chord.values, n=2)
         df = pd.DataFrame(bigrams)
-        counts = df.groupby([0, 1]).size().sort_values(ascending=False).rename("count")
+        try:
+            counts = (
+                df.groupby([0, 1]).size().sort_values(ascending=False).rename("count")
+            )
+        except KeyError:
+            print(df)
+            raise
         return counts
