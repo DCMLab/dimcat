@@ -6,7 +6,9 @@
     - https://docs.pytest.org/en/stable/fixture.html
     - https://docs.pytest.org/en/stable/writing_plugins.html
 """
+import math
 import os
+from collections import defaultdict
 
 import pytest
 from dimcat.analyzer import (
@@ -63,8 +65,8 @@ def all_corpora_path():
         #        "TSV + scores"
     ],
 )
-def corpus(small_corpora_path, request):
-    path = small_corpora_path
+def corpus(all_corpora_path, request):
+    path = all_corpora_path
     obj, tsv, scores = request.param
     initialized_obj = obj(directory=path, parse_tsv=tsv, parse_scores=scores)
     print(
@@ -123,8 +125,16 @@ def apply_slicer(slicer, corpus):
     for group, index_group in corpus.indices.items():
         assert len(sliced_data.indices[group]) > len(index_group)
     for facet, sliced in sliced_data.sliced.items():
+        grouped_by_piece = defaultdict(list)
         for id, slices in sliced.items():
             assert slices.index.nlevels == 1
+            assert len(id) == 3
+            piece_id = id[:2]
+            grouped_by_piece[piece_id].extend(slices.duration_qb.to_list())
+        for piece_id, durations in grouped_by_piece.items():
+            # test if the facet slices add up to the same duration as the original facet
+            facet_duration = sliced_data.get_item(piece_id, facet).duration_qb.sum()
+            assert math.isclose(sum(durations), facet_duration)
     return sliced_data
 
 
