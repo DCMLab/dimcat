@@ -9,9 +9,9 @@ import sys
 
 from ms3.cli import check_and_create, check_dir
 
-from .analyzer import ChordSymbolBigrams, ChordSymbolUnigrams
+from .analyzer import ChordSymbolBigrams, ChordSymbolUnigrams, PitchClassVectors
 from .data import Corpus
-from .grouper import CorpusGrouper, ModeGrouper, YearGrouper
+from .grouper import CorpusGrouper, ModeGrouper, PieceGrouper, YearGrouper
 from .pipeline import Pipeline
 from .slicer import LocalKeySlicer, NoteSlicer
 from .writer import TSVwriter
@@ -48,20 +48,24 @@ def setup_logging(loglevel):
     )
 
 
-def unigrams(corpus):
+def unigrams(corpus, _):
     """"""
-    _logger.debug("Called unigrams...")
     return ChordSymbolUnigrams().process_data(corpus)
 
 
-def bigrams(corpus):
+def bigrams(corpus, _):
     """"""
-    _logger.debug("Called bigrams...")
     return ChordSymbolBigrams().process_data(corpus)
 
 
+def pcvs(corpus, args):
+    return PitchClassVectors(
+        pitch_class_format=args.pc_format, normalize=args.normalize
+    ).process_data(corpus)
+
+
 def get_arg_parser():
-    # reusable argument sets
+    # re-usable argument set for subcommands
     input_args = argparse.ArgumentParser(add_help=False)
     input_args.add_argument(
         "-d",
@@ -130,6 +134,24 @@ The library offers you the following commands. Add the flag -h to one of them to
     )
     bigrams_parser.set_defaults(func=bigrams)
 
+    pcvs_parser = subparsers.add_parser(
+        "pcvs",
+        help="Turn note lists into pitch class vectors.",
+        parents=[input_args],
+    )
+    pcvs_parser.add_argument(
+        "-p",
+        "--pc_format",
+        help="Defines the type of pitch classes. Can be tpc (default), name, midi, or pc",
+        default="tpc",
+    )
+    pcvs_parser.add_argument(
+        "--normalize",
+        help="Normalize the pitch class vectors instead of absolute durations in quarters.",
+        action="store_true",
+    )
+    pcvs_parser.set_defaults(func=pcvs)
+
     return parser
 
 
@@ -140,14 +162,26 @@ def apply_pipeline(corpus, slicers, groupers):
         groupers = []
     if len(slicers) == 0 and len(groupers) == 0:
         return corpus
+    _logger.info("Assembling pipeline...")
     available_slicers = {"noteslicer": NoteSlicer(), "localkeyslicer": LocalKeySlicer()}
     available_groupers = {
         "corpusgrouper": CorpusGrouper(),
+        "piecegrouper": PieceGrouper(),
         "yeargrouper": YearGrouper(),
         "modegrouper": ModeGrouper(),
     }
-    steps = [available_slicers[sl.lower()] for sl in slicers]
-    steps += [available_groupers[gr.lower()] for gr in groupers]
+    slicers = [sl.lower() for sl in slicers]
+    groupers = [gr.lower() for gr in groupers]
+    if "modegrouper" in groupers and "localkeyslicer" not in slicers:
+        slicers.append("localkeyslicer")
+        _logger.info(
+            "Automatically added LocalKeySlicer() to pipeline which is necessary"
+            "for the ModeGrouper() to work."
+        )
+    slicer_steps = [available_slicers[sl] for sl in slicers]
+    grouper_steps = [available_groupers[gr] for gr in groupers]
+    steps = slicer_steps + grouper_steps
+    _logger.info(f"Result: {steps}")
     pipeline = Pipeline(steps)
     return pipeline.process_data(corpus)
 
@@ -159,9 +193,9 @@ def main(args):
         _logger.error(f"Didn't find anything to analyze here in {args.dir}")
         return
     pre_processed = apply_pipeline(corpus, args.slicers, args.groupers)
-    processed = args.func(pre_processed)
+    processed = args.func(pre_processed, args)
     if args.out is not None:
-        _ = TSVwriter(directory=args.out, suffix=args.func.__name__).process_data(
+        _ = TSVwriter(directory=args.out, prefix=args.func.__name__).process_data(
             processed
         )
     else:
@@ -174,6 +208,15 @@ def run():
     if "func" not in args:
         parser.print_help()
         return
+    if args.out is None:
+        print(
+            "No output directory specified. Type y to use current working directory or any"
+            "other key to not write any output."
+        )
+        answer = input("(y/n)> ")
+        if answer.lower() == "y":
+            args.out = os.getcwd()
+    print(args.__dict__)
     main(args)
 
 
