@@ -153,7 +153,7 @@ class Data(ABC):
         if grouper is not None:
             self.index_levels["groups"] = [grouper] + self.index_levels["groups"]
         if slicer is not None:
-            self.index_levels[pipeline_step] = slicer
+            self.index_levels[pipeline_step] = [slicer]
 
     @abstractmethod
     def load(self):

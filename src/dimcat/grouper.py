@@ -124,8 +124,7 @@ class ModeGrouper(Grouper):
                 step for step in data.pipeline_steps if isinstance(step, LocalKeySlicer)
             )
         except StopIteration:
-            print(
+            raise Exception(
                 f"Previous PipelineSteps do not include LocalKeyGrouper: {data.pipeline_steps}"
             )
-            raise
         return super().process_data(data)
