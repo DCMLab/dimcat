@@ -9,7 +9,7 @@ def test_analyzer(analyzer, corpus):
     assert len(corpus.index_levels["processed"]) == 0
     data = analyzer.process_data(corpus)
     assert len(data.processed) > 0
-    assert len(data.applied_pipeline) > 0
+    assert len(data.pipeline_steps) > 0
     print(f"{data.get()}")
 
 

@@ -1,10 +1,11 @@
 """Class hierarchy for data types."""
 from abc import ABC, abstractmethod
 from copy import deepcopy
+from functools import lru_cache
 from typing import List
 
 import pandas as pd
-from ms3 import Parse
+from ms3 import Parse, interval_overlap
 
 from .utils import clean_index_levels
 
@@ -37,13 +38,13 @@ class Data(ABC):
         self.processed = {}
         """Subclasses store processed data here."""
 
-        self.applied_pipeline = []
-        """The sequence of applied PipelineSteps that has led to the current state."""
+        self.pipeline_steps = []
+        """The sequence of applied PipelineSteps that has led to the current state in reverse
+        order (first element was applied last)."""
 
         self.index_levels = {
             "indices": ["corpus", "fname"],
             "groups": [],
-            "slices": [],
             "processed": [],
         }
         """Keeps track of index level names. Also used for automatic naming of output files."""
@@ -127,27 +128,32 @@ class Data(ABC):
         Parameters
         ----------
         pipeline_step : :obj:`PipelineStep`
-        group2pandas : :obj:`str`, bool
-        indices : :obj:`str`, bool
-        processed : :obj:`str`, bool
-        grouper : :obj:`str`, bool
-        slicer : :obj:`str`, bool
+        group2pandas : :obj:`str`, optional
+        indices : :obj:`str`, optional
+        processed : :obj:`str`, optional
+        grouper : :obj:`str`, optional
+        slicer : :obj:`str`, optional
         """
-        self.applied_pipeline.append(pipeline_step)
+        self.pipeline_steps = [pipeline_step] + self.pipeline_steps
         if processed is not None:
             if isinstance(processed, str):
                 processed = [processed]
             self.index_levels["processed"] = processed
         if indices is not None:
-            if isinstance(indices, str):
-                indices = [indices]
-            self.index_levels["indices"] = indices
+            if indices == "IDs":
+                # once_per_group == True
+                self.index_levels["indices"] = ["IDs"]
+            elif len(self.index_levels["indices"]) == 2:
+                self.index_levels["indices"] = self.index_levels["indices"] + [indices]
+            else:
+                self.index_levels["indices"][2] = indices
+            assert 1 <= len(self.index_levels["indices"]) < 4
         if group2pandas is not None:
             self.group2pandas = group2pandas
         if grouper is not None:
             self.index_levels["groups"] = [grouper] + self.index_levels["groups"]
         if slicer is not None:
-            self.index_levels["slices"].append(slicer)
+            self.index_levels[pipeline_step] = slicer
 
     @abstractmethod
     def load(self):
@@ -188,7 +194,7 @@ class Data(ABC):
         except (TypeError, ValueError):
             print(series.index)
             print(f"current: {series.index.names}, new: {index_level_names}")
-            print(self.index_levels)
+            print(f"self.index_levels: {self.index_levels}")
             raise
         return series
 
@@ -206,7 +212,7 @@ class Data(ABC):
         except (TypeError, ValueError):
             print(df.index)
             print(f"current: {df.index.names}, new: {index_level_names}")
-            print(self.index_levels)
+            print(f"self.index_levels: {self.index_levels}")
             raise
         return df
 
@@ -278,7 +284,7 @@ class Corpus(Data):
         self.processed = deepcopy(data_object.processed)
         self.sliced = deepcopy(data_object.sliced)
         self.slice_info = deepcopy(data_object.slice_info)
-        self.applied_pipeline = list(self.applied_pipeline)
+        self.applied_pipeline = list(self.pipeline_steps)
         self.index_levels = deepcopy(data_object.index_levels)
         self.group2pandas = data_object.group2pandas
 
@@ -468,6 +474,34 @@ class Corpus(Data):
 
             yield group, result
 
+    def get_slice(self, index, what):
+        if what not in self.sliced:
+            self.sliced[what] = {}
+        if index in self.sliced[what]:
+            return self.sliced[what][index]
+        # slice needs to be created
+        if len(self.slice_info) > 1:
+            raise NotImplementedError(
+                f"'{what}' more than one slicers have been applied."
+            )
+        corpus, fname, iv = index
+        df = self.get_item((corpus, fname), what=what)
+        try:
+            overlapping = df.index.overlaps(iv)
+        except AttributeError:
+            return pd.DataFrame()
+        chunk = df[overlapping].copy()
+        start, end = iv.left, iv.right
+        chunk_index = chunk.index
+        left_overlap = chunk_index.left < start
+        right_overlap = chunk_index.right > end
+        if left_overlap.sum() > 0 or right_overlap.sum() > 0:
+            chunk.index = chunk_index.map(lambda i: interval_overlap(i, iv))
+            chunk.loc[:, "duration_qb"] = chunk.index.length
+        self.sliced[what][index] = chunk
+        return chunk
+
+    @lru_cache()
     def get_item(self, index, what, unfold=False, multiindex=False):
         """Retrieve a DataFrame pertaining to the facet ``what`` of the piece ``index``. If
         the facet has been sliced before, the sliced DataFrame is returned.
@@ -496,15 +530,19 @@ class Corpus(Data):
                 df = self.data[corpus][fname].get_dataframe(
                     what, unfold, interval_index=True
                 )
+                if not isinstance(df.index, pd.IntervalIndex):
+                    print(f"'{what}' of {index} does not come with an IntervalIndex")
+                    df = pd.DataFrame()
             except FileNotFoundError:
                 print(f"No {what} available for {index}. Returning empty DataFrame.")
                 df = pd.DataFrame()
         elif n_index_elements == 3:
-            if what in self.sliced:
-                df = self.sliced[what][index]
+            if what not in self.sliced:
+                self.sliced[what] = {}
+            if index not in self.sliced[what]:
+                df = self.get_slice(index, what)
             else:
-                # corpus, fname, interval = index
-                raise NotImplementedError(f"'{what}' would have to be sliced first.")
+                df = self.sliced[what][index]
         else:
             raise NotImplementedError(
                 f"'{index}': Indices can currently include 2 or 3 elements."
