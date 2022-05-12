@@ -4,6 +4,7 @@ from collections import defaultdict
 
 from .data import Data
 from .pipeline import PipelineStep
+from .slicer import LocalKeySlicer
 from .utils import get_composition_year
 
 
@@ -104,9 +105,13 @@ class ModeGrouper(Grouper):
         """Groups indices together that belong to the same corpus."""
         self.sort = sort
         self.level_names = dict(grouper="localkey_is_minor")
+        self.slicer = None
 
     def criterion(self, index: tuple, data: Data) -> str:
-        slice_info = data.slice_info["expanded"][index]
+        if self.slicer is None:
+            print("Need LocalKeyGrouper")
+            return
+        slice_info = data.slice_info[self.slicer][index]
         try:
             return slice_info["localkey_is_minor"]
         except KeyError:
@@ -114,7 +119,13 @@ class ModeGrouper(Grouper):
             print(slice_info)
 
     def process_data(self, data: Data) -> Data:
-        assert "expanded" in data.slice_info, (
-            "Couldn't find slice_info. " "Have you applied LocalKeySlicer() before?"
-        )
+        try:
+            self.slicer = next(
+                step for step in data.pipeline_steps if isinstance(step, LocalKeySlicer)
+            )
+        except StopIteration:
+            print(
+                f"Previous PipelineSteps do not include LocalKeyGrouper: {data.pipeline_steps}"
+            )
+            raise
         return super().process_data(data)

@@ -5,6 +5,7 @@ from ms3 import segment_by_adjacency_groups, slice_df
 
 from .data import Data
 from .pipeline import PipelineStep
+from .utils import make_suffix
 
 
 class Slicer(PipelineStep, ABC):
@@ -36,6 +37,11 @@ class NoteSlicer(Slicer):
         """
         self.required_facets = ["notes"]
         self.quarters_per_slice = quarters_per_slice
+        if quarters_per_slice is None:
+            name = "slice"
+        else:
+            name = make_suffix(("q", quarters_per_slice)) + "-slice"
+        self.level_names = {"indices": name, "slicer": name}
 
     def process_data(self, data: Data) -> Data:
         assert (
@@ -55,9 +61,9 @@ class NoteSlicer(Slicer):
                     slice_info[slice_index] = slice.iloc[0].copy()
             indices[group] = new_index_group
         result = data.copy()
-        result.track_pipeline(self, indices=["corpus", "fname", "slice"])
+        result.track_pipeline(self, **self.level_names)
         result.sliced["notes"] = sliced
-        result.slice_info["notes"] = slice_info
+        result.slice_info[self] = slice_info
         result.indices = indices
         return result
 
@@ -68,6 +74,7 @@ class LocalKeySlicer(Slicer):
     def __init__(self):
         """Slices annotation tables based on adjacency groups of the 'localkey' column."""
         self.required_facets = ["expanded"]
+        self.level_names = {"indices": "localkey_slice", "slicer": "localkey"}
 
     def process_data(self, data: Data) -> Data:
         assert (
@@ -117,8 +124,8 @@ class LocalKeySlicer(Slicer):
                     sliced[slice_index] = expanded[selector]
             indices[group] = new_index_group
         result = data.copy()
-        result.track_pipeline(self, indices=["corpus", "fname", "localkey_slice"])
+        result.track_pipeline(self, **self.level_names)
         result.sliced["expanded"] = sliced
-        result.slice_info["expanded"] = slice_info
+        result.slice_info[self] = slice_info
         result.indices = indices
         return result
