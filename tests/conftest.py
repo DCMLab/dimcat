@@ -106,21 +106,33 @@ def analyzer(once_per_group, request):
         "NoteSlicer",
     ],
 )
-def slicer(request, corpus):
-    sliced_data = request.param.process_data(corpus)
+def slicer(request):
+    return request.param
+
+
+@pytest.fixture(
+    scope="session",
+)
+def apply_slicer(slicer, corpus):
+    sliced_data = slicer.process_data(corpus)
     print(f"\nBefore: {len(corpus.indices[()])}, after: {len(sliced_data.indices[()])}")
     assert len(sliced_data.sliced) > 0
     assert len(sliced_data.slice_info) > 0
+    assert len(sliced_data.index_levels["indices"]) > 2
+    # assert len(sliced_data.index_levels['slices']) > 0
     for group, index_group in corpus.indices.items():
         assert len(sliced_data.indices[group]) > len(index_group)
+    for facet, sliced in sliced_data.sliced.items():
+        for id, slices in sliced.items():
+            assert slices.index.nlevels == 1
     return sliced_data
 
 
 @pytest.fixture(
     scope="session",
 )
-def sliced_data(slicer):
-    return slicer
+def sliced_data(apply_slicer):
+    return apply_slicer
 
 
 @pytest.fixture(
@@ -132,8 +144,15 @@ def sliced_data(slicer):
     ],
     ids=["CorpusGrouper", "PieceGrouper", "YearGrouper"],
 )
-def grouper(request, corpus):
-    grouped_data = request.param.process_data(corpus)
+def grouper(request):
+    return request.param
+
+
+@pytest.fixture(
+    scope="session",
+)
+def apply_grouper(grouper, corpus):
+    grouped_data = grouper.process_data(corpus)
     print(f"\n{pretty_dict(grouped_data.indices)}")
     assert () not in grouped_data.indices
     lengths = [len(index_list) for index_list in grouped_data.indices.values()]
@@ -144,17 +163,20 @@ def grouper(request, corpus):
 @pytest.fixture(
     scope="session",
 )
-def grouped_data(grouper):
-    return grouper
+def grouped_data(apply_grouper):
+    return apply_grouper
 
 
 @pytest.fixture(
     scope="session",
     params=[
-        Pipeline([IsAnnotatedFilter()]),
         Pipeline([LocalKeySlicer(), ModeGrouper()]),
+        Pipeline([IsAnnotatedFilter()]),
     ],
-    ids=["IsAnnotatedFilter", "ModeGrouper"],
+    ids=[
+        "ModeGrouper",
+        "IsAnnotatedFilter",
+    ],
 )
 def pipeline(request, corpus):
     grouped_data = request.param.process_data(corpus)

@@ -1,5 +1,6 @@
 """Class hierarchy for data types."""
 from abc import ABC, abstractmethod
+from copy import deepcopy
 from typing import List
 
 import pandas as pd
@@ -142,7 +143,7 @@ class Data(ABC):
         if group2pandas is not None:
             self.group2pandas = group2pandas
         if grouper is not None:
-            self.index_levels["groups"] = self.index_levels["groups"] + [grouper]
+            self.index_levels["groups"] = [grouper] + self.index_levels["groups"]
         if slicer is not None:
             self.index_levels["slices"].append(slicer)
 
@@ -167,6 +168,15 @@ class Data(ABC):
 
     def group_of_series2series(self, group_dict):
         """Turns an {ix -> result} into a Series or DataFrame."""
+        lengths = [len(S) for S in group_dict.values()]
+        if 0 in lengths:
+            group_dict = {k: v for k, v in group_dict.items() if len(v) > 0}
+            if len(group_dict) == 0:
+                print("Group contained only empty Series")
+                return pd.Series()
+            else:
+                n_empty = lengths.count(0)
+                print(f"Had to remove {n_empty} empty Series before concatenation.")
         series = pd.concat(group_dict.values(), keys=group_dict.keys())
         index_level_names = (
             self.index_levels["indices"] + self.index_levels["processed"]
@@ -261,34 +271,36 @@ class Corpus(Data):
         if not isinstance(data_object, Corpus):
             raise TypeError(f"{type(data_object)} could not be converted to a Corpus.")
         self._data = data_object._data
-        self.pieces = dict(data_object.pieces)
-        self.indices = dict(data_object.indices)
-        self.processed = dict(data_object.processed)
-        self.sliced = dict(data_object.sliced)
-        self.slice_info = dict(data_object.slice_info)
+        self.pieces = deepcopy(data_object.pieces)
+        self.indices = deepcopy(data_object.indices)
+        self.processed = deepcopy(data_object.processed)
+        self.sliced = deepcopy(data_object.sliced)
+        self.slice_info = deepcopy(data_object.slice_info)
         self.applied_pipeline = list(self.applied_pipeline)
-        self.index_levels = dict(data_object.index_levels)
+        self.index_levels = deepcopy(data_object.index_levels)
         self.group2pandas = data_object.group2pandas
 
-    def get(self, as_pandas=False):
+    def get(self, as_dict=False):
         if len(self.processed) == 0:
             print("No data has been processed so far.")
             return
-        results = {group: result for group, result in self.iter(as_pandas=as_pandas)}
-        if as_pandas:
-            if len(results) == 1 and () in results:
-                results = pd.concat(results.values())
-            else:
-                try:
-                    results = pd.concat(
-                        results.values(),
-                        keys=results.keys(),
-                        names=self.index_levels["groups"],
-                    )
-                except ValueError:
-                    print(self.index_levels["groups"])
-                    print(results.keys())
-                    raise
+        results = {group: result for group, result in self.iter(as_dict=as_dict)}
+        if as_dict:
+            return results
+        # default: concatenate to a single pandas object
+        if len(results) == 1 and () in results:
+            results = pd.concat(results.values())
+        else:
+            try:
+                results = pd.concat(
+                    results.values(),
+                    keys=results.keys(),
+                    names=self.index_levels["groups"],
+                )
+            except ValueError:
+                print(self.index_levels["groups"])
+                print(results.keys())
+                raise
         return results
 
     def convert_group2pandas(self, result_dict):
@@ -301,13 +313,29 @@ class Corpus(Data):
         converter = converters[self.group2pandas]
         return converter(result_dict)
 
-    def iter(self, as_pandas=False):
-        """Iterate through processed data."""
+    def iter(self, as_dict=False):
+        """Iterate through processed data.
+
+        Parameters
+        ----------
+        as_dict : :obj:`bool`, optional
+            By default, the IDs and processed data belonging to the same group are concatenated
+            into a single pandas object (Series or DataFrame).
+
+        Yields
+        ------
+        :obj:`tuple`
+            Group identifier. Empty if no grouper has been applied previously.
+        :obj:`pandas.DataFrame` or :obj:`pandas.Series` or :obj:`dict`
+            Processed data for one particular group. Whether it is a pandas object or dict depends
+            on ``as_dict``. Whether it is a Series or DataFrame depends on the previously applied
+            Pipeline.
+        """
         for group, result in self.processed.items():
-            if as_pandas:
-                yield group, self.convert_group2pandas(result)
-            else:
+            if as_dict:
                 yield group, result
+            else:
+                yield group, self.convert_group2pandas(result)
 
     def load(
         self,
@@ -427,6 +455,7 @@ class Corpus(Data):
                     # use IntervalIndex.get_indexer_non_unique" error
                     for id, df in result.items():
                         pass
+                    df = df.copy()
                     new_index = [id + (i,) for i in df.index]
                     new_index = pd.MultiIndex.from_tuples(new_index)
                     df.index = new_index
@@ -467,7 +496,6 @@ class Corpus(Data):
             except FileNotFoundError:
                 print(f"No {what} available for {index}. Returning empty DataFrame.")
                 df = pd.DataFrame()
-            return df
         elif n_index_elements == 3:
             if what in self.sliced:
                 df = self.sliced[what][index]
@@ -478,6 +506,9 @@ class Corpus(Data):
             raise NotImplementedError(
                 f"'{index}': Indices can currently include 2 or 3 elements."
             )
+        assert (
+            df.index.nlevels == 1
+        ), f"Retrieved DataFrame has {df.index.nlevels}, not 1"
         if multiindex:
             df = pd.concat([df], keys=[index], names=["corpus", "fname"])
         return df

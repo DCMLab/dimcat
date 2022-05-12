@@ -14,7 +14,7 @@ class TSVwriter(PipelineStep):
         self.index = index
 
     def process_data(self, data: Data) -> Data:
-        for group, df in data.iter(as_pandas=True):
+        for group, df in data.iter():
             if group == ():
                 group = "global"
             else:

@@ -117,7 +117,7 @@ class LocalKeySlicer(Slicer):
                     sliced[slice_index] = expanded[selector]
             indices[group] = new_index_group
         result = data.copy()
-        result.track_pipeline(self, indices=["corpus", "fname", "slice"])
+        result.track_pipeline(self, indices=["corpus", "fname", "localkey_slice"])
         result.sliced["expanded"] = sliced
         result.slice_info["expanded"] = slice_info
         result.indices = indices
