@@ -37,7 +37,7 @@ class Grouper(PipelineStep, ABC):
                     continue
                 grouped[new_group].append(index)
             for new_group, ids in grouped.items():
-                indices[(new_group,) + group] = ids
+                indices[group + (new_group,)] = ids
         if self.sort:
             indices = {key: indices[key] for key in sorted(indices.keys())}
         result = data.copy()
