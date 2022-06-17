@@ -9,7 +9,11 @@ from .pipeline import PipelineStep
 from .utils import grams
 
 
-class FacetAnalyzer(PipelineStep, ABC):
+class Analyzer(PipelineStep, ABC):
+    """Analyzers are PipelineSteps that process data and store the results in Data.processed."""
+
+
+class FacetAnalyzer(Analyzer):
     """Analyzers that work on one particular type of DataFrames."""
 
     def __init__(self, once_per_group=False):
@@ -30,18 +34,6 @@ class FacetAnalyzer(PipelineStep, ABC):
     @abstractmethod
     def compute(self, df):
         """Where the actual computation takes place."""
-
-    def check(self, df):
-        """Test DataFrame for certain properties before computing analysis.
-
-        Returns
-        -------
-        :obj:`bool`
-            True if ``df`` is eligible.
-        :obj:`str`
-            Error message in case ``df`` is not eligible.
-        """
-        return True, ""
 
     def process_data(self, data: Data) -> Data:
         processed = {}
