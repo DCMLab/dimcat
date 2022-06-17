@@ -151,7 +151,7 @@ class Data(ABC):
         if group2pandas is not None:
             self.group2pandas = group2pandas
         if grouper is not None:
-            self.index_levels["groups"] = [grouper] + self.index_levels["groups"]
+            self.index_levels["groups"] = self.index_levels["groups"] + [grouper]
         if slicer is not None:
             self.index_levels[pipeline_step] = [slicer]
 
