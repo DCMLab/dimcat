@@ -26,4 +26,4 @@ from .filter import IsAnnotatedFilter
 from .grouper import CorpusGrouper, ModeGrouper, PieceGrouper, YearGrouper
 from .pipeline import Pipeline
 from .slicer import LocalKeySlicer, NoteSlicer
-from .writer import TSVwriter
+from .writer import TSVWriter

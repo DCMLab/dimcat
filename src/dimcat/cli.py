@@ -14,7 +14,7 @@ from .data import Corpus
 from .grouper import CorpusGrouper, ModeGrouper, PieceGrouper, YearGrouper
 from .pipeline import Pipeline
 from .slicer import LocalKeySlicer, NoteSlicer
-from .writer import TSVwriter
+from .writer import TSVWriter
 
 __author__ = "Digital and Cognitive Musicology Lab"
 __copyright__ = "École Polytechnique Fédérale de Lausanne"
@@ -195,7 +195,7 @@ def main(args):
     pre_processed = apply_pipeline(corpus, args.slicers, args.groupers)
     processed = args.func(pre_processed, args)
     if args.out is not None:
-        _ = TSVwriter(directory=args.out, prefix=args.func.__name__).process_data(
+        _ = TSVWriter(directory=args.out, prefix=args.func.__name__).process_data(
             processed
         )
     else:
