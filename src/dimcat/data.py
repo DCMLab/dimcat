@@ -97,7 +97,7 @@ class Data(ABC):
         """Get an individual piece of data."""
 
     def iter_groups(self):
-        """Iterate through groups of indices.
+        """Iterate through groups of indices as defined by the previously applied Groupers.
 
         Yields
         -------

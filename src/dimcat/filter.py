@@ -15,9 +15,14 @@ class Filter(PipelineStep, ABC):
 
     @abstractmethod
     def criterion(self, index: tuple, data: Data) -> bool:
-        """"""
+        """Takes one index and (potentially) looks it up in the data object to decide whether to
+        keep it (returns True) or filter it out (returns False).
+        """
 
     def process_data(self, data: Data) -> Data:
+        """Returns a copy of the Data object where the list of indices for each existing group has
+        potentially fewer elements than before.
+        """
         indices = {}
         for group, index_group in data.iter_groups():
             new_group = []

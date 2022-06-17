@@ -1,3 +1,4 @@
+"""Utility functions that are or might be used by several modules or useful in external contexts."""
 from typing import Collection
 
 
@@ -42,6 +43,7 @@ def grams(list_of_sequences, n=2):
 
 
 def get_composition_year(metadata_dict):
+    """The logic for getting a composition year out of the given metadata dictionary."""
     start = (
         metadata_dict["composed_start"] if "composed_start" in metadata_dict else None
     )

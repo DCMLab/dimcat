@@ -30,12 +30,17 @@ class FacetAnalyzer(Analyzer):
         self.config = {}
         self.group2pandas = None
         self.level_names = {"indices": "IDs"} if once_per_group else {}
+        """Define {"indices": "index_level_name"} if the analysis is applied once per group,
+        because the index of the DataFrame holding the processed data won't be showing the
+        individual indices anymore.
+        """
 
     @abstractmethod
     def compute(self, df):
         """Where the actual computation takes place."""
 
     def process_data(self, data: Data) -> Data:
+        """Returns a copy of the Data object containing processed data."""
         processed = {}
         for group, dfs in data.iter_facet(
             self.required_facets[0], concatenate=self.once_per_group

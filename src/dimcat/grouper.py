@@ -22,16 +22,29 @@ class Grouper(PipelineStep, ABC):
         """Groups indices together that belong to the same corpus."""
         self.sort = sort
         self.level_names = {}
+        """Define {"grouper": "index_level_name"} so that the DataFrame index level distinguishing
+        the resulting groups has a meaningful name. E.g., for grouping by years, a good index
+        level name could be 'year'.
+        """
 
     @abstractmethod
     def criterion(self, index: tuple, data: Data) -> str:
-        """"""
+        """Takes one index and (potentially) looks it up in the data object to return the name
+        of the new group that the corresponding element is attributed to. The name will be appended
+        to the previous group names tuple.
+        """
 
     def process_data(self, data: Data) -> Data:
-        indices = {}
+        """Returns a copy of the Data object where the list of indices for each existing group has
+        been further subdivided into smaller groups.
+        """
+        indices = {}  # this will be the index dictionary of the returned Data object
         for group, index_group in data.iter_groups():
+            # Iterate through groups, i.e. a name and a list of index tuples.
+            # A group can only be divided into smaller groups or stay the same ("top-down").
             grouped = defaultdict(list)
             for index in index_group:
+                # iterate through this group's indices and apply the grouping criterion to each
                 new_group = self.criterion(index, data)
                 if new_group is None:
                     continue
@@ -108,9 +121,6 @@ class ModeGrouper(Grouper):
         self.slicer = None
 
     def criterion(self, index: tuple, data: Data) -> str:
-        if self.slicer is None:
-            print("Need LocalKeyGrouper")
-            return
         slice_info = data.slice_info[self.slicer][index]
         try:
             return slice_info["localkey_is_minor"]
@@ -125,6 +135,6 @@ class ModeGrouper(Grouper):
             )
         except StopIteration:
             raise Exception(
-                f"Previous PipelineSteps do not include LocalKeyGrouper: {data.pipeline_steps}"
+                f"Previous PipelineSteps do not include LocalKeySlicer: {data.pipeline_steps}"
             )
         return super().process_data(data)
