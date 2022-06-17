@@ -28,9 +28,15 @@ class FacetAnalyzer(Analyzer):
         self.required_facets = []
         self.once_per_group = once_per_group
         self.config = {}
+        """:obj:`dict`
+        This dictionary stores the parameters to be passed to the compute() method."""
         self.group2pandas = None
+        """:obj:`str`
+        The name of the function that allows displaying one group's results as a single
+        pandas object. See data.Corpus.convert_group2pandas()"""
         self.level_names = {"indices": "IDs"} if once_per_group else {}
-        """Define {"indices": "index_level_name"} if the analysis is applied once per group,
+        """:obj:`dict`
+        Define {"indices": "index_level_name"} if the analysis is applied once per group,
         because the index of the DataFrame holding the processed data won't be showing the
         individual indices anymore.
         """
