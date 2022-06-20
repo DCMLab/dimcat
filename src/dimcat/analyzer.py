@@ -124,7 +124,13 @@ class TPCrange(NotesAnalyzer):
 class PitchClassVectors(NotesAnalyzer):
     """Analyzer that groups notes by their pitch class and aggregates their durations."""
 
-    def __init__(self, once_per_group=False, pitch_class_format="tpc", normalize=False):
+    def __init__(
+        self,
+        once_per_group=False,
+        pitch_class_format="tpc",
+        normalize=False,
+        ensure_pitch_classes=None,
+    ):
         """Analyzer that groups notes by their pitch class and aggregates their durations.
 
         Parameters
@@ -141,19 +147,25 @@ class PitchClassVectors(NotesAnalyzer):
         normalize : :obj:`bool`, optional
             By default, the PCVs contain absolute durations in quarter notes. Pass True to normalize
             the PCV for each slice.
+        ensure_pitch_classes : :obj:`Iterable`, optional
+            By default, pitch classes that don't appear don't appear. Pass a collection of pitch
+            classes if you want to ensure their presence even if empty. For example, if
+            ``pitch_class_format='pc'`` you could pass ``ensure_columns=range(12)``.
         """
         super().__init__(once_per_group=once_per_group)
-        self.config = dict(pitch_class_format=pitch_class_format, normalize=normalize)
+        self.config = dict(
+            pitch_class_format=pitch_class_format,
+            normalize=normalize,
+            ensure_pitch_classes=ensure_pitch_classes,
+        )
         self.level_names["processed"] = pitch_class_format
         self.group2pandas = "group2dataframe_unstacked"
 
     @staticmethod
     def compute(
         notes,
-        index_levels=None,
         pitch_class_format="tpc",
         normalize=False,
-        fillna=True,
         ensure_pitch_classes=None,
     ):
         """Group notes by their pitch class and aggregate their durations.
