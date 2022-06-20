@@ -18,6 +18,18 @@ class PipelineStep(ABC):
         """Specifies a list of facets (such as 'notes' or 'labels') that the passed Data object
         needs to provide."""
 
+    def check(self, _):
+        """Test piece of data for certain properties before computing analysis.
+
+        Returns
+        -------
+        :obj:`bool`
+            True if the passed data is eligible.
+        :obj:`str`
+            Error message in case the passed data is not eligible.
+        """
+        return True, ""
+
     @abstractmethod
     def process_data(self, data: Data) -> Data:
         """

@@ -1,8 +1,13 @@
 """Class hierarchy for data types."""
 from abc import ABC, abstractmethod
+from copy import deepcopy
+from functools import lru_cache
+from typing import List
 
 import pandas as pd
-from ms3 import Parse
+from ms3 import Parse, interval_overlap
+
+from .utils import clean_index_levels
 
 
 class Data(ABC):
@@ -33,18 +38,24 @@ class Data(ABC):
         self.processed = {}
         """Subclasses store processed data here."""
 
+        self.pipeline_steps = []
+        """The sequence of applied PipelineSteps that has led to the current state in reverse
+        order (first element was applied last)."""
+
+        self.index_levels = {
+            "indices": ["corpus", "fname"],
+            "groups": [],
+            "processed": [],
+        }
+        """Keeps track of index level names. Also used for automatic naming of output files."""
+
         self.sliced = {}
         """Dict for sliced data facets."""
 
         self.slice_info = {}
         """Dict holding metadata of slices (e.g. the localkey of a segment)."""
 
-        self.applied_groupers = []
-        """List keeping track of the applied groupers. Can be used for naming index levels or
-        generating file names."""
-
-        self.applied_slicers = []
-        """List keeping track of the applied slicers. Can be used for generating file names."""
+        self.group2pandas = "group2dataframe"
 
         if data is not None:
             self.data = data
@@ -86,7 +97,7 @@ class Data(ABC):
         """Get an individual piece of data."""
 
     def iter_groups(self):
-        """Iterate through groups of indices.
+        """Iterate through groups of indices as defined by the previously applied Groupers.
 
         Yields
         -------
@@ -97,16 +108,116 @@ class Data(ABC):
         """
         if len(self.indices) == 0:
             raise ValueError("No data has been loaded.")
+        if any(len(index_list) == 0 for index_list in self.indices.values()):
+            print("Data object contains empty groups.")
         for group in self.indices.items():
             yield group
 
-    def load_processed(self, processed):
-        """Store processed data."""
-        self.processed = processed
+    def track_pipeline(
+        self,
+        pipeline_step,
+        group2pandas=None,
+        indices=None,
+        processed=None,
+        grouper=None,
+        slicer=None,
+    ):
+        """Keep track of the applied pipeline_steps and update index level names and group2pandas
+        conversion method.
+
+        Parameters
+        ----------
+        pipeline_step : :obj:`PipelineStep`
+        group2pandas : :obj:`str`, optional
+        indices : :obj:`str`, optional
+        processed : :obj:`str`, optional
+        grouper : :obj:`str`, optional
+        slicer : :obj:`str`, optional
+        """
+        self.pipeline_steps = [pipeline_step] + self.pipeline_steps
+        if processed is not None:
+            if isinstance(processed, str):
+                processed = [processed]
+            self.index_levels["processed"] = processed
+        if indices is not None:
+            if indices == "IDs":
+                # once_per_group == True
+                self.index_levels["indices"] = ["IDs"]
+            elif len(self.index_levels["indices"]) == 2:
+                self.index_levels["indices"] = self.index_levels["indices"] + [indices]
+            else:
+                self.index_levels["indices"][2] = indices
+            assert 1 <= len(self.index_levels["indices"]) < 4
+        if group2pandas is not None:
+            self.group2pandas = group2pandas
+        if grouper is not None:
+            self.index_levels["groups"] = self.index_levels["groups"] + [grouper]
+        if slicer is not None:
+            self.index_levels[pipeline_step] = [slicer]
 
     @abstractmethod
     def load(self):
         """Load data into memory."""
+
+    def group_of_values2series(self, group_dict):
+        """Turns an {ix -> result} into a Series or DataFrame."""
+        series = pd.Series(group_dict, name=self.index_levels["processed"][0])
+        index_level_names = self.index_levels["indices"]
+        try:
+            if series.index.nlevels == 1:
+                index_level_names = index_level_names[0]
+            series.index.rename(index_level_names, inplace=True)
+        except (TypeError, ValueError):
+            print(series.index)
+            print(f"current: {series.index.names}, new: {index_level_names}")
+            print(self.index_levels)
+            raise
+        return series
+
+    def group_of_series2series(self, group_dict):
+        """Turns an {ix -> result} into a Series or DataFrame."""
+        lengths = [len(S) for S in group_dict.values()]
+        if 0 in lengths:
+            group_dict = {k: v for k, v in group_dict.items() if len(v) > 0}
+            if len(group_dict) == 0:
+                print("Group contained only empty Series")
+                return pd.Series()
+            else:
+                n_empty = lengths.count(0)
+                print(f"Had to remove {n_empty} empty Series before concatenation.")
+        series = pd.concat(group_dict.values(), keys=group_dict.keys())
+        index_level_names = (
+            self.index_levels["indices"] + self.index_levels["processed"]
+        )
+        try:
+            series.index.rename(index_level_names, inplace=True)
+        except (TypeError, ValueError):
+            print(series.index)
+            print(f"current: {series.index.names}, new: {index_level_names}")
+            print(f"self.index_levels: {self.index_levels}")
+            raise
+        return series
+
+    def group2dataframe(self, group_dict):
+        try:
+            df = pd.concat(group_dict.values(), keys=group_dict.keys())
+        except (TypeError, ValueError):
+            print(group_dict)
+            raise
+        index_level_names = (
+            self.index_levels["indices"] + self.index_levels["processed"]
+        )
+        try:
+            df.index.rename(index_level_names, inplace=True)
+        except (TypeError, ValueError):
+            print(df.index)
+            print(f"current: {df.index.names}, new: {index_level_names}")
+            print(f"self.index_levels: {self.index_levels}")
+            raise
+        return df
+
+    def group2dataframe_unstacked(self, group_dict):
+        return self.group2dataframe(group_dict).unstack()
 
 
 def remove_corpus_from_ids(result):
@@ -168,66 +279,76 @@ class Corpus(Data):
         if not isinstance(data_object, Corpus):
             raise TypeError(f"{type(data_object)} could not be converted to a Corpus.")
         self._data = data_object._data
-        self.pieces = dict(data_object.pieces)
-        self.indices = dict(data_object.indices)
-        self.processed = dict(data_object.processed)
-        self.sliced = dict(data_object.sliced)
-        self.slice_info = dict(data_object.slice_info)
-        self.applied_groupers = list(data_object.applied_groupers)
-        self.applied_slicers = list(data_object.applied_slicers)
+        self.pieces = deepcopy(data_object.pieces)
+        self.indices = deepcopy(data_object.indices)
+        self.processed = deepcopy(data_object.processed)
+        self.sliced = deepcopy(data_object.sliced)
+        self.slice_info = deepcopy(data_object.slice_info)
+        self.applied_pipeline = list(self.pipeline_steps)
+        self.index_levels = deepcopy(data_object.index_levels)
+        self.group2pandas = data_object.group2pandas
 
-    def get(self, as_pandas=False):
+    def get(self, as_dict=False):
         if len(self.processed) == 0:
             print("No data has been processed so far.")
             return
-        results = {group: result for group, result in self.iter(as_pandas=as_pandas)}
-        if as_pandas:
-            if len(results) == 1 and () in results:
-                results = pd.concat(results.values())
-            else:
-                results = pd.concat(results.values(), keys=results.keys())
-            n_applied_groupers = len(self.applied_groupers)
-            if n_applied_groupers > 0:
-                results.index.set_names(
-                    self.applied_groupers,
-                    level=list(range(n_applied_groupers)),
-                    inplace=True,
-                )
-        return results
-
-    def _result_to_pandas(self, result, short_ids=False):
-        """Turns an {ix -> result} into a Series or DataFrame."""
-        key = list(result.keys())[0]
-        if len(result) == 1 and not isinstance(key[0], str):
-            series = pd.Series(result.values(), index=[key])
-            name = "fnames" if short_ids else "IDs"
-            series.index.rename(name, inplace=True)
+        results = {group: result for group, result in self.iter(as_dict=as_dict)}
+        if as_dict:
+            return results
+        # default: concatenate to a single pandas object
+        if len(results) == 1 and () in results:
+            pandas_obj = pd.concat(results.values())
         else:
-            series = pd.Series(result)
-            nlevels = series.index.nlevels
-            level_names = (
-                ["fname", "interval"] if short_ids else ["corpus", "fname", "interval"]
-            )
-            if nlevels == 1:
-                series.index.rename(level_names[0], inplace=True)
-            else:
-                series.index.rename(level_names[:nlevels], inplace=True)
-        return series
+            try:
+                pandas_obj = pd.concat(
+                    results.values(),
+                    keys=results.keys(),
+                    names=self.index_levels["groups"],
+                )
+            except ValueError:
+                print(self.index_levels["groups"])
+                print(results.keys())
+                raise
+        return clean_index_levels(pandas_obj)
 
-    def iter(self, as_pandas=False):
-        """Iterate through processed data."""
-        short_ids = "CorpusGrouper" in self.applied_groupers
+    def convert_group2pandas(self, result_dict):
+        converters = {
+            "group_of_values2series": self.group_of_values2series,
+            "group_of_series2series": self.group_of_series2series,
+            "group2dataframe": self.group2dataframe,
+            "group2dataframe_unstacked": self.group2dataframe_unstacked,
+        }
+        converter = converters[self.group2pandas]
+        pandas_obj = converter(result_dict)
+        return clean_index_levels(pandas_obj)
+
+    def iter(self, as_dict=False):
+        """Iterate through processed data.
+
+        Parameters
+        ----------
+        as_dict : :obj:`bool`, optional
+            By default, the IDs and processed data belonging to the same group are concatenated
+            into a single pandas object (Series or DataFrame).
+
+        Yields
+        ------
+        :obj:`tuple`
+            Group identifier. Empty if no grouper has been applied previously.
+        :obj:`pandas.DataFrame` or :obj:`pandas.Series` or :obj:`dict`
+            Processed data for one particular group. Whether it is a pandas object or dict depends
+            on ``as_dict``. Whether it is a Series or DataFrame depends on the previously applied
+            Pipeline.
+        """
         for group, result in self.processed.items():
-            if short_ids:
-                result = remove_corpus_from_ids(result)
-            if as_pandas:
-                yield group, self._result_to_pandas(result, short_ids=short_ids)
-            else:
+            if as_dict:
                 yield group, result
+            else:
+                yield group, self.convert_group2pandas(result)
 
     def load(
         self,
-        directory: str = None,
+        directory: List[str] = None,
         parse_tsv: bool = True,
         parse_scores: bool = False,
         ms: str = None,
@@ -257,9 +378,12 @@ class Corpus(Data):
         if ms is not None:
             self.data.ms = ms
         if directory is not None:
-            self.data.add_dir(
-                directory=directory,
-            )
+            if isinstance(directory, str):
+                directory = [directory]
+            for d in directory:
+                self.data.add_dir(
+                    directory=d,
+                )
         if parse_tsv:
             self.data.parse_tsv()
         if parse_scores:
@@ -301,9 +425,10 @@ class Corpus(Data):
         unfold : :obj:`bool`, optional
             Pass True if you need repeats to be unfolded.
         concatenate : :obj:`bool`, optional
-            By default, the returned list contains one DataFrame per ID contained in the group.
-            Pass True to instead concatenate the DataFrames. Then, the list will contain only
-            one DataFrame the components of which can be distinguished using its MultiIndex.
+            By default, the returned dict contains one DataFrame per ID in the group.
+            Pass True to instead concatenate the DataFrames. Then, the dict will contain only
+            one entry where the key is a tuple containing all IDs and the value is a DataFrame,
+            the components of which can be distinguished using its MultiIndex.
 
         Yields
         ------
@@ -314,19 +439,69 @@ class Corpus(Data):
             If concatenate=True: DataFrame with MultiIndex identifying ID, and (eventual) interval.
         """
         for group, index_group in self.iter_groups():
-            result = {
-                index: self.get_item(index, what, unfold) for index in index_group
-            }
+            result = {}
+            missing_id = []
+            for index in index_group:
+                df = self.get_item(index, what, unfold)
+                if df.shape[0] == 0:
+                    missing_id.append(index)
+                    continue
+                result[index] = df
+            n_results = len(result)
+            if len(missing_id) > 0:
+                if n_results == 0:
+                    print(f"No '{what}' available for {group}.")
+                else:
+                    print(
+                        f"Group {group} is missing '{what}' for the following indices:\n"
+                        f"{missing_id}"
+                    )
+            if n_results == 0:
+                continue
             if concatenate:
-                index_level_names = ("corpus", "fname")
-                if any(len(ix) == 3 for ix in index_group):
-                    index_level_names = index_level_names + ("slice",)
-                result = pd.concat(
-                    result.values(), keys=result.keys(), names=index_level_names
-                )
-                result = {tuple(index_group): result}
+                if n_results == 1:
+                    # workaround necessary because of nasty "cannot handle overlapping indices;
+                    # use IntervalIndex.get_indexer_non_unique" error
+                    for id, df in result.items():
+                        pass
+                    df = df.copy()
+                    new_index = [id + (i,) for i in df.index]
+                    new_index = pd.MultiIndex.from_tuples(new_index)
+                    df.index = new_index
+                else:
+                    result = pd.concat(result.values(), keys=result.keys())
+                    result = {tuple(index_group): result}
+
             yield group, result
 
+    def get_slice(self, index, what):
+        if what not in self.sliced:
+            self.sliced[what] = {}
+        if index in self.sliced[what]:
+            return self.sliced[what][index]
+        # slice needs to be created
+        if len(self.slice_info) > 1:
+            raise NotImplementedError(
+                f"'{what}' more than one slicers have been applied."
+            )
+        corpus, fname, iv = index
+        df = self.get_item((corpus, fname), what=what)
+        try:
+            overlapping = df.index.overlaps(iv)
+        except AttributeError:
+            return pd.DataFrame()
+        chunk = df[overlapping].copy()
+        start, end = iv.left, iv.right
+        chunk_index = chunk.index
+        left_overlap = chunk_index.left < start
+        right_overlap = chunk_index.right > end
+        if left_overlap.sum() > 0 or right_overlap.sum() > 0:
+            chunk.index = chunk_index.map(lambda i: interval_overlap(i, iv))
+            chunk.loc[:, "duration_qb"] = chunk.index.length
+        self.sliced[what][index] = chunk
+        return chunk
+
+    @lru_cache()
     def get_item(self, index, what, unfold=False, multiindex=False):
         """Retrieve a DataFrame pertaining to the facet ``what`` of the piece ``index``. If
         the facet has been sliced before, the sliced DataFrame is returned.
@@ -355,20 +530,26 @@ class Corpus(Data):
                 df = self.data[corpus][fname].get_dataframe(
                     what, unfold, interval_index=True
                 )
+                if not isinstance(df.index, pd.IntervalIndex):
+                    print(f"'{what}' of {index} does not come with an IntervalIndex")
+                    df = pd.DataFrame()
             except FileNotFoundError:
                 print(f"No {what} available for {index}. Returning empty DataFrame.")
                 df = pd.DataFrame()
-            return df
         elif n_index_elements == 3:
-            if what in self.sliced:
-                df = self.sliced[what][index]
+            if what not in self.sliced:
+                self.sliced[what] = {}
+            if index not in self.sliced[what]:
+                df = self.get_slice(index, what)
             else:
-                # corpus, fname, interval = index
-                raise NotImplementedError(f"'{what}' would have to be sliced first.")
+                df = self.sliced[what][index]
         else:
             raise NotImplementedError(
                 f"'{index}': Indices can currently include 2 or 3 elements."
             )
+        assert (
+            df.index.nlevels == 1
+        ), f"Retrieved DataFrame has {df.index.nlevels}, not 1"
         if multiindex:
             df = pd.concat([df], keys=[index], names=["corpus", "fname"])
         return df
