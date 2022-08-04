@@ -1,6 +1,8 @@
 """Utility functions that are or might be used by several modules or useful in external contexts."""
 from typing import Collection
 
+import pandas as pd
+
 
 def nest_level(obj, include_tuples=False):
     """Recursively calculate the depth of a nested list."""
@@ -48,11 +50,11 @@ def get_composition_year(metadata_dict):
         metadata_dict["composed_start"] if "composed_start" in metadata_dict else None
     )
     end = metadata_dict["composed_end"] if "composed_end" in metadata_dict else None
-    if start is None and end is None:
-        raise "Metadata do not include composition dates."
-    if start is None:
+    if pd.isnull(start) and pd.isnull(end):
+        raise LookupError("Metadata do not include composition dates.")
+    if pd.isnull(start):
         return end
-    if end is None:
+    if pd.isnull(end):
         return start
     return round((end + start) / 2, ndigits=1)
 
