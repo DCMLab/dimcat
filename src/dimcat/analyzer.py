@@ -241,13 +241,31 @@ class ChordSymbolBigrams(ChordSymbolAnalyzer):
     def check(self, df):
         if df.shape[0] < 2:
             return False, "DataFrame has only one row, cannot compute bigram."
+        if df.localkey.nunique() > 1 and df.index.nlevels == 1:
+            return (
+                False,
+                "DataFrame contains labels from several local keys but no MultiIndex.",
+            )
         return True, ""
 
     @staticmethod
     def compute(df):
         if len(df) == 0:
             return pd.Series()
-        bigrams = grams(df.chord.values, n=2)
+        n_index_levels = df.index.nlevels
+        if n_index_levels > 1:
+            # create a nested list to exclude transitions between groups
+            index_levels_but_last = list(range(n_index_levels - 1))
+            gpb = df.groupby(level=index_levels_but_last)
+            assert all(gpb.localkey.nunique() == 1), (
+                f"Grouping by the first {n_index_levels-1} "
+                f"index levels does not result in localkey segments. Has "
+                f"the LocalKeySlicer been applied?\n{gpb.localkey.nunique()}"
+            )
+            chords = gpb.chord.apply(list).to_list()
+        else:
+            chords = df.chords.to_list()
+        bigrams = grams(chords, n=2)
         df = pd.DataFrame(bigrams)
         try:
             counts = (
