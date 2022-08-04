@@ -284,7 +284,7 @@ class Corpus(Data):
         self.processed = deepcopy(data_object.processed)
         self.sliced = deepcopy(data_object.sliced)
         self.slice_info = deepcopy(data_object.slice_info)
-        self.applied_pipeline = list(self.pipeline_steps)
+        self.pipeline_steps = list(data_object.pipeline_steps)
         self.index_levels = deepcopy(data_object.index_levels)
         self.group2pandas = data_object.group2pandas
 
