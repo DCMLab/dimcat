@@ -6,6 +6,7 @@ from ms3 import fifths2name
 
 from .data import Data
 from .pipeline import PipelineStep
+from .slicer import LocalKeySlicer
 from .utils import grams
 
 
@@ -316,7 +317,7 @@ class ChordSymbolBigrams(ChordSymbolAnalyzer):
             )
             chords = gpb.chord.apply(list).to_list()
         else:
-            chords = expanded.chords.to_list()
+            chords = expanded.chord.to_list()
         bigrams = grams(chords, n=2)
         expanded = pd.DataFrame(bigrams)
         try:
@@ -330,3 +331,9 @@ class ChordSymbolBigrams(ChordSymbolAnalyzer):
             print(expanded)
             raise
         return counts
+
+    def process_data(self, data: Data) -> Data:
+        assert any(
+            isinstance(step, LocalKeySlicer) for step in data.pipeline_steps
+        ), "ChordSymbolAnalyzer requires previous application of LocalKeySlicer()."
+        return super().process_data(data=data)
