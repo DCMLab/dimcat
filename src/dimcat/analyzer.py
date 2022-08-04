@@ -22,8 +22,8 @@ class FacetAnalyzer(Analyzer):
         Parameters
         ----------
         once_per_group : :obj:`bool`
-            By default, computes one result per group.
-            Set to False to instead compute one result per group item.
+            By default, computes one result per group item.
+            Set to True to instead compute only one for each group.
         """
         self.required_facets = []
         self.once_per_group = once_per_group
@@ -76,8 +76,8 @@ class NotesAnalyzer(FacetAnalyzer):
         Parameters
         ----------
         once_per_group : :obj:`bool`
-            By default, computes one result per group.
-            Set to False to instead compute one result per group item.
+            By default, computes one result per group item.
+            Set to True to instead compute only one for each group.
         """
         super().__init__(once_per_group=once_per_group)
         self.required_facets = ["notes"]
@@ -90,8 +90,8 @@ class ChordSymbolAnalyzer(FacetAnalyzer):
         Parameters
         ----------
         once_per_group : :obj:`bool`
-            By default, computes one result per group.
-            Set to False to instead compute one result per group item.
+            By default, computes one result per group item.
+            Set to True to instead compute only one for each group.
         """
         super().__init__(once_per_group=once_per_group)
         self.required_facets = ["expanded"]
@@ -136,8 +136,8 @@ class PitchClassVectors(NotesAnalyzer):
         Parameters
         ----------
         once_per_group : :obj:`bool`
-            By default, computes one result per group.
-            Set to False to instead compute one result per group item.
+            By default, computes one pitch class vector per group item.
+            Set to True to instead compute only one for each group.
         pitch_class_format : :obj:`str`, optional
             | Defines the type of pitch classes.
             | 'tpc' (default): tonal pitch class, such that -1=F, 0=C, 1=G etc.
@@ -221,19 +221,58 @@ class PitchClassVectors(NotesAnalyzer):
 
 
 class ChordSymbolUnigrams(ChordSymbolAnalyzer):
+    """Analyzer that returns the counts of chord symbols for each group, ordered by descending
+    frequency.
+    """
+
     def __init__(self, once_per_group=False):
+        """Analyzer that returns the counts of chord symbols for each group, ordered by descending
+            frequency.
+
+        Parameters
+        ----------
+        once_per_group : :obj:`bool`
+            By default, computes one unigram ranking per group item.
+            Set to True to instead compute only one for each group.
+        """
         super().__init__(once_per_group=once_per_group)
         self.level_names["processed"] = "chord"
 
     @staticmethod
-    def compute(df):
-        if len(df) == 0:
+    def compute(expanded):
+        """Computes the value counts of the chord symbol column.
+
+        Parameters
+        ----------
+        expanded : :obj:`pandas.DataFrame`
+            Expanded harmony labels.
+
+        Returns
+        -------
+        :obj:`pandas.Series`
+            The last index level has unique chord symbols, Series values are their corresponding
+            counts.
+        """
+        if len(expanded) == 0:
             return pd.Series()
-        return df.chord.value_counts().rename("count")
+        return expanded.chord.value_counts().rename("count")
 
 
 class ChordSymbolBigrams(ChordSymbolAnalyzer):
+    """Analyzer that returns the bigram counts for all valid chord transitions within a group,
+    ordered by descending frequency.
+    """
+
     def __init__(self, once_per_group=False):
+        """Analyzer that returns the bigram counts for all valid chord transitions within a group,
+            ordered by descending frequency.
+
+        Parameters
+        ----------
+        once_per_group : :obj:`bool`
+            By default, computes one bigram ranking per group item.
+            Set to True to instead compute only one for each group.
+        """
         super().__init__(once_per_group=once_per_group)
         self.level_names["processed"] = ["from", "to"]
         self.group2pandas = "group_of_series2series"
@@ -249,14 +288,27 @@ class ChordSymbolBigrams(ChordSymbolAnalyzer):
         return True, ""
 
     @staticmethod
-    def compute(df):
-        if len(df) == 0:
+    def compute(expanded):
+        """Turns the chord column into bigrams and returns their counts in descending order.
+
+        Parameters
+        ----------
+        expanded : :obj:`pandas.DataFrame`
+            Expanded harmony labels.
+
+        Returns
+        -------
+        :obj:`pandas.Series`
+            The last two index level are unique (from, to) bigrams, Series values are their
+            corresponding counts.
+        """
+        if len(expanded) == 0:
             return pd.Series()
-        n_index_levels = df.index.nlevels
+        n_index_levels = expanded.index.nlevels
         if n_index_levels > 1:
             # create a nested list to exclude transitions between groups
             index_levels_but_last = list(range(n_index_levels - 1))
-            gpb = df.groupby(level=index_levels_but_last)
+            gpb = expanded.groupby(level=index_levels_but_last)
             assert all(gpb.localkey.nunique() == 1), (
                 f"Grouping by the first {n_index_levels-1} "
                 f"index levels does not result in localkey segments. Has "
@@ -264,14 +316,17 @@ class ChordSymbolBigrams(ChordSymbolAnalyzer):
             )
             chords = gpb.chord.apply(list).to_list()
         else:
-            chords = df.chords.to_list()
+            chords = expanded.chords.to_list()
         bigrams = grams(chords, n=2)
-        df = pd.DataFrame(bigrams)
+        expanded = pd.DataFrame(bigrams)
         try:
             counts = (
-                df.groupby([0, 1]).size().sort_values(ascending=False).rename("count")
+                expanded.groupby([0, 1])
+                .size()
+                .sort_values(ascending=False)
+                .rename("count")
             )
         except KeyError:
-            print(df)
+            print(expanded)
             raise
         return counts
