@@ -30,6 +30,7 @@ class FacetSlicer(Slicer):
     def __init__(self):
         self.required_facets = []
         self.level_names = {}
+        self.config = {}
         """Define {"indices": "slice_level_name"} to give the third index column that contains
         the slices' intervals a meaningful name. Define {"slicer": "slicer_name"} for the
         creation of meaningful file names.
@@ -77,7 +78,9 @@ class FacetSlicer(Slicer):
                 if not eligible:
                     print(f"{index}: {message}")
                     continue
-                for slice_index, slice, slice_info in self.iter_slices(index, facet_df):
+                for slice_index, slice, slice_info in self.iter_slices(
+                    index, facet_df, **self.config
+                ):
                     new_index_group.append(slice_index)
                     sliced[slice_index] = slice
                     slice_infos[slice_index] = slice_info
@@ -103,16 +106,16 @@ class NoteSlicer(FacetSlicer):
             the slices will have that constant size, measured in quarter notes. For example,
             pass 1.0 for all slices to have size 1 quarter.
         """
+        super().__init__()
         self.required_facets = ["notes"]
-        self.quarters_per_slice = quarters_per_slice
         if quarters_per_slice is None:
             name = "slice"
         else:
             name = make_suffix(("q", quarters_per_slice)) + "-slice"
         self.level_names = {"indices": name, "slicer": name}
 
-    def iter_slices(self, index, facet_df):
-        sliced_df = slice_df(facet_df, self.quarters_per_slice)
+    def iter_slices(self, index, facet_df, quarters_per_slice=None):
+        sliced_df = slice_df(facet_df, quarters_per_slice)
         for interval, slice in sliced_df.groupby(level=0):
             slice_index = index + (interval,)
             yield slice_index, slice, slice.iloc[0].copy()
@@ -123,6 +126,7 @@ class LocalKeySlicer(FacetSlicer):
 
     def __init__(self):
         """Slices annotation tables based on adjacency groups of the 'localkey' column."""
+        super().__init__()
         self.required_facets = ["expanded"]
         self.level_names = {"indices": "localkey_slice", "slicer": "localkey"}
 
@@ -154,6 +158,55 @@ class LocalKeySlicer(FacetSlicer):
 
         if "localkey_is_minor" not in segmented.columns:
             segmented["localkey_is_minor"] = segmented.localkey.str.islower()
+        for (interval, _), row in segmented.iterrows():
+            slice_index = index + (interval,)
+            selector = facet_df.index.overlaps(interval)
+            yield slice_index, facet_df[selector], row
+
+
+class ChordFeatureSlicer(FacetSlicer):
+    """Create slices based on a particular feature."""
+
+    def __init__(self, feature="chord", na_values="ffill"):
+        """Create slices based on a particular feature.
+
+        Parameters
+        ----------
+        feature
+        na_values : (:obj:`list` of) :obj:`str` or :obj:`Any`, optional
+        | Either pass a list of equal length as ``cols`` or a single value that is passed to :py:func:`adjacency_groups`
+        | for each. Not dealing with NA values will lead to wrongly grouped segments. The default option is the safest.
+        | 'group' creates individual groups for NA values
+        | 'backfill' or 'bfill' groups NA values with the subsequent group
+        | 'pad', 'ffill' groups NA values with the preceding group
+        | Any other value works like 'group', with the difference that the created groups will be named with this value.
+        """
+        super().__init__()
+        self.required_facets = ["expanded"]
+        self.level_names = {"indices": f"{feature}_slice", "slicer": feature}
+        self.config.update(
+            dict(
+                feature=feature,
+                na_values=na_values,
+            )
+        )
+
+    def check(self, facet_df):
+        if len(facet_df) == 0:
+            return False, "Empty DataFrame"
+        for col in ("duration_qb", self.config["feature"]):
+            if col not in facet_df.columns:
+                return (
+                    False,
+                    f"Couldn't compute localkey slices because annotation table is missing the column '{col}'.",
+                )
+        return True, ""
+
+    def iter_slices(self, index, facet_df, feature="chord", na_values="ffill"):
+        name = "_".join(index)
+        segmented = segment_by_adjacency_groups(
+            facet_df, cols=feature, na_values=na_values, logger=name
+        )
         for (interval, _), row in segmented.iterrows():
             slice_index = index + (interval,)
             selector = facet_df.index.overlaps(interval)
