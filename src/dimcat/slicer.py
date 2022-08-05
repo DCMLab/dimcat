@@ -58,6 +58,13 @@ class FacetSlicer(Slicer):
             "Data object already contains processed data. Cannot slice it post-hoc, apply slicers "
             "beforehand."
         )
+        previous_slicers = [
+            step for step in data.pipeline_steps if isinstance(step, Slicer)
+        ]
+        if len(previous_slicers) > 0:
+            raise NotImplementedError(
+                f"Data object had already been sliced by {previous_slicers[0]}."
+            )
         # The three dictionaries that will be added to the resulting Data object,
         # where keys are the new indices. Each piece's (corpus, fname) index tuple will be
         # multiplied according to the number of slices and the new index tuples will be

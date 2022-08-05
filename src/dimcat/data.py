@@ -511,10 +511,6 @@ class Corpus(Data):
         if index in self.sliced[what]:
             return self.sliced[what][index]
         # slice needs to be created
-        if len(self.slice_info) > 1:
-            raise NotImplementedError(
-                f"'{what}' more than one slicers have been applied."
-            )
         corpus, fname, iv = index
         df = self.get_item((corpus, fname), what=what)
         try:
