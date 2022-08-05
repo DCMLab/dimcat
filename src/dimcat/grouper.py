@@ -121,7 +121,7 @@ class ModeGrouper(Grouper):
         self.slicer = None
 
     def criterion(self, index: tuple, data: Data) -> str:
-        slice_info = data.slice_info[self.slicer][index]
+        slice_info = data.slice_info[index]
         try:
             return slice_info["localkey_is_minor"]
         except KeyError:

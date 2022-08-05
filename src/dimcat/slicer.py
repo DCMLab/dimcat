@@ -17,7 +17,7 @@ class Slicer(PipelineStep, ABC):
     particular piece, creates a new index tuple with the Interval appended.
 
     If created from a facet, the slicer creates a pandas.Series per slice containing metadata for
-    later grouping, and stores it in ``data.slice_info[facet][(corpus, fname, Interval)]``.  The
+    later grouping, and stores it in ``data.slice_info[(corpus, fname, Interval)]``.  The
     slices generated from this can be found in ``data.sliced[facet][(corpus, fname, Interval)]``.
     """
 
@@ -95,7 +95,7 @@ class FacetSlicer(Slicer):
         result = data.copy()
         result.track_pipeline(self, **self.level_names)
         result.sliced[self.required_facets[0]] = sliced
-        result.slice_info[self] = slice_infos
+        result.slice_info = slice_infos
         result.indices = indices
         return result
 
