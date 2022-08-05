@@ -264,7 +264,7 @@ class ChordSymbolBigrams(ChordSymbolAnalyzer):
     ordered by descending frequency.
     """
 
-    def __init__(self, once_per_group=False):
+    def __init__(self, once_per_group=False, dropna=True):
         """Analyzer that returns the bigram counts for all valid chord transitions within a group,
             ordered by descending frequency.
 
@@ -273,10 +273,15 @@ class ChordSymbolBigrams(ChordSymbolAnalyzer):
         once_per_group : :obj:`bool`
             By default, computes one bigram ranking per group item.
             Set to True to instead compute only one for each group.
+        dropna : :obj:`bool`, optional
+            By default, NaN values are dropped before computing bigrams, resulting in transitions
+            from a missing value's preceding to its subsequent value. Pass False to include
+            bigrams from and to NaN values.
         """
         super().__init__(once_per_group=once_per_group)
         self.level_names["processed"] = ["from", "to"]
         self.group2pandas = "group_of_series2series"
+        self.config["dropna"] = dropna
 
     def check(self, df):
         if df.shape[0] < 2:
@@ -289,13 +294,16 @@ class ChordSymbolBigrams(ChordSymbolAnalyzer):
         return True, ""
 
     @staticmethod
-    def compute(expanded):
+    def compute(expanded, dropna=True):
         """Turns the chord column into bigrams and returns their counts in descending order.
 
         Parameters
         ----------
         expanded : :obj:`pandas.DataFrame`
             Expanded harmony labels.
+        By default, NaN values are dropped before computing bigrams, resulting in transitions
+            from a missing value's preceding to its subsequent value. Pass False to include
+            bigrams from and to NaN values.
 
         Returns
         -------
@@ -315,9 +323,15 @@ class ChordSymbolBigrams(ChordSymbolAnalyzer):
                 f"index levels does not result in localkey segments. Has "
                 f"the LocalKeySlicer been applied?\n{gpb.localkey.nunique()}"
             )
-            chords = gpb.chord.apply(list).to_list()
+            if dropna:
+                chords = gpb.chord.apply(lambda S: S.dropna().to_list()).to_list()
+            else:
+                chords = gpb.chord.apply(list).to_list()
         else:
-            chords = expanded.chord.to_list()
+            if dropna:
+                chords = expanded.chord.dropna().to_list()
+            else:
+                chords = expanded.chord.to_list()
         bigrams = grams(chords, n=2)
         expanded = pd.DataFrame(bigrams)
         try:
