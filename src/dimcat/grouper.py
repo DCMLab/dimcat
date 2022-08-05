@@ -129,12 +129,5 @@ class ModeGrouper(Grouper):
             print(slice_info)
 
     def process_data(self, data: Data) -> Data:
-        try:
-            self.slicer = next(
-                step for step in data.pipeline_steps if isinstance(step, LocalKeySlicer)
-            )
-        except StopIteration:
-            raise Exception(
-                f"Previous PipelineSteps do not include LocalKeySlicer: {data.pipeline_steps}"
-            )
+        self.slicer = data.get_previous_pipeline_step(of_type=LocalKeySlicer)
         return super().process_data(data)

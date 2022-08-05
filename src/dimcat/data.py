@@ -474,6 +474,37 @@ class Corpus(Data):
 
             yield group, result
 
+    def get_previous_pipeline_step(self, idx=0, of_type=None):
+        """Retrieve one of the previously applied PipelineSteps, either by index or by type.
+
+        Parameters
+        ----------
+        idx : :obj:`int`, optional
+            List index used if ``of_type`` is None. Defaults to 0, which is the PipeLine step
+            most recently applied.
+        of_type : :obj:`PipelineStep`, optional
+            Return the most recently applied PipelineStep of this type.
+
+        Returns
+        -------
+        :obj:`PipelineStep`
+        """
+        if of_type is None:
+            n_previous_steps = len(self.pipeline_steps)
+            try:
+                return self.pipeline_steps[idx]
+            except IndexError:
+                print(f"Invalid index idx={idx} for list of length {n_previous_steps}")
+                raise
+        try:
+            return next(
+                step for step in self.pipeline_steps if isinstance(step, of_type)
+            )
+        except StopIteration:
+            raise Exception(
+                f"Previous PipelineSteps do include no {of_type}: {self.pipeline_steps}"
+            )
+
     def get_slice(self, index, what):
         if what not in self.sliced:
             self.sliced[what] = {}
