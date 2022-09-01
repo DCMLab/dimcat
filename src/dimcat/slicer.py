@@ -5,7 +5,7 @@ from ms3 import segment_by_adjacency_groups, slice_df
 
 from .data import Data
 from .pipeline import PipelineStep
-from .utils import make_suffix
+from .utils import interval_index2interval, make_suffix
 
 
 class Slicer(PipelineStep, ABC):
@@ -120,12 +120,50 @@ class NoteSlicer(FacetSlicer):
         else:
             name = make_suffix(("q", quarters_per_slice)) + "-slice"
         self.level_names = {"indices": name, "slicer": name}
+        self.config["quarters_per_slice"] = quarters_per_slice
 
     def iter_slices(self, index, facet_df, quarters_per_slice=None):
         sliced_df = slice_df(facet_df, quarters_per_slice)
         for interval, slice in sliced_df.groupby(level=0):
             slice_index = index + (interval,)
             yield slice_index, slice, slice.iloc[0].copy()
+
+
+class MeasureSlicer(FacetSlicer):
+    """Slices note tables based on a regular interval size or on every onset."""
+
+    def __init__(self, use_measure_numbers=True):
+        """Slices note tables based on a regular interval size or on every onset.
+
+        Parameters
+        ----------
+        use_measure_numbers : :obj:`bool`, optional
+            By default, slices are created based on the scores' measure numbers (MN). Pass False
+            if you want them to reflect the scores' <Measure> tags (MC), which reflects upbeats,
+            split measures, etc.
+        """
+        super().__init__()
+        self.required_facets = ["measures"]
+        name = "measures"
+        self.level_names = {"indices": name, "slicer": name}
+        self.config["use_measure_numbers"] = use_measure_numbers
+
+    def iter_slices(self, index, facet_df, use_measure_numbers=True):
+        if use_measure_numbers:
+            mn_value_counts = facet_df.mn.value_counts()
+            if (mn_value_counts == 1).all():
+                # each row corresponds to a different measure number and thus to a slice,
+                # therefore no grouping is needed
+                use_measure_numbers = False
+        if use_measure_numbers:
+            for mn, mn_group in facet_df.groupby("mn"):
+                interval = interval_index2interval(mn_group.index)
+                slice_index = index + (interval,)
+                yield slice_index, mn_group, mn_group.iloc[0].copy()
+        else:
+            for interval, slice_info in facet_df.iterrows():
+                slice_index = index + (interval,)
+                yield slice_index, slice_info, slice_info
 
 
 class LocalKeySlicer(FacetSlicer):
@@ -210,9 +248,9 @@ class ChordFeatureSlicer(FacetSlicer):
         return True, ""
 
     def iter_slices(self, index, facet_df, feature="chord", na_values="ffill"):
-        name = "_".join(index)
+        logger_name = "_".join(index).replace(".", "")
         segmented = segment_by_adjacency_groups(
-            facet_df, cols=feature, na_values=na_values, logger=name
+            facet_df, cols=feature, na_values=na_values, logger=logger_name
         )
         for (interval, _), row in segmented.iterrows():
             slice_index = index + (interval,)

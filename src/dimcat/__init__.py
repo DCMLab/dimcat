@@ -25,5 +25,5 @@ from .data import Corpus
 from .filter import IsAnnotatedFilter
 from .grouper import CorpusGrouper, ModeGrouper, PieceGrouper, YearGrouper
 from .pipeline import Pipeline
-from .slicer import LocalKeySlicer, NoteSlicer
+from .slicer import LocalKeySlicer, MeasureSlicer, NoteSlicer
 from .writer import TSVWriter

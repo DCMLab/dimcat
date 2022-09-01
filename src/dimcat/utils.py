@@ -122,3 +122,10 @@ def make_suffix(*params):
             as_str += str(p)
         param_strings.append(as_str)
     return "-".join(param_strings)
+
+
+def interval_index2interval(ix):
+    """Takes an interval index and returns the interval corresponding to [min(left), max(right))."""
+    left = ix.left.min()
+    right = ix.right.max()
+    return pd.Interval(left, right, closed="left")
