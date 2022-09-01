@@ -284,7 +284,7 @@ class ChordSymbolBigrams(ChordSymbolAnalyzer):
         self.config["dropna"] = dropna
 
     def check(self, df):
-        if df.shape[0] < 2:
+        if len(df.index) < 2:
             return False, "DataFrame has only one row, cannot compute bigram."
         if df.localkey.nunique() > 1 and df.index.nlevels == 1:
             return (

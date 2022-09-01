@@ -69,7 +69,7 @@ class Data(ABC):
     @data.setter
     @abstractmethod
     def data(self, data_object):
-        """Implement setting the __data field after performing type check."""
+        """Implement setting the _data field after performing type check."""
         if data_object is not None:
             raise NotImplementedError
         self._data = data_object
@@ -277,7 +277,9 @@ class Corpus(Data):
     def data(self, data_object):
         """Check if the assigned object is suitable for conversion."""
         if not isinstance(data_object, Corpus):
-            raise TypeError(f"{type(data_object)} could not be converted to a Corpus.")
+            raise TypeError(
+                f"{data_object.__class__} could not be converted to a Corpus."
+            )
         self._data = data_object._data
         self.pieces = deepcopy(data_object.pieces)
         self.indices = deepcopy(data_object.indices)
@@ -394,7 +396,8 @@ class Corpus(Data):
             self.get_indices()
 
     def get_indices(self):
-        """Fills self.pieces with metadata and IDs for all loaded data."""
+        """Fills self.pieces with metadata and IDs for all loaded data. This resets previously
+        applied groupings."""
         self.pieces = {}
         self.indices = {}
         # self.group_labels = {}
@@ -443,14 +446,15 @@ class Corpus(Data):
             missing_id = []
             for index in index_group:
                 df = self.get_item(index, what, unfold)
-                if df.shape[0] == 0:
+                if len(df.index) == 0:
                     missing_id.append(index)
                     continue
                 result[index] = df
             n_results = len(result)
             if len(missing_id) > 0:
                 if n_results == 0:
-                    print(f"No '{what}' available for {group}.")
+                    pass
+                    # print(f"No '{what}' available for {group}.")
                 else:
                     print(
                         f"Group {group} is missing '{what}' for the following indices:\n"
@@ -561,7 +565,7 @@ class Corpus(Data):
                     print(f"'{what}' of {index} does not come with an IntervalIndex")
                     df = pd.DataFrame()
             except FileNotFoundError:
-                print(f"No {what} available for {index}. Returning empty DataFrame.")
+                # print(f"No {what} available for {index}. Returning empty DataFrame.")
                 df = pd.DataFrame()
         elif n_index_elements == 3:
             if what not in self.sliced:

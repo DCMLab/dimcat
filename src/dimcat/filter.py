@@ -46,6 +46,6 @@ class IsAnnotatedFilter(Filter):
         corpus, fname, *_ = index
         try:
             df = data.data[corpus][fname].get_dataframe("expanded")
-            return df.shape[0] > 0
+            return len(df.index) > 0
         except Exception:
             return False
