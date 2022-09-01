@@ -46,6 +46,9 @@ class FacetAnalyzer(Analyzer):
     def compute(self, df):
         """Where the actual computation takes place."""
 
+    def post_process(self, processed):
+        return processed
+
     def process_data(self, data: Data) -> Data:
         """Returns a copy of the Data object containing processed data."""
         processed = {}
@@ -64,6 +67,7 @@ class FacetAnalyzer(Analyzer):
                 print(f"Group '{group}' will be missing from the processed data.")
                 continue
             processed[group] = processed_group
+        processed = self.post_process(processed)
         result = data.copy()
         result.track_pipeline(self, group2pandas=self.group2pandas, **self.level_names)
         result.processed = processed
