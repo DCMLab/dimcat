@@ -448,7 +448,6 @@ class Corpus(Data):
                 df = self.get_item(index, what, unfold)
                 if len(df.index) == 0:
                     missing_id.append(index)
-                    continue
                 result[index] = df
             n_results = len(result)
             if len(missing_id) > 0:
