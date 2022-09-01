@@ -1,5 +1,6 @@
 """Analyzers are PipelineSteps that process data and store the results in Data.processed."""
 from abc import ABC, abstractmethod
+from collections import defaultdict
 
 import pandas as pd
 from ms3 import fifths2name
@@ -135,6 +136,7 @@ class PitchClassVectors(NotesAnalyzer):
         pitch_class_format="tpc",
         normalize=False,
         ensure_pitch_classes=None,
+        include_empty=False,
     ):
         """Analyzer that groups notes by their pitch class and aggregates their durations.
 
@@ -156,6 +158,10 @@ class PitchClassVectors(NotesAnalyzer):
             By default, pitch classes that don't appear don't appear. Pass a collection of pitch
             classes if you want to ensure their presence even if empty. For example, if
             ``pitch_class_format='pc'`` you could pass ``ensure_columns=range(12)``.
+        include_empty : :obj:`bool`, optional
+            By default, indices for which no notes occur will have length 0 PCV Series and will
+            therefore not appear in the concatenated results. Set to True if you want to include
+            them as empty rows in a post processing step.
         """
         super().__init__(once_per_group=once_per_group)
         self.config = dict(
@@ -165,6 +171,8 @@ class PitchClassVectors(NotesAnalyzer):
         )
         self.level_names["processed"] = pitch_class_format
         self.group2pandas = "group2dataframe_unstacked"
+        self.include_empty = include_empty
+        self.used_pitch_classes = set()
 
     @staticmethod
     def compute(
@@ -223,6 +231,23 @@ class PitchClassVectors(NotesAnalyzer):
                 new_values = pd.Series(pd.NA, index=missing)
                 pcvs = pd.concat([pcvs, new_values]).sort_index()
         return pcvs
+
+    def post_process(self, processed):
+        if not self.include_empty:
+            return processed
+        empty_pcv_ixs = defaultdict(list)
+        for group, index_group in processed.items():
+            for ix, pcv in index_group.items():
+                if len(pcv) == 0:
+                    empty_pcv_ixs[group].append(ix)
+                else:
+                    self.used_pitch_classes.update(pcv.index)
+        if len(empty_pcv_ixs) > 0:
+            empty_pcv = pd.Series(pd.NA, index=self.used_pitch_classes)
+            for group, ixs in empty_pcv_ixs.items():
+                for ix in ixs:
+                    processed[group][ix] = empty_pcv
+        return processed
 
 
 class ChordSymbolUnigrams(ChordSymbolAnalyzer):
