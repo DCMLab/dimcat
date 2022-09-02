@@ -291,6 +291,19 @@ class Corpus(Data):
         self.group2pandas = data_object.group2pandas
 
     def get(self, as_dict=False):
+        """Uses _.iter() to get all processed data at once.
+
+        Parameters
+        ----------
+        as_dict : :obj:`bool`, optional
+            By default, the result is a pandas DataFrame or Series where the first levels
+            display the groups. Pass True to obtain a nested {group -> {id -> processed}}
+            dictionary instead.
+
+        Returns
+        -------
+        :obj:`pandas.DataFrame` or :obj:`pandas.Series` or :obj:`dict`
+        """
         if len(self.processed) == 0:
             print("No data has been processed so far.")
             return
@@ -312,6 +325,32 @@ class Corpus(Data):
                 print(results.keys())
                 raise
         return clean_index_levels(pandas_obj)
+
+    def get_facet(self, what, unfold=False):
+        """Uses _.iter_facet() to collect and concatenate all DataFrames for a particular facet.
+
+        Parameters
+        ----------
+        what : {'form_labels', 'events', 'expanded', 'notes_and_rests', 'notes', 'labels',
+                'cadences', 'chords', 'measures', 'rests'}
+            What facet to retrieve.
+        unfold : :obj:`bool`, optional
+            Pass True if you need repeats to be unfolded.
+
+        Returns
+        -------
+        :obj:`pandas.DataFrame`
+        """
+        group_dfs = {
+            group: df
+            for group, dfs in self.iter_facet(
+                what=what, unfold=unfold, concatenate=True
+            )
+            for df in dfs.values()
+        }
+        if len(group_dfs) == 1:
+            return list(group_dfs.values())[0]
+        return pd.concat(group_dfs.values(), keys=group_dfs.keys())
 
     def convert_group2pandas(self, result_dict):
         converters = {
