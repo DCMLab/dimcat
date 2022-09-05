@@ -5,7 +5,7 @@ from ms3 import segment_by_adjacency_groups, slice_df
 
 from .data import Data
 from .pipeline import PipelineStep
-from .utils import interval_index2interval, make_suffix
+from .utils import interval_index2interval
 
 
 class Slicer(PipelineStep, ABC):
@@ -118,7 +118,7 @@ class NoteSlicer(FacetSlicer):
         if quarters_per_slice is None:
             name = "slice"
         else:
-            name = make_suffix(("q", quarters_per_slice)) + "-slice"
+            name = f"{round(float(quarters_per_slice), 1)}q_slice"
         self.level_names = {"indices": name, "slicer": name}
         self.config["quarters_per_slice"] = quarters_per_slice
 
