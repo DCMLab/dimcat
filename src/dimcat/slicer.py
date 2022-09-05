@@ -29,7 +29,7 @@ class FacetSlicer(Slicer):
 
     def __init__(self):
         self.required_facets = []
-        self.level_names = {}
+        self.level_names = dict(slicer="name")
         self.config = {}
         """Define {"indices": "slice_level_name"} to give the third index column that contains
         the slices' intervals a meaningful name. Define {"slicer": "slicer_name"} for the
@@ -99,6 +99,9 @@ class FacetSlicer(Slicer):
         result.indices = indices
         return result
 
+    def filename_factory(self):
+        return self.level_names["slicer"] + "d"
+
 
 class NoteSlicer(FacetSlicer):
     """Slices note tables based on a regular interval size or on every onset."""
@@ -144,7 +147,7 @@ class MeasureSlicer(FacetSlicer):
         """
         super().__init__()
         self.required_facets = ["measures"]
-        name = "measures"
+        name = "measure_slice"
         self.level_names = {"indices": name, "slicer": name}
         self.config["use_measure_numbers"] = use_measure_numbers
 

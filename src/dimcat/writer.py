@@ -2,9 +2,9 @@
 import os
 
 import pandas as pd
-from ms3 import write_tsv
+from ms3 import resolve_dir, write_tsv
 
-from .data import Data
+from .data import Corpus, Data
 from .pipeline import PipelineStep
 from .utils import make_suffix
 
@@ -22,7 +22,7 @@ class TSVWriter(PipelineStep):
         directory : :obj:`str`
             Where to store the TSV files (existing files will be overwritten).
         prefix : :obj:`str`, optional
-            If you pass a prefix it replaces the name of the applied analyzers in the filenames.
+            If you pass a prefix it will be prepended to the filenames.
         index : :obj:`bool`, optional
             By default, the pandas MultiIndex is included as the first columns in the TSV file.
             Pass False to omit the index.
@@ -32,18 +32,23 @@ class TSVWriter(PipelineStep):
             If you want to fill empty fields before writing TSVs, pass a ``value`` argument for
             :py:meth:`pandas.DataFrame.fillna`.
         """
-        self.directory = directory
+        resolved_path = resolve_dir(directory)
+        try:
+            assert os.path.isdir(resolved_path), f"Path {directory} not found."
+        except TypeError as e:
+            raise TypeError(f"'{directory}' could not be interpreted as path. {e}")
+        self.directory = resolved_path
         self.prefix = prefix
         self.index = index
         self.round = round
         self.fillna = fillna
 
-    def process_data(self, data: Data) -> Data:
-        for group, df in data.iter():
-            if self.prefix is None:
-                name_components = [make_suffix(data.index_levels["processed"])]
-            else:
-                name_components = [self.prefix]
+    def make_filenames(self, data: Corpus) -> dict:
+        """Returns a {group -> filename} dict."""
+        result = {}
+        pipeline_steps = [ps.filename_factory() for ps in reversed(data.pipeline_steps)]
+        for group in data.indices.keys():
+            name_components = [] if self.prefix is None else [self.prefix]
             if group == ():
                 corpora = data.data.keys()
                 if len(corpora) == 1:
@@ -51,15 +56,18 @@ class TSVWriter(PipelineStep):
                 else:
                     name_components.append("all")
             else:
-                name_components.append(make_suffix(list(group)))
-            name_components.extend(
-                [
-                    make_suffix(names)
-                    for level, names in data.index_levels.items()
-                    if level not in ("processed", "groups", "indices")
-                ]
-            )
-            tsv_name = "-".join(c for c in name_components if c != "") + ".tsv"
+                if isinstance(group, str):
+                    name_components.append(group)
+                else:
+                    name_components.append(make_suffix(list(group)))
+            name_components.extend(pipeline_steps)
+            result[group] = "-".join(c for c in name_components if c != "")
+        return result
+
+    def process_data(self, data: Data) -> Data:
+        filenames = self.make_filenames(data)
+        for group, df in data.iter():
+            tsv_name = filenames[group] + ".tsv"
             tsv_path = os.path.join(self.directory, tsv_name)
             df = pd.DataFrame(df)
             if self.round is not None:

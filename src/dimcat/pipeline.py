@@ -30,6 +30,9 @@ class PipelineStep(ABC):
         """
         return True, ""
 
+    def filename_factory(self):
+        return self.__class__.__name__
+
     @abstractmethod
     def process_data(self, data: Data) -> Data:
         """

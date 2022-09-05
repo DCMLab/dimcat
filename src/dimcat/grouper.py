@@ -26,6 +26,10 @@ class Grouper(PipelineStep, ABC):
         the resulting groups has a meaningful name. E.g., for grouping by years, a good index
         level name could be 'year'.
         """
+        self.level_names = dict(grouper="name")
+
+    def filename_factory(self):
+        return self.level_names["grouper"] + "_wise"
 
     @abstractmethod
     def criterion(self, index: tuple, data: Data) -> str:
@@ -82,6 +86,9 @@ class PieceGrouper(Grouper):
         self.sort = sort
         self.level_names = dict(grouper="fname")
 
+    def filename_factory(self):
+        return "piece_wise"
+
     def criterion(self, index: tuple, data: Data) -> str:
         return index[1]
 
@@ -119,6 +126,9 @@ class ModeGrouper(Grouper):
         self.sort = sort
         self.level_names = dict(grouper="localkey_is_minor")
         self.slicer = None
+
+    def filename_factory(self):
+        return "mode_wise"
 
     def criterion(self, index: tuple, data: Data) -> str:
         slice_info = data.slice_info[index]

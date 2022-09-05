@@ -8,7 +8,7 @@ from ms3 import add_weighted_grace_durations, fifths2name
 from .data import Data
 from .pipeline import PipelineStep
 from .slicer import LocalKeySlicer
-from .utils import grams
+from .utils import grams, make_suffix
 
 
 class Analyzer(PipelineStep, ABC):
@@ -178,6 +178,14 @@ class PitchClassVectors(NotesAnalyzer):
         self.group2pandas = "group2dataframe_unstacked"
         self.include_empty = include_empty
         self.used_pitch_classes = set()
+
+    def filename_factory(self):
+        return make_suffix(
+            ("w", self.config["weight_grace_durations"]),
+            ("normalized", self.config["normalize"]),
+            self.config["pitch_class_format"],
+            "pcvs",
+        )
 
     @staticmethod
     def compute(
