@@ -14,7 +14,7 @@ class TSVWriter(PipelineStep):
     file with a file name individually constructed based on the applied pipeline steps.
     """
 
-    def __init__(self, directory, prefix=None, index=True):
+    def __init__(self, directory, prefix=None, index=True, round=None, fillna=None):
         """This pipeline step writes the processed data for each group to a TSV file.
 
         Parameters
@@ -26,10 +26,17 @@ class TSVWriter(PipelineStep):
         index : :obj:`bool`, optional
             By default, the pandas MultiIndex is included as the first columns in the TSV file.
             Pass False to omit the index.
+        round : :obj:`int`, optional
+            If you want to round floats before writing, pass the number of decimal digits.
+        fillna = scalar, :obj:`dict`, :obj:`pandas.Series`, or :obj:`pandas.DataFrame`, optional
+            If you want to fill empty fields before writing TSVs, pass a ``value`` argument for
+            :py:meth:`pandas.DataFrame.fillna`.
         """
         self.directory = directory
         self.prefix = prefix
         self.index = index
+        self.round = round
+        self.fillna = fillna
 
     def process_data(self, data: Data) -> Data:
         for group, df in data.iter():
@@ -38,7 +45,11 @@ class TSVWriter(PipelineStep):
             else:
                 name_components = [self.prefix]
             if group == ():
-                name_components.append("global")
+                corpora = data.data.keys()
+                if len(corpora) == 1:
+                    name_components.append(corpora[0])
+                else:
+                    name_components.append("all")
             else:
                 name_components.append(make_suffix(list(group)))
             name_components.extend(
@@ -50,6 +61,11 @@ class TSVWriter(PipelineStep):
             )
             tsv_name = "-".join(c for c in name_components if c != "") + ".tsv"
             tsv_path = os.path.join(self.directory, tsv_name)
-            write_tsv(pd.DataFrame(df), tsv_path, index=self.index)
+            df = pd.DataFrame(df)
+            if self.round is not None:
+                df = df.round(self.round)
+            if self.fillna is not None:
+                df = df.fillna(value=self.fillna)
+            write_tsv(df, tsv_path, index=self.index)
             print(f"Wrote {tsv_path}")
         return data
