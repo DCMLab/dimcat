@@ -45,6 +45,7 @@ class Data(ABC):
 
         self.index_levels = {
             "indices": ["corpus", "fname"],
+            "slicer": [],
             "groups": [],
             "processed": [],
         }
@@ -154,7 +155,7 @@ class Data(ABC):
         if grouper is not None:
             self.index_levels["groups"] = self.index_levels["groups"] + [grouper]
         if slicer is not None:
-            self.index_levels[pipeline_step] = [slicer]
+            self.index_levels["slicer"] = [slicer]
 
     @abstractmethod
     def load(self):
@@ -203,7 +204,7 @@ class Data(ABC):
         """Renames the index levels based on the _.index_levels dict."""
         try:
             if multiindex.nlevels == 1:
-                index_level_names = index_level_names[0]
+                return multiindex.rename(index_level_names[0])
             levels = list(range(len(index_level_names)))
             return multiindex.rename(index_level_names, level=levels)
         except (TypeError, ValueError):
@@ -345,7 +346,9 @@ class Corpus(Data):
         }
         if len(group_dfs) == 1:
             return list(group_dfs.values())[0]
-        return pd.concat(group_dfs.values(), keys=group_dfs.keys())
+        return pd.concat(
+            group_dfs.values(), keys=group_dfs.keys(), names=self.index_levels["groups"]
+        )
 
     def convert_group2pandas(self, result_dict):
         converters = {
@@ -626,5 +629,5 @@ class Corpus(Data):
             df.index.nlevels == 1
         ), f"Retrieved DataFrame has {df.index.nlevels}, not 1"
         if multiindex:
-            df = pd.concat([df], keys=[index], names=["corpus", "fname"])
+            df = pd.concat([df], keys=[index[:2]], names=["corpus", "fname"])
         return df
