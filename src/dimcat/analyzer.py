@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 
 import pandas as pd
-from ms3 import fifths2name
+from ms3 import add_weighted_grace_durations, fifths2name
 
 from .data import Data
 from .pipeline import PipelineStep
@@ -134,6 +134,7 @@ class PitchClassVectors(NotesAnalyzer):
         self,
         once_per_group=False,
         pitch_class_format="tpc",
+        weight_grace_durations=0.0,
         normalize=False,
         ensure_pitch_classes=None,
         include_empty=False,
@@ -151,6 +152,9 @@ class PitchClassVectors(NotesAnalyzer):
             | 'name': tonal pitch class as spelled pitch, e.g. 'C', 'F#', 'Abb' etc.
             | 'pc': chromatic pitch classes where 0=C, 1=C#/Db, ... 11=B/Cb.
             | 'midi': original MIDI numbers; the result are pitch vectors, not pitch class vectors.
+        weight_grace_durations : :obj:`float`, optional
+            By default (0.), grace notes have duration 0. Set this value to include their weighted
+            durations in the computation of PCVs, e.g. 0.5.
         normalize : :obj:`bool`, optional
             By default, the PCVs contain absolute durations in quarter notes. Pass True to normalize
             the PCV for each slice.
@@ -166,6 +170,7 @@ class PitchClassVectors(NotesAnalyzer):
         super().__init__(once_per_group=once_per_group)
         self.config = dict(
             pitch_class_format=pitch_class_format,
+            weight_grace_durations=weight_grace_durations,
             normalize=normalize,
             ensure_pitch_classes=ensure_pitch_classes,
         )
@@ -176,8 +181,9 @@ class PitchClassVectors(NotesAnalyzer):
 
     @staticmethod
     def compute(
-        notes,
+        notes: pd.DataFrame,
         pitch_class_format="tpc",
+        weight_grace_durations=0.0,
         normalize=False,
         ensure_pitch_classes=None,
     ):
@@ -195,6 +201,9 @@ class PitchClassVectors(NotesAnalyzer):
             | 'name': tonal pitch class as spelled pitch, e.g. 'C', 'F#', 'Abb' etc.
             | 'pc': chromatic pitch classes where 0=C, 1=C#/Db, ... 11=B/Cb.
             | 'midi': original MIDI numbers; the result are pitch vectors, not pitch class vectors.
+        weight_grace_durations : :obj:`float`, optional
+            By default (0.), grace notes have duration 0. Set this value to include their weighted
+            durations in the computation of PCVs, e.g. 0.5.
         normalize : :obj:`bool`, optional
             By default, the PCVs contain absolute durations in quarter notes. Pass True to normalize
             the PCV for each group.
@@ -208,6 +217,7 @@ class PitchClassVectors(NotesAnalyzer):
         -------
         :obj:`pandas.Series`
         """
+        notes = notes.reset_index(drop=True)
         if pitch_class_format in ("tpc", "name"):
             pitch_class_grouper = notes.tpc
         elif pitch_class_format == "pc":
@@ -220,7 +230,13 @@ class PitchClassVectors(NotesAnalyzer):
                 + str(pitch_class_format)
             )
             return pd.DataFrame()
-        pcvs = notes.groupby(pitch_class_grouper, dropna=False).duration_qb.sum()
+        if weight_grace_durations > 0:
+            notes = add_weighted_grace_durations(notes, weight=weight_grace_durations)
+        try:
+            pcvs = notes.groupby(pitch_class_grouper, dropna=False).duration_qb.sum()
+        except ValueError:
+            print(notes)
+            raise
         if pitch_class_format == "name":
             pcvs.index = fifths2name(pcvs.index)
         if normalize:
