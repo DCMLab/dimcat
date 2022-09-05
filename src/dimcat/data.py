@@ -162,16 +162,9 @@ class Data(ABC):
     def group_of_values2series(self, group_dict):
         """Turns an {ix -> result} into a Series or DataFrame."""
         series = pd.Series(group_dict, name=self.index_levels["processed"][0])
-        index_level_names = self.index_levels["indices"]
-        try:
-            if series.index.nlevels == 1:
-                index_level_names = index_level_names[0]
-            series.index.rename(index_level_names, inplace=True)
-        except (TypeError, ValueError):
-            print(series.index)
-            print(f"current: {series.index.names}, new: {index_level_names}")
-            print(self.index_levels)
-            raise
+        series.index = self._rename_multiindex_levels(
+            series.index, self.index_levels["indices"]
+        )
         return series
 
     def group_of_series2series(self, group_dict):
@@ -186,16 +179,9 @@ class Data(ABC):
                 n_empty = lengths.count(0)
                 print(f"Had to remove {n_empty} empty Series before concatenation.")
         series = pd.concat(group_dict.values(), keys=group_dict.keys())
-        index_level_names = (
-            self.index_levels["indices"] + self.index_levels["processed"]
+        series.index = self._rename_multiindex_levels(
+            series.index, self.index_levels["indices"] + self.index_levels["processed"]
         )
-        try:
-            series.index.rename(index_level_names, inplace=True)
-        except (TypeError, ValueError):
-            print(series.index)
-            print(f"current: {series.index.names}, new: {index_level_names}")
-            print(f"self.index_levels: {self.index_levels}")
-            raise
         return series
 
     def group2dataframe(self, group_dict):
@@ -204,20 +190,28 @@ class Data(ABC):
         except (TypeError, ValueError):
             print(group_dict)
             raise
-        index_level_names = (
-            self.index_levels["indices"] + self.index_levels["processed"]
+        df.index = self._rename_multiindex_levels(
+            df.index, self.index_levels["indices"] + self.index_levels["processed"]
         )
-        try:
-            df.index.rename(index_level_names, inplace=True)
-        except (TypeError, ValueError):
-            print(df.index)
-            print(f"current: {df.index.names}, new: {index_level_names}")
-            print(f"self.index_levels: {self.index_levels}")
-            raise
         return df
 
     def group2dataframe_unstacked(self, group_dict):
         return self.group2dataframe(group_dict).unstack()
+
+    def _rename_multiindex_levels(self, multiindex: pd.MultiIndex, index_level_names):
+        """Renames the index levels based on the _.index_levels dict."""
+        try:
+            if multiindex.nlevels == 1:
+                index_level_names = index_level_names[0]
+            levels = list(range(len(index_level_names)))
+            return multiindex.rename(index_level_names, level=levels)
+        except (TypeError, ValueError):
+            print(
+                f"Failed to rename MultiIndex levels {multiindex.names} to {index_level_names}."
+            )
+            print(multiindex[:10])
+            print(f"self.index_levels: {self.index_levels}")
+        return multiindex
 
 
 def remove_corpus_from_ids(result):
