@@ -498,15 +498,13 @@ class Corpus(Data):
                 if n_results == 1:
                     # workaround necessary because of nasty "cannot handle overlapping indices;
                     # use IntervalIndex.get_indexer_non_unique" error
-                    for id, df in result.items():
-                        pass
-                    df = df.copy()
-                    new_index = [id + (i,) for i in df.index]
-                    new_index = pd.MultiIndex.from_tuples(new_index)
-                    df.index = new_index
-                else:
-                    result = pd.concat(result.values(), keys=result.keys())
-                    result = {tuple(index_group): result}
+                    result["empty"] = pd.DataFrame()
+                result = pd.concat(
+                    result.values(),
+                    keys=result.keys(),
+                    names=self.index_levels["indices"] + ["interval"],
+                )
+                result = {tuple(index_group): result}
 
             yield group, result
 
