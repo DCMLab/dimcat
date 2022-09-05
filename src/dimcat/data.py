@@ -1,5 +1,6 @@
 """Class hierarchy for data types."""
 from abc import ABC, abstractmethod
+from collections import defaultdict
 from copy import deepcopy
 from functools import lru_cache
 from typing import List
@@ -450,6 +451,38 @@ class Corpus(Data):
                 self.pieces[ID] = piece_info
         self.indices[()] = list(self.pieces.keys())
 
+    def _make_slices(self, facet_df, intervals):
+        sliced = {}
+        for iv in intervals:
+            overlapping = facet_df.index.overlaps(iv)
+            chunk = facet_df[overlapping].copy()
+            start, end = iv.left, iv.right
+            left_overlap = chunk.index.left < start
+            right_overlap = chunk.index.right > end
+            if left_overlap.sum() > 0 or right_overlap.sum() > 0:
+                chunk.index = chunk.index.map(lambda i: interval_overlap(i, iv))
+                chunk.loc[:, "duration_qb"] = chunk.index.length
+            sliced[iv] = chunk
+        return sliced
+
+    def slice_facet_if_necessary(self, what, unfold):
+        if len(self.slice_info) == 0:
+            # no slicer applied
+            return
+        if what in self.sliced:
+            # already sliced
+            return
+        self.sliced[what] = {}
+        facet_ids = defaultdict(list)
+        for corpus, fname, interval in self.slice_info.keys():
+            facet_ids[(corpus, fname)].append(interval)
+        for id, intervals in facet_ids.items():
+            facet_df = self.get_item(id, what, unfold)
+            sliced = self._make_slices(facet_df, intervals)
+            self.sliced[what].update(
+                {id + (iv,): chunk for iv, chunk in sliced.items()}
+            )
+
     def iter_facet(self, what, unfold=False, concatenate=False):
         """Iterate through groups of potentially sliced facet DataFrames.
 
@@ -474,6 +507,7 @@ class Corpus(Data):
             Default: {ID -> DataFrame}.
             If concatenate=True: DataFrame with MultiIndex identifying ID, and (eventual) interval.
         """
+        self.slice_facet_if_necessary(what, unfold)
         for group, index_group in self.iter_groups():
             result = {}
             missing_id = []
@@ -545,22 +579,7 @@ class Corpus(Data):
         if index in self.sliced[what]:
             return self.sliced[what][index]
         # slice needs to be created
-        corpus, fname, iv = index
-        df = self.get_item((corpus, fname), what=what)
-        try:
-            overlapping = df.index.overlaps(iv)
-        except AttributeError:
-            return pd.DataFrame()
-        chunk = df[overlapping].copy()
-        start, end = iv.left, iv.right
-        chunk_index = chunk.index
-        left_overlap = chunk_index.left < start
-        right_overlap = chunk_index.right > end
-        if left_overlap.sum() > 0 or right_overlap.sum() > 0:
-            chunk.index = chunk_index.map(lambda i: interval_overlap(i, iv))
-            chunk.loc[:, "duration_qb"] = chunk.index.length
-        self.sliced[what][index] = chunk
-        return chunk
+        print(f"No sliced '{what}' found for index {index}.")
 
     @lru_cache()
     def get_item(self, index, what, unfold=False, multiindex=False):
@@ -598,12 +617,7 @@ class Corpus(Data):
                 # print(f"No {what} available for {index}. Returning empty DataFrame.")
                 df = pd.DataFrame()
         elif n_index_elements == 3:
-            if what not in self.sliced:
-                self.sliced[what] = {}
-            if index not in self.sliced[what]:
-                df = self.get_slice(index, what)
-            else:
-                df = self.sliced[what][index]
+            df = self.get_slice(index, what)
         else:
             raise NotImplementedError(
                 f"'{index}': Indices can currently include 2 or 3 elements."
