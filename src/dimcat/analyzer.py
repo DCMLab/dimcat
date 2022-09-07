@@ -134,7 +134,7 @@ class PitchClassVectors(NotesAnalyzer):
         self,
         once_per_group=False,
         pitch_class_format="tpc",
-        weight_grace_durations=0.0,
+        weight_grace_durations: float = 0.0,
         normalize=False,
         ensure_pitch_classes=None,
         include_empty=False,
@@ -170,7 +170,7 @@ class PitchClassVectors(NotesAnalyzer):
         super().__init__(once_per_group=once_per_group)
         self.config = dict(
             pitch_class_format=pitch_class_format,
-            weight_grace_durations=weight_grace_durations,
+            weight_grace_durations=float(weight_grace_durations),
             normalize=normalize,
             ensure_pitch_classes=ensure_pitch_classes,
         )
@@ -191,7 +191,7 @@ class PitchClassVectors(NotesAnalyzer):
     def compute(
         notes: pd.DataFrame,
         pitch_class_format="tpc",
-        weight_grace_durations=0.0,
+        weight_grace_durations: float = 0.0,
         normalize=False,
         ensure_pitch_classes=None,
     ):

@@ -516,12 +516,16 @@ class Corpus(Data):
             Default: {ID -> DataFrame}.
             If concatenate=True: DataFrame with MultiIndex identifying ID, and (eventual) interval.
         """
-        self.slice_facet_if_necessary(what, unfold)
+        if not self.slice_facet_if_necessary(what, unfold):
+            print(f"No sliced {what} available.")
+            raise StopIteration
         for group, index_group in self.iter_groups():
             result = {}
             missing_id = []
             for index in index_group:
                 df = self.get_item(index, what, unfold)
+                if df is None:
+                    continue
                 if len(df.index) == 0:
                     missing_id.append(index)
                 result[index] = df
@@ -578,17 +582,13 @@ class Corpus(Data):
                 step for step in self.pipeline_steps if isinstance(step, of_type)
             )
         except StopIteration:
-            raise Exception(
-                f"Previous PipelineSteps do include no {of_type}: {self.pipeline_steps}"
+            raise StopIteration(
+                f"Previously applied PipelineSteps do not include any {of_type}: {self.pipeline_steps}"
             )
 
     def get_slice(self, index, what):
-        if what not in self.sliced:
-            self.sliced[what] = {}
-        if index in self.sliced[what]:
+        if what in self.sliced and index in self.sliced[what]:
             return self.sliced[what][index]
-        # slice needs to be created
-        print(f"No sliced '{what}' found for index {index}.")
 
     @lru_cache()
     def get_item(self, index, what, unfold=False, multiindex=False):
@@ -631,6 +631,8 @@ class Corpus(Data):
             raise NotImplementedError(
                 f"'{index}': Indices can currently include 2 or 3 elements."
             )
+        if df is None:
+            return
         assert (
             df.index.nlevels == 1
         ), f"Retrieved DataFrame has {df.index.nlevels}, not 1"

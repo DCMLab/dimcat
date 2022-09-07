@@ -1,6 +1,6 @@
 """A Pipeline performs computation iteratively on a List of PipelineSteps."""
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Tuple
 
 from .data import Data
 
@@ -18,7 +18,7 @@ class PipelineStep(ABC):
         """Specifies a list of facets (such as 'notes' or 'labels') that the passed Data object
         needs to provide."""
 
-    def check(self, _):
+    def check(self, _) -> Tuple[bool, str]:
         """Test piece of data for certain properties before computing analysis.
 
         Returns

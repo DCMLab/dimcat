@@ -123,13 +123,26 @@ class NoteSlicer(FacetSlicer):
         else:
             name = f"{round(float(quarters_per_slice), 1)}q_slice"
         self.level_names = {"indices": name, "slicer": name}
-        self.config["quarters_per_slice"] = quarters_per_slice
+        self.config["quarters_per_slice"] = (
+            quarters_per_slice
+            if quarters_per_slice is None
+            else float(quarters_per_slice)
+        )
+
+    def check(self, facet_df):
+        if len(facet_df.index) == 0:
+            return False, "Empty DataFrame."
+        return True, ""
 
     def iter_slices(self, index, facet_df, quarters_per_slice=None):
-        sliced_df = slice_df(facet_df, quarters_per_slice)
-        for interval, slice in sliced_df.groupby(level=0):
-            slice_index = index + (interval,)
-            yield slice_index, slice, slice.iloc[0].copy()
+        try:
+            sliced_df = slice_df(facet_df, quarters_per_slice)
+            for interval, slice in sliced_df.groupby(level=0):
+                slice_index = index + (interval,)
+                yield slice_index, slice, slice.iloc[0].copy()
+        except AssertionError:
+            print(facet_df)
+            raise
 
 
 class MeasureSlicer(FacetSlicer):
