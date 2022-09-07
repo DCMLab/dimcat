@@ -22,27 +22,38 @@ from dimcat.filter import IsAnnotatedFilter
 from dimcat.grouper import CorpusGrouper, ModeGrouper, PieceGrouper, YearGrouper
 from dimcat.pipeline import Pipeline
 from dimcat.slicer import LocalKeySlicer, NoteSlicer
+from git import Repo
 from ms3 import pretty_dict
 
 # Directory holding your clones of DCMLab/unittest_metacorpus & DCMLab/pleyel_quartets
 CORPUS_DIR = "~"
+TEST_COMMIT = (
+    "73ce500"  # commit of DCMLab/unittest_metacorpus for which the tests should pass
+)
 
 
 @pytest.fixture(
     scope="session",
     params=[
-        "pleyel_quartets",
-        "unittest_metacorpus",
+        ("pleyel_quartets", "12cac6e"),
+        ("unittest_metacorpus", "73ce500"),
     ],
     ids=[
-        "single",
-        "multiple",
+        "corpus",
+        "metacorpus",
     ],
 )
 def small_corpora_path(request):
     """Compose the paths for the test corpora."""
     print("Path was requested")
-    path = os.path.join(CORPUS_DIR, request.param)
+    repo_name, test_commit = request.param
+    path = os.path.join(CORPUS_DIR, repo_name)
+    path = os.path.expanduser(path)
+    assert os.path.isdir(path)
+    repo = Repo(path)
+    commit = repo.commit("HEAD")
+    sha = commit.hexsha[: len(test_commit)]
+    assert sha == test_commit
     return path
 
 
@@ -65,8 +76,8 @@ def all_corpora_path():
         #        "TSV + scores"
     ],
 )
-def corpus(all_corpora_path, request):
-    path = all_corpora_path
+def corpus(small_corpora_path, request):
+    path = small_corpora_path
     obj, tsv, scores = request.param
     initialized_obj = obj(directory=path, parse_tsv=tsv, parse_scores=scores)
     print(
@@ -133,8 +144,13 @@ def apply_slicer(slicer, corpus):
             grouped_by_piece[piece_id].extend(slices.duration_qb.to_list())
         for piece_id, durations in grouped_by_piece.items():
             # test if the facet slices add up to the same duration as the original facet
-            facet_duration = sliced_data.get_item(piece_id, facet).duration_qb.sum()
-            assert math.isclose(sum(durations), facet_duration)
+            facet_duration = sliced_data.get_item(piece_id, facet).duration_qb
+            adds_up = math.isclose(sum(durations), facet_duration.sum())
+            if not adds_up:
+                print(
+                    f"{piece_id}: Durations for facet {facet} sum up to {facet_duration.sum()}, "
+                    f"but the slices add up to {sum(durations)}"
+                )
     return sliced_data
 
 
