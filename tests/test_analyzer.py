@@ -32,40 +32,42 @@ def analyzer_results(request):
     print(identifier)
     if caller == "test_analyzer":
         expected_results = {
-            ("TSV only", "single", "TPCrange", "once_per_group"): {
+            ("TSV only", "corpus", "TPCrange", "once_per_group"): {
                 (): "pleyel_quartets-TPCrange"
             },
-            ("TSV only", "single", "TPCrange", ""): {(): "pleyel_quartets-TPCrange"},
-            ("TSV only", "single", "PitchClassVectors", "once_per_group"): {
+            ("TSV only", "corpus", "TPCrange", ""): {(): "pleyel_quartets-TPCrange"},
+            ("TSV only", "corpus", "PitchClassVectors", "once_per_group"): {
                 (): "pleyel_quartets-tpc-pcvs"
             },
-            ("TSV only", "single", "PitchClassVectors", ""): {
+            ("TSV only", "corpus", "PitchClassVectors", ""): {
                 (): "pleyel_quartets-tpc-pcvs"
             },
-            ("TSV only", "single", "ChordSymbolUnigrams", "once_per_group"): {
+            ("TSV only", "corpus", "ChordSymbolUnigrams", "once_per_group"): {
                 (): "pleyel_quartets-ChordSymbolUnigrams"
             },
-            ("TSV only", "single", "ChordSymbolUnigrams", ""): {
+            ("TSV only", "corpus", "ChordSymbolUnigrams", ""): {
                 (): "pleyel_quartets-ChordSymbolUnigrams"
             },
-            ("TSV only", "multiple", "TPCrange", "once_per_group"): {
+            ("TSV only", "corpus", "ChordSymbolBigrams", "once_per_group"): {},
+            ("TSV only", "corpus", "ChordSymbolBigrams", ""): {},
+            ("TSV only", "metacorpus", "TPCrange", "once_per_group"): {
                 (): "all-TPCrange"
             },
-            ("TSV only", "multiple", "TPCrange", ""): {(): "all-TPCrange"},
-            ("TSV only", "multiple", "PitchClassVectors", "once_per_group"): {
+            ("TSV only", "metacorpus", "TPCrange", ""): {(): "all-TPCrange"},
+            ("TSV only", "metacorpus", "PitchClassVectors", "once_per_group"): {
                 (): "all-tpc-pcvs"
             },
-            ("TSV only", "multiple", "PitchClassVectors", ""): {(): "all-tpc-pcvs"},
-            ("TSV only", "multiple", "ChordSymbolUnigrams", "once_per_group"): {
+            ("TSV only", "metacorpus", "PitchClassVectors", ""): {(): "all-tpc-pcvs"},
+            ("TSV only", "metacorpus", "ChordSymbolUnigrams", "once_per_group"): {
                 (): "all-ChordSymbolUnigrams"
             },
-            ("TSV only", "multiple", "ChordSymbolUnigrams", ""): {
+            ("TSV only", "metacorpus", "ChordSymbolUnigrams", ""): {
                 (): "all-ChordSymbolUnigrams"
             },
+            ("TSV only", "metacorpus", "ChordSymbolBigrams", "once_per_group"): {},
+            ("TSV only", "metacorpus", "ChordSymbolBigrams", ""): {},
         }
-    if identifier in expected_results:
-        return expected_results[identifier]
-    return {}
+    return expected_results[identifier]
 
 
 def test_analyzer(analyzer, corpus, analyzer_results):
