@@ -1,10 +1,11 @@
+import pandas as pd
 import pytest  # noqa: F401
+from dimcat import ChordSymbolBigrams, LocalKeySlicer, TSVWriter
+from ms3 import nan_eq
 
 __author__ = "Digital and Cognitive Musicology Lab"
 __copyright__ = "École Polytechnique Fédérale de Lausanne"
 __license__ = "GPL-3.0-or-later"
-
-from dimcat import ChordSymbolBigrams, LocalKeySlicer, TSVWriter
 
 
 def assert_pipeline_dependency_raise(analyzer, data):
@@ -79,6 +80,42 @@ def test_analyzer(analyzer, corpus, analyzer_results):
     assert automatic_filenames == analyzer_results
 
 
+def diff_between_series(old, new):
+    """Compares the values of two pandas.Series and computes a diff."""
+    old_l, new_l = len(old), len(new)
+    greater_length = max(old_l, new_l)
+    if old_l != new_l:
+        print(f"Old length: {old_l}, new length: {new_l}")
+        old_is_shorter = new_l == greater_length
+        shorter = old if old_is_shorter else new
+        missing_rows = abs(old_l - new_l)
+        patch = pd.Series(["missing row"] * missing_rows)
+        shorter = pd.concat([shorter, patch], ignore_index=True)
+        if old_is_shorter:
+            old = shorter
+        else:
+            new = shorter
+    old.index.rename("old_ix", inplace=True)
+    new.index.rename("new_ix", inplace=True)
+    diff = [
+        (i, o, j, n)
+        for ((i, o), (j, n)) in zip(old.iteritems(), new.iteritems())
+        if not nan_eq(o, n)
+    ]
+    n_diffs = len(diff)
+    if n_diffs > 0:
+        comparison = pd.DataFrame(diff, columns=["old_ix", "old", "new_ix", "new"])
+        print(
+            f"{n_diffs}/{greater_length} ({n_diffs / greater_length * 100:.2f} %) rows are "
+            f"different{' (showing first 20)' if n_diffs > 20 else ''}:\n{comparison}\n"
+        )
+        for a, b in zip(comparison.old.values, comparison.new.values):
+            print(a)
+            print(b)
+        return comparison
+    return pd.DataFrame()
+
+
 def test_analyzing_slices(analyzer, sliced_data):
     if assert_pipeline_dependency_raise(analyzer, sliced_data):
         return
@@ -86,8 +123,26 @@ def test_analyzing_slices(analyzer, sliced_data):
     assert len(data.slice_info) > 0
     assert len(data.sliced) > 0
     for facet, sliced in data.sliced.items():
-        for id, slices in sliced.items():
-            assert slices.index.nlevels == 1
+        for id, chunk in sliced.items():
+            assert chunk.index.nlevels == 1
+            try:
+                interval_lengths = pd.Series(
+                    chunk.index.length, index=chunk.index
+                ).round(5)
+            except AttributeError:
+                print(chunk)
+                raise
+            duration_column = chunk.duration_qb.astype(float)
+            diff = diff_between_series(interval_lengths, duration_column)
+            if len(diff) > 0:
+                a = interval_lengths
+                b = chunk.index.right - chunk.index.left
+                eq = (a == b).all()
+                print(id)
+                print("index.length == right-left:", eq)
+                print(diff.old_ix.to_list())
+                assert False
+
     analyzed_slices = data.get()
     print(f"{analyzed_slices}")
     # assert analyzed_slices.index.nlevels == 4
