@@ -6,7 +6,7 @@ from functools import lru_cache
 from typing import List
 
 import pandas as pd
-from ms3 import Parse, interval_overlap
+from ms3 import Parse, make_slices
 
 from .utils import clean_index_levels
 
@@ -454,37 +454,43 @@ class Corpus(Data):
                 self.pieces[ID] = piece_info
         self.indices[()] = list(self.pieces.keys())
 
-    def _make_slices(self, facet_df, intervals):
-        sliced = {}
-        for iv in intervals:
-            overlapping = facet_df.index.overlaps(iv)
-            chunk = facet_df[overlapping].copy()
-            start, end = iv.left, iv.right
-            left_overlap = chunk.index.left < start
-            right_overlap = chunk.index.right > end
-            if left_overlap.sum() > 0 or right_overlap.sum() > 0:
-                chunk.index = chunk.index.map(lambda i: interval_overlap(i, iv))
-                chunk.loc[:, "duration_qb"] = chunk.index.length
-            sliced[iv] = chunk
-        return sliced
-
     def slice_facet_if_necessary(self, what, unfold):
+        """
+
+        Parameters
+        ----------
+        what : :obj:`str`
+            Facet for which to create slices if necessary
+        unfold : :obj:`bool`
+            Whether repeats should be unfolded.
+
+        Returns
+        -------
+        :obj:`bool`
+            True if slices are available or not needed, False otherwise.
+        """
         if len(self.slice_info) == 0:
             # no slicer applied
-            return
+            return True
         if what in self.sliced:
             # already sliced
-            return
+            return True
         self.sliced[what] = {}
         facet_ids = defaultdict(list)
         for corpus, fname, interval in self.slice_info.keys():
             facet_ids[(corpus, fname)].append(interval)
         for id, intervals in facet_ids.items():
             facet_df = self.get_item(id, what, unfold)
-            sliced = self._make_slices(facet_df, intervals)
+            if facet_df is None or len(facet_df.index) == 0:
+                continue
+            sliced = make_slices(facet_df, intervals)
             self.sliced[what].update(
                 {id + (iv,): chunk for iv, chunk in sliced.items()}
             )
+        if len(self.sliced[what]) == 0:
+            del self.sliced[what]
+            return False
+        return True
 
     def iter_facet(self, what, unfold=False, concatenate=False):
         """Iterate through groups of potentially sliced facet DataFrames.
