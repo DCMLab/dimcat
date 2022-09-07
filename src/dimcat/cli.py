@@ -59,9 +59,16 @@ def bigrams(corpus, _):
 
 
 def pcvs(corpus, args):
-    return PitchClassVectors(
-        pitch_class_format=args.pc_format, normalize=args.normalize
+    try:
+        _ = corpus.get_previous_pipeline_step(of_type=NoteSlicer)
+    except StopIteration:
+        corpus = NoteSlicer(quarters_per_slice=args.quarters).process_data(corpus)
+    analyzed = PitchClassVectors(
+        pitch_class_format=args.pc_format,
+        weight_grace_durations=args.weight_grace,
+        normalize=args.normalize,
     ).process_data(corpus)
+    return analyzed
 
 
 def get_arg_parser():
@@ -146,9 +153,32 @@ The library offers you the following commands. Add the flag -h to one of them to
         default="tpc",
     )
     pcvs_parser.add_argument(
+        "-q",
+        "--quarters",
+        help="By default, the slices have variable size, from onset to onset. "
+        "If you pass a value, the slices will have that constant size, measured in quarter notes. "
+        "For example, pass 0.5 for all slices to have a length of 1 eighth.",
+    )
+    pcvs_parser.add_argument(
         "--normalize",
         help="Normalize the pitch class vectors instead of absolute durations in quarters.",
         action="store_true",
+    )
+    pcvs_parser.add_argument(
+        "-w",
+        "--weight_grace",
+        help="By default, grace notes are not taken into account. Pass a float to include their "
+        "weighted durations in the slice PCVs.",
+    )
+    pcvs_parser.add_argument(
+        "--round",
+        help="If you want to round the durations written to the TSV(s), "
+        "pass the number of decimals.",
+    )
+    pcvs_parser.add_argument(
+        "--fillna",
+        help="If you want to fill NaN values (i.e. durations of non-occurring notes), pass a fill "
+        "value, e.g. 0.0",
     )
     pcvs_parser.set_defaults(func=pcvs)
 
@@ -195,9 +225,24 @@ def main(args):
     pre_processed = apply_pipeline(corpus, args.slicers, args.groupers)
     processed = args.func(pre_processed, args)
     if args.out is not None:
-        _ = TSVWriter(directory=args.out, prefix=args.func.__name__).process_data(
-            processed
-        )
+        round_param = int(args.round) if hasattr(args, "round") else None
+        if hasattr(args, "fillna"):
+            fillna_param = args.fillna
+            if fillna_param is not None:
+                if "." in fillna_param:
+                    try:
+                        fillna_param = float(fillna_param)
+                    except ValueError:
+                        pass
+                else:
+                    try:
+                        fillna_param = int(fillna_param)
+                    except ValueError:
+                        pass
+        else:
+            fillna_param = None
+        writer = TSVWriter(directory=args.out, round=round_param, fillna=fillna_param)
+        _ = writer.process_data(processed)
     else:
         _logger.info("Successfully analyzed but no output was generated (use --out).")
 
