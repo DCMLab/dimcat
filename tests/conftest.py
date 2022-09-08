@@ -21,7 +21,7 @@ from dimcat.data import Corpus
 from dimcat.filter import IsAnnotatedFilter
 from dimcat.grouper import CorpusGrouper, ModeGrouper, PieceGrouper, YearGrouper
 from dimcat.pipeline import Pipeline
-from dimcat.slicer import LocalKeySlicer, NoteSlicer
+from dimcat.slicer import LocalKeySlicer, MeasureSlicer, NoteSlicer
 from git import Repo
 from ms3 import pretty_dict
 
@@ -111,12 +111,16 @@ def analyzer(once_per_group, request):
 @pytest.fixture(
     scope="session",
     params=[
-        LocalKeySlicer(),
+        MeasureSlicer(),
+        NoteSlicer(1),
         NoteSlicer(),
+        LocalKeySlicer(),
     ],
     ids=[
+        "MeasureSlicer",
+        "NoteSlicer_quarters",
+        "NoteSlicer_onsets",
         "LocalKeySlicer",
-        "NoteSlicer",
     ],
 )
 def slicer(request):
@@ -128,7 +132,9 @@ def slicer(request):
 )
 def apply_slicer(slicer, corpus):
     sliced_data = slicer.process_data(corpus)
-    print(f"\nBefore: {len(corpus.indices[()])}, after: {len(sliced_data.indices[()])}")
+    print(
+        f"\n{len(corpus.indices[()])} indices before slicing, after: {len(sliced_data.indices[()])}"
+    )
     assert len(sliced_data.sliced) > 0
     assert len(sliced_data.slice_info) > 0
     assert len(sliced_data.index_levels["indices"]) > 2
@@ -137,11 +143,11 @@ def apply_slicer(slicer, corpus):
         assert len(sliced_data.indices[group]) > len(index_group)
     for facet, sliced in sliced_data.sliced.items():
         grouped_by_piece = defaultdict(list)
-        for id, slices in sliced.items():
-            assert slices.index.nlevels == 1
+        for id, chunk in sliced.items():
+            assert chunk.index.nlevels == 1
             assert len(id) == 3
             piece_id = id[:2]
-            grouped_by_piece[piece_id].extend(slices.duration_qb.to_list())
+            grouped_by_piece[piece_id].extend(chunk.duration_qb.to_list())
         for piece_id, durations in grouped_by_piece.items():
             # test if the facet slices add up to the same duration as the original facet
             facet_duration = sliced_data.get_item(piece_id, facet).duration_qb
