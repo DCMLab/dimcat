@@ -67,6 +67,7 @@ def pcvs(corpus, args):
         pitch_class_format=args.pc_format,
         weight_grace_durations=args.weight_grace,
         normalize=args.normalize,
+        include_empty=not args.exclude_empty,
     ).process_data(corpus)
     return analyzed
 
@@ -169,6 +170,13 @@ The library offers you the following commands. Add the flag -h to one of them to
         "--weight_grace",
         help="By default, grace notes are not taken into account. Pass a float to include their "
         "weighted durations in the slice PCVs.",
+    )
+    pcvs_parser.add_argument(
+        "-e",
+        "--exclude_empty",
+        action="store_true",
+        help="Add this flag if you don't want to include zero-vectors for slices where no notes "
+        "occur.",
     )
     pcvs_parser.add_argument(
         "--round",
