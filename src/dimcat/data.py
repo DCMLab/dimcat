@@ -6,7 +6,7 @@ from functools import lru_cache
 from typing import List
 
 import pandas as pd
-from ms3 import Parse, make_slices
+from ms3 import Parse, overlapping_chunk_per_interval
 
 from .utils import clean_index_levels
 
@@ -483,7 +483,7 @@ class Corpus(Data):
             facet_df = self.get_item(id, what, unfold)
             if facet_df is None or len(facet_df.index) == 0:
                 continue
-            sliced = make_slices(facet_df, intervals)
+            sliced = overlapping_chunk_per_interval(facet_df, intervals)
             self.sliced[what].update(
                 {id + (iv,): chunk for iv, chunk in sliced.items()}
             )

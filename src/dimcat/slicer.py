@@ -1,6 +1,7 @@
 """A Slicer is a PipelineStep that cuts Data into segments, effectively multiplying IDs."""
 from abc import ABC, abstractmethod
 
+import pandas as pd
 from ms3 import segment_by_adjacency_groups, slice_df
 
 from .data import Data
@@ -85,11 +86,11 @@ class FacetSlicer(Slicer):
                 if not eligible:
                     print(f"{index}: {message}")
                     continue
-                for slice_index, slice, slice_info in self.iter_slices(
+                for slice_index, chunk, slice_info in self.iter_slices(
                     index, facet_df, **self.config
                 ):
                     new_index_group.append(slice_index)
-                    sliced[slice_index] = slice
+                    sliced[slice_index] = chunk
                     slice_infos[slice_index] = slice_info
             indices[group] = new_index_group
         result = data.copy()
@@ -137,9 +138,13 @@ class NoteSlicer(FacetSlicer):
     def iter_slices(self, index, facet_df, quarters_per_slice=None):
         try:
             sliced_df = slice_df(facet_df, quarters_per_slice)
-            for interval, slice in sliced_df.groupby(level=0):
+            for interval, chunk in sliced_df.items():
                 slice_index = index + (interval,)
-                yield slice_index, slice, slice.iloc[0].copy()
+                if len(chunk.index) == 0:
+                    slice_info = pd.Series(dtype="object")
+                else:
+                    slice_info = chunk.iloc[0].copy()
+                yield slice_index, chunk, slice_info
         except AssertionError:
             print(facet_df)
             raise
@@ -179,7 +184,7 @@ class MeasureSlicer(FacetSlicer):
         else:
             for interval, slice_info in facet_df.iterrows():
                 slice_index = index + (interval,)
-                yield slice_index, slice_info, slice_info
+                yield slice_index, pd.DataFrame(slice_info).T, slice_info
 
 
 class LocalKeySlicer(FacetSlicer):

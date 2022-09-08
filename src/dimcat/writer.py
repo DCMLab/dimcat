@@ -70,10 +70,10 @@ class TSVWriter(PipelineStep):
             tsv_name = filenames[group] + ".tsv"
             tsv_path = os.path.join(self.directory, tsv_name)
             df = pd.DataFrame(df)
-            if self.round is not None:
-                df = df.round(self.round)
             if self.fillna is not None:
                 df = df.fillna(value=self.fillna)
+            if self.round is not None:
+                df = df.round(self.round)
             write_tsv(df, tsv_path, index=self.index)
             print(f"Wrote {tsv_path}")
         return data
