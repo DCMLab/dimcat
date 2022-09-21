@@ -112,8 +112,7 @@ class Data(ABC):
             raise ValueError("No data has been loaded.")
         if any(len(index_list) == 0 for index_list in self.indices.values()):
             print("Data object contains empty groups.")
-        for group in self.indices.items():
-            yield group
+        yield from self.indices.items()
 
     def track_pipeline(
         self,

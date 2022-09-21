@@ -169,6 +169,11 @@ class MeasureSlicer(FacetSlicer):
         self.level_names = {"indices": name, "slicer": name}
         self.config["use_measure_numbers"] = use_measure_numbers
 
+    def check(self, facet_df):
+        if len(facet_df) == 0:
+            return False, "Empty DataFrame"
+        return True, ""
+
     def iter_slices(self, index, facet_df, use_measure_numbers=True):
         if use_measure_numbers:
             mn_value_counts = facet_df.mn.value_counts()
