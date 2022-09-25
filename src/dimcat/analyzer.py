@@ -386,10 +386,10 @@ class ChordSymbolBigrams(ChordSymbolAnalyzer):
             else:
                 chords = expanded.chord.to_list()
         bigrams = grams(chords, n=2)
-        expanded = pd.DataFrame(bigrams)
+        expanded = pd.DataFrame(bigrams, columns=["from", "to"])
         try:
             counts = (
-                expanded.groupby([0, 1])
+                expanded.groupby(["from", "to"])
                 .size()
                 .sort_values(ascending=False)
                 .rename("count")
