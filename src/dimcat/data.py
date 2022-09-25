@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from copy import deepcopy
 from functools import lru_cache
-from typing import List
+from typing import List, Union
 
 import pandas as pd
 from ms3 import Parse, overlapping_chunk_per_interval
@@ -160,16 +160,16 @@ class Data(ABC):
     def load(self):
         """Load data into memory."""
 
-    def group_of_values2series(self, group_dict):
-        """Turns an {ix -> result} into a Series or DataFrame."""
+    def group_of_values2series(self, group_dict) -> pd.Series:
+        """Converts an {ID -> processing_result} dict into a Series."""
         series = pd.Series(group_dict, name=self.index_levels["processed"][0])
         series.index = self._rename_multiindex_levels(
             series.index, self.index_levels["indices"]
         )
         return series
 
-    def group_of_series2series(self, group_dict):
-        """Turns an {ix -> result} into a Series or DataFrame."""
+    def group_of_series2series(self, group_dict) -> pd.Series:
+        """Converts an {ID -> processing_result} dict into a Series."""
         lengths = [len(S) for S in group_dict.values()]
         if 0 in lengths:
             group_dict = {k: v for k, v in group_dict.items() if len(v) > 0}
@@ -179,13 +179,21 @@ class Data(ABC):
             else:
                 n_empty = lengths.count(0)
                 print(f"Had to remove {n_empty} empty Series before concatenation.")
-        series = pd.concat(group_dict.values(), keys=group_dict.keys())
-        series.index = self._rename_multiindex_levels(
-            series.index, self.index_levels["indices"] + self.index_levels["processed"]
-        )
+        if len(group_dict) == 1 and list(group_dict.keys())[0] == "group_ids":
+            series = list(group_dict.values())[0]
+            series.index = self._rename_multiindex_levels(
+                series.index, self.index_levels["processed"]
+            )
+        else:
+            series = pd.concat(group_dict.values(), keys=group_dict.keys())
+            series.index = self._rename_multiindex_levels(
+                series.index,
+                self.index_levels["indices"] + self.index_levels["processed"],
+            )
         return series
 
-    def group2dataframe(self, group_dict):
+    def group2dataframe(self, group_dict) -> pd.DataFrame:
+        """Converts an {ID -> processing_result} dict into a DataFrame."""
         try:
             df = pd.concat(group_dict.values(), keys=group_dict.keys())
         except (TypeError, ValueError):
@@ -202,13 +210,22 @@ class Data(ABC):
     def _rename_multiindex_levels(self, multiindex: pd.MultiIndex, index_level_names):
         """Renames the index levels based on the _.index_levels dict."""
         try:
-            if multiindex.nlevels == 1:
+            n_levels = multiindex.nlevels
+            if n_levels == 1:
                 return multiindex.rename(index_level_names[0])
-            levels = list(range(len(index_level_names)))
-            return multiindex.rename(index_level_names, level=levels)
-        except (TypeError, ValueError):
+            n_names = len(index_level_names)
+            if n_names < n_levels:
+                levels = list(range(len(index_level_names)))
+                # The level parameter makes sure that, when n names are given, only the first n levels are being
+                # renamed. However, this will lead to unexpected behaviour if index levels are named by an integer
+                # that does not correspond to the position of another index level, e.g. ('level0_name', 0, 1)
+                return multiindex.rename(index_level_names, level=levels)
+            elif n_names > n_levels:
+                return multiindex.rename(index_level_names[:n_levels])
+            return multiindex.rename(index_level_names)
+        except (TypeError, ValueError) as e:
             print(
-                f"Failed to rename MultiIndex levels {multiindex.names} to {index_level_names}."
+                f"Failed to rename MultiIndex levels {multiindex.names} to {index_level_names}: '{e}'"
             )
             print(multiindex[:10])
             print(f"self.index_levels: {self.index_levels}")
@@ -349,7 +366,8 @@ class Corpus(Data):
             group_dfs.values(), keys=group_dfs.keys(), names=self.index_levels["groups"]
         )
 
-    def convert_group2pandas(self, result_dict):
+    def convert_group2pandas(self, result_dict) -> Union[pd.Series, pd.DataFrame]:
+        """Converts the {ID -> processing_result} dict using the method specified in _.group2pandas."""
         converters = {
             "group_of_values2series": self.group_of_values2series,
             "group_of_series2series": self.group_of_series2series,
