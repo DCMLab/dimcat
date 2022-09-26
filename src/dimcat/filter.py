@@ -49,3 +49,15 @@ class IsAnnotatedFilter(Filter):
             return len(df.index) > 0
         except Exception:
             return False
+
+
+class HasCadenceAnnotationsFilter(Filter):
+    """Keeps only pieces whose 'expanded' includes at least one cadence."""
+
+    def criterion(self, index, data):
+        corpus, fname, *_ = index
+        try:
+            df = data.data[corpus][fname].get_dataframe("expanded")
+            return df.cadence.notna().any()
+        except Exception:
+            return False
