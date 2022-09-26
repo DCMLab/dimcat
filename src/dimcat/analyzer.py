@@ -354,7 +354,8 @@ class ChordSymbolBigrams(ChordSymbolAnalyzer):
         ----------
         expanded : :obj:`pandas.DataFrame`
             Expanded harmony labels.
-        By default, NaN values are dropped before computing bigrams, resulting in transitions
+        dropna : :obj:`bool`, optional
+            By default, NaN values are dropped before computing bigrams, resulting in transitions
             from a missing value's preceding to its subsequent value. Pass False to include
             bigrams from and to NaN values.
 
@@ -402,5 +403,5 @@ class ChordSymbolBigrams(ChordSymbolAnalyzer):
     def process_data(self, data: Data) -> Data:
         assert any(
             isinstance(step, LocalKeySlicer) for step in data.pipeline_steps
-        ), "ChordSymbolAnalyzer requires previous application of LocalKeySlicer()."
+        ), "ChordSymbolBigrams requires previous application of LocalKeySlicer()."
         return super().process_data(data=data)

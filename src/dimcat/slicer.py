@@ -192,65 +192,24 @@ class MeasureSlicer(FacetSlicer):
                 yield slice_index, pd.DataFrame(slice_info).T, slice_info
 
 
-class LocalKeySlicer(FacetSlicer):
-    """Slices annotation tables based on adjacency groups of the 'localkey' column."""
-
-    def __init__(self):
-        """Slices annotation tables based on adjacency groups of the 'localkey' column."""
-        super().__init__()
-        self.required_facets = ["expanded"]
-        self.level_names = {"indices": "localkey_slice", "slicer": "localkey"}
-
-    def check(self, facet_df):
-        if len(facet_df) == 0:
-            return False, "Empty DataFrame"
-        if "duration_qb" not in facet_df.columns:
-            return (
-                False,
-                "Couldn't compute localkey slices because annotation table is missing "
-                "the column 'duration_qb'.",
-            )
-        return True, ""
-
-    def iter_slices(self, index, facet_df):
-        name = "_".join(index)
-        segmented = segment_by_adjacency_groups(facet_df, "localkey", logger=name)
-        missing_localkey = segmented.localkey.isna()
-        if missing_localkey.any():
-            if (~missing_localkey).any():
-                print(f"No localkey known for {index}. Skipping.")
-                return
-            else:
-                print(
-                    f"{index} has segments with unknown localkey:\n"
-                    f"{segmented[missing_localkey]}"
-                )
-                segmented = segmented[~missing_localkey]
-
-        if "localkey_is_minor" not in segmented.columns:
-            segmented["localkey_is_minor"] = segmented.localkey.str.islower()
-        for (interval, _), row in segmented.iterrows():
-            slice_index = index + (interval,)
-            selector = facet_df.index.overlaps(interval)
-            yield slice_index, facet_df[selector], row
-
-
 class ChordFeatureSlicer(FacetSlicer):
-    """Create slices based on a particular feature."""
+    """Create slices based on a particular feature by grouping adjacent identical values."""
 
     def __init__(self, feature="chord", na_values="ffill"):
         """Create slices based on a particular feature.
 
         Parameters
         ----------
-        feature
+        feature : :obj:`str`
+            Column name used for creating slices from adjacent identical values. Useful, for example, for creating
+            key segments.
         na_values : (:obj:`list` of) :obj:`str` or :obj:`Any`, optional
-        | Either pass a list of equal length as ``cols`` or a single value that is passed to :py:func:`adjacency_groups`
-        | for each. Not dealing with NA values will lead to wrongly grouped segments. The default option is the safest.
-        | 'group' creates individual groups for NA values
-        | 'backfill' or 'bfill' groups NA values with the subsequent group
-        | 'pad', 'ffill' groups NA values with the preceding group
-        | Any other value works like 'group', with the difference that the created groups will be named with this value.
+            | Either pass a list of equal length as ``cols`` or a single value that is passed to
+            | :func:`adjacency_groups` for each. Not dealing with NA values will lead to wrongly grouped segments.
+            | 'pad', 'ffill' (default) groups NA values with the preceding group
+            | 'group' creates individual groups for NA values
+            | 'backfill' or 'bfill' groups NA values with the subsequent group
+            | Any other value works like 'group', with the difference that the NA groups will be named with this value.
         """
         super().__init__()
         self.required_facets = ["expanded"]
@@ -269,7 +228,8 @@ class ChordFeatureSlicer(FacetSlicer):
             if col not in facet_df.columns:
                 return (
                     False,
-                    f"Couldn't compute localkey slices because annotation table is missing the column '{col}'.",
+                    f"Couldn't compute {self.config['feature']} slices because the annotation table is missing "
+                    f"the column '{col}'.",
                 )
         return True, ""
 
@@ -278,6 +238,36 @@ class ChordFeatureSlicer(FacetSlicer):
         segmented = segment_by_adjacency_groups(
             facet_df, cols=feature, na_values=na_values, logger=logger_name
         )
+        for (interval, _), row in segmented.iterrows():
+            slice_index = index + (interval,)
+            selector = facet_df.index.overlaps(interval)
+            yield slice_index, facet_df[selector], row
+
+
+class LocalKeySlicer(ChordFeatureSlicer):
+    """Slices annotation tables based on adjacency groups of the 'localkey' column."""
+
+    def __init__(self):
+        """Slices annotation tables based on adjacency groups of the 'localkey' column."""
+        super().__init__(feature="localkey", na_values="group")
+
+    def iter_slices(self, index, facet_df, feature="localkey", na_values="group"):
+        name = "_".join(index)
+        segmented = segment_by_adjacency_groups(facet_df, feature, logger=name)
+        missing_localkey = segmented.localkey.isna()
+        if missing_localkey.any():
+            if missing_localkey.all():
+                print(f"No localkey known for {index}. Skipping.")
+                return
+            else:
+                print(
+                    f"{index} has segments with unknown localkey:\n"
+                    f"{segmented[missing_localkey]}"
+                )
+                segmented = segmented[~missing_localkey]
+
+        if "localkey_is_minor" not in segmented.columns:
+            segmented["localkey_is_minor"] = segmented.localkey.str.islower()
         for (interval, _), row in segmented.iterrows():
             slice_index = index + (interval,)
             selector = facet_df.index.overlaps(interval)
