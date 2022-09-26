@@ -22,8 +22,14 @@ from .analyzer import (
     TPCrange,
 )
 from .data import Corpus
-from .filter import IsAnnotatedFilter
+from .filter import HasCadenceAnnotationsFilter, IsAnnotatedFilter
 from .grouper import CorpusGrouper, ModeGrouper, PieceGrouper, YearGrouper
 from .pipeline import Pipeline
-from .slicer import ChordFeatureSlicer, LocalKeySlicer, MeasureSlicer, NoteSlicer
+from .slicer import (
+    ChordCriterionSlicer,
+    ChordFeatureSlicer,
+    LocalKeySlicer,
+    MeasureSlicer,
+    NoteSlicer,
+)
 from .writer import TSVWriter

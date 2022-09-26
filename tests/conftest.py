@@ -21,7 +21,12 @@ from dimcat.data import Corpus
 from dimcat.filter import IsAnnotatedFilter
 from dimcat.grouper import CorpusGrouper, ModeGrouper, PieceGrouper, YearGrouper
 from dimcat.pipeline import Pipeline
-from dimcat.slicer import LocalKeySlicer, MeasureSlicer, NoteSlicer
+from dimcat.slicer import (
+    ChordCriterionSlicer,
+    LocalKeySlicer,
+    MeasureSlicer,
+    NoteSlicer,
+)
 from git import Repo
 from ms3 import pretty_dict
 
@@ -111,6 +116,7 @@ def analyzer(once_per_group, request):
 @pytest.fixture(
     scope="session",
     params=[
+        ChordCriterionSlicer(column="phraseend", contains_str="{"),
         MeasureSlicer(),
         NoteSlicer(1),
         NoteSlicer(),

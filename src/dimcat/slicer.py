@@ -2,7 +2,7 @@
 from abc import ABC, abstractmethod
 
 import pandas as pd
-from ms3 import segment_by_adjacency_groups, slice_df
+from ms3 import segment_by_adjacency_groups, segment_by_criterion, slice_df
 
 from .data import Data
 from .pipeline import PipelineStep
@@ -269,6 +269,70 @@ class LocalKeySlicer(ChordFeatureSlicer):
         if "localkey_is_minor" not in segmented.columns:
             segmented["localkey_is_minor"] = segmented.localkey.str.islower()
         for (interval, _), row in segmented.iterrows():
+            slice_index = index + (interval,)
+            selector = facet_df.index.overlaps(interval)
+            yield slice_index, facet_df[selector], row
+
+
+class ChordCriterionSlicer(FacetSlicer):
+    """Create slices based on a particular criterion such that each True row starts a new slice."""
+
+    def __init__(self, column="chord", contains_str=None, dropna=False):
+        """Defines the criteria for starting slices.
+
+        Parameters
+        ----------
+        column : :obj:`str`, optional
+            Name of the column against which the criterion will be tested.
+        contains_str : :obj:`str`, optional
+            Select all rows where ``column`` contains this string.
+        dropna : :obj:`bool`, optional
+            If the boolean mask starts with any number of False, this first group is considered a missing value but
+            treated like the other groups and cannot be told apart. Set dropna to True if you want to discard this group
+            from the result, making sure that the first row actually reflects the criterion.
+        """
+        super().__init__()
+        if contains_str is None:
+            raise NotImplementedError(
+                "Currently 'contains_str' is the only criterion implemented."
+            )
+        self.required_facets = ["expanded"]
+        self.level_names = {
+            "indices": f"{column}_criterion_slice",
+            "slicer": f"{column}_criterion",
+        }
+        self.config.update(
+            dict(
+                column=column,
+                contains_str=contains_str,
+                dropna=dropna,
+            )
+        )
+
+    def check(self, facet_df):
+        if len(facet_df) == 0:
+            return False, "Empty DataFrame"
+        for col in ("duration_qb", self.config["column"]):
+            if col not in facet_df.columns:
+                return (
+                    False,
+                    f"Couldn't compute {self.config['column']} criterion slices because the annotation table is "
+                    f"missing the column '{col}'.",
+                )
+        return True, ""
+
+    def iter_slices(
+        self, index, facet_df, column="chord", contains_str=None, dropna=False
+    ):
+        logger_name = "_".join(index).replace(".", "")
+        if contains_str is not None:
+            boolean_mask = facet_df[column].str.contains(contains_str).fillna(False)
+        else:
+            return
+        segmented = segment_by_criterion(
+            facet_df, boolean_mask=boolean_mask, dropna=dropna, logger=logger_name
+        )
+        for interval, row in segmented.iterrows():
             slice_index = index + (interval,)
             selector = facet_df.index.overlaps(interval)
             yield slice_index, facet_df[selector], row
