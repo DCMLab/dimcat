@@ -632,6 +632,14 @@ class Corpus(Data):
         if what in self.sliced and index in self.sliced[what]:
             return self.sliced[what][index]
 
+    def get_slice_info(self) -> pd.DataFrame:
+        """Concatenates slice_info Series and returns them as a DataFrame."""
+        concatenated_info = pd.concat(
+            self.slice_info.values(), keys=self.slice_info.keys(), axis=1
+        ).T
+        concatenated_info.index.rename(self.index_levels["indices"], inplace=True)
+        return concatenated_info
+
     @lru_cache()
     def get_item(self, index, what, unfold=False, multiindex=False):
         """Retrieve a DataFrame pertaining to the facet ``what`` of the piece ``index``. If
