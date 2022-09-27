@@ -362,9 +362,10 @@ class Corpus(Data):
         }
         if len(group_dfs) == 1:
             return list(group_dfs.values())[0]
-        return pd.concat(
+        concatenated_groups = pd.concat(
             group_dfs.values(), keys=group_dfs.keys(), names=self.index_levels["groups"]
         )
+        return clean_index_levels(concatenated_groups)
 
     def convert_group2pandas(self, result_dict) -> Union[pd.Series, pd.DataFrame]:
         """Converts the {ID -> processing_result} dict using the method specified in _.group2pandas."""
@@ -378,7 +379,7 @@ class Corpus(Data):
         pandas_obj = converter(result_dict)
         return clean_index_levels(pandas_obj)
 
-    def iter(self, as_dict=False):
+    def iter(self, as_dict=False, ignore_groups=False):
         """Iterate through processed data.
 
         Parameters
@@ -395,12 +396,24 @@ class Corpus(Data):
             Processed data for one particular group. Whether it is a pandas object or dict depends
             on ``as_dict``. Whether it is a Series or DataFrame depends on the previously applied
             Pipeline.
+        ignore_groups : :obj:`bool`, False
+            If set to True, the iteration loop is flattened and yields (index, result) pairs directly.
         """
+        if sum((as_dict, ignore_groups)) > 1:
+            raise ValueError(
+                "Arguments 'as_dict' and 'ignore_groups' are in conflict, choose one."
+            )
         for group, result in self.processed.items():
-            if as_dict:
+            if ignore_groups:
+                yield from result.items()
+            elif as_dict:
                 yield group, result
             else:
-                yield group, self.convert_group2pandas(result)
+                if ignore_groups:
+                    for tup in result.items():
+                        yield tup
+                else:
+                    yield group, self.convert_group2pandas(result)
 
     def load(
         self,
@@ -509,7 +522,7 @@ class Corpus(Data):
             return False
         return True
 
-    def iter_facet(self, what, unfold=False, concatenate=False):
+    def iter_facet(self, what, unfold=False, concatenate=False, ignore_groups=False):
         """Iterate through groups of potentially sliced facet DataFrames.
 
         Parameters
@@ -524,6 +537,9 @@ class Corpus(Data):
             Pass True to instead concatenate the DataFrames. Then, the dict will contain only
             one entry where the key is a tuple containing all IDs and the value is a DataFrame,
             the components of which can be distinguished using its MultiIndex.
+        ignore_groups : :obj:`bool`, False
+            If set to True, the iteration loop is flattened and yields (index, facet_df) pairs directly. Clashes
+            with the setting concatenate=True which concatenates facets per group.
 
         Yields
         ------
@@ -536,6 +552,11 @@ class Corpus(Data):
         if not self.slice_facet_if_necessary(what, unfold):
             print(f"No sliced {what} available.")
             raise StopIteration
+        if sum((concatenate, ignore_groups)) > 1:
+            raise ValueError(
+                "Arguments 'concatenate' and 'ignore_groups' are in conflict, choose one "
+                "or use the method get_facet()."
+            )
         for group, index_group in self.iter_groups():
             result = {}
             missing_id = []
@@ -543,9 +564,13 @@ class Corpus(Data):
                 df = self.get_item(index, what, unfold)
                 if df is None:
                     continue
+                elif ignore_groups:
+                    yield index, df
                 if len(df.index) == 0:
                     missing_id.append(index)
                 result[index] = df
+            if ignore_groups:
+                continue
             n_results = len(result)
             if len(missing_id) > 0:
                 if n_results == 0:
