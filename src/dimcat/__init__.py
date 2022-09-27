@@ -31,5 +31,6 @@ from .slicer import (
     LocalKeySlicer,
     MeasureSlicer,
     NoteSlicer,
+    PhraseSlicer,
 )
 from .writer import TSVWriter
