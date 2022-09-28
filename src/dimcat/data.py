@@ -95,7 +95,7 @@ class Data(ABC):
             yield [self.get_item(index) for index in index_group]
 
     @abstractmethod
-    def get_item(self, index):
+    def get_item(self, index, what):
         """Get an individual piece of data."""
 
     def iter_groups(self):
@@ -229,6 +229,7 @@ class Data(ABC):
             )
             print(multiindex[:10])
             print(f"self.index_levels: {self.index_levels}")
+        # TODO: This method should include a call to clean_multiindex_levels and make use of self.index_levels
         return multiindex
 
 
@@ -301,6 +302,11 @@ class Corpus(Data):
         self.pipeline_steps = list(data_object.pipeline_steps)
         self.index_levels = deepcopy(data_object.index_levels)
         self.group2pandas = data_object.group2pandas
+
+    @property
+    def is_grouped(self) -> bool:
+        groups = list(self.indices.keys())
+        return len(groups) != 1 or groups[0] != ()
 
     def get(self, as_dict=False):
         """Uses _.iter() to get all processed data at once.
