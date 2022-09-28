@@ -638,13 +638,27 @@ class Corpus(Data):
         if what in self.sliced and index in self.sliced[what]:
             return self.sliced[what][index]
 
-    def get_slice_info(self) -> pd.DataFrame:
+    def get_slice_info(self, ignore_groups=False) -> pd.DataFrame:
         """Concatenates slice_info Series and returns them as a DataFrame."""
-        concatenated_info = pd.concat(
-            self.slice_info.values(), keys=self.slice_info.keys(), axis=1
-        ).T
-        concatenated_info.index.rename(self.index_levels["indices"], inplace=True)
-        return concatenated_info
+        if ignore_groups or not self.is_grouped:
+            concatenated_info = pd.concat(
+                self.slice_info.values(), keys=self.slice_info.keys(), axis=1
+            ).T
+            concatenated_info.index.rename(self.index_levels["indices"], inplace=True)
+            return concatenated_info
+        else:
+            group_dfs = {}
+            for group, ixs in self.iter_groups():
+                group_info = {ix: self.slice_info[ix] for ix in ixs}
+                group_dfs[group] = pd.concat(
+                    group_info.values(), keys=group_info.keys(), axis=1
+                ).T
+            concatenated_info = pd.concat(group_dfs.values(), keys=group_dfs.keys())
+            concatenated_info.index = self._rename_multiindex_levels(
+                concatenated_info.index,
+                self.index_levels["groups"] + self.index_levels["indices"],
+            )
+            return clean_index_levels(concatenated_info)
 
     @lru_cache()
     def get_item(self, index, what, unfold=False, multiindex=False):
