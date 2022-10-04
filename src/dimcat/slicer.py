@@ -1,9 +1,17 @@
 """A Slicer is a PipelineStep that cuts Data into segments, effectively multiplying IDs."""
+import re
 from abc import ABC, abstractmethod
+from collections import defaultdict
 from typing import Tuple
 
 import pandas as pd
-from ms3 import segment_by_adjacency_groups, segment_by_criterion, slice_df
+from ms3 import (
+    overlapping_chunk_per_interval,
+    replace_index_by_intervals,
+    segment_by_adjacency_groups,
+    segment_by_criterion,
+    slice_df,
+)
 
 from .data import Data
 from .pipeline import PipelineStep
@@ -70,6 +78,9 @@ class FacetSlicer(Slicer):
             )
         return data
 
+    def filename_factory(self):
+        return self.level_names["slicer"]
+
 
 class LazyFacetSlicer(FacetSlicer):
     """A FacetSlicer creates slice information based on one particular data facet, e.g.
@@ -125,9 +136,6 @@ class LazyFacetSlicer(FacetSlicer):
         result.slice_info = slice_infos
         result.indices = indices
         return result
-
-    def filename_factory(self):
-        return self.level_names["slicer"]
 
 
 class OnePassFacetSlicer(FacetSlicer):
@@ -408,8 +416,60 @@ class ChordCriterionSlicer(OnePassFacetSlicer):
             yield slice_index, row, facet_df[selector]
 
 
-class PhraseSlicer(LazyFacetSlicer):
+class SpecialFacetSlicer(LazyFacetSlicer):
+    """These facet slicers first gather slice intervals and info and then perform an individual kind slicing
+    afterwards.
+    """
+
+    @abstractmethod
+    def perform_facet_slicing(self, data: Data) -> Data:
+        """This is where the special slicing takes place."""
+
+    def process_data(self, data: Data) -> Data:
+        data = super().process_data(data)
+        sliced_data = self.perform_facet_slicing(data)
+        return sliced_data
+
+
+class PhraseSlicer(SpecialFacetSlicer):
     """Create slice info from phrase beginnings."""
+
+    SPLIT_REGEX = re.compile(
+        r"""
+                            ^(?P<label>\.?
+                                (?:[a-gA-G](?:b*|\#*)\.)?
+                                (?:(?:(?:b*|\#*)(?:VII|VI|V|IV|III|II|I|vii|vi|v|iv|iii|ii|i)/?)+\.)?
+                                (?:(?:(?:b*|\#*)(?:VII|VI|V|IV|III|II|I|vii|vi|v|iv|iii|ii|i)/?)+\[)?
+                                (?:b*|\#*)(?:VII|VI|V|IV|III|II|I|vii|vi|v|iv|iii|ii|i|Ger|It|Fr|@none)
+                                (?:%|o|\+|M|\+M)?
+                                (?:7|65|43|42|2|64|6)?
+                                (?:\((?:(?:\+|-|\^|v)?(?:b*|\#*)\d)+\))?
+                                (?:/(?:(?:b*|\#*)(?:VII|VI|V|IV|III|II|I|vii|vi|v|iv|iii|ii|i)/?)*)?
+                                \]?
+                             )?
+                             (?P<cadence_phrase>
+                                (?:\|(?:HC|PAC|IAC|DC|EC|PC)(?:\..+?)?)?
+                                (?:\\\\|\}\{|\{|\})?
+                             )?
+                            $
+                            """,
+        re.VERBOSE,
+    )
+    OVERWRITE_FEATURES = [
+        "alt_label",
+        "chord",
+        "numeral",
+        "special",
+        "form",
+        "figbass",
+        "changes",
+        "relativeroot",
+        "chord_type",
+        "chord_tones",
+        "added_tones",
+        "root",
+        "bass_note",
+    ]
 
     def __init__(self, warn_na=False):
         """Defines the criteria for starting slices.
@@ -444,3 +504,86 @@ class PhraseSlicer(LazyFacetSlicer):
         for interval, row in segmented.iterrows():
             slice_index = index + (interval,)
             yield slice_index, row
+
+    def perform_facet_slicing(self, data: Data) -> Data:
+        data.sliced["expanded"] = {}
+        facet_ids = defaultdict(list)
+        for corpus, fname, interval in data.slice_info.keys():
+            facet_ids[(corpus, fname)].append(interval)
+        for ix, intervals in facet_ids.items():
+            facet_df = data.get_item(ix, what="expanded")
+            if facet_df is None or len(facet_df.index) == 0:
+                continue
+            # the following call sets this function apart from the usual slicing via Corpus.slice_facet_if_necessary()
+            facet_df = split_chord_and_cadence_phrase(facet_df)
+            sliced = overlapping_chunk_per_interval(facet_df, intervals)
+            # after the usual slicing, cadence labels from the beginnings of chunks need to be moved to the ending
+            # of the previous chunk :-(((
+            try:
+                sliced = move_cadence_labels_between_chunks(sliced)
+            except Exception:
+                print(ix)
+                from IPython.display import display
+
+                display(facet_df)
+                raise
+            data.sliced["expanded"].update(
+                {ix + (iv,): chunk for iv, chunk in sliced.items()}
+            )
+        if len(data.sliced["expanded"]) == 0:
+            del data.sliced["expanded"]
+        return data
+
+
+def split_chord_and_cadence_phrase(expanded: pd.DataFrame) -> pd.DataFrame:
+    matches = expanded.label.str.extract(PhraseSlicer.SPLIT_REGEX).fillna("")
+    need_split = (matches != "").all(axis=1)
+    new_duplicate_rows = expanded[need_split].copy()
+    # new_duplicate_rows.loc[:, 'label'] = matches.cadence_phrase[need_split]
+    overwrite = [
+        col
+        for col in PhraseSlicer.OVERWRITE_FEATURES
+        if col in new_duplicate_rows.columns
+    ]
+    new_duplicate_rows.loc[:, overwrite] = pd.NA
+    new_duplicate_rows.loc[:, "duration_qb"] = 0.0
+    # expanded.loc[need_split, 'label'] = matches.label[need_split]
+    expanded.loc[need_split, ["phraseend", "cadence"]] = pd.NA
+    result = pd.concat([expanded, new_duplicate_rows], ignore_index=True).sort_values(
+        ["quarterbeats", "duration_qb"]
+    )
+    return replace_index_by_intervals(result)
+
+
+def move_cadence_labels_between_chunks(sliced_dict):
+    backward_key_iterator1 = reversed(sliced_dict.keys())
+    backward_key_iterator2 = reversed(sliced_dict.keys())
+    chunk2 = sliced_dict[next(backward_key_iterator1)]
+    for iv1, iv2 in zip(backward_key_iterator1, backward_key_iterator2):
+        chunk1 = sliced_dict[iv1]
+        first_row = chunk2.iloc[0]
+        assert first_row.duration_qb == 0, (
+            f"First row should be an individual phrase beginning with duration_qb==0.0"
+            f" but chunk2's head is {chunk2.head()}\n"
+        )
+        zero_interval = first_row.name
+        is_cadence_label = not pd.isnull(first_row.cadence)
+        has_phrase_label = not pd.isnull(first_row.phraseend)
+        is_phraseend = has_phrase_label and "}" in first_row.phraseend
+        if is_cadence_label or is_phraseend:
+            new_last_row = chunk2.iloc[1].to_dict()
+            assert (
+                new_last_row["quarterbeats"] == first_row.quarterbeats
+            ), "Second row should be a chord label with the same onset as the phrase beginning."
+            if is_phraseend:
+                new_last_row["phraseend"] = first_row.phraseend
+            if is_cadence_label:
+                new_last_row["cadence"] = first_row.cadence
+                # remove cadence from first row of chunk2
+                cadence_col = chunk2.columns.get_loc("cadence")
+                chunk2.iloc[0, cadence_col] = pd.NA
+            new_row = pd.DataFrame.from_records([new_last_row], index=[zero_interval])
+            chunk1 = pd.concat([chunk1, new_row])
+        sliced_dict[iv1] = chunk1
+        chunk2 = chunk1
+    return sliced_dict
