@@ -5,8 +5,8 @@ from copy import deepcopy
 from functools import lru_cache
 from typing import Dict, List, Optional, Tuple, TypeAlias, Union
 
+import ms3
 import pandas as pd
-from ms3 import Parse, Piece, overlapping_chunk_per_interval
 
 from .utils import clean_index_levels
 
@@ -35,7 +35,7 @@ class Data(ABC):
         self._data = None
         """Protected attribute for storing and internally accessing the loaded data."""
 
-        self.indices = {}
+        self.indices = {(): []}
         """Indices for accessing individual pieces of data and associated metadata."""
 
         self.processed = {}
@@ -264,30 +264,30 @@ class DCML(Data):
             All keyword arguments are passed to load().
         """
         super().__init__()
-        self.pieces: Dict[ID, Piece] = {}
+        self.pieces: Dict[ID, ms3.Piece] = {}
         """
         IDs and metadata of those pieces that have not been filtered out.::
 
             {(corpus, fname) -> :obj:`ms3.Piece`
         """
         if data is None:
-            self._data = Parse()
+            self._data = ms3.Parse()
         else:
             self.data = data
         if len(kwargs) > 0:
             self.load(**kwargs)
 
     @property
-    def data(self):
+    def data(self) -> ms3.Parse:
         """Get the data field in its raw form."""
         return self._data
 
     @data.setter
-    def data(self, data_object):
+    def data(self, data_object: "DCML"):
         """Check if the assigned object is suitable for conversion."""
         if not isinstance(data_object, DCML):
             raise TypeError(
-                f"{data_object.__class__} could not be converted to a Corpus."
+                f"{data_object.__class__} could not be converted to a DCML dataset."
             )
         self._data = data_object._data
         self.pieces = dict(data_object.pieces)
@@ -505,7 +505,7 @@ class DCML(Data):
             facet_df = self.get_item(id, what, unfold)
             if facet_df is None or len(facet_df.index) == 0:
                 continue
-            sliced = overlapping_chunk_per_interval(facet_df, intervals)
+            sliced = ms3.overlapping_chunk_per_interval(facet_df, intervals)
             self.sliced[what].update(
                 {id + (iv,): chunk for iv, chunk in sliced.items()}
             )
@@ -554,6 +554,11 @@ class DCML(Data):
             missing_id = []
             for index in index_group:
                 df = self.get_item(index, what, unfold)
+                # try:
+                #     df = self.get_item(index, what, unfold)
+                # except Exception as e:
+                #     print(f".get_item({index}, {what}, {unfold}) failed with '{e}'.")
+                #     raise
                 if df is None:
                     continue
                 elif ignore_groups:
@@ -671,16 +676,20 @@ class DCML(Data):
         n_index_elements = len(index)
         if n_index_elements == 2:
             corpus, fname = index
-            try:
-                df = self.data[corpus][fname].get_dataframe(
-                    what, unfold, interval_index=True
-                )
-                if not isinstance(df.index, pd.IntervalIndex):
-                    print(f"'{what}' of {index} does not come with an IntervalIndex")
-                    df = pd.DataFrame()
-            except FileNotFoundError:
-                # print(f"No {what} available for {index}. Returning empty DataFrame.")
-                df = pd.DataFrame()
+            # try:
+            #     file, df = self.data[corpus][fname].get_facet(
+            #         what, unfold=unfold, interval_index=True
+            #     )
+            # except Exception as e:
+            #     print(f".data['{corpus}']['{fname}'].get_facet('{what}', {unfold}, interval_index=True) -> '{e}'.")
+            #     raise
+            file, df = self.data[corpus][fname].get_facet(
+                what, unfold, interval_index=True
+            )
+            # TODO: logger.debug(file)
+            if df is not None and not isinstance(df.index, pd.IntervalIndex):
+                print(f"'{what}' of {index} does not come with an IntervalIndex")
+                df = None
         elif n_index_elements == 3:
             df = self.get_slice(index, what)
         else:
