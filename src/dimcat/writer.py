@@ -4,7 +4,7 @@ import os
 import pandas as pd
 from ms3 import resolve_dir, write_tsv
 
-from .data import Corpus, Data
+from .data import DCML, Data
 from .pipeline import PipelineStep
 from .utils import make_suffix
 
@@ -43,7 +43,7 @@ class TSVWriter(PipelineStep):
         self.round = round
         self.fillna = fillna
 
-    def make_filenames(self, data: Corpus) -> dict:
+    def make_filenames(self, data: DCML) -> dict:
         """Returns a {group -> filename} dict."""
         result = {}
         pipeline_steps = [ps.filename_factory() for ps in reversed(data.pipeline_steps)]

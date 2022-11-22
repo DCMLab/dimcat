@@ -1,13 +1,13 @@
 import os
 
-from dimcat import Corpus
+from dimcat import DCML
 from dimcat.cli import get_arg_parser, pcvs
 
 
 def test_pcvs():
     debussy = "/home/hentsche/debussy"
     parser = get_arg_parser()
-    data = Corpus()
+    data = DCML()
     data.data.add_dir(directory=debussy, file_re="l000")
     data.data.parse_tsv()
     data.get_indices()

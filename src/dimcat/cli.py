@@ -10,7 +10,7 @@ import sys
 from ms3.cli import check_and_create, check_dir
 
 from .analyzer import ChordSymbolBigrams, ChordSymbolUnigrams, PitchClassVectors
-from .data import Corpus
+from .data import DCML
 from .grouper import CorpusGrouper, ModeGrouper, PieceGrouper, YearGrouper
 from .pipeline import Pipeline
 from .slicer import LocalKeySlicer, NoteSlicer
@@ -226,7 +226,7 @@ def apply_pipeline(corpus, slicers, groupers):
 
 def main(args):
     setup_logging(args.loglevel)
-    corpus = Corpus(directory=args.dir)
+    corpus = DCML(directory=args.dir)
     if len(corpus.pieces) == 0:
         _logger.error(f"Didn't find anything to analyze here in {args.dir}")
         return

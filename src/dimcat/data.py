@@ -3,12 +3,14 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from copy import deepcopy
 from functools import lru_cache
-from typing import List, Union
+from typing import Dict, List, Tuple, TypeAlias, Union
 
 import pandas as pd
-from ms3 import Parse, overlapping_chunk_per_interval
+from ms3 import Parse, Piece, overlapping_chunk_per_interval
 
 from .utils import clean_index_levels
+
+ID: TypeAlias = Tuple[str, str]
 
 
 class Data(ABC):
@@ -248,7 +250,7 @@ def remove_corpus_from_ids(result):
     return result.droplevel(0)
 
 
-class Corpus(Data):
+class DCML(Data):
     """Essentially a wrapper for a ms3.Parse object."""
 
     def __init__(self, data=None, **kwargs):
@@ -262,17 +264,11 @@ class Corpus(Data):
             All keyword arguments are passed to load().
         """
         super().__init__()
-        self.pieces = {}
+        self.pieces: Dict[ID, Piece] = {}
         """
         IDs and metadata of those pieces that have not been filtered out.::
 
-            {(corpus, fname) ->
-                {
-                 'metadata' -> {key->value},
-                 'matched_files' -> [namedtuple]
-                }
-            }
-
+            {(corpus, fname) -> :obj:`ms3.Piece`
         """
         if data is None:
             self._data = Parse()
@@ -289,12 +285,12 @@ class Corpus(Data):
     @data.setter
     def data(self, data_object):
         """Check if the assigned object is suitable for conversion."""
-        if not isinstance(data_object, Corpus):
+        if not isinstance(data_object, DCML):
             raise TypeError(
                 f"{data_object.__class__} could not be converted to a Corpus."
             )
         self._data = data_object._data
-        self.pieces = deepcopy(data_object.pieces)
+        self.pieces = dict(data_object.pieces)
         self.indices = deepcopy(data_object.indices)
         self.processed = deepcopy(data_object.processed)
         self.sliced = deepcopy(data_object.sliced)
@@ -463,7 +459,7 @@ class Corpus(Data):
             self.data.parse_tsv()
         if parse_scores:
             self.data.parse_mscx()
-        if len(self.data._parsed_tsv) == 0 and len(self.data._parsed_mscx) == 0:
+        if self.data.n_parsed_tsvs == 0 and self.data.n_parsed_scores == 0:
             print("No files have been parsed for analysis.")
         else:
             self.get_indices()
@@ -474,20 +470,10 @@ class Corpus(Data):
         self.pieces = {}
         self.indices = {}
         # self.group_labels = {}
-        for key in self.data.keys():
-            view = self.data[key]
-            for metadata, (fname, matched_files) in zip(
-                view.metadata().to_dict(orient="records"),
-                view.detect_ids_by_fname(parsed_only=True).items(),
-            ):
-                assert (
-                    fname == metadata["fnames"]
-                ), f"metadata() and pieces() do not correspond for key {key}, fname {fname}."
-                piece_info = {}
-                piece_info["metadata"] = metadata
-                piece_info["matched_files"] = matched_files
-                ID = (key, fname)
-                self.pieces[ID] = piece_info
+        for corpus_name, ms3_corpus in self.data.iter_corpora():
+            for fname, piece in ms3_corpus.iter_pieces():
+                ID = (corpus_name, fname)
+                self.pieces[ID] = piece
         self.indices[()] = list(self.pieces.keys())
 
     def slice_facet_if_necessary(self, what, unfold):

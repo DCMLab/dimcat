@@ -106,7 +106,7 @@ class YearGrouper(Grouper):
         ix = index[:2]
         if ix in self.year_cache:
             return self.year_cache[ix]
-        metadata_dict = data.pieces[ix]["metadata"]
+        metadata_dict = data.pieces[ix].tsv_metadata
         year = get_composition_year(metadata_dict)
         self.year_cache[ix] = year
         return year
