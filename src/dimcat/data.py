@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from copy import deepcopy
 from functools import lru_cache
-from typing import Dict, List, Tuple, TypeAlias, Union
+from typing import Dict, List, Optional, Tuple, TypeAlias, Union
 
 import pandas as pd
 from ms3 import Parse, Piece, overlapping_chunk_per_interval
@@ -419,10 +419,10 @@ class DCML(Data):
 
     def load(
         self,
-        directory: List[str] = None,
+        directory: Optional[Union[str, List[str]]] = None,
         parse_tsv: bool = True,
         parse_scores: bool = False,
-        ms: str = None,
+        ms: Optional[str] = None,
     ):
         """
         Load and parse all of the desired raw data and metadata.
