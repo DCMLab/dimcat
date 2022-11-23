@@ -3,11 +3,23 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from copy import deepcopy
 from functools import lru_cache
-from typing import Dict, Iterator, List, Optional, Tuple, TypeAlias, Union
+from typing import (
+    Any,
+    Dict,
+    Iterator,
+    List,
+    Literal,
+    Optional,
+    Tuple,
+    TypeAlias,
+    Union,
+    overload,
+)
 
 import ms3
 import pandas as pd
 
+from .typing import GroupID, Index, Pandas
 from .utils import clean_index_levels
 
 ID: TypeAlias = Tuple[str, str]
@@ -38,8 +50,10 @@ class Data(ABC):
         self.indices = {(): []}
         """Indices for accessing individual pieces of data and associated metadata."""
 
-        self.processed = {}
-        """Subclasses store processed data here."""
+        self.processed: Dict[GroupID, Union[Dict[Index, Any], List[str]]] = {}
+        """Analyzers store there result here. Those that compute one result per item per group
+        store {ID -> result} dicts, all others store simply the result for each group. In the first case,
+        :attr:`group2pandas` needs to be specified for correctly converting the dict to a pandas object."""
 
         self.pipeline_steps = []
         """The sequence of applied PipelineSteps that has led to the current state in reverse
@@ -59,7 +73,7 @@ class Data(ABC):
         self.slice_info = {}
         """Dict holding metadata of slices (e.g. the localkey of a segment)."""
 
-        self.group2pandas = "group2dataframe"
+        self.group2pandas = None  #
 
         if data is not None:
             self.data = data
@@ -77,6 +91,10 @@ class Data(ABC):
         if data_object is not None:
             raise NotImplementedError
         self._data = data_object
+
+    @property
+    def n_indices(self):
+        return sum(map(len, self.indices.values()))
 
     def copy(self):
         return self.__class__(data=self)
@@ -304,26 +322,34 @@ class Dataset(Data):
         groups = list(self.indices.keys())
         return len(groups) != 1 or groups[0] != ()
 
-    def get(self, as_dict=False):
-        """Uses _.iter() to get all processed data at once.
+    @overload
+    def get(self, as_pandas: bool = Literal[True]) -> Pandas:
+        ...
 
-        Parameters
-        ----------
-        as_dict : :obj:`bool`, optional
-            By default, the result is a pandas DataFrame or Series where the first levels
-            display the groups. Pass True to obtain a nested {group -> {id -> processed}}
-            dictionary instead.
+    @overload
+    def get(self, as_pandas: bool = Literal[False]) -> Dict[GroupID, Any]:
+        ...
 
-        Returns
-        -------
-        :obj:`pandas.DataFrame` or :obj:`pandas.Series` or :obj:`dict`
+    def get(self, as_pandas: bool = True) -> Union[Pandas, Dict[GroupID, Any]]:
+        """Collects the results of :meth:`iter` to retrieve all processed data at once.
+
+        Args:
+            as_pandas:
+                By default, the result is a pandas DataFrame or Series where the first levels
+                display group identifiers (if any). Pass False to obtain a nested {group -> group_result}
+                dictionary instead.
+
+        Returns:
+            The contents of :attr:`processed` in original or adapted form.
         """
         if len(self.processed) == 0:
             print("No data has been processed so far.")
             return
-        results = {group: result for group, result in self.iter(as_dict=as_dict)}
-        if as_dict:
+        results = {group: result for group, result in self.iter(as_pandas=as_pandas)}
+        if not as_pandas:
             return results
+        if self.group2pandas is None:
+            return pd.Series(results)
         # default: concatenate to a single pandas object
         if len(results) == 1 and () in results:
             pandas_obj = pd.concat(results.values())
@@ -381,41 +407,75 @@ class Dataset(Data):
         pandas_obj = converter(result_dict)
         return clean_index_levels(pandas_obj)
 
-    def iter(self, as_dict=False, ignore_groups=False):
-        """Iterate through processed data.
+    @overload
+    def iter(
+        self, as_pandas: bool = Literal[False], ignore_groups: bool = Literal[False]
+    ) -> Iterator[Tuple[GroupID, Union[Dict[Index, Any], Any]]]:
+        ...
 
-        Parameters
-        ----------
-        as_dict : :obj:`bool`, optional
-            By default, the IDs and processed data belonging to the same group are concatenated
-            into a single pandas object (Series or DataFrame).
+    @overload
+    def iter(
+        self, as_pandas: bool = Literal[True], ignore_groups: bool = Literal[False]
+    ) -> Iterator[Tuple[GroupID, Union[Pandas, Any]]]:
+        ...
 
-        Yields
-        ------
-        :obj:`tuple`
-            Group identifier. Empty if no grouper has been applied previously.
-        :obj:`pandas.DataFrame` or :obj:`pandas.Series` or :obj:`dict`
-            Processed data for one particular group. Whether it is a pandas object or dict depends
-            on ``as_dict``. Whether it is a Series or DataFrame depends on the previously applied
-            Pipeline.
-        ignore_groups : :obj:`bool`, False
-            If set to True, the iteration loop is flattened and yields (index, result) pairs directly.
+    @overload
+    def iter(
+        self, as_pandas: bool = Literal[False], ignore_groups: bool = Literal[True]
+    ) -> Iterator[Union[Tuple[Index, Any], Any]]:
+        ...
+
+    @overload
+    def iter(
+        self, as_pandas: bool = Literal[True], ignore_groups: bool = Literal[True]
+    ) -> Iterator[Union[Pandas, Any]]:
+        ...
+
+    def iter(
+        self, as_pandas: bool = True, ignore_groups: bool = False
+    ) -> Iterator[
+        Union[
+            Tuple[GroupID, Union[Dict[Index, Any], Any]],
+            Tuple[GroupID, Union[Pandas, Any]],
+            Union[Tuple[Index, Any], Any],
+            Union[Pandas, Any],
+        ]
+    ]:
+        """Iterate through :attr:`processed` data.
+
+        Args:
+            as_pandas:
+                Setting this value to False corresponds to iterating through .processed.items(),
+                where keys are group IDs and values are results for Analyzers that compute
+                one result per group, or {ID -> result} dicts for Analyzers that compute
+                one result per item per group. The default value (True) has no effect in the first case,
+                but in the second case, the dictionary will be converted to a Series if the conversion method is
+                set in :attr:`group2pandas`.
+            ignore_groups:
+                If set to True, the iteration loop is flattened and does not include group identifiers. If as_pandas
+                is False (default), and the applied Analyzer computes one {ID -> result} dict per group,
+                this will correspond to iterating through the (ID, result) tuples for all groups.
+
+        Yields:
+            The result of the last applied Analyzer for each group or for each item of each group.
         """
-        if sum((as_dict, ignore_groups)) > 1:
+        if ignore_groups and not as_pandas:
             raise ValueError(
-                "Arguments 'as_dict' and 'ignore_groups' are in conflict, choose one."
+                "If you set 'as_dict' and 'ignore_groups' are in conflict, choose one or use _.get()."
             )
         for group, result in self.processed.items():
             if ignore_groups:
-                yield from result.items()
-            elif as_dict:
-                yield group, result
-            else:
-                if ignore_groups:
-                    for tup in result.items():
-                        yield tup
+                if self.group2pandas is None:
+                    yield result
+                elif as_pandas:
+                    yield self.convert_group2pandas(result)
                 else:
+                    yield from result.items()
+            else:
+                if as_pandas and self.group2pandas is not None:
                     yield group, self.convert_group2pandas(result)
+                else:
+                    yield group, result
 
     def load(
         self,
@@ -651,7 +711,7 @@ class Dataset(Data):
             )
             return clean_index_levels(concatenated_info)
 
-    def iter_slice_info(self) -> Iterator[pd.DataFrame]:
+    def iter_slice_info(self) -> Iterator[Tuple[tuple, pd.DataFrame]]:
         """Iterate through concatenated slice_info Series for each group."""
         for group, index_group in self.iter_groups():
             group_info = {ix: self.slice_info[ix] for ix in index_group}
