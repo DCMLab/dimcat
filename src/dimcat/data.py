@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from copy import deepcopy
 from functools import lru_cache
-from typing import Dict, List, Optional, Tuple, TypeAlias, Union
+from typing import Dict, Iterator, List, Optional, Tuple, TypeAlias, Union
 
 import ms3
 import pandas as pd
@@ -553,7 +553,7 @@ class Dataset(Data):
             result = {}
             missing_id = []
             for index in index_group:
-                df = self.get_item(index, what, unfold)
+                df = self.get_item(index, what=what, unfold=unfold)
                 # try:
                 #     df = self.get_item(index, what, unfold)
                 # except Exception as e:
@@ -639,8 +639,8 @@ class Dataset(Data):
             return concatenated_info
         else:
             group_dfs = {}
-            for group, ixs in self.iter_groups():
-                group_info = {ix: self.slice_info[ix] for ix in ixs}
+            for group, index_group in self.iter_groups():
+                group_info = {ix: self.slice_info[ix] for ix in index_group}
                 group_dfs[group] = pd.concat(
                     group_info.values(), keys=group_info.keys(), axis=1
                 ).T
@@ -650,6 +650,16 @@ class Dataset(Data):
                 self.index_levels["groups"] + self.index_levels["indices"],
             )
             return clean_index_levels(concatenated_info)
+
+    def iter_slice_info(self) -> Iterator[pd.DataFrame]:
+        """Iterate through concatenated slice_info Series for each group."""
+        for group, index_group in self.iter_groups():
+            group_info = {ix: self.slice_info[ix] for ix in index_group}
+            group_df = pd.concat(group_info.values(), keys=group_info.keys(), axis=1).T
+            group_df.index = self._rename_multiindex_levels(
+                group_df.index, self.index_levels["indices"]
+            )
+            yield group, group_df
 
     @lru_cache()
     def get_item(self, index, what, unfold=False, multiindex=False):
@@ -684,7 +694,7 @@ class Dataset(Data):
             #     print(f".data['{corpus}']['{fname}'].get_facet('{what}', {unfold}, interval_index=True) -> '{e}'.")
             #     raise
             file, df = self.data[corpus][fname].get_facet(
-                what, unfold, interval_index=True
+                what, unfold=unfold, interval_index=True
             )
             # TODO: logger.debug(file)
             if df is not None and not isinstance(df.index, pd.IntervalIndex):
