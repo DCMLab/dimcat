@@ -250,7 +250,7 @@ def remove_corpus_from_ids(result):
     return result.droplevel(0)
 
 
-class DCML(Data):
+class Dataset(Data):
     """Essentially a wrapper for a ms3.Parse object."""
 
     def __init__(self, data=None, **kwargs):
@@ -283,9 +283,9 @@ class DCML(Data):
         return self._data
 
     @data.setter
-    def data(self, data_object: "DCML"):
+    def data(self, data_object: "Dataset"):
         """Check if the assigned object is suitable for conversion."""
-        if not isinstance(data_object, DCML):
+        if not isinstance(data_object, Dataset):
             raise TypeError(
                 f"{data_object.__class__} could not be converted to a DCML dataset."
             )

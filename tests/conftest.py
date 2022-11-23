@@ -17,7 +17,7 @@ from dimcat.analyzer import (
     PitchClassVectors,
     TPCrange,
 )
-from dimcat.data import DCML
+from dimcat.data import Dataset
 from dimcat.filter import IsAnnotatedFilter
 from dimcat.grouper import CorpusGrouper, ModeGrouper, PieceGrouper, YearGrouper
 from dimcat.pipeline import Pipeline
@@ -66,7 +66,7 @@ def all_corpora_path():
 @pytest.fixture(
     scope="session",
     params=[
-        (DCML, True, False),
+        (Dataset, True, False),
         #        (Corpus, False, True),
         #        (Corpus, True, True),
     ],
