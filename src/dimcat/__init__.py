@@ -18,6 +18,8 @@ finally:
 from .analyzer import (
     ChordSymbolBigrams,
     ChordSymbolUnigrams,
+    LocalKeySequence,
+    LocalKeyUnique,
     PitchClassVectors,
     TPCrange,
 )

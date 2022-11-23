@@ -1,13 +1,15 @@
 """Analyzers are PipelineSteps that process data and store the results in Data.processed."""
 from abc import ABC, abstractmethod
 from collections import defaultdict
+from typing import List
 
 import pandas as pd
 from ms3 import add_weighted_grace_durations, fifths2name
 
 from .data import Data
+from .grouper import PieceGrouper
 from .pipeline import PipelineStep
-from .slicer import LocalKeySlicer
+from .slicer import LocalKeySlicer, Slicer
 from .utils import grams, make_suffix
 
 
@@ -347,21 +349,16 @@ class ChordSymbolBigrams(ChordSymbolAnalyzer):
         return True, ""
 
     @staticmethod
-    def compute(expanded, dropna=True):
+    def compute(expanded: pd.DataFrame, dropna: bool = True) -> pd.Series:
         """Turns the chord column into bigrams and returns their counts in descending order.
 
-        Parameters
-        ----------
-        expanded : :obj:`pandas.DataFrame`
-            Expanded harmony labels.
-        dropna : :obj:`bool`, optional
-            By default, NaN values are dropped before computing bigrams, resulting in transitions
+        Args:
+            expanded: Expanded harmony labels.
+            dropna: By default, NaN values are dropped before computing bigrams, resulting in transitions
             from a missing value's preceding to its subsequent value. Pass False to include
             bigrams from and to NaN values.
 
-        Returns
-        -------
-        :obj:`pandas.Series`
+        Returns:
             The last two index level are unique (from, to) bigrams, Series values are their
             corresponding counts.
         """
@@ -405,3 +402,85 @@ class ChordSymbolBigrams(ChordSymbolAnalyzer):
             isinstance(step, LocalKeySlicer) for step in data.pipeline_steps
         ), "ChordSymbolBigrams requires previous application of LocalKeySlicer()."
         return super().process_data(data=data)
+
+
+class SliceInfoAnalyzer(Analyzer):
+    """"""
+
+    def __init__(
+        self,
+    ):
+        """"""
+        self.config = {}
+        """:obj:`dict`
+        This dictionary stores the parameters to be passed to the compute() method."""
+        self.group2pandas = None
+        """:obj:`str`
+        The name of the function that allows displaying one group's results as a single
+        pandas object. See data.Corpus.convert_group2pandas()"""
+        self.level_names = {}
+        """:obj:`dict`
+        Define {"processed": "index_level_name(s)"}.
+        """
+
+    def check(self, df):
+        if len(df) == 0:
+            return False, "DataFrame is empty."
+        return True, ""
+
+    @abstractmethod
+    def compute(self, df):
+        """Where the actual computation takes place."""
+
+    def process_data(self, data: Data) -> Data:
+        assert any(
+            isinstance(step, Slicer) for step in data.pipeline_steps
+        ), "At least one Slicer needs to be applied before using a SliceInfoAnalyzer."
+        processed = {}
+        for group, info_df in data.iter_slice_info():
+            processed[group] = self.compute(info_df)
+        processed = self.post_process(processed)
+        result = data.copy()
+        result.track_pipeline(self, group2pandas=self.group2pandas, **self.level_names)
+        result.processed = processed
+        return result
+
+    def post_process(self, processed):
+        return processed
+
+
+class LocalKeySliceInfoAnalyzer(SliceInfoAnalyzer):
+    """"""
+
+    def __init__(
+        self,
+    ):
+        """"""
+        super().__init__()
+        self.level_names["processed"] = ["localkeys"]
+        self.group2pandas = None
+
+    def process_data(self, data: Data) -> Data:
+        assert any(
+            isinstance(step, PieceGrouper) for step in data.pipeline_steps
+        ), "LocalKeySequence requires previous application of PieceGrouper()."
+        assert any(
+            isinstance(step, LocalKeySlicer) for step in data.pipeline_steps
+        ), "ChordSymbolBigrams requires previous application of LocalKeySlicer()."
+        return super().process_data(data=data)
+
+
+class LocalKeySequence(LocalKeySliceInfoAnalyzer):
+    """"""
+
+    @staticmethod
+    def compute(slice_info: pd.DataFrame) -> List[str]:
+        return slice_info.localkey.to_list()
+
+
+class LocalKeyUnique(LocalKeySliceInfoAnalyzer):
+    """"""
+
+    @staticmethod
+    def compute(slice_info: pd.DataFrame) -> List[str]:
+        return list(slice_info.localkey.unique())
