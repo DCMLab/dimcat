@@ -72,7 +72,9 @@ extensions = [
     "sphinx.ext.ifconfig",
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
+    "myst_nb",
 ]
+# pip install myst-nb
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
