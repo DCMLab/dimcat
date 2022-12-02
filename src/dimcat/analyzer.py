@@ -293,6 +293,7 @@ class ChordSymbolUnigrams(ChordSymbolAnalyzer):
         """
         super().__init__(once_per_group=once_per_group)
         self.level_names["processed"] = "chord"
+        self.group2pandas = "group_of_series2series"
 
     @staticmethod
     def compute(expanded):
