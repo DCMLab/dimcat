@@ -18,10 +18,12 @@ finally:
 from .analyzer import (
     ChordSymbolBigrams,
     ChordSymbolUnigrams,
+    LocalKeySequence,
+    LocalKeyUnique,
     PitchClassVectors,
     TPCrange,
 )
-from .data import Corpus
+from .data import Dataset
 from .filter import HasCadenceAnnotationsFilter, IsAnnotatedFilter
 from .grouper import CorpusGrouper, ModeGrouper, PieceGrouper, YearGrouper
 from .pipeline import Pipeline

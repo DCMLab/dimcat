@@ -3,12 +3,26 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from copy import deepcopy
 from functools import lru_cache
-from typing import List, Union
+from typing import (
+    Any,
+    Dict,
+    Iterator,
+    List,
+    Literal,
+    Optional,
+    Tuple,
+    TypeAlias,
+    Union,
+    overload,
+)
 
+import ms3
 import pandas as pd
-from ms3 import Parse, overlapping_chunk_per_interval
 
+from .typing import GroupID, Index, Pandas
 from .utils import clean_index_levels
+
+ID: TypeAlias = Tuple[str, str]
 
 
 class Data(ABC):
@@ -33,11 +47,13 @@ class Data(ABC):
         self._data = None
         """Protected attribute for storing and internally accessing the loaded data."""
 
-        self.indices = {}
+        self.indices = {(): []}
         """Indices for accessing individual pieces of data and associated metadata."""
 
-        self.processed = {}
-        """Subclasses store processed data here."""
+        self.processed: Dict[GroupID, Union[Dict[Index, Any], List[str]]] = {}
+        """Analyzers store there result here. Those that compute one result per item per group
+        store {ID -> result} dicts, all others store simply the result for each group. In the first case,
+        :attr:`group2pandas` needs to be specified for correctly converting the dict to a pandas object."""
 
         self.pipeline_steps = []
         """The sequence of applied PipelineSteps that has led to the current state in reverse
@@ -57,7 +73,7 @@ class Data(ABC):
         self.slice_info = {}
         """Dict holding metadata of slices (e.g. the localkey of a segment)."""
 
-        self.group2pandas = "group2dataframe"
+        self.group2pandas = None  #
 
         if data is not None:
             self.data = data
@@ -75,6 +91,10 @@ class Data(ABC):
         if data_object is not None:
             raise NotImplementedError
         self._data = data_object
+
+    @property
+    def n_indices(self):
+        return sum(map(len, self.indices.values()))
 
     def copy(self):
         return self.__class__(data=self)
@@ -248,7 +268,7 @@ def remove_corpus_from_ids(result):
     return result.droplevel(0)
 
 
-class Corpus(Data):
+class Dataset(Data):
     """Essentially a wrapper for a ms3.Parse object."""
 
     def __init__(self, data=None, **kwargs):
@@ -262,39 +282,33 @@ class Corpus(Data):
             All keyword arguments are passed to load().
         """
         super().__init__()
-        self.pieces = {}
+        self.pieces: Dict[ID, ms3.Piece] = {}
         """
         IDs and metadata of those pieces that have not been filtered out.::
 
-            {(corpus, fname) ->
-                {
-                 'metadata' -> {key->value},
-                 'matched_files' -> [namedtuple]
-                }
-            }
-
+            {(corpus, fname) -> :obj:`ms3.Piece`
         """
         if data is None:
-            self._data = Parse()
+            self._data = ms3.Parse()
         else:
             self.data = data
         if len(kwargs) > 0:
             self.load(**kwargs)
 
     @property
-    def data(self):
+    def data(self) -> ms3.Parse:
         """Get the data field in its raw form."""
         return self._data
 
     @data.setter
-    def data(self, data_object):
+    def data(self, data_object: "Dataset"):
         """Check if the assigned object is suitable for conversion."""
-        if not isinstance(data_object, Corpus):
+        if not isinstance(data_object, Dataset):
             raise TypeError(
-                f"{data_object.__class__} could not be converted to a Corpus."
+                f"{data_object.__class__} could not be converted to a DCML dataset."
             )
         self._data = data_object._data
-        self.pieces = deepcopy(data_object.pieces)
+        self.pieces = dict(data_object.pieces)
         self.indices = deepcopy(data_object.indices)
         self.processed = deepcopy(data_object.processed)
         self.sliced = deepcopy(data_object.sliced)
@@ -308,26 +322,34 @@ class Corpus(Data):
         groups = list(self.indices.keys())
         return len(groups) != 1 or groups[0] != ()
 
-    def get(self, as_dict=False):
-        """Uses _.iter() to get all processed data at once.
+    @overload
+    def get(self, as_pandas: bool = Literal[True]) -> Pandas:
+        ...
 
-        Parameters
-        ----------
-        as_dict : :obj:`bool`, optional
-            By default, the result is a pandas DataFrame or Series where the first levels
-            display the groups. Pass True to obtain a nested {group -> {id -> processed}}
-            dictionary instead.
+    @overload
+    def get(self, as_pandas: bool = Literal[False]) -> Dict[GroupID, Any]:
+        ...
 
-        Returns
-        -------
-        :obj:`pandas.DataFrame` or :obj:`pandas.Series` or :obj:`dict`
+    def get(self, as_pandas: bool = True) -> Union[Pandas, Dict[GroupID, Any]]:
+        """Collects the results of :meth:`iter` to retrieve all processed data at once.
+
+        Args:
+            as_pandas:
+                By default, the result is a pandas DataFrame or Series where the first levels
+                display group identifiers (if any). Pass False to obtain a nested {group -> group_result}
+                dictionary instead.
+
+        Returns:
+            The contents of :attr:`processed` in original or adapted form.
         """
         if len(self.processed) == 0:
             print("No data has been processed so far.")
             return
-        results = {group: result for group, result in self.iter(as_dict=as_dict)}
-        if as_dict:
+        results = {group: result for group, result in self.iter(as_pandas=as_pandas)}
+        if not as_pandas:
             return results
+        if self.group2pandas is None:
+            return pd.Series(results)
         # default: concatenate to a single pandas object
         if len(results) == 1 and () in results:
             pandas_obj = pd.concat(results.values())
@@ -385,48 +407,82 @@ class Corpus(Data):
         pandas_obj = converter(result_dict)
         return clean_index_levels(pandas_obj)
 
-    def iter(self, as_dict=False, ignore_groups=False):
-        """Iterate through processed data.
+    @overload
+    def iter(
+        self, as_pandas: bool = Literal[False], ignore_groups: bool = Literal[False]
+    ) -> Iterator[Tuple[GroupID, Union[Dict[Index, Any], Any]]]:
+        ...
 
-        Parameters
-        ----------
-        as_dict : :obj:`bool`, optional
-            By default, the IDs and processed data belonging to the same group are concatenated
-            into a single pandas object (Series or DataFrame).
+    @overload
+    def iter(
+        self, as_pandas: bool = Literal[True], ignore_groups: bool = Literal[False]
+    ) -> Iterator[Tuple[GroupID, Union[Pandas, Any]]]:
+        ...
 
-        Yields
-        ------
-        :obj:`tuple`
-            Group identifier. Empty if no grouper has been applied previously.
-        :obj:`pandas.DataFrame` or :obj:`pandas.Series` or :obj:`dict`
-            Processed data for one particular group. Whether it is a pandas object or dict depends
-            on ``as_dict``. Whether it is a Series or DataFrame depends on the previously applied
-            Pipeline.
-        ignore_groups : :obj:`bool`, False
-            If set to True, the iteration loop is flattened and yields (index, result) pairs directly.
+    @overload
+    def iter(
+        self, as_pandas: bool = Literal[False], ignore_groups: bool = Literal[True]
+    ) -> Iterator[Union[Tuple[Index, Any], Any]]:
+        ...
+
+    @overload
+    def iter(
+        self, as_pandas: bool = Literal[True], ignore_groups: bool = Literal[True]
+    ) -> Iterator[Union[Pandas, Any]]:
+        ...
+
+    def iter(
+        self, as_pandas: bool = True, ignore_groups: bool = False
+    ) -> Iterator[
+        Union[
+            Tuple[GroupID, Union[Dict[Index, Any], Any]],
+            Tuple[GroupID, Union[Pandas, Any]],
+            Union[Tuple[Index, Any], Any],
+            Union[Pandas, Any],
+        ]
+    ]:
+        """Iterate through :attr:`processed` data.
+
+        Args:
+            as_pandas:
+                Setting this value to False corresponds to iterating through .processed.items(),
+                where keys are group IDs and values are results for Analyzers that compute
+                one result per group, or {ID -> result} dicts for Analyzers that compute
+                one result per item per group. The default value (True) has no effect in the first case,
+                but in the second case, the dictionary will be converted to a Series if the conversion method is
+                set in :attr:`group2pandas`.
+            ignore_groups:
+                If set to True, the iteration loop is flattened and does not include group identifiers. If as_pandas
+                is False (default), and the applied Analyzer computes one {ID -> result} dict per group,
+                this will correspond to iterating through the (ID, result) tuples for all groups.
+
+        Yields:
+            The result of the last applied Analyzer for each group or for each item of each group.
         """
-        if sum((as_dict, ignore_groups)) > 1:
+        if ignore_groups and not as_pandas:
             raise ValueError(
-                "Arguments 'as_dict' and 'ignore_groups' are in conflict, choose one."
+                "If you set 'as_dict' and 'ignore_groups' are in conflict, choose one or use _.get()."
             )
         for group, result in self.processed.items():
             if ignore_groups:
-                yield from result.items()
-            elif as_dict:
-                yield group, result
-            else:
-                if ignore_groups:
-                    for tup in result.items():
-                        yield tup
+                if self.group2pandas is None:
+                    yield result
+                elif as_pandas:
+                    yield self.convert_group2pandas(result)
                 else:
+                    yield from result.items()
+            else:
+                if as_pandas and self.group2pandas is not None:
                     yield group, self.convert_group2pandas(result)
+                else:
+                    yield group, result
 
     def load(
         self,
-        directory: List[str] = None,
+        directory: Optional[Union[str, List[str]]] = None,
         parse_tsv: bool = True,
         parse_scores: bool = False,
-        ms: str = None,
+        ms: Optional[str] = None,
     ):
         """
         Load and parse all of the desired raw data and metadata.
@@ -462,8 +518,8 @@ class Corpus(Data):
         if parse_tsv:
             self.data.parse_tsv()
         if parse_scores:
-            self.data.parse_mscx()
-        if len(self.data._parsed_tsv) == 0 and len(self.data._parsed_mscx) == 0:
+            self.data.parse_scores()
+        if self.data.n_parsed_tsvs == 0 and self.data.n_parsed_scores == 0:
             print("No files have been parsed for analysis.")
         else:
             self.get_indices()
@@ -474,20 +530,10 @@ class Corpus(Data):
         self.pieces = {}
         self.indices = {}
         # self.group_labels = {}
-        for key in self.data.keys():
-            view = self.data[key]
-            for metadata, (fname, matched_files) in zip(
-                view.metadata().to_dict(orient="records"),
-                view.detect_ids_by_fname(parsed_only=True).items(),
-            ):
-                assert (
-                    fname == metadata["fnames"]
-                ), f"metadata() and pieces() do not correspond for key {key}, fname {fname}."
-                piece_info = {}
-                piece_info["metadata"] = metadata
-                piece_info["matched_files"] = matched_files
-                ID = (key, fname)
-                self.pieces[ID] = piece_info
+        for corpus_name, ms3_corpus in self.data.iter_corpora():
+            for fname, piece in ms3_corpus.iter_pieces():
+                ID = (corpus_name, fname)
+                self.pieces[ID] = piece
         self.indices[()] = list(self.pieces.keys())
 
     def slice_facet_if_necessary(self, what, unfold):
@@ -519,7 +565,7 @@ class Corpus(Data):
             facet_df = self.get_item(id, what, unfold)
             if facet_df is None or len(facet_df.index) == 0:
                 continue
-            sliced = overlapping_chunk_per_interval(facet_df, intervals)
+            sliced = ms3.overlapping_chunk_per_interval(facet_df, intervals)
             self.sliced[what].update(
                 {id + (iv,): chunk for iv, chunk in sliced.items()}
             )
@@ -567,7 +613,12 @@ class Corpus(Data):
             result = {}
             missing_id = []
             for index in index_group:
-                df = self.get_item(index, what, unfold)
+                df = self.get_item(index, what=what, unfold=unfold)
+                # try:
+                #     df = self.get_item(index, what, unfold)
+                # except Exception as e:
+                #     print(f".get_item({index}, {what}, {unfold}) failed with '{e}'.")
+                #     raise
                 if df is None:
                     continue
                 elif ignore_groups:
@@ -648,8 +699,8 @@ class Corpus(Data):
             return concatenated_info
         else:
             group_dfs = {}
-            for group, ixs in self.iter_groups():
-                group_info = {ix: self.slice_info[ix] for ix in ixs}
+            for group, index_group in self.iter_groups():
+                group_info = {ix: self.slice_info[ix] for ix in index_group}
                 group_dfs[group] = pd.concat(
                     group_info.values(), keys=group_info.keys(), axis=1
                 ).T
@@ -659,6 +710,16 @@ class Corpus(Data):
                 self.index_levels["groups"] + self.index_levels["indices"],
             )
             return clean_index_levels(concatenated_info)
+
+    def iter_slice_info(self) -> Iterator[Tuple[tuple, pd.DataFrame]]:
+        """Iterate through concatenated slice_info Series for each group."""
+        for group, index_group in self.iter_groups():
+            group_info = {ix: self.slice_info[ix] for ix in index_group}
+            group_df = pd.concat(group_info.values(), keys=group_info.keys(), axis=1).T
+            group_df.index = self._rename_multiindex_levels(
+                group_df.index, self.index_levels["indices"]
+            )
+            yield group, group_df
 
     @lru_cache()
     def get_item(self, index, what, unfold=False, multiindex=False):
@@ -685,16 +746,20 @@ class Corpus(Data):
         n_index_elements = len(index)
         if n_index_elements == 2:
             corpus, fname = index
-            try:
-                df = self.data[corpus][fname].get_dataframe(
-                    what, unfold, interval_index=True
-                )
-                if not isinstance(df.index, pd.IntervalIndex):
-                    print(f"'{what}' of {index} does not come with an IntervalIndex")
-                    df = pd.DataFrame()
-            except FileNotFoundError:
-                # print(f"No {what} available for {index}. Returning empty DataFrame.")
-                df = pd.DataFrame()
+            # try:
+            #     file, df = self.data[corpus][fname].get_facet(
+            #         what, unfold=unfold, interval_index=True
+            #     )
+            # except Exception as e:
+            #     print(f".data['{corpus}']['{fname}'].get_facet('{what}', {unfold}, interval_index=True) -> '{e}'.")
+            #     raise
+            file, df = self.data[corpus][fname].get_facet(
+                what, unfold=unfold, interval_index=True
+            )
+            # TODO: logger.debug(file)
+            if df is not None and not isinstance(df.index, pd.IntervalIndex):
+                print(f"'{what}' of {index} does not come with an IntervalIndex")
+                df = None
         elif n_index_elements == 3:
             df = self.get_slice(index, what)
         else:

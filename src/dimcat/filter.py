@@ -42,22 +42,20 @@ class Filter(PipelineStep, ABC):
 class IsAnnotatedFilter(Filter):
     """Keeps only pieces for which an 'expanded' DataFrame is available."""
 
-    def criterion(self, index, data):
+    def criterion(self, index, data: Data) -> bool:
         corpus, fname, *_ = index
-        try:
-            df = data.data[corpus][fname].get_dataframe("expanded")
-            return len(df.index) > 0
-        except Exception:
-            return False
+        file, df = data.data[corpus][fname].get_facet("expanded")
+        # TODO: logger.debug(file)
+        return df is not None and len(df.index) > 0
 
 
 class HasCadenceAnnotationsFilter(Filter):
     """Keeps only pieces whose 'expanded' includes at least one cadence."""
 
-    def criterion(self, index, data):
+    def criterion(self, index, data: Data) -> bool:
         corpus, fname, *_ = index
-        try:
-            df = data.data[corpus][fname].get_dataframe("expanded")
+        file, df = data.data[corpus][fname].get_facet("expanded")
+        # TODO: logger.debug(file)
+        if df is not None and len(df.index) > 0:
             return df.cadence.notna().any()
-        except Exception:
-            return False
+        return False
