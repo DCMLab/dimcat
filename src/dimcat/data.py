@@ -518,7 +518,7 @@ class Dataset(Data):
         if parse_tsv:
             self.data.parse_tsv()
         if parse_scores:
-            self.data.parse_mscx()
+            self.data.parse_scores()
         if self.data.n_parsed_tsvs == 0 and self.data.n_parsed_scores == 0:
             print("No files have been parsed for analysis.")
         else:
