@@ -493,11 +493,15 @@ class PhraseSlicer(SpecialFacetSlicer):
                     f"Couldn't compute {self.config['column']} criterion slices because the annotation table is "
                     f"missing the column '{col}'.",
                 )
+        if facet_df["phraseend"].isna().all():
+            return False, "No phrase labels present"
         return True, ""
 
     def iter_slices(self, index, facet_df, warn_na=False):
         logger_name = "_".join(index).replace(".", "")
         boolean_mask = facet_df["phraseend"].str.contains("{").fillna(False)
+        if not boolean_mask.any():
+            boolean_mask = facet_df["phraseend"].str.contains("////").fillna(False)
         segmented = segment_by_criterion(
             facet_df, boolean_mask=boolean_mask, warn_na=warn_na, logger=logger_name
         )
@@ -536,6 +540,7 @@ class PhraseSlicer(SpecialFacetSlicer):
 
 
 def split_chord_and_cadence_phrase(expanded: pd.DataFrame) -> pd.DataFrame:
+    """Labels containing a harmony label AND cadence or phrase label are separated into two individual rows."""
     matches = expanded.label.str.extract(PhraseSlicer.SPLIT_REGEX).fillna("")
     need_split = (matches != "").all(axis=1)
     new_duplicate_rows = expanded[need_split].copy()
@@ -564,7 +569,7 @@ def move_cadence_labels_between_chunks(sliced_dict):
         first_row = chunk2.iloc[0]
         assert first_row.duration_qb == 0, (
             f"First row should be an individual phrase beginning with duration_qb==0.0"
-            f" but chunk2's head is {chunk2.head()}\n"
+            f" but looks like this {first_row}\n"
         )
         zero_interval = first_row.name
         is_cadence_label = not pd.isnull(first_row.cadence)
