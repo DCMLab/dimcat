@@ -34,26 +34,21 @@ class Data(ABC):
     to create an object from an existing Data object to enable type conversion.
     """
 
-    def __init__(self, data=None, **kwargs):
-        """
+    def __init__(self, data: Optional["Data"] = None, **kwargs):
+        """Create a new :obj:`Data` object.
 
-        Parameters
-        ----------
-        data : Data
-            Convert a given Data object if possible.
-        kwargs
-            All keyword arguments are passed to load().
+        Args:
+            data: Convert a given Data object if possible.
+            **kwargs: All keyword arguments are passed to load().
         """
         self._data = None
         """Protected attribute for storing and internally accessing the loaded data."""
 
-        self.indices = {(): []}
-        """Indices for accessing individual pieces of data and associated metadata."""
-
-        self.processed: Dict[GroupID, Union[Dict[Index, Any], List[str]]] = {}
-        """Analyzers store there result here. Those that compute one result per item per group
-        store {ID -> result} dicts, all others store simply the result for each group. In the first case,
-        :attr:`group2pandas` needs to be specified for correctly converting the dict to a pandas object."""
+        self.indices: Dict[GroupID, List[Index]] = {(): []}
+        """{group_key -> indices} dictionary of indices (IDs) which serve for accessing individual pieces of data and
+        associated metadata. An index/ID is a ('corpus_name', 'piece_name') tuple that can have a third element
+        identifying a segment/chunk of a piece. The group_keys are an empty tuple by default; with every applied
+        Grouper, the length of all group_keys grows by one and the number of group_keys grows or stays the same."""
 
         self.pipeline_steps = []
         """The sequence of applied PipelineSteps that has led to the current state in reverse
@@ -66,12 +61,6 @@ class Data(ABC):
             "processed": [],
         }
         """Keeps track of index level names. Also used for automatic naming of output files."""
-
-        self.sliced = {}
-        """Dict for sliced data facets."""
-
-        self.slice_info = {}
-        """Dict holding metadata of slices (e.g. the localkey of a segment)."""
 
         self.group2pandas = None  #
 
@@ -253,8 +242,45 @@ class Data(ABC):
         return multiindex
 
 
+class SlicedData(Data):
+    """A type of Data object that contains the slicing information created by a Slicer. It slices all requested
+    facets based on that information.
+    """
+
+    def __init__(self, data: Optional[Data] = None, **kwargs):
+        """Create a new :obj:`SlicedData` object.
+
+        Args:
+            data: Convert a given Data object if possible.
+            **kwargs: All keyword arguments are passed to load().
+        """
+        super().__init__(data=data, **kwargs)
+        self.sliced = {}
+        """Dict for sliced data facets."""
+
+        self.slice_info = {}
+        """Dict holding metadata of slices (e.g. the localkey of a segment)."""
+
+
+class AnalyzedData(Data):
+    """A type of Data object that contains the results of an Analyzer and knows how to plot it."""
+
+    def __init__(self, data: Optional[Data] = None, **kwargs):
+        """Create a new :obj:`AnalyzedData` object.
+
+        Args:
+            data: Convert a given Data object if possible.
+            **kwargs: All keyword arguments are passed to load().
+        """
+        super().__init__(data=data, **kwargs)
+        self.processed: Dict[GroupID, Union[Dict[Index, Any], List[str]]] = {}
+        """Analyzers store there result here. Those that compute one result per item per group
+        store {ID -> result} dicts, all others store simply the result for each group. In the first case,
+        :attr:`group2pandas` needs to be specified for correctly converting the dict to a pandas object."""
+
+
 def remove_corpus_from_ids(result):
-    """Called when group contains corpus and removes redundant repetition from indices."""
+    """Called when group contains corpus_names and removes redundant repetition from indices."""
     if isinstance(result, dict):
         without_corpus = {}
         for key, v in result.items():
@@ -269,7 +295,8 @@ def remove_corpus_from_ids(result):
 
 
 class Dataset(Data):
-    """Essentially a wrapper for a ms3.Parse object."""
+    """An object that represents one ore several corpora issued by the DCML corpus initiative.
+    Essentially a wrapper for a ms3.Parse object."""
 
     def __init__(self, data=None, **kwargs):
         """
@@ -614,11 +641,6 @@ class Dataset(Data):
             missing_id = []
             for index in index_group:
                 df = self.get_item(index, what=what, unfold=unfold)
-                # try:
-                #     df = self.get_item(index, what, unfold)
-                # except Exception as e:
-                #     print(f".get_item({index}, {what}, {unfold}) failed with '{e}'.")
-                #     raise
                 if df is None:
                     continue
                 elif ignore_groups:
@@ -746,13 +768,6 @@ class Dataset(Data):
         n_index_elements = len(index)
         if n_index_elements == 2:
             corpus, fname = index
-            # try:
-            #     file, df = self.data[corpus][fname].get_facet(
-            #         what, unfold=unfold, interval_index=True
-            #     )
-            # except Exception as e:
-            #     print(f".data['{corpus}']['{fname}'].get_facet('{what}', {unfold}, interval_index=True) -> '{e}'.")
-            #     raise
             file, df = self.data[corpus][fname].get_facet(
                 what, unfold=unfold, interval_index=True
             )
