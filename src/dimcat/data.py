@@ -34,19 +34,19 @@ class Data(ABC):
     to create an object from an existing Data object to enable type conversion.
     """
 
-    def __init__(self, data: Optional["Data"] = None, **kwargs):
-        """Create a new :obj:`Data` object.
-
-        Args:
-            data: Convert a given Data object if possible.
-            **kwargs: All keyword arguments are passed to load().
-        """
+    def __init__(self):
+        """Create a new :obj:`Data` object."""
         self._data = None
         """Protected attribute for storing and internally accessing the loaded data."""
 
+        self.pieces: Dict[ID, Any] = {}
+        """{(corpus, fname) -> Any}
+        References to the individual pieces contained in the data. The exact type depends on the type of data.
+        """
+
         self.indices: Dict[GroupID, List[Index]] = {(): []}
         """{group_key -> indices} dictionary of indices (IDs) which serve for accessing individual pieces of data and
-        associated metadata. An index/ID is a ('corpus_name', 'piece_name') tuple that can have a third element
+        associated metadata. An index is a ('corpus_name', 'piece_name') tuple ("ID") that can have a third element
         identifying a segment/chunk of a piece. The group_keys are an empty tuple by default; with every applied
         Grouper, the length of all group_keys grows by one and the number of group_keys grows or stays the same."""
 
@@ -62,10 +62,10 @@ class Data(ABC):
         }
         """Keeps track of index level names. Also used for automatic naming of output files."""
 
-        self.group2pandas = None  #
+        self.group2pandas = None  # ToDo: deprecate this by using different datatypes for different types of results
 
-        if data is not None:
-            self.data = data
+        # __init__() methods of subclasses should end with:
+        # self.data = data
 
     @property
     @abstractmethod
@@ -254,12 +254,14 @@ class SlicedData(Data):
             data: Convert a given Data object if possible.
             **kwargs: All keyword arguments are passed to load().
         """
-        super().__init__(data=data, **kwargs)
+        super().__init__()
         self.sliced = {}
         """Dict for sliced data facets."""
 
         self.slice_info = {}
         """Dict holding metadata of slices (e.g. the localkey of a segment)."""
+
+        self.data = data
 
 
 class AnalyzedData(Data):
@@ -272,11 +274,12 @@ class AnalyzedData(Data):
             data: Convert a given Data object if possible.
             **kwargs: All keyword arguments are passed to load().
         """
-        super().__init__(data=data, **kwargs)
+        super().__init__()
         self.processed: Dict[GroupID, Union[Dict[Index, Any], List[str]]] = {}
         """Analyzers store there result here. Those that compute one result per item per group
         store {ID -> result} dicts, all others store simply the result for each group. In the first case,
         :attr:`group2pandas` needs to be specified for correctly converting the dict to a pandas object."""
+        self.data = data
 
 
 def remove_corpus_from_ids(result):
@@ -310,15 +313,11 @@ class Dataset(Data):
         """
         super().__init__()
         self.pieces: Dict[ID, ms3.Piece] = {}
+        """{(corpus, fname) -> :obj:`ms3.Piece`}
+        References to the individual :obj:`ms3.Piece` objects contained in this Dataset. They give access to all data
+        and metadata available for one piece.
         """
-        IDs and metadata of those pieces that have not been filtered out.::
-
-            {(corpus, fname) -> :obj:`ms3.Piece`
-        """
-        if data is None:
-            self._data = ms3.Parse()
-        else:
-            self.data = data
+        self.data = data
         if len(kwargs) > 0:
             self.load(**kwargs)
 
@@ -328,21 +327,33 @@ class Dataset(Data):
         return self._data
 
     @data.setter
-    def data(self, data_object: "Dataset"):
+    def data(self, data_object: Optional[Union["Dataset", ms3.Parse]]):
         """Check if the assigned object is suitable for conversion."""
-        if not isinstance(data_object, Dataset):
+        if data_object is None:
+            self._data = ms3.Parse()
+            return
+        is_dataset_object = isinstance(data_object, Dataset)
+        is_parse_object = isinstance(data_object, ms3.Parse)
+        if not (is_dataset_object or is_parse_object):
             raise TypeError(
                 f"{data_object.__class__} could not be converted to a DCML dataset."
             )
+        if is_parse_object:
+            self._data = data_object
+            return
+        # else: got a Dataset object and need to copy its fields
         self._data = data_object._data
         self.pieces = dict(data_object.pieces)
+        # ^^^ doesn't copy the ms3.Parse and ms3.Piece objects, only the references ^^^
+        # vvv all other fields are deepcopied vvv
         self.indices = deepcopy(data_object.indices)
-        self.processed = deepcopy(data_object.processed)
-        self.sliced = deepcopy(data_object.sliced)
-        self.slice_info = deepcopy(data_object.slice_info)
-        self.pipeline_steps = list(data_object.pipeline_steps)
         self.index_levels = deepcopy(data_object.index_levels)
+        self.pipeline_steps = list(data_object.pipeline_steps)
         self.group2pandas = data_object.group2pandas
+        optional_fields = ("processed", "sliced", "slice_info")
+        for field in optional_fields:
+            if hasattr(self, field) and hasattr(data_object, field):
+                setattr(self, field, deepcopy(getattr(data_object, field)))
 
     @property
     def is_grouped(self) -> bool:
