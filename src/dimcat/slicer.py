@@ -13,7 +13,7 @@ from ms3 import (
     slice_df,
 )
 
-from .data import Data
+from .data import AnalyzedData, Data, SlicedData
 from .pipeline import PipelineStep
 from .utils import interval_index2interval
 
@@ -65,16 +65,15 @@ class FacetSlicer(Slicer):
         """
 
     def process_data(self, data: Data) -> Data:
-        assert len(data.processed) == 0, (
-            "Data object already contains processed data. Cannot slice it post-hoc, apply slicers "
-            "beforehand."
-        )
-        previous_slicers = [
-            step for step in data.pipeline_steps if isinstance(step, Slicer)
-        ]
-        if len(previous_slicers) > 0:
+        assert not isinstance(
+            data, AnalyzedData
+        ), "Data object already contains processed data. Cannot slice it post-hoc. Apply Slicers beforehand."
+        if isinstance(data, SlicedData):
+            previous_slicers = [
+                step for step in data.pipeline_steps if isinstance(step, Slicer)
+            ]
             raise NotImplementedError(
-                f"Data object had already been sliced by {previous_slicers[0]}."
+                f"Data object had already been sliced by {previous_slicers}."
             )
         return data
 
@@ -131,11 +130,11 @@ class LazyFacetSlicer(FacetSlicer):
                     new_index_group.append(slice_index)
                     slice_infos[slice_index] = slice_info
             indices[group] = new_index_group
-        result = data.copy()
-        result.track_pipeline(self, **self.level_names)
-        result.slice_info = slice_infos
-        result.indices = indices
-        return result
+        sliced_data = SlicedData(data)
+        sliced_data.track_pipeline(self, **self.level_names)
+        sliced_data.slice_info = slice_infos
+        sliced_data.indices = indices
+        return sliced_data
 
 
 class OnePassFacetSlicer(FacetSlicer):
@@ -192,12 +191,12 @@ class OnePassFacetSlicer(FacetSlicer):
                     sliced[slice_index] = chunk
                     slice_infos[slice_index] = slice_info
             indices[group] = new_index_group
-        result = data.copy()
-        result.track_pipeline(self, **self.level_names)
-        result.sliced[self.required_facets[0]] = sliced
-        result.slice_info = slice_infos
-        result.indices = indices
-        return result
+        sliced_data = SlicedData(data)
+        sliced_data.track_pipeline(self, **self.level_names)
+        sliced_data.sliced[self.required_facets[0]] = sliced
+        sliced_data.slice_info = slice_infos
+        sliced_data.indices = indices
+        return sliced_data
 
 
 class NoteSlicer(OnePassFacetSlicer):

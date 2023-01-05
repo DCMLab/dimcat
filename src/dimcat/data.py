@@ -34,6 +34,8 @@ class Data(ABC):
     to create an object from an existing Data object to enable type conversion.
     """
 
+
+class _Dataset(Data, ABC):
     def __init__(self):
         """Create a new :obj:`Data` object."""
         self._data = None
@@ -233,44 +235,57 @@ class Data(ABC):
         return multiindex
 
 
-class SlicedData(Data):
+class _ProcessedData(Data):
+    """Base class for types of processed :obj:`_Dataset` objects.
+    Processed datatypes are created by passing a _Dataset object. The new object will be a copy of the Data with the
+    :attr:`prefix` prepended. Subclasses should have an __init__() method that calls super().__init__() and then
+    adds additional fields.
+    """
+
+    prefix = "Processed"
+
+    def __new__(cls, data: Data, **kwargs):
+        assert isinstance(
+            data, _Dataset
+        ), f"SlicedData objects can only be created from Datasets, not '{type(data)}'"
+        dataset_type = type(data)  # currently only Dataset has been implemented
+        new_type_name = f"{cls.prefix}{dataset_type.__name__}"
+        # create a copy of Dataset which has a dynamically created type derived from both Dataset and SlicedData
+        new_sliced_type = type(new_type_name, (cls, dataset_type), {})
+        obj = object.__new__(new_sliced_type)
+        obj.__init__(data=data, **kwargs)
+        return obj
+
+
+class SlicedData(_ProcessedData):
     """A type of Data object that contains the slicing information created by a Slicer. It slices all requested
     facets based on that information.
     """
 
-    def __init__(self, data: Optional[Data] = None, **kwargs):
-        """Create a new :obj:`SlicedData` object.
+    prefix = "Sliced"
 
-        Args:
-            data: Convert a given Data object if possible.
-            **kwargs: All keyword arguments are passed to load().
-        """
-        super().__init__()
-        self.sliced = {}
-        """Dict for sliced data facets."""
-
-        self.slice_info = {}
-        """Dict holding metadata of slices (e.g. the localkey of a segment)."""
-
-        self.data = data
+    def __init__(self, data: Data, **kwargs):
+        super().__init__(data=data, **kwargs)
+        if not hasattr(self, "sliced"):
+            self.sliced = {}
+            """Dict for sliced data facets."""
+        if not hasattr(self, "slice_info"):
+            self.slice_info = {}
+            """Dict holding metadata of slices (e.g. the localkey of a segment)."""
 
 
-class AnalyzedData(Data):
+class AnalyzedData(_ProcessedData):
     """A type of Data object that contains the results of an Analyzer and knows how to plot it."""
 
-    def __init__(self, data: Optional[Data] = None, **kwargs):
-        """Create a new :obj:`AnalyzedData` object.
+    prefix = "Analyzed"
 
-        Args:
-            data: Convert a given Data object if possible.
-            **kwargs: All keyword arguments are passed to load().
-        """
-        super().__init__()
-        self.processed: Dict[GroupID, Union[Dict[Index, Any], List[str]]] = {}
-        """Analyzers store there result here. Those that compute one result per item per group
-        store {ID -> result} dicts, all others store simply the result for each group. In the first case,
-        :attr:`group2pandas` needs to be specified for correctly converting the dict to a pandas object."""
-        self.data = data
+    def __init__(self, data: Data, **kwargs):
+        super().__init__(data=data, **kwargs)
+        if not hasattr(self, "processed"):
+            self.processed: Dict[GroupID, Union[Dict[Index, Any], List[str]]] = {}
+            """Analyzers store there result here. Those that compute one result per item per group
+            store {ID -> result} dicts, all others store simply the result for each group. In the first case,
+            :attr:`group2pandas` needs to be specified for correctly converting the dict to a pandas object."""
 
     def get(self) -> dict:
         """Get all processed data at once."""
@@ -296,7 +311,7 @@ def remove_corpus_from_ids(result):
     return result.droplevel(0)
 
 
-class Dataset(Data):
+class Dataset(_Dataset):
     """An object that represents one ore several corpora issued by the DCML corpus initiative.
     Essentially a wrapper for a ms3.Parse object."""
 
@@ -588,8 +603,11 @@ class Dataset(Data):
         :obj:`bool`
             True if slices are available or not needed, False otherwise.
         """
-        if len(self.slice_info) == 0:
+        if not hasattr(self, "slice_info"):
             # no slicer applied
+            return True
+        if len(self.slice_info) == 0:
+            # applying slicer did not yield any slices
             return True
         if what in self.sliced:
             # already sliced

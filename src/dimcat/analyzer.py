@@ -6,7 +6,7 @@ from typing import List
 import pandas as pd
 from ms3 import add_weighted_grace_durations, fifths2name
 
-from .data import Data
+from .data import AnalyzedData, Data
 from .grouper import PieceGrouper
 from .pipeline import PipelineStep
 from .slicer import LocalKeySlicer, Slicer
@@ -52,8 +52,11 @@ class FacetAnalyzer(Analyzer):
     def post_process(self, processed):
         return processed
 
-    def process_data(self, data: Data) -> Data:
+    def process_data(self, data: Data) -> AnalyzedData:
         """Returns a copy of the Data object containing processed data."""
+        assert not isinstance(
+            data, AnalyzedData
+        ), "Data object already contains processed data."
         processed = {}
         for group, dfs in data.iter_facet(
             self.required_facets[0], concatenate=self.once_per_group
@@ -71,10 +74,12 @@ class FacetAnalyzer(Analyzer):
                 continue
             processed[group] = processed_group
         processed = self.post_process(processed)
-        result = data.copy()
-        result.track_pipeline(self, group2pandas=self.group2pandas, **self.level_names)
-        result.processed = processed
-        return result
+        analyzed_data = AnalyzedData(data)
+        analyzed_data.track_pipeline(
+            self, group2pandas=self.group2pandas, **self.level_names
+        )
+        analyzed_data.processed = processed
+        return analyzed_data
 
 
 class NotesAnalyzer(FacetAnalyzer):
@@ -441,10 +446,12 @@ class SliceInfoAnalyzer(Analyzer):
         for group, info_df in data.iter_slice_info():
             processed[group] = self.compute(info_df)
         processed = self.post_process(processed)
-        result = data.copy()
-        result.track_pipeline(self, group2pandas=self.group2pandas, **self.level_names)
-        result.processed = processed
-        return result
+        analyzed_data = AnalyzedData(data)
+        analyzed_data.track_pipeline(
+            self, group2pandas=self.group2pandas, **self.level_names
+        )
+        analyzed_data.processed = processed
+        return analyzed_data
 
     def post_process(self, processed):
         return processed
