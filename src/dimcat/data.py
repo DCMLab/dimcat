@@ -88,15 +88,6 @@ class Data(ABC):
     def copy(self):
         return self.__class__(data=self)
 
-    def get(self):
-        """Get all processed data at once."""
-        return self.processed
-
-    def iter(self):
-        """Iterate through processed data."""
-        for tup in self.processed.items():
-            yield tup
-
     @abstractmethod
     def iter_facet(self, what):
         """Iterate through (potentially grouped) pieces of data."""
@@ -280,6 +271,14 @@ class AnalyzedData(Data):
         store {ID -> result} dicts, all others store simply the result for each group. In the first case,
         :attr:`group2pandas` needs to be specified for correctly converting the dict to a pandas object."""
         self.data = data
+
+    def get(self) -> dict:
+        """Get all processed data at once."""
+        return self.processed
+
+    def iter(self) -> Iterator:
+        """Iterate through processed data."""
+        yield from self.processed.items()
 
 
 def remove_corpus_from_ids(result):
