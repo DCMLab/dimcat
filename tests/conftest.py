@@ -27,16 +27,13 @@ from ms3 import pretty_dict
 
 # Directory holding your clones of DCMLab/unittest_metacorpus & DCMLab/pleyel_quartets
 CORPUS_DIR = "~"
-TEST_COMMIT = (
-    "73ce500"  # commit of DCMLab/unittest_metacorpus for which the tests should pass
-)
 
 
 @pytest.fixture(
     scope="session",
     params=[
-        ("pleyel_quartets", "12cac6e"),
-        ("unittest_metacorpus", "73ce500"),
+        ("pleyel_quartets", "10a25eb"),
+        ("unittest_metacorpus", "2d922c7"),
     ],
     ids=[
         "corpus",
@@ -137,12 +134,10 @@ def apply_slicer(slicer, corpus):
     print(
         f"\n{len(corpus.indices[()])} indices before slicing, after: {len(sliced_data.indices[()])}"
     )
-    # assert len(sliced_data.sliced) > 0
+    assert len(sliced_data.sliced) > 0
     assert len(sliced_data.slice_info) > 0
     assert len(sliced_data.index_levels["indices"]) > 2
-    # assert len(sliced_data.index_levels['slices']) > 0
-    for group, index_group in corpus.indices.items():
-        assert len(sliced_data.indices[group]) > len(index_group)
+    assert len(sliced_data.index_levels["slicer"]) > 0
     for facet, sliced in sliced_data.sliced.items():
         grouped_by_piece = defaultdict(list)
         for id, chunk in sliced.items():
