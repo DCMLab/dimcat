@@ -19,7 +19,7 @@ from typing import (
 import ms3
 import pandas as pd
 
-from .typing import GroupID, Index, Pandas
+from ._typing import GroupID, Index, Pandas
 from .utils import clean_index_levels
 
 ID: TypeAlias = Tuple[str, str]
