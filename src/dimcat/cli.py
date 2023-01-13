@@ -233,7 +233,11 @@ def main(args):
     pre_processed = apply_pipeline(corpus, args.slicers, args.groupers)
     processed = args.func(pre_processed, args)
     if args.out is not None:
-        round_param = int(args.round) if hasattr(args, "round") else None
+        round_param = (
+            None
+            if not hasattr(args, "round") or args.round is None
+            else int(args.round)
+        )
         if hasattr(args, "fillna"):
             fillna_param = args.fillna
             if fillna_param is not None:
