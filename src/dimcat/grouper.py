@@ -2,7 +2,7 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict
 
-from .data import Data
+from .data import Data, GroupedData
 from .pipeline import PipelineStep
 from .slicer import LocalKeySlicer
 from .utils import get_composition_year
@@ -38,7 +38,7 @@ class Grouper(PipelineStep, ABC):
         to the previous group names tuple.
         """
 
-    def process_data(self, data: Data) -> Data:
+    def process_data(self, data: Data) -> GroupedData:
         """Returns a copy of the Data object where the list of indices for each existing group has
         been further subdivided into smaller groups.
         """
@@ -57,7 +57,7 @@ class Grouper(PipelineStep, ABC):
                 indices[group + (new_group,)] = ids
         if self.sort:
             indices = {key: indices[key] for key in sorted(indices.keys())}
-        result = data.copy()
+        result = GroupedData(data)
         result.track_pipeline(
             self,
             **self.level_names,
@@ -111,7 +111,7 @@ class YearGrouper(Grouper):
         self.year_cache[ix] = year
         return year
 
-    def process_data(self, data: Data) -> Data:
+    def process_data(self, data: Data) -> GroupedData:
         result = super().process_data(data=data)
         self.year_cache = {}
         return result
@@ -138,6 +138,6 @@ class ModeGrouper(Grouper):
             print(f"Information on localkey not present in the slice_info of {index}:")
             print(slice_info)
 
-    def process_data(self, data: Data) -> Data:
+    def process_data(self, data: Data) -> GroupedData:
         self.slicer = data.get_previous_pipeline_step(of_type=LocalKeySlicer)
         return super().process_data(data)

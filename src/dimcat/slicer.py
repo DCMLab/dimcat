@@ -64,7 +64,7 @@ class FacetSlicer(Slicer):
             has come about, such as the local key. Mainly used for subsequent grouping of slices.
         """
 
-    def process_data(self, data: Data) -> Data:
+    def process_data(self, data: Data) -> SlicedData:
         assert not isinstance(
             data, AnalyzedData
         ), "Data object already contains processed data. Cannot slice it post-hoc. Apply Slicers beforehand."
@@ -75,7 +75,7 @@ class FacetSlicer(Slicer):
             raise NotImplementedError(
                 f"Data object had already been sliced by {previous_slicers}."
             )
-        return data
+        return SlicedData(data)
 
     def filename_factory(self):
         return self.level_names["slicer"]
@@ -104,8 +104,8 @@ class LazyFacetSlicer(FacetSlicer):
             has come about, such as the local key. Mainly used for subsequent grouping of slices.
         """
 
-    def process_data(self, data: Data) -> Data:
-        data = super().process_data(data)
+    def process_data(self, data: Data) -> SlicedData:
+        result = super().process_data(data)
         # The three dictionaries that will be added to the resulting Data object,
         # where keys are the new indices. Each piece's (corpus, fname) index tuple will be
         # multiplied according to the number of slices and the new index tuples will be
@@ -117,7 +117,7 @@ class LazyFacetSlicer(FacetSlicer):
             {}
         )  # for each slice, the relevant info about it, e.g. for later grouping
         facet_in_question = self.required_facets[0]
-        for group, dfs in data.iter_facet(facet_in_question):
+        for group, dfs in result.iter_facet(facet_in_question):
             new_index_group = []
             for index, facet_df in dfs.items():
                 eligible, message = self.check(facet_df)
@@ -130,11 +130,10 @@ class LazyFacetSlicer(FacetSlicer):
                     new_index_group.append(slice_index)
                     slice_infos[slice_index] = slice_info
             indices[group] = new_index_group
-        sliced_data = SlicedData(data)
-        sliced_data.track_pipeline(self, **self.level_names)
-        sliced_data.slice_info = slice_infos
-        sliced_data.indices = indices
-        return sliced_data
+        result.track_pipeline(self, **self.level_names)
+        result.slice_info = slice_infos
+        result.indices = indices
+        return result
 
 
 class OnePassFacetSlicer(FacetSlicer):
@@ -162,8 +161,8 @@ class OnePassFacetSlicer(FacetSlicer):
             The slice, i.e. a chunk or subselection of ``facet_df``.
         """
 
-    def process_data(self, data: Data) -> Data:
-        data = super().process_data(data)
+    def process_data(self, data: Data) -> SlicedData:
+        result = super().process_data(data)
         # The three dictionaries that will be added to the resulting Data object,
         # where keys are the new indices. Each piece's (corpus, fname) index tuple will be
         # multiplied according to the number of slices and the new index tuples will be
@@ -177,7 +176,7 @@ class OnePassFacetSlicer(FacetSlicer):
         sliced = (
             {}
         )  # for each piece, the relevant facet sliced into multiple DataFrames
-        for group, dfs in data.iter_facet(self.required_facets[0]):
+        for group, dfs in result.iter_facet(self.required_facets[0]):
             new_index_group = []
             for index, facet_df in dfs.items():
                 eligible, message = self.check(facet_df)
@@ -191,12 +190,11 @@ class OnePassFacetSlicer(FacetSlicer):
                     sliced[slice_index] = chunk
                     slice_infos[slice_index] = slice_info
             indices[group] = new_index_group
-        sliced_data = SlicedData(data)
-        sliced_data.track_pipeline(self, **self.level_names)
-        sliced_data.sliced[self.required_facets[0]] = sliced
-        sliced_data.slice_info = slice_infos
-        sliced_data.indices = indices
-        return sliced_data
+        result.track_pipeline(self, **self.level_names)
+        result.sliced[self.required_facets[0]] = sliced
+        result.slice_info = slice_infos
+        result.indices = indices
+        return result
 
 
 class NoteSlicer(OnePassFacetSlicer):

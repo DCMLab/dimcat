@@ -11,6 +11,7 @@ from typing import (
     Literal,
     Optional,
     Tuple,
+    Type,
     TypeAlias,
     Union,
     overload,
@@ -235,6 +236,19 @@ class _Dataset(Data, ABC):
         return multiindex
 
 
+# pre-define classes to enable referencing them before they are actually declared below
+class AnalyzedData:
+    pass
+
+
+class GroupedDataset:
+    pass
+
+
+class Dataset:
+    pass
+
+
 class _ProcessedData(Data):
     """Base class for types of processed :obj:`_Dataset` objects.
     Processed datatypes are created by passing a _Dataset object. The new object will be a copy of the Data with the
@@ -242,19 +256,10 @@ class _ProcessedData(Data):
     adds additional fields.
     """
 
-    prefix = "Processed"
-
-    def __new__(cls, data: Data, **kwargs):
-        assert isinstance(
-            data, _Dataset
-        ), f"SlicedData objects can only be created from Datasets, not '{type(data)}'"
-        dataset_type = type(data)  # currently only Dataset has been implemented
-        new_type_name = f"{cls.prefix}{dataset_type.__name__}"
-        # create a copy of Dataset which has a dynamically created type derived from both Dataset and SlicedData
-        new_sliced_type = type(new_type_name, (cls, dataset_type), {})
-        obj = object.__new__(new_sliced_type)
-        obj.__init__(data=data, **kwargs)
-        return obj
+    assert_type: Tuple[Type] = (Dataset,)
+    """Objects raise TypeError upon instantiation if the passed data are not of one of these types."""
+    excluded_types: Tuple[Type] = ()
+    """Objects raise TypeError upon instantiation if the passed data are of one of these types."""
 
 
 class SlicedData(_ProcessedData):
@@ -262,7 +267,21 @@ class SlicedData(_ProcessedData):
     facets based on that information.
     """
 
-    prefix = "Sliced"
+    excluded_types: Tuple[Type] = (AnalyzedData,)
+
+    def __new__(cls, data: Data, **kwargs):
+        if not isinstance(data, cls.assert_type):
+            raise TypeError(
+                f"{cls.__name__} objects can only be created from '{cls.assert_type}', not '{type(data)}'"
+            )
+        if isinstance(data, cls.excluded_types):
+            raise TypeError(
+                f"{cls.__name__} objects cannot be created from '{type(data)}'."
+            )
+        new_obj_type = SlicedDataset
+        obj = object.__new__(new_obj_type)
+        obj.__init__(data=data, **kwargs)
+        return obj
 
     def __init__(self, data: Data, **kwargs):
         super().__init__(data=data, **kwargs)
@@ -274,10 +293,31 @@ class SlicedData(_ProcessedData):
             """Dict holding metadata of slices (e.g. the localkey of a segment)."""
 
 
+class SlicedDataset(SlicedData, Dataset):
+    pass
+
+
 class AnalyzedData(_ProcessedData):
     """A type of Data object that contains the results of an Analyzer and knows how to plot it."""
 
-    prefix = "Analyzed"
+    def __new__(cls, data: Data, **kwargs):
+        if not isinstance(data, cls.assert_type):
+            raise TypeError(
+                f"{cls.__name__} objects can only be created from '{cls.assert_type}', not '{type(data)}'"
+            )
+        if isinstance(data, cls.excluded_types):
+            raise TypeError(
+                f"{cls.__name__} objects cannot be created from '{type(data)}'."
+            )
+        if isinstance(data, SlicedData):
+            new_obj_type = AnalyzedSlicedDataset
+        elif isinstance(data, GroupedData):
+            new_obj_type = AnalyzedGroupedDataset
+        else:
+            new_obj_type = AnalyzedDataset
+        obj = object.__new__(new_obj_type)
+        obj.__init__(data=data, **kwargs)
+        return obj
 
     def __init__(self, data: Data, **kwargs):
         super().__init__(data=data, **kwargs)
@@ -296,6 +336,62 @@ class AnalyzedData(_ProcessedData):
         yield from self.processed.items()
 
 
+class AnalyzedDataset(AnalyzedData, Dataset):
+    pass
+
+
+class AnalyzedGroupedDataset(AnalyzedData, GroupedDataset):
+    pass
+
+
+class AnalyzedSlicedDataset(AnalyzedData, SlicedDataset):
+    pass
+
+
+class GroupedData(_ProcessedData):
+    """A type of Data object that behaves like its predecessor but returns and iterates through groups."""
+
+    def __new__(cls, data: Data, **kwargs):
+        if not isinstance(data, cls.assert_type):
+            raise TypeError(
+                f"{cls.__name__} objects can only be created from '{cls.assert_type}', not '{type(data)}'"
+            )
+        if isinstance(data, cls.excluded_types):
+            raise TypeError(
+                f"{cls.__name__} objects cannot be created from '{type(data)}'."
+            )
+        if isinstance(data, AnalyzedSlicedDataset):
+            new_obj_type = GroupedAnalyzedSlicedDataset
+        elif isinstance(data, AnalyzedDataset):
+            new_obj_type = GroupedAnalyzedDataset
+        elif isinstance(data, SlicedDataset):
+            new_obj_type = GroupedSlicedDataset
+        else:
+            new_obj_type = GroupedDataset
+        obj = object.__new__(new_obj_type)
+        obj.__init__(data=data, **kwargs)
+        return obj
+
+    def __init__(self, data: Data, **kwargs):
+        super().__init__(data=data, **kwargs)
+
+
+class GroupedDataset(GroupedData, Dataset):
+    pass
+
+
+class GroupedAnalyzedDataset(GroupedData, AnalyzedDataset):
+    pass
+
+
+class GroupedSlicedDataset(GroupedData, SlicedDataset):
+    pass
+
+
+class GroupedAnalyzedSlicedDataset(GroupedData, AnalyzedSlicedDataset):
+    pass
+
+
 def remove_corpus_from_ids(result):
     """Called when group contains corpus_names and removes redundant repetition from indices."""
     if isinstance(result, dict):
@@ -312,7 +408,7 @@ def remove_corpus_from_ids(result):
 
 
 class Dataset(_Dataset):
-    """An object that represents one ore several corpora issued by the DCML corpus initiative.
+    """An object that represents one or several corpora issued by the DCML corpus initiative.
     Essentially a wrapper for a ms3.Parse object."""
 
     def __init__(self, data=None, **kwargs):
