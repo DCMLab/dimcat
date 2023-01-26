@@ -5,6 +5,7 @@ from copy import deepcopy
 from functools import lru_cache
 from typing import (
     Any,
+    Collection,
     Dict,
     Iterator,
     List,
@@ -744,15 +745,22 @@ class Dataset(_Dataset):
         return df
 
 
-# pre-define classes to enable referencing them before they are actually declared below
-class AnalyzedData:
-    pass
+TYPE_CACHE = {}
 
 
-#
-#
-# class GroupedDataset:  # noqa: F811
-#     pass
+def typestrings2types(typestrings: Union[str, Collection[str]]) -> Tuple[Type]:
+    global TYPE_CACHE
+    if isinstance(typestrings, str):
+        typestrings = [typestrings]
+    result = []
+    all_objects = None
+    for typ in typestrings:
+        if typ not in TYPE_CACHE:
+            if all_objects is None:
+                all_objects = globals()
+            TYPE_CACHE[typ] = all_objects[typ]
+        result.append(TYPE_CACHE[typ])
+    return tuple(result)
 
 
 class _ProcessedData(Data):
@@ -762,10 +770,45 @@ class _ProcessedData(Data):
     adds additional fields.
     """
 
-    assert_type: Tuple[Type] = (Dataset,)
+    assert_types: Union[str, Collection[str]] = ["Dataset"]
     """Objects raise TypeError upon instantiation if the passed data are not of one of these types."""
-    excluded_types: Tuple[Type] = ()
+    excluded_types: Union[str, Collection[str]] = []
     """Objects raise TypeError upon instantiation if the passed data are of one of these types."""
+    type_mapping: Dict[Union[str, Collection[str]], str] = {}
+    """{Input type(s) -> Output type}. __new__() picks the first 'value' where the input Data are of type 'key'.
+    Objects raise TypeError if nothing matches. object or Data can be used as fallback/default key.
+    """
+
+    def __new__(cls, data: Data, **kwargs):
+        assert_types = typestrings2types(cls.assert_types)
+        if not isinstance(data, assert_types):
+            raise TypeError(
+                f"{cls.__name__} objects can only be created from '{assert_types}', not '{type(data)}'"
+            )
+        excluded_types = typestrings2types(cls.excluded_types)
+        if isinstance(data, excluded_types):
+            raise TypeError(
+                f"{cls.__name__} objects cannot be created from '{type(data)}'."
+            )
+        type_mapping = {
+            typestrings2types(input_type): typestrings2types(output_type)[0]
+            for input_type, output_type in cls.type_mapping.items()
+        }
+        new_obj_type = None
+        for input_type, output_type in type_mapping.items():
+            if isinstance(data, input_type):
+                new_obj_type = output_type
+                break
+        if new_obj_type is None:
+            raise TypeError(
+                f"{cls.__name__} no output type defined for '{type(data)}', only for {list(cls.type_mapping.keys())}."
+            )
+        obj = object.__new__(new_obj_type)
+        obj.__init__(data=data, **kwargs)
+        return obj
+
+    def __init__(self, data: Data, **kwargs):
+        super().__init__(data=data, **kwargs)
 
 
 class SlicedData(_ProcessedData):
@@ -773,24 +816,11 @@ class SlicedData(_ProcessedData):
     facets based on that information.
     """
 
-    excluded_types: Tuple[Type] = (AnalyzedData,)
-
-    def __new__(cls, data: Data, **kwargs):
-        if not isinstance(data, cls.assert_type):
-            raise TypeError(
-                f"{cls.__name__} objects can only be created from '{cls.assert_type}', not '{type(data)}'"
-            )
-        if isinstance(data, cls.excluded_types):
-            raise TypeError(
-                f"{cls.__name__} objects cannot be created from '{type(data)}'."
-            )
-        if isinstance(data, GroupedData):
-            new_obj_type = GroupedSlicedDataset
-        else:
-            new_obj_type = SlicedDataset
-        obj = object.__new__(new_obj_type)
-        obj.__init__(data=data, **kwargs)
-        return obj
+    excluded_types = ("AnalyzedData", "SlicedData")
+    type_mapping = {
+        "GroupedDataset": "GroupedSlicedDataset",
+        "Dataset": "SlicedDataset",
+    }
 
     def __init__(self, data: Data, **kwargs):
         super().__init__(data=data, **kwargs)
@@ -805,54 +835,30 @@ class SlicedData(_ProcessedData):
 class GroupedData(_ProcessedData):
     """A type of Data object that behaves like its predecessor but returns and iterates through groups."""
 
-    def __new__(cls, data: Data, **kwargs):
-        if not isinstance(data, cls.assert_type):
-            raise TypeError(
-                f"{cls.__name__} objects can only be created from '{cls.assert_type}', not '{type(data)}'"
-            )
-        if isinstance(data, cls.excluded_types):
-            raise TypeError(
-                f"{cls.__name__} objects cannot be created from '{type(data)}'."
-            )
-        if isinstance(data, AnalyzedDataset):
-            new_obj_type = AnalyzedGroupedDataset
-        elif isinstance(data, SlicedDataset):
-            new_obj_type = GroupedSlicedDataset
-        elif isinstance(data, AnalyzedSlicedDataset):
-            new_obj_type = AnalyzedGroupedSlicedDataset
-        else:
-            new_obj_type = GroupedDataset
-        obj = object.__new__(new_obj_type)
-        obj.__init__(data=data, **kwargs)
-        return obj
-
-    def __init__(self, data: Data, **kwargs):
-        super().__init__(data=data, **kwargs)
+    type_mapping = {
+        (
+            "AnalyzedGroupedSlicedDataset",
+            "AnalyzedSlicedDataset",
+        ): "AnalyzedGroupedSlicedDataset",
+        "GroupedSlicedDataset": "GroupedSlicedDataset",
+        ("AnalyzedGroupedDataset", "AnalyzedDataset"): "AnalyzedGroupedDataset",
+        "SlicedDataset": "GroupedSlicedDataset",
+        "Dataset": "GroupedDataset",
+    }
 
 
-class AnalyzedData(_ProcessedData):  # noqa: F811
+class AnalyzedData(_ProcessedData):
     """A type of Data object that contains the results of an Analyzer and knows how to plot it."""
 
-    def __new__(cls, data: Data, **kwargs):
-        if not isinstance(data, cls.assert_type):
-            raise TypeError(
-                f"{cls.__name__} objects can only be created from '{cls.assert_type}', not '{type(data)}'"
-            )
-        if isinstance(data, cls.excluded_types):
-            raise TypeError(
-                f"{cls.__name__} objects cannot be created from '{type(data)}'."
-            )
-        if isinstance(data, SlicedData):
-            new_obj_type = AnalyzedSlicedDataset
-        elif isinstance(data, GroupedData):
-            new_obj_type = AnalyzedGroupedDataset
-        elif isinstance(data, GroupedSlicedDataset):
-            new_obj_type = AnalyzedGroupedSlicedDataset
-        else:
-            new_obj_type = AnalyzedDataset
-        obj = object.__new__(new_obj_type)
-        obj.__init__(data=data, **kwargs)
-        return obj
+    type_mapping = {
+        (
+            "AnalyzedGroupedSlicedDataset",
+            "GroupedSlicedDataset",
+        ): "AnalyzedGroupedSlicedDataset",
+        ("AnalyzedSlicedDataset", "SlicedDataset"): "AnalyzedSlicedDataset",
+        ("AnalyzedGroupedDataset", "GroupedDataset"): "AnalyzedGroupedDataset",
+        "Dataset": "AnalyzedDataset",
+    }
 
     def __init__(self, data: Data, **kwargs):
         super().__init__(data=data, **kwargs)
@@ -895,7 +901,7 @@ class AnalyzedSlicedDataset(AnalyzedData, SlicedDataset):
     pass
 
 
-class AnalyzedGroupedSlicedDataset(GroupedData, AnalyzedSlicedDataset):
+class AnalyzedGroupedSlicedDataset(AnalyzedData, GroupedSlicedDataset):
     pass
 
 
