@@ -749,8 +749,10 @@ class AnalyzedData:
     pass
 
 
-class GroupedDataset:
-    pass
+#
+#
+# class GroupedDataset:  # noqa: F811
+#     pass
 
 
 class _ProcessedData(Data):
@@ -782,7 +784,10 @@ class SlicedData(_ProcessedData):
             raise TypeError(
                 f"{cls.__name__} objects cannot be created from '{type(data)}'."
             )
-        new_obj_type = SlicedDataset
+        if isinstance(data, GroupedData):
+            new_obj_type = GroupedSlicedDataset
+        else:
+            new_obj_type = SlicedDataset
         obj = object.__new__(new_obj_type)
         obj.__init__(data=data, **kwargs)
         return obj
@@ -797,11 +802,35 @@ class SlicedData(_ProcessedData):
             """Dict holding metadata of slices (e.g. the localkey of a segment)."""
 
 
-class SlicedDataset(SlicedData, Dataset):
-    pass
+class GroupedData(_ProcessedData):
+    """A type of Data object that behaves like its predecessor but returns and iterates through groups."""
+
+    def __new__(cls, data: Data, **kwargs):
+        if not isinstance(data, cls.assert_type):
+            raise TypeError(
+                f"{cls.__name__} objects can only be created from '{cls.assert_type}', not '{type(data)}'"
+            )
+        if isinstance(data, cls.excluded_types):
+            raise TypeError(
+                f"{cls.__name__} objects cannot be created from '{type(data)}'."
+            )
+        if isinstance(data, AnalyzedDataset):
+            new_obj_type = AnalyzedGroupedDataset
+        elif isinstance(data, SlicedDataset):
+            new_obj_type = GroupedSlicedDataset
+        elif isinstance(data, AnalyzedSlicedDataset):
+            new_obj_type = AnalyzedGroupedSlicedDataset
+        else:
+            new_obj_type = GroupedDataset
+        obj = object.__new__(new_obj_type)
+        obj.__init__(data=data, **kwargs)
+        return obj
+
+    def __init__(self, data: Data, **kwargs):
+        super().__init__(data=data, **kwargs)
 
 
-class AnalyzedData(_ProcessedData):
+class AnalyzedData(_ProcessedData):  # noqa: F811
     """A type of Data object that contains the results of an Analyzer and knows how to plot it."""
 
     def __new__(cls, data: Data, **kwargs):
@@ -817,6 +846,8 @@ class AnalyzedData(_ProcessedData):
             new_obj_type = AnalyzedSlicedDataset
         elif isinstance(data, GroupedData):
             new_obj_type = AnalyzedGroupedDataset
+        elif isinstance(data, GroupedSlicedDataset):
+            new_obj_type = AnalyzedGroupedSlicedDataset
         else:
             new_obj_type = AnalyzedDataset
         obj = object.__new__(new_obj_type)
@@ -840,7 +871,19 @@ class AnalyzedData(_ProcessedData):
         yield from self.processed.items()
 
 
+class SlicedDataset(SlicedData, Dataset):
+    pass
+
+
+class GroupedDataset(GroupedData, Dataset):
+    pass
+
+
 class AnalyzedDataset(AnalyzedData, Dataset):
+    pass
+
+
+class GroupedSlicedDataset(GroupedData, SlicedDataset):
     pass
 
 
@@ -852,47 +895,7 @@ class AnalyzedSlicedDataset(AnalyzedData, SlicedDataset):
     pass
 
 
-class GroupedData(_ProcessedData):
-    """A type of Data object that behaves like its predecessor but returns and iterates through groups."""
-
-    def __new__(cls, data: Data, **kwargs):
-        if not isinstance(data, cls.assert_type):
-            raise TypeError(
-                f"{cls.__name__} objects can only be created from '{cls.assert_type}', not '{type(data)}'"
-            )
-        if isinstance(data, cls.excluded_types):
-            raise TypeError(
-                f"{cls.__name__} objects cannot be created from '{type(data)}'."
-            )
-        if isinstance(data, AnalyzedSlicedDataset):
-            new_obj_type = GroupedAnalyzedSlicedDataset
-        elif isinstance(data, AnalyzedDataset):
-            new_obj_type = GroupedAnalyzedDataset
-        elif isinstance(data, SlicedDataset):
-            new_obj_type = GroupedSlicedDataset
-        else:
-            new_obj_type = GroupedDataset
-        obj = object.__new__(new_obj_type)
-        obj.__init__(data=data, **kwargs)
-        return obj
-
-    def __init__(self, data: Data, **kwargs):
-        super().__init__(data=data, **kwargs)
-
-
-class GroupedDataset(GroupedData, Dataset):
-    pass
-
-
-class GroupedAnalyzedDataset(GroupedData, AnalyzedDataset):
-    pass
-
-
-class GroupedSlicedDataset(GroupedData, SlicedDataset):
-    pass
-
-
-class GroupedAnalyzedSlicedDataset(GroupedData, AnalyzedSlicedDataset):
+class AnalyzedGroupedSlicedDataset(GroupedData, AnalyzedSlicedDataset):
     pass
 
 
