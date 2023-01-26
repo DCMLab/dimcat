@@ -1,4 +1,5 @@
 """Class hierarchy for data types."""
+import logging
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from copy import deepcopy
@@ -12,7 +13,6 @@ from typing import (
     Literal,
     Optional,
     Tuple,
-    Type,
     TypeAlias,
     Union,
     overload,
@@ -20,10 +20,12 @@ from typing import (
 
 import ms3
 import pandas as pd
+from ms3._typing import ScoreFacet
 
 from .typing import GroupID, Index, Pandas
 from .utils import clean_index_levels
 
+logger = logging.getLogger(__name__)
 ID: TypeAlias = Tuple[str, str]
 
 
@@ -89,18 +91,16 @@ class _Dataset(Data, ABC):
     def n_indices(self):
         return sum(map(len, self.indices.values()))
 
+    @abstractmethod
     def copy(self):
-        return self.__class__(data=self)
+        return self.__class__()
 
     @abstractmethod
     def iter_facet(self, what):
         """Iterate through (potentially grouped) pieces of data."""
         for index_group in self.iter_groups():
-            yield [self.get_item(index) for index in index_group]
-
-    @abstractmethod
-    def get_item(self, index, what):
-        """Get an individual piece of data."""
+            for index in index_group:
+                yield self.get_item(index, what)
 
     def iter_groups(self):
         """Iterate through groups of indices as defined by the previously applied Groupers.
@@ -115,8 +115,12 @@ class _Dataset(Data, ABC):
         if len(self.indices) == 0:
             raise ValueError("No data has been loaded.")
         if any(len(index_list) == 0 for index_list in self.indices.values()):
-            print("Data object contains empty groups.")
+            logger.warning("Data object contains empty groups.")
         yield from self.indices.items()
+
+    @abstractmethod
+    def get_item(self, index, what):
+        """Get an individual piece of data."""
 
     def track_pipeline(
         self,
@@ -178,11 +182,13 @@ class _Dataset(Data, ABC):
         if 0 in lengths:
             group_dict = {k: v for k, v in group_dict.items() if len(v) > 0}
             if len(group_dict) == 0:
-                print("Group contained only empty Series")
+                logger.info("Group contained only empty Series")
                 return pd.Series()
             else:
                 n_empty = lengths.count(0)
-                print(f"Had to remove {n_empty} empty Series before concatenation.")
+                logger.info(
+                    f"Had to remove {n_empty} empty Series before concatenation."
+                )
         if len(group_dict) == 1 and list(group_dict.keys())[0] == "group_ids":
             series = list(group_dict.values())[0]
             series.index = self._rename_multiindex_levels(
@@ -201,7 +207,7 @@ class _Dataset(Data, ABC):
         try:
             df = pd.concat(group_dict.values(), keys=group_dict.keys())
         except (TypeError, ValueError):
-            print(group_dict)
+            logger.info(group_dict)
             raise
         df.index = self._rename_multiindex_levels(
             df.index, self.index_levels["indices"] + self.index_levels["processed"]
@@ -228,11 +234,11 @@ class _Dataset(Data, ABC):
                 return multiindex.rename(index_level_names[:n_levels])
             return multiindex.rename(index_level_names)
         except (TypeError, ValueError) as e:
-            print(
+            logger.info(
                 f"Failed to rename MultiIndex levels {multiindex.names} to {index_level_names}: '{e}'"
             )
-            print(multiindex[:10])
-            print(f"self.index_levels: {self.index_levels}")
+            logger.info(multiindex[:10])
+            logger.info(f"self.index_levels: {self.index_levels}")
         # TODO: This method should include a call to clean_multiindex_levels and make use of self.index_levels
         return multiindex
 
@@ -300,6 +306,464 @@ class Dataset(_Dataset):
         groups = list(self.indices.keys())
         return len(groups) != 1 or groups[0] != ()
 
+    def copy(self):
+        return self.__class__(data=self)
+
+    def get_facet(self, what: ScoreFacet, unfold: bool = False) -> pd.DataFrame:
+        """Uses _.iter_facet() to collect and concatenate all DataFrames for a particular facet.
+
+        Parameters
+        ----------
+        what : {'form_labels', 'events', 'expanded', 'notes_and_rests', 'notes', 'labels',
+                'cadences', 'chords', 'measures', 'rests'}
+            What facet to retrieve.
+        unfold : :obj:`bool`, optional
+            Pass True if you need repeats to be unfolded.
+
+        Returns
+        -------
+        :obj:`pandas.DataFrame`
+        """
+        dfs = {
+            idx: df
+            for idx, df in self.iter_facet(
+                what=what,
+                unfold=unfold,
+            )
+        }
+        if len(dfs) == 1:
+            return list(dfs.values())[0]
+        concatenated_groups = pd.concat(
+            dfs.values(), keys=dfs.keys(), names=self.index_levels["groups"]
+        )
+        return clean_index_levels(concatenated_groups)
+
+    def convert_group2pandas(self, result_dict) -> Union[pd.Series, pd.DataFrame]:
+        """Converts the {ID -> processing_result} dict using the method specified in _.group2pandas."""
+        converters = {
+            "group_of_values2series": self.group_of_values2series,
+            "group_of_series2series": self.group_of_series2series,
+            "group2dataframe": self.group2dataframe,
+            "group2dataframe_unstacked": self.group2dataframe_unstacked,
+        }
+        converter = converters[self.group2pandas]
+        pandas_obj = converter(result_dict)
+        return clean_index_levels(pandas_obj)
+
+    def load(
+        self,
+        directory: Optional[Union[str, List[str]]] = None,
+        parse_tsv: bool = True,
+        parse_scores: bool = False,
+        ms: Optional[str] = None,
+    ):
+        """
+        Load and parse all of the desired raw data and metadata.
+
+        Parameters
+        ----------
+        directory : str
+            The path to all the data to load.
+        parse_tsv : :obj:`bool`, optional
+            By default, all detected TSV files are parsed and their type is inferred.
+            Pass False to prevent parsing TSV files.
+        parse_scores : :obj:`bool`, optional
+            By default, detected scores files are not parsed to save time.
+            Call super().__init__(parse_scores=True) if an analyzer needs
+            to access parsed MuseScore XML.
+        ms : :obj:`str`, optional
+            If you pass the path to your local MuseScore 3 installation, ms3 will attempt to parse
+            musicXML, MuseScore 2, and other formats by temporarily converting them. If you're
+            using the standard path, you may try 'auto', or 'win' for Windows, 'mac' for MacOS,
+            or 'mscore' for Linux. In case you do not pass the 'file_re' and the MuseScore
+            executable is detected, all convertible files are automatically selected, otherwise
+            only those that can be parsed without conversion.
+        """
+        if ms is not None:
+            self.data.ms = ms
+        if directory is not None:
+            if isinstance(directory, str):
+                directory = [directory]
+            for d in directory:
+                self.data.add_dir(
+                    directory=d,
+                )
+        if parse_tsv:
+            self.data.parse_tsv()
+        if parse_scores:
+            self.data.parse_scores()
+        if self.data.n_parsed_tsvs == 0 and self.data.n_parsed_scores == 0:
+            logger.info("No files have been parsed for analysis.")
+        else:
+            self.get_indices()
+
+    def get_indices(self):
+        """Fills self.pieces with metadata and IDs for all loaded data. This resets previously
+        applied groupings."""
+        self.pieces = {}
+        self.indices = {}
+        # self.group_labels = {}
+        for corpus_name, ms3_corpus in self.data.iter_corpora():
+            for fname, piece in ms3_corpus.iter_pieces():
+                ID = (corpus_name, fname)
+                self.pieces[ID] = piece
+        self.indices[()] = list(self.pieces.keys())
+
+    def iter_facet(
+        self, what: ScoreFacet, unfold: bool = False
+    ) -> Iterator[Tuple[ID, pd.DataFrame]]:
+        """Iterate through facet DataFrames.
+
+        Args:
+            what: Which type of facet to retrieve.
+            unfold: Pass True if you need repeats to be unfolded.
+
+        Yields:
+            Index tuple.
+            Facet DataFrame.
+        """
+        for group, index_group in self.iter_groups():
+            for index in index_group:
+                df = self.get_item(index, what=what, unfold=unfold)
+                if df is None or len(df.index) == 0:
+                    logger.info(f"{index} has no {what}.")
+                    continue
+                yield index, df
+
+    def get_previous_pipeline_step(self, idx=0, of_type=None):
+        """Retrieve one of the previously applied PipelineSteps, either by index or by type.
+
+        Parameters
+        ----------
+        idx : :obj:`int`, optional
+            List index used if ``of_type`` is None. Defaults to 0, which is the PipeLine step
+            most recently applied.
+        of_type : :obj:`PipelineStep`, optional
+            Return the most recently applied PipelineStep of this type.
+
+        Returns
+        -------
+        :obj:`PipelineStep`
+        """
+        if of_type is None:
+            n_previous_steps = len(self.pipeline_steps)
+            try:
+                return self.pipeline_steps[idx]
+            except IndexError:
+                logger.info(
+                    f"Invalid index idx={idx} for list of length {n_previous_steps}"
+                )
+                raise
+        try:
+            return next(
+                step for step in self.pipeline_steps if isinstance(step, of_type)
+            )
+        except StopIteration:
+            raise StopIteration(
+                f"Previously applied PipelineSteps do not include any {of_type}: {self.pipeline_steps}"
+            )
+
+    @lru_cache()
+    def get_item(self, index, what, unfold=False, multiindex=False):
+        """Retrieve a DataFrame pertaining to the facet ``what`` of the piece ``index``. If
+        the facet has been sliced before, the sliced DataFrame is returned.
+
+        Parameters
+        ----------
+        index : :obj:`tuple`
+            (corpus, fname) or (corpus, fname, interval)
+        what : {'form_labels', 'events', 'expanded', 'notes_and_rests', 'notes', 'labels',
+                'cadences', 'chords', 'measures', 'rests'}
+            What facet to retrieve.
+        unfold : :obj:`bool`, optional
+            Pass True if you need repeats to be unfolded.
+        multiindex : :obj:`bool`, optional
+            By default, has one level, which is a :obj:``pandas.IntervalIndex``. Pass True to
+            prepend ``index`` as an additional index level.
+
+        Returns
+        -------
+        :obj:`pandas.DataFrame`
+        """
+        corpus, fname, *_ = index
+        file, df = self.data[corpus][fname].get_facet(
+            what, unfold=unfold, interval_index=True
+        )
+        logger.debug(f"Retrieved {what} from {file}.")
+        if df is not None and not isinstance(df.index, pd.IntervalIndex):
+            logger.info(f"'{what}' of {index} does not come with an IntervalIndex")
+            df = None
+        if df is None:
+            return
+        assert (
+            df.index.nlevels == 1
+        ), f"Retrieved DataFrame has {df.index.nlevels}, not 1"
+        if multiindex:
+            df = pd.concat([df], keys=[index[:2]], names=["corpus", "fname"])
+        return df
+
+
+TYPE_CACHE = {}
+
+
+def typestrings2types(typestrings: Union[str, Collection[str]]) -> Tuple[Any]:
+    global TYPE_CACHE
+    if isinstance(typestrings, str):
+        typestrings = [typestrings]
+    result = []
+    all_objects = None
+    for typ in typestrings:
+        if typ not in TYPE_CACHE:
+            if all_objects is None:
+                all_objects = globals()
+            TYPE_CACHE[typ] = all_objects[typ]
+        result.append(TYPE_CACHE[typ])
+    return tuple(result)
+
+
+class _ProcessedData(Data):
+    """Base class for types of processed :obj:`_Dataset` objects.
+    Processed datatypes are created by passing a _Dataset object. The new object will be a copy of the Data with the
+    :attr:`prefix` prepended. Subclasses should have an __init__() method that calls super().__init__() and then
+    adds additional fields.
+    """
+
+    assert_types: Union[str, Collection[str]] = ["Dataset"]
+    """Objects raise TypeError upon instantiation if the passed data are not of one of these types."""
+    excluded_types: Union[str, Collection[str]] = []
+    """Objects raise TypeError upon instantiation if the passed data are of one of these types."""
+    type_mapping: Dict[Union[str, Collection[str]], str] = {}
+    """{Input type(s) -> Output type}. __new__() picks the first 'value' where the input Data are of type 'key'.
+    Objects raise TypeError if nothing matches. object or Data can be used as fallback/default key.
+    """
+
+    def __new__(cls, data: Data, **kwargs):
+        assert_types = typestrings2types(cls.assert_types)
+        if not isinstance(data, assert_types):
+            raise TypeError(
+                f"{cls.__name__} objects can only be created from '{assert_types}', not '{type(data)}'"
+            )
+        excluded_types = typestrings2types(cls.excluded_types)
+        if isinstance(data, excluded_types):
+            raise TypeError(
+                f"{cls.__name__} objects cannot be created from '{type(data)}'."
+            )
+        type_mapping = {
+            typestrings2types(input_type): typestrings2types(output_type)[0]
+            for input_type, output_type in cls.type_mapping.items()
+        }
+        new_obj_type = None
+        for input_type, output_type in type_mapping.items():
+            if isinstance(data, input_type):
+                new_obj_type = output_type
+                break
+        if new_obj_type is None:
+            raise TypeError(
+                f"{cls.__name__} no output type defined for '{type(data)}', only for {list(type_mapping.keys())}."
+            )
+        obj = object.__new__(new_obj_type)
+        obj.__init__(data=data, **kwargs)
+        return obj
+
+    def __init__(self, data: Data, **kwargs):
+        super().__init__(data=data, **kwargs)
+
+
+class SlicedData(_ProcessedData):
+    """A type of Data object that contains the slicing information created by a Slicer. It slices all requested
+    facets based on that information.
+    """
+
+    excluded_types = ("AnalyzedData", "SlicedData")
+    type_mapping = {
+        "GroupedDataset": "GroupedSlicedDataset",
+        "Dataset": "SlicedDataset",
+    }
+
+    def __init__(self, data: Data, **kwargs):
+        super().__init__(data=data, **kwargs)
+        if not hasattr(self, "sliced"):
+            self.sliced = {}
+            """Dict for sliced data facets."""
+        if not hasattr(self, "slice_info"):
+            self.slice_info = {}
+            """Dict holding metadata of slices (e.g. the localkey of a segment)."""
+
+    def get_slice(self, index, what):
+        if what in self.sliced and index in self.sliced[what]:
+            return self.sliced[what][index]
+
+    def get_slice_info(self) -> pd.DataFrame:
+        """Concatenates slice_info Series and returns them as a DataFrame."""
+        concatenated_info = pd.concat(
+            self.slice_info.values(), keys=self.slice_info.keys(), axis=1
+        ).T
+        concatenated_info.index.rename(self.index_levels["indices"], inplace=True)
+        return concatenated_info
+
+    def iter_facet(self, what, unfold=False, concatenate=False, ignore_groups=False):
+        """Iterate through groups of potentially sliced facet DataFrames.
+
+        Parameters
+        ----------
+        what : {'form_labels', 'events', 'expanded', 'notes_and_rests', 'notes', 'labels',
+                'cadences', 'chords', 'measures', 'rests'}
+            What facet to retrieve.
+        unfold : :obj:`bool`, optional
+            Pass True if you need repeats to be unfolded.
+        concatenate : :obj:`bool`, optional
+            By default, the returned dict contains one DataFrame per ID in the group.
+            Pass True to instead concatenate the DataFrames. Then, the dict will contain only
+            one entry where the key is a tuple containing all IDs and the value is a DataFrame,
+            the components of which can be distinguished using its MultiIndex.
+        ignore_groups : :obj:`bool`, False
+            If set to True, the iteration loop is flattened and yields (index, facet_df) pairs directly. Clashes
+            with the setting concatenate=True which concatenates facets per group.
+
+        Yields
+        ------
+        :obj:`tuple`
+            Group identifier
+        :obj:`dict` or :obj:`pandas.DataFrame`
+            Default: {ID -> DataFrame}.
+            If concatenate=True: DataFrame with MultiIndex identifying ID, and (eventual) interval.
+        """
+        if not self.slice_facet_if_necessary(what, unfold):
+            logger.info(f"No sliced {what} available.")
+            raise StopIteration
+        if sum((concatenate, ignore_groups)) > 1:
+            raise ValueError(
+                "Arguments 'concatenate' and 'ignore_groups' are in conflict, choose one "
+                "or use the method get_facet()."
+            )
+        for group, index_group in self.iter_groups():
+            result = {}
+            missing_id = []
+            for index in index_group:
+                df = self.get_item(index, what=what, unfold=unfold)
+                if df is None:
+                    continue
+                elif ignore_groups:
+                    yield index, df
+                if len(df.index) == 0:
+                    missing_id.append(index)
+                result[index] = df
+            if ignore_groups:
+                continue
+            n_results = len(result)
+            if len(missing_id) > 0:
+                if n_results == 0:
+                    pass
+                    # logger.info(f"No '{what}' available for {group}.")
+                else:
+                    logger.info(
+                        f"Group {group} is missing '{what}' for the following indices:\n"
+                        f"{missing_id}"
+                    )
+            if n_results == 0:
+                continue
+            if concatenate:
+                if n_results == 1:
+                    # workaround necessary because of nasty "cannot handle overlapping indices;
+                    # use IntervalIndex.get_indexer_non_unique" error
+                    result["empty"] = pd.DataFrame()
+                result = pd.concat(
+                    result.values(),
+                    keys=result.keys(),
+                    names=self.index_levels["indices"] + ["interval"],
+                )
+                result = {tuple(index_group): result}
+
+            yield group, result
+
+    def iter_slice_info(self) -> Iterator[Tuple[tuple, pd.DataFrame]]:
+        """Iterate through concatenated slice_info Series for each group."""
+        for group, index_group in self.iter_groups():
+            group_info = {ix: self.slice_info[ix] for ix in index_group}
+            group_df = pd.concat(group_info.values(), keys=group_info.keys(), axis=1).T
+            group_df.index = self._rename_multiindex_levels(
+                group_df.index, self.index_levels["indices"]
+            )
+            yield group, group_df
+
+    def slice_facet_if_necessary(self, what, unfold):
+        """
+
+        Parameters
+        ----------
+        what : :obj:`str`
+            Facet for which to create slices if necessary
+        unfold : :obj:`bool`
+            Whether repeats should be unfolded.
+
+        Returns
+        -------
+        :obj:`bool`
+            True if slices are available or not needed, False otherwise.
+        """
+        if not hasattr(self, "slice_info"):
+            # no slicer applied
+            return True
+        if len(self.slice_info) == 0:
+            # applying slicer did not yield any slices
+            return True
+        if what in self.sliced:
+            # already sliced
+            return True
+        self.sliced[what] = {}
+        facet_ids = defaultdict(list)
+        for corpus, fname, interval in self.slice_info.keys():
+            facet_ids[(corpus, fname)].append(interval)
+        for id, intervals in facet_ids.items():
+            facet_df = self.get_item(id, what, unfold)
+            if facet_df is None or len(facet_df.index) == 0:
+                continue
+            sliced = ms3.overlapping_chunk_per_interval(facet_df, intervals)
+            self.sliced[what].update(
+                {id + (iv,): chunk for iv, chunk in sliced.items()}
+            )
+        if len(self.sliced[what]) == 0:
+            del self.sliced[what]
+            return False
+        return True
+
+
+class GroupedData(_ProcessedData):
+    """A type of Data object that behaves like its predecessor but returns and iterates through groups."""
+
+    type_mapping = {
+        (
+            "AnalyzedGroupedSlicedDataset",
+            "AnalyzedSlicedDataset",
+        ): "AnalyzedGroupedSlicedDataset",
+        "GroupedSlicedDataset": "GroupedSlicedDataset",
+        ("AnalyzedGroupedDataset", "AnalyzedDataset"): "AnalyzedGroupedDataset",
+        "SlicedDataset": "GroupedSlicedDataset",
+        "Dataset": "GroupedDataset",
+    }
+
+
+class AnalyzedData(_ProcessedData):
+    """A type of Data object that contains the results of an Analyzer and knows how to plot it."""
+
+    type_mapping = {
+        (
+            "AnalyzedGroupedSlicedDataset",
+            "GroupedSlicedDataset",
+        ): "AnalyzedGroupedSlicedDataset",
+        ("AnalyzedSlicedDataset", "SlicedDataset"): "AnalyzedSlicedDataset",
+        ("AnalyzedGroupedDataset", "GroupedDataset"): "AnalyzedGroupedDataset",
+        "Dataset": "AnalyzedDataset",
+    }
+
+    def __init__(self, data: Data, **kwargs):
+        super().__init__(data=data, **kwargs)
+        if not hasattr(self, "processed"):
+            self.processed: Dict[GroupID, Union[Dict[Index, Any], List[str]]] = {}
+            """Analyzers store there result here. Those that compute one result per item per group
+            store {ID -> result} dicts, all others store simply the result for each group. In the first case,
+            :attr:`group2pandas` needs to be specified for correctly converting the dict to a pandas object."""
+
     @overload
     def get(self, as_pandas: bool = Literal[True]) -> Pandas:
         ...
@@ -321,7 +785,7 @@ class Dataset(_Dataset):
             The contents of :attr:`processed` in original or adapted form.
         """
         if len(self.processed) == 0:
-            print("No data has been processed so far.")
+            logger.info("No data has been processed so far.")
             return
         results = {group: result for group, result in self.iter(as_pandas=as_pandas)}
         if not as_pandas:
@@ -339,50 +803,9 @@ class Dataset(_Dataset):
                     names=self.index_levels["groups"],
                 )
             except ValueError:
-                print(self.index_levels["groups"])
-                print(results.keys())
+                logger.info(self.index_levels["groups"])
+                logger.info(results.keys())
                 raise
-        return clean_index_levels(pandas_obj)
-
-    def get_facet(self, what, unfold=False):
-        """Uses _.iter_facet() to collect and concatenate all DataFrames for a particular facet.
-
-        Parameters
-        ----------
-        what : {'form_labels', 'events', 'expanded', 'notes_and_rests', 'notes', 'labels',
-                'cadences', 'chords', 'measures', 'rests'}
-            What facet to retrieve.
-        unfold : :obj:`bool`, optional
-            Pass True if you need repeats to be unfolded.
-
-        Returns
-        -------
-        :obj:`pandas.DataFrame`
-        """
-        group_dfs = {
-            group: df
-            for group, dfs in self.iter_facet(
-                what=what, unfold=unfold, concatenate=True
-            )
-            for df in dfs.values()
-        }
-        if len(group_dfs) == 1:
-            return list(group_dfs.values())[0]
-        concatenated_groups = pd.concat(
-            group_dfs.values(), keys=group_dfs.keys(), names=self.index_levels["groups"]
-        )
-        return clean_index_levels(concatenated_groups)
-
-    def convert_group2pandas(self, result_dict) -> Union[pd.Series, pd.DataFrame]:
-        """Converts the {ID -> processing_result} dict using the method specified in _.group2pandas."""
-        converters = {
-            "group_of_values2series": self.group_of_values2series,
-            "group_of_series2series": self.group_of_series2series,
-            "group2dataframe": self.group2dataframe,
-            "group2dataframe_unstacked": self.group2dataframe_unstacked,
-        }
-        converter = converters[self.group2pandas]
-        pandas_obj = converter(result_dict)
         return clean_index_levels(pandas_obj)
 
     @overload
@@ -455,105 +878,41 @@ class Dataset(_Dataset):
                 else:
                     yield group, result
 
-    def load(
-        self,
-        directory: Optional[Union[str, List[str]]] = None,
-        parse_tsv: bool = True,
-        parse_scores: bool = False,
-        ms: Optional[str] = None,
-    ):
-        """
-        Load and parse all of the desired raw data and metadata.
 
-        Parameters
-        ----------
-        directory : str
-            The path to all the data to load.
-        parse_tsv : :obj:`bool`, optional
-            By default, all detected TSV files are parsed and their type is inferred.
-            Pass False to prevent parsing TSV files.
-        parse_scores : :obj:`bool`, optional
-            By default, detected scores files are not parsed to save time.
-            Call super().__init__(parse_scores=True) if an analyzer needs
-            to access parsed MuseScore XML.
-        ms : :obj:`str`, optional
-            If you pass the path to your local MuseScore 3 installation, ms3 will attempt to parse
-            musicXML, MuseScore 2, and other formats by temporarily converting them. If you're
-            using the standard path, you may try 'auto', or 'win' for Windows, 'mac' for MacOS,
-            or 'mscore' for Linux. In case you do not pass the 'file_re' and the MuseScore
-            executable is detected, all convertible files are automatically selected, otherwise
-            only those that can be parsed without conversion.
-        """
-        if ms is not None:
-            self.data.ms = ms
-        if directory is not None:
-            if isinstance(directory, str):
-                directory = [directory]
-            for d in directory:
-                self.data.add_dir(
-                    directory=d,
-                )
-        if parse_tsv:
-            self.data.parse_tsv()
-        if parse_scores:
-            self.data.parse_scores()
-        if self.data.n_parsed_tsvs == 0 and self.data.n_parsed_scores == 0:
-            print("No files have been parsed for analysis.")
+class SlicedDataset(SlicedData, Dataset):
+    pass
+
+
+class GroupedDataset(GroupedData, Dataset):
+    pass
+
+
+class AnalyzedDataset(AnalyzedData, Dataset):
+    pass
+
+
+class GroupedSlicedDataset(GroupedData, SlicedDataset):
+    def get_slice_info(self, ignore_groups=False) -> pd.DataFrame:
+        """Concatenates slice_info Series and returns them as a DataFrame."""
+        if ignore_groups or not self.is_grouped:
+            concatenated_info = pd.concat(
+                self.slice_info.values(), keys=self.slice_info.keys(), axis=1
+            ).T
+            concatenated_info.index.rename(self.index_levels["indices"], inplace=True)
+            return concatenated_info
         else:
-            self.get_indices()
-
-    def get_indices(self):
-        """Fills self.pieces with metadata and IDs for all loaded data. This resets previously
-        applied groupings."""
-        self.pieces = {}
-        self.indices = {}
-        # self.group_labels = {}
-        for corpus_name, ms3_corpus in self.data.iter_corpora():
-            for fname, piece in ms3_corpus.iter_pieces():
-                ID = (corpus_name, fname)
-                self.pieces[ID] = piece
-        self.indices[()] = list(self.pieces.keys())
-
-    def slice_facet_if_necessary(self, what, unfold):
-        """
-
-        Parameters
-        ----------
-        what : :obj:`str`
-            Facet for which to create slices if necessary
-        unfold : :obj:`bool`
-            Whether repeats should be unfolded.
-
-        Returns
-        -------
-        :obj:`bool`
-            True if slices are available or not needed, False otherwise.
-        """
-        if not hasattr(self, "slice_info"):
-            # no slicer applied
-            return True
-        if len(self.slice_info) == 0:
-            # applying slicer did not yield any slices
-            return True
-        if what in self.sliced:
-            # already sliced
-            return True
-        self.sliced[what] = {}
-        facet_ids = defaultdict(list)
-        for corpus, fname, interval in self.slice_info.keys():
-            facet_ids[(corpus, fname)].append(interval)
-        for id, intervals in facet_ids.items():
-            facet_df = self.get_item(id, what, unfold)
-            if facet_df is None or len(facet_df.index) == 0:
-                continue
-            sliced = ms3.overlapping_chunk_per_interval(facet_df, intervals)
-            self.sliced[what].update(
-                {id + (iv,): chunk for iv, chunk in sliced.items()}
+            group_dfs = {}
+            for group, index_group in self.iter_groups():
+                group_info = {ix: self.slice_info[ix] for ix in index_group}
+                group_dfs[group] = pd.concat(
+                    group_info.values(), keys=group_info.keys(), axis=1
+                ).T
+            concatenated_info = pd.concat(group_dfs.values(), keys=group_dfs.keys())
+            concatenated_info.index = self._rename_multiindex_levels(
+                concatenated_info.index,
+                self.index_levels["groups"] + self.index_levels["indices"],
             )
-        if len(self.sliced[what]) == 0:
-            del self.sliced[what]
-            return False
-        return True
+            return clean_index_levels(concatenated_info)
 
     def iter_facet(self, what, unfold=False, concatenate=False, ignore_groups=False):
         """Iterate through groups of potentially sliced facet DataFrames.
@@ -583,7 +942,7 @@ class Dataset(_Dataset):
             If concatenate=True: DataFrame with MultiIndex identifying ID, and (eventual) interval.
         """
         if not self.slice_facet_if_necessary(what, unfold):
-            print(f"No sliced {what} available.")
+            logger.info(f"No sliced {what} available.")
             raise StopIteration
         if sum((concatenate, ignore_groups)) > 1:
             raise ValueError(
@@ -608,9 +967,9 @@ class Dataset(_Dataset):
             if len(missing_id) > 0:
                 if n_results == 0:
                     pass
-                    # print(f"No '{what}' available for {group}.")
+                    # logger.info(f"No '{what}' available for {group}.")
                 else:
-                    print(
+                    logger.info(
                         f"Group {group} is missing '{what}' for the following indices:\n"
                         f"{missing_id}"
                     )
@@ -629,268 +988,6 @@ class Dataset(_Dataset):
                 result = {tuple(index_group): result}
 
             yield group, result
-
-    def get_previous_pipeline_step(self, idx=0, of_type=None):
-        """Retrieve one of the previously applied PipelineSteps, either by index or by type.
-
-        Parameters
-        ----------
-        idx : :obj:`int`, optional
-            List index used if ``of_type`` is None. Defaults to 0, which is the PipeLine step
-            most recently applied.
-        of_type : :obj:`PipelineStep`, optional
-            Return the most recently applied PipelineStep of this type.
-
-        Returns
-        -------
-        :obj:`PipelineStep`
-        """
-        if of_type is None:
-            n_previous_steps = len(self.pipeline_steps)
-            try:
-                return self.pipeline_steps[idx]
-            except IndexError:
-                print(f"Invalid index idx={idx} for list of length {n_previous_steps}")
-                raise
-        try:
-            return next(
-                step for step in self.pipeline_steps if isinstance(step, of_type)
-            )
-        except StopIteration:
-            raise StopIteration(
-                f"Previously applied PipelineSteps do not include any {of_type}: {self.pipeline_steps}"
-            )
-
-    def get_slice(self, index, what):
-        if what in self.sliced and index in self.sliced[what]:
-            return self.sliced[what][index]
-
-    def get_slice_info(self, ignore_groups=False) -> pd.DataFrame:
-        """Concatenates slice_info Series and returns them as a DataFrame."""
-        if ignore_groups or not self.is_grouped:
-            concatenated_info = pd.concat(
-                self.slice_info.values(), keys=self.slice_info.keys(), axis=1
-            ).T
-            concatenated_info.index.rename(self.index_levels["indices"], inplace=True)
-            return concatenated_info
-        else:
-            group_dfs = {}
-            for group, index_group in self.iter_groups():
-                group_info = {ix: self.slice_info[ix] for ix in index_group}
-                group_dfs[group] = pd.concat(
-                    group_info.values(), keys=group_info.keys(), axis=1
-                ).T
-            concatenated_info = pd.concat(group_dfs.values(), keys=group_dfs.keys())
-            concatenated_info.index = self._rename_multiindex_levels(
-                concatenated_info.index,
-                self.index_levels["groups"] + self.index_levels["indices"],
-            )
-            return clean_index_levels(concatenated_info)
-
-    def iter_slice_info(self) -> Iterator[Tuple[tuple, pd.DataFrame]]:
-        """Iterate through concatenated slice_info Series for each group."""
-        for group, index_group in self.iter_groups():
-            group_info = {ix: self.slice_info[ix] for ix in index_group}
-            group_df = pd.concat(group_info.values(), keys=group_info.keys(), axis=1).T
-            group_df.index = self._rename_multiindex_levels(
-                group_df.index, self.index_levels["indices"]
-            )
-            yield group, group_df
-
-    @lru_cache()
-    def get_item(self, index, what, unfold=False, multiindex=False):
-        """Retrieve a DataFrame pertaining to the facet ``what`` of the piece ``index``. If
-        the facet has been sliced before, the sliced DataFrame is returned.
-
-        Parameters
-        ----------
-        index : :obj:`tuple`
-            (corpus, fname) or (corpus, fname, interval)
-        what : {'form_labels', 'events', 'expanded', 'notes_and_rests', 'notes', 'labels',
-                'cadences', 'chords', 'measures', 'rests'}
-            What facet to retrieve.
-        unfold : :obj:`bool`, optional
-            Pass True if you need repeats to be unfolded.
-        multiindex : :obj:`bool`, optional
-            By default, has one level, which is a :obj:``pandas.IntervalIndex``. Pass True to
-            prepend ``index`` as an additional index level.
-
-        Returns
-        -------
-        :obj:`pandas.DataFrame`
-        """
-        n_index_elements = len(index)
-        if n_index_elements == 2:
-            corpus, fname = index
-            file, df = self.data[corpus][fname].get_facet(
-                what, unfold=unfold, interval_index=True
-            )
-            # TODO: logger.debug(file)
-            if df is not None and not isinstance(df.index, pd.IntervalIndex):
-                print(f"'{what}' of {index} does not come with an IntervalIndex")
-                df = None
-        elif n_index_elements == 3:
-            df = self.get_slice(index, what)
-        else:
-            raise NotImplementedError(
-                f"'{index}': Indices can currently include 2 or 3 elements."
-            )
-        if df is None:
-            return
-        assert (
-            df.index.nlevels == 1
-        ), f"Retrieved DataFrame has {df.index.nlevels}, not 1"
-        if multiindex:
-            df = pd.concat([df], keys=[index[:2]], names=["corpus", "fname"])
-        return df
-
-
-TYPE_CACHE = {}
-
-
-def typestrings2types(typestrings: Union[str, Collection[str]]) -> Tuple[Type]:
-    global TYPE_CACHE
-    if isinstance(typestrings, str):
-        typestrings = [typestrings]
-    result = []
-    all_objects = None
-    for typ in typestrings:
-        if typ not in TYPE_CACHE:
-            if all_objects is None:
-                all_objects = globals()
-            TYPE_CACHE[typ] = all_objects[typ]
-        result.append(TYPE_CACHE[typ])
-    return tuple(result)
-
-
-class _ProcessedData(Data):
-    """Base class for types of processed :obj:`_Dataset` objects.
-    Processed datatypes are created by passing a _Dataset object. The new object will be a copy of the Data with the
-    :attr:`prefix` prepended. Subclasses should have an __init__() method that calls super().__init__() and then
-    adds additional fields.
-    """
-
-    assert_types: Union[str, Collection[str]] = ["Dataset"]
-    """Objects raise TypeError upon instantiation if the passed data are not of one of these types."""
-    excluded_types: Union[str, Collection[str]] = []
-    """Objects raise TypeError upon instantiation if the passed data are of one of these types."""
-    type_mapping: Dict[Union[str, Collection[str]], str] = {}
-    """{Input type(s) -> Output type}. __new__() picks the first 'value' where the input Data are of type 'key'.
-    Objects raise TypeError if nothing matches. object or Data can be used as fallback/default key.
-    """
-
-    def __new__(cls, data: Data, **kwargs):
-        assert_types = typestrings2types(cls.assert_types)
-        if not isinstance(data, assert_types):
-            raise TypeError(
-                f"{cls.__name__} objects can only be created from '{assert_types}', not '{type(data)}'"
-            )
-        excluded_types = typestrings2types(cls.excluded_types)
-        if isinstance(data, excluded_types):
-            raise TypeError(
-                f"{cls.__name__} objects cannot be created from '{type(data)}'."
-            )
-        type_mapping = {
-            typestrings2types(input_type): typestrings2types(output_type)[0]
-            for input_type, output_type in cls.type_mapping.items()
-        }
-        new_obj_type = None
-        for input_type, output_type in type_mapping.items():
-            if isinstance(data, input_type):
-                new_obj_type = output_type
-                break
-        if new_obj_type is None:
-            raise TypeError(
-                f"{cls.__name__} no output type defined for '{type(data)}', only for {list(cls.type_mapping.keys())}."
-            )
-        obj = object.__new__(new_obj_type)
-        obj.__init__(data=data, **kwargs)
-        return obj
-
-    def __init__(self, data: Data, **kwargs):
-        super().__init__(data=data, **kwargs)
-
-
-class SlicedData(_ProcessedData):
-    """A type of Data object that contains the slicing information created by a Slicer. It slices all requested
-    facets based on that information.
-    """
-
-    excluded_types = ("AnalyzedData", "SlicedData")
-    type_mapping = {
-        "GroupedDataset": "GroupedSlicedDataset",
-        "Dataset": "SlicedDataset",
-    }
-
-    def __init__(self, data: Data, **kwargs):
-        super().__init__(data=data, **kwargs)
-        if not hasattr(self, "sliced"):
-            self.sliced = {}
-            """Dict for sliced data facets."""
-        if not hasattr(self, "slice_info"):
-            self.slice_info = {}
-            """Dict holding metadata of slices (e.g. the localkey of a segment)."""
-
-
-class GroupedData(_ProcessedData):
-    """A type of Data object that behaves like its predecessor but returns and iterates through groups."""
-
-    type_mapping = {
-        (
-            "AnalyzedGroupedSlicedDataset",
-            "AnalyzedSlicedDataset",
-        ): "AnalyzedGroupedSlicedDataset",
-        "GroupedSlicedDataset": "GroupedSlicedDataset",
-        ("AnalyzedGroupedDataset", "AnalyzedDataset"): "AnalyzedGroupedDataset",
-        "SlicedDataset": "GroupedSlicedDataset",
-        "Dataset": "GroupedDataset",
-    }
-
-
-class AnalyzedData(_ProcessedData):
-    """A type of Data object that contains the results of an Analyzer and knows how to plot it."""
-
-    type_mapping = {
-        (
-            "AnalyzedGroupedSlicedDataset",
-            "GroupedSlicedDataset",
-        ): "AnalyzedGroupedSlicedDataset",
-        ("AnalyzedSlicedDataset", "SlicedDataset"): "AnalyzedSlicedDataset",
-        ("AnalyzedGroupedDataset", "GroupedDataset"): "AnalyzedGroupedDataset",
-        "Dataset": "AnalyzedDataset",
-    }
-
-    def __init__(self, data: Data, **kwargs):
-        super().__init__(data=data, **kwargs)
-        if not hasattr(self, "processed"):
-            self.processed: Dict[GroupID, Union[Dict[Index, Any], List[str]]] = {}
-            """Analyzers store there result here. Those that compute one result per item per group
-            store {ID -> result} dicts, all others store simply the result for each group. In the first case,
-            :attr:`group2pandas` needs to be specified for correctly converting the dict to a pandas object."""
-
-    def get(self) -> dict:
-        """Get all processed data at once."""
-        return self.processed
-
-    def iter(self) -> Iterator:
-        """Iterate through processed data."""
-        yield from self.processed.items()
-
-
-class SlicedDataset(SlicedData, Dataset):
-    pass
-
-
-class GroupedDataset(GroupedData, Dataset):
-    pass
-
-
-class AnalyzedDataset(AnalyzedData, Dataset):
-    pass
-
-
-class GroupedSlicedDataset(GroupedData, SlicedDataset):
-    pass
 
 
 class AnalyzedGroupedDataset(AnalyzedData, GroupedDataset):
@@ -916,5 +1013,5 @@ def remove_corpus_from_ids(result):
                 new_key = tuple(k[1:] for k in key)
                 without_corpus[new_key] = v
         return without_corpus
-    print(result)
+    logger.info(result)
     return result.droplevel(0)
