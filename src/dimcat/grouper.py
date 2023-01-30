@@ -1,4 +1,5 @@
 """A Grouper is a PipelineStep that groups rows of the Data together into subsets."""
+import logging
 from abc import ABC, abstractmethod
 from collections import defaultdict
 
@@ -6,6 +7,8 @@ from .data import Data, GroupedData
 from .pipeline import PipelineStep
 from .slicer import LocalKeySlicer
 from .utils import get_composition_year
+
+logger = logging.getLogger(__name__)
 
 
 class Grouper(PipelineStep, ABC):
@@ -42,27 +45,30 @@ class Grouper(PipelineStep, ABC):
         """Returns a copy of the Data object where the list of indices for each existing group has
         been further subdivided into smaller groups.
         """
-        indices = {}  # this will be the index dictionary of the returned Data object
-        for group, index_group in data.iter_groups():
+        result = GroupedData(data)
+        new_grouped_indices = defaultdict(list)
+        for group, index_group in result.iter_groups():
             # Iterate through groups, i.e. a name and a list of index tuples.
             # A group can only be divided into smaller groups or stay the same ("top-down").
-            grouped = defaultdict(list)
             for index in index_group:
                 # iterate through this group's indices and apply the grouping criterion to each
                 new_group = self.criterion(index, data)
                 if new_group is None:
+                    logger.info(
+                        f"Grouping criterion could not be computed for {index}."
+                    )
                     continue
-                grouped[new_group].append(index)
-            for new_group, ids in grouped.items():
-                indices[group + (new_group,)] = ids
+                new_grouped_indices[group + (new_group,)].append(index)
         if self.sort:
-            indices = {key: indices[key] for key in sorted(indices.keys())}
-        result = GroupedData(data)
+            new_grouped_indices = {
+                key: new_grouped_indices[key]
+                for key in sorted(new_grouped_indices.keys())
+            }
+        result.grouped_indices = new_grouped_indices
         result.track_pipeline(
             self,
             **self.level_names,
         )
-        result.indices = indices
         return result
 
 

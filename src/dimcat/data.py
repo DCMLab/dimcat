@@ -13,7 +13,6 @@ from typing import (
     Literal,
     Optional,
     Tuple,
-    TypeAlias,
     Union,
     overload,
 )
@@ -22,11 +21,10 @@ import ms3
 import pandas as pd
 from ms3._typing import ScoreFacet
 
-from .typing import GroupID, Index, Pandas
+from ._typing import ID, GroupID, Pandas
 from .utils import clean_index_levels
 
 logger = logging.getLogger(__name__)
-ID: TypeAlias = Tuple[str, str]
 
 
 class Data(ABC):
@@ -50,11 +48,10 @@ class _Dataset(Data, ABC):
         References to the individual pieces contained in the data. The exact type depends on the type of data.
         """
 
-        self.indices: Dict[GroupID, List[Index]] = {(): []}
-        """{group_key -> indices} dictionary of indices (IDs) which serve for accessing individual pieces of data and
+        self.indices: List[ID] = []
+        """List of indices (IDs) which serve for accessing individual pieces of data and
         associated metadata. An index is a ('corpus_name', 'piece_name') tuple ("ID") that can have a third element
-        identifying a segment/chunk of a piece. The group_keys are an empty tuple by default; with every applied
-        Grouper, the length of all group_keys grows by one and the number of group_keys grows or stays the same."""
+        identifying a segment/chunk of a piece."""
 
         self.pipeline_steps = []
         """The sequence of applied PipelineSteps that has led to the current state in reverse
@@ -89,7 +86,7 @@ class _Dataset(Data, ABC):
 
     @property
     def n_indices(self):
-        return sum(map(len, self.indices.values()))
+        return len(self.indices)
 
     @abstractmethod
     def copy(self):
@@ -98,25 +95,8 @@ class _Dataset(Data, ABC):
     @abstractmethod
     def iter_facet(self, what):
         """Iterate through (potentially grouped) pieces of data."""
-        for index_group in self.iter_groups():
-            for index in index_group:
-                yield self.get_item(index, what)
-
-    def iter_groups(self):
-        """Iterate through groups of indices as defined by the previously applied Groupers.
-
-        Yields
-        -------
-        :obj:`tuple` of :obj:`str`
-            A tuple of keys reflecting the group hierarchy
-        :obj:`list` of :obj:`tuple`
-            A list of IDs belonging to the same group.
-        """
-        if len(self.indices) == 0:
-            raise ValueError("No data has been loaded.")
-        if any(len(index_list) == 0 for index_list in self.indices.values()):
-            logger.warning("Data object contains empty groups.")
-        yield from self.indices.items()
+        for index in self.indices:
+            yield self.get_item(index, what)
 
     @abstractmethod
     def get_item(self, index, what):
@@ -292,7 +272,7 @@ class Dataset(_Dataset):
         self.pieces = dict(data_object.pieces)
         # ^^^ doesn't copy the ms3.Parse and ms3.Piece objects, only the references ^^^
         # vvv all other fields are deepcopied vvv
-        self.indices = deepcopy(data_object.indices)
+        self.indices = list(data_object.indices)
         self.index_levels = deepcopy(data_object.index_levels)
         self.pipeline_steps = list(data_object.pipeline_steps)
         self.group2pandas = data_object.group2pandas
@@ -300,11 +280,6 @@ class Dataset(_Dataset):
         for field in optional_fields:
             if hasattr(self, field) and hasattr(data_object, field):
                 setattr(self, field, deepcopy(getattr(data_object, field)))
-
-    @property
-    def is_grouped(self) -> bool:
-        groups = list(self.indices.keys())
-        return len(groups) != 1 or groups[0] != ()
 
     def copy(self):
         return self.__class__(data=self)
@@ -401,13 +376,13 @@ class Dataset(_Dataset):
         """Fills self.pieces with metadata and IDs for all loaded data. This resets previously
         applied groupings."""
         self.pieces = {}
-        self.indices = {}
+        self.indices = []
         # self.group_labels = {}
         for corpus_name, ms3_corpus in self.data.iter_corpora():
             for fname, piece in ms3_corpus.iter_pieces():
                 ID = (corpus_name, fname)
                 self.pieces[ID] = piece
-        self.indices[()] = list(self.pieces.keys())
+        self.indices = list(self.pieces.keys())
 
     def iter_facet(
         self, what: ScoreFacet, unfold: bool = False
@@ -422,13 +397,12 @@ class Dataset(_Dataset):
             Index tuple.
             Facet DataFrame.
         """
-        for group, index_group in self.iter_groups():
-            for index in index_group:
-                df = self.get_item(index, what=what, unfold=unfold)
-                if df is None or len(df.index) == 0:
-                    logger.info(f"{index} has no {what}.")
-                    continue
-                yield index, df
+        for index in self.indices:
+            df = self.get_item(index, what=what, unfold=unfold)
+            if df is None or len(df.index) == 0:
+                logger.info(f"{index} has no {what}.")
+                continue
+            yield index, df
 
     def get_previous_pipeline_step(self, idx=0, of_type=None):
         """Retrieve one of the previously applied PipelineSteps, either by index or by type.
@@ -521,7 +495,7 @@ def typestrings2types(typestrings: Union[str, Collection[str]]) -> Tuple[Any]:
     return tuple(result)
 
 
-class _ProcessedData(Data):
+class _ProcessedData(_Dataset):
     """Base class for types of processed :obj:`_Dataset` objects.
     Processed datatypes are created by passing a _Dataset object. The new object will be a copy of the Data with the
     :attr:`prefix` prepended. Subclasses should have an __init__() method that calls super().__init__() and then
@@ -541,7 +515,7 @@ class _ProcessedData(Data):
         assert_types = typestrings2types(cls.assert_types)
         if not isinstance(data, assert_types):
             raise TypeError(
-                f"{cls.__name__} objects can only be created from {cls.assert_types}, not '{type(data)}'"
+                f"{cls.__name__} objects can only be created from {assert_types}, not '{type(data)}'"
             )
         excluded_types = typestrings2types(cls.excluded_types)
         if isinstance(data, excluded_types):
@@ -749,6 +723,28 @@ class GroupedData(_ProcessedData):
         logger.debug(f"{type(self).__name__} -> before {super()}.__init__()")
         super().__init__(data=data, **kwargs)
         logger.debug(f"{type(self).__name__} -> after {super()}.__init__()")
+        if not hasattr(self, "grouped_indices"):
+            self.grouped_indices: Dict[GroupID, List[ID]] = {(): self.indices}
+            """{group_key -> indices} dictionary of indices (IDs) which serve for accessing individual pieces of data and
+            associated metadata. An index is a ('corpus_name', 'piece_name') tuple ("ID") that can have a third element
+            identifying a segment/chunk of a piece. The group_keys are an empty tuple by default; with every applied
+            Grouper, the length of all group_keys grows by one and the number of group_keys grows or stays the same."""
+
+    def iter_groups(self):
+        """Iterate through groups of indices as defined by the previously applied Groupers.
+
+        Yields
+        -------
+        :obj:`tuple` of :obj:`str`
+            A tuple of keys reflecting the group hierarchy
+        :obj:`list` of :obj:`tuple`
+            A list of IDs belonging to the same group.
+        """
+        if len(self.indices) == 0:
+            raise ValueError("No data has been loaded.")
+        if any(len(index_list) == 0 for index_list in self.grouped_indices.values()):
+            logger.warning("Data object contains empty groups.")
+        yield from self.grouped_indices.items()
 
 
 class AnalyzedData(_ProcessedData):
@@ -769,7 +765,7 @@ class AnalyzedData(_ProcessedData):
         super().__init__(data=data, **kwargs)
         logger.debug(f"{type(self).__name__} -> after {super()}.__init__()")
         if not hasattr(self, "processed"):
-            self.processed: Dict[GroupID, Union[Dict[Index, Any], List[str]]] = {}
+            self.processed: Dict[GroupID, Union[Dict[ID, Any], List[str]]] = {}
             """Analyzers store there result here. Those that compute one result per item per group
             store {ID -> result} dicts, all others store simply the result for each group. In the first case,
             :attr:`group2pandas` needs to be specified for correctly converting the dict to a pandas object."""
@@ -821,7 +817,7 @@ class AnalyzedData(_ProcessedData):
     @overload
     def iter(
         self, as_pandas: bool = Literal[False], ignore_groups: bool = Literal[False]
-    ) -> Iterator[Tuple[GroupID, Union[Dict[Index, Any], Any]]]:
+    ) -> Iterator[Tuple[GroupID, Union[Dict[ID, Any], Any]]]:
         ...
 
     @overload
@@ -833,7 +829,7 @@ class AnalyzedData(_ProcessedData):
     @overload
     def iter(
         self, as_pandas: bool = Literal[False], ignore_groups: bool = Literal[True]
-    ) -> Iterator[Union[Tuple[Index, Any], Any]]:
+    ) -> Iterator[Union[Tuple[ID, Any], Any]]:
         ...
 
     @overload
@@ -846,9 +842,9 @@ class AnalyzedData(_ProcessedData):
         self, as_pandas: bool = True, ignore_groups: bool = False
     ) -> Iterator[
         Union[
-            Tuple[GroupID, Union[Dict[Index, Any], Any]],
+            Tuple[GroupID, Union[Dict[ID, Any], Any]],
             Tuple[GroupID, Union[Pandas, Any]],
-            Union[Tuple[Index, Any], Any],
+            Union[Tuple[ID, Any], Any],
             Union[Pandas, Any],
         ]
     ]:
@@ -894,7 +890,50 @@ class SlicedDataset(SlicedData, Dataset):
 
 
 class GroupedDataset(GroupedData, Dataset):
-    pass
+    def iter_facet(
+        self,
+        what: ScoreFacet,
+        unfold: bool = False,
+    ) -> Iterator[Tuple[GroupID, pd.DataFrame]]:
+        """Iterate through one concatenated facet DataFrame per group.
+
+        Args:
+            what: Which type of facet to retrieve.
+
+        Yields:
+            Group index.
+            Facet DataFrame.
+        """
+        for group, index_group in self.iter_groups():
+            result = {}
+            missing_id = []
+            for index in index_group:
+                df = self.get_item(index, what=what)
+                if df is None or len(df.index) == 0:
+                    missing_id.append(index)
+                    continue
+                result[index] = df
+            n_results = len(result)
+            if len(missing_id) > 0:
+                if n_results == 0:
+                    pass
+                    # logger.info(f"No '{what}' available for {group}.")
+                else:
+                    logger.info(
+                        f"Group {group} is missing '{what}' for the following indices:\n{missing_id}"
+                    )
+            if n_results == 0:
+                continue
+            if n_results == 1:
+                # workaround necessary because of nasty "cannot handle overlapping indices;
+                # use IntervalIndex.get_indexer_non_unique" error
+                result["empty"] = pd.DataFrame()
+            result = pd.concat(
+                result.values(),
+                keys=result.keys(),
+                names=self.index_levels["indices"] + ["interval"],
+            )
+            yield group, result
 
 
 class AnalyzedDataset(AnalyzedData, Dataset):

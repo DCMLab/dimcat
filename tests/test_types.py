@@ -46,12 +46,6 @@ def create_dataset_of_type(T):
     return T(super_object)
 
 
-# @lru_cache()
-# def data_type2dataset_types(data_type: Literal['SlicedData', 'GroupedData', 'AnalyzedData']) -> List[str]:
-#     T = typestring2type(data_type)
-#     return [t.__name__ for t in DATASET_TYPES if issubclass(t, T)]
-
-
 @lru_cache()
 def can_convert(convert_type, input_type) -> bool:
     if convert_type == Dataset:
@@ -72,6 +66,8 @@ def test_dataset2dataset(input_type, conversion_type):
         converted = conversion_type(input_object)
         print(f"\nConverted {c_name}({i_name}) -> {type(converted).__name__}")
         assert isinstance(converted, conversion_type)
+        if isinstance(converted, GroupedData):
+            assert hasattr(converted, "grouped_indices")
     else:
         try:
             conversion_type(input_object)
@@ -93,6 +89,8 @@ def test_dataset_type(input_type, conversion_type):
         print(f"\nConverted {c_name}({i_name}) -> {type(converted).__name__}")
         assert isinstance(converted, input_type)
         assert isinstance(converted, conversion_type)
+        if isinstance(converted, GroupedData):
+            assert hasattr(converted, "grouped_indices")
     else:
         try:
             conversion_type(input_object)

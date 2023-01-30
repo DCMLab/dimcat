@@ -182,10 +182,6 @@ def grouper(request):
 )
 def apply_grouper(grouper, corpus):
     grouped_data = grouper.process_data(corpus)
-    print(f"\n{pretty_dict(grouped_data.indices)}")
-    assert () not in grouped_data.indices
-    lengths = [len(index_list) for index_list in grouped_data.indices.values()]
-    assert 0 not in lengths, "Grouper has created empty groups."
     return grouped_data
 
 
