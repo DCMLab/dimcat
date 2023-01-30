@@ -247,7 +247,7 @@ class Dataset(_Dataset):
     """An object that represents one or several corpora issued by the DCML corpus initiative.
     Essentially a wrapper for a ms3.Parse object."""
 
-    def __init__(self, data=None, **kwargs):
+    def __init__(self, data: Optional[Union["Dataset", ms3.Parse]] = None, **kwargs):
         """
 
         Parameters
@@ -541,12 +541,13 @@ class _ProcessedData(Data):
         assert_types = typestrings2types(cls.assert_types)
         if not isinstance(data, assert_types):
             raise TypeError(
-                f"{cls.__name__} objects can only be created from '{assert_types}', not '{type(data)}'"
+                f"{cls.__name__} objects can only be created from {cls.assert_types}, not '{type(data)}'"
             )
         excluded_types = typestrings2types(cls.excluded_types)
         if isinstance(data, excluded_types):
             raise TypeError(
-                f"{cls.__name__} objects cannot be created from '{type(data)}'."
+                f"{cls.__name__} objects cannot be created from '{type(data)}' because it is among the "
+                f"excluded_types {cls.excluded_types}."
             )
         type_mapping = {
             typestrings2types(input_type): typestrings2types(output_type)[0]
@@ -562,7 +563,7 @@ class _ProcessedData(Data):
                 f"{cls.__name__} no output type defined for '{type(data)}', only for {list(type_mapping.keys())}."
             )
         obj = object.__new__(new_obj_type)
-        obj.__init__(data=data, **kwargs)
+        # obj.__init__(data=data, **kwargs)
         return obj
 
     def __init__(self, data: Data, **kwargs):
@@ -574,14 +575,16 @@ class SlicedData(_ProcessedData):
     facets based on that information.
     """
 
-    excluded_types = ("AnalyzedData", "SlicedData")
+    excluded_types = ["AnalyzedData", "SlicedData"]
     type_mapping = {
         "GroupedDataset": "GroupedSlicedDataset",
         "Dataset": "SlicedDataset",
     }
 
     def __init__(self, data: Data, **kwargs):
+        logger.debug(f"{type(self).__name__} -> before {super()}.__init__()")
         super().__init__(data=data, **kwargs)
+        logger.debug(f"{type(self).__name__} -> after {super()}.__init__()")
         if not hasattr(self, "sliced"):
             self.sliced = {}
             """Dict for sliced data facets."""
@@ -742,6 +745,11 @@ class GroupedData(_ProcessedData):
         "Dataset": "GroupedDataset",
     }
 
+    def __init__(self, data: Data, **kwargs):
+        logger.debug(f"{type(self).__name__} -> before {super()}.__init__()")
+        super().__init__(data=data, **kwargs)
+        logger.debug(f"{type(self).__name__} -> after {super()}.__init__()")
+
 
 class AnalyzedData(_ProcessedData):
     """A type of Data object that contains the results of an Analyzer and knows how to plot it."""
@@ -757,7 +765,9 @@ class AnalyzedData(_ProcessedData):
     }
 
     def __init__(self, data: Data, **kwargs):
+        logger.debug(f"{type(self).__name__} -> before {super()}.__init__()")
         super().__init__(data=data, **kwargs)
+        logger.debug(f"{type(self).__name__} -> after {super()}.__init__()")
         if not hasattr(self, "processed"):
             self.processed: Dict[GroupID, Union[Dict[Index, Any], List[str]]] = {}
             """Analyzers store there result here. Those that compute one result per item per group
@@ -891,7 +901,17 @@ class AnalyzedDataset(AnalyzedData, Dataset):
     pass
 
 
-class GroupedSlicedDataset(GroupedData, SlicedDataset):
+class GroupedSlicedDataset(GroupedDataset, SlicedDataset):
+    assert_types = ["SlicedDataset", "GroupedDataset"]
+    excluded_types = ["AnalyzedData"]
+    type_mapping = {
+        (
+            "SlicedDataset",
+            "GroupedDataset",
+            "GroupedSlicedDataset",
+        ): "GroupedSlicedDataset",
+    }
+
     def get_slice_info(self, ignore_groups=False) -> pd.DataFrame:
         """Concatenates slice_info Series and returns them as a DataFrame."""
         if ignore_groups or not self.is_grouped:
@@ -990,15 +1010,44 @@ class GroupedSlicedDataset(GroupedData, SlicedDataset):
             yield group, result
 
 
-class AnalyzedGroupedDataset(AnalyzedData, GroupedDataset):
+class AnalyzedGroupedDataset(AnalyzedDataset, GroupedDataset):
+    assert_types = ["GroupedDataset", "AnalyzedDataset"]
+    type_mapping = {
+        (
+            "AnalyzedGroupedDataset",
+            "AnalyzedDataset",
+            "GroupedDataset",
+        ): "AnalyzedGroupedDataset",
+    }
+
+
+class AnalyzedSlicedDataset(AnalyzedDataset, SlicedDataset):
+    assert_types = ["SlicedDataset", "AnalyzedDataset"]
+    excluded_types = []
+    type_mapping = {
+        (
+            "AnalyzedSlicedDataset",
+            "AnalyzedDataset",
+            "SlicedDataset",
+        ): "AnalyzedSlicedDataset",
+    }
     pass
 
 
-class AnalyzedSlicedDataset(AnalyzedData, SlicedDataset):
-    pass
-
-
-class AnalyzedGroupedSlicedDataset(AnalyzedData, GroupedSlicedDataset):
+class AnalyzedGroupedSlicedDataset(AnalyzedSlicedDataset, GroupedSlicedDataset):
+    assert_types = [
+        "GroupedSlicedDataset",
+        "AnalyzedGroupedDataset",
+        "AnalyzedSlicedDataset",
+    ]
+    type_mapping = {
+        (
+            "GroupedSlicedDataset",
+            "AnalyzedGroupedDataset",
+            "AnalyzedSlicedDataset",
+            "AnalyzedGroupedSlicedDataset",
+        ): "AnalyzedGroupedSlicedDataset",
+    }
     pass
 
 
