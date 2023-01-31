@@ -24,7 +24,7 @@ class Filter(PipelineStep, ABC):
         potentially fewer elements than before.
         """
         indices = {}
-        for group, index_group in data.iter_groups():
+        for group, index_group in data.iter_grouped_indices():
             new_group = []
             for index in index_group:
                 if self.criterion(index, data):

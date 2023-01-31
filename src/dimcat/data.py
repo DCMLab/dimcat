@@ -909,7 +909,7 @@ class SlicedDataset(SlicedData, Dataset):
 
 
 class GroupedDataset(GroupedData, Dataset):
-    def iter_facet(
+    def iter_grouped_facet(
         self,
         what: ScoreFacet,
     ) -> Iterator[Tuple[GroupID, pd.DataFrame]]:
@@ -922,7 +922,7 @@ class GroupedDataset(GroupedData, Dataset):
             Group index.
             Facet DataFrame.
         """
-        for group, index_group in self.iter_groups():
+        for group, index_group in self.iter_grouped_indices():
             result = {}
             missing_id = []
             for index in index_group:
@@ -979,7 +979,7 @@ class GroupedSlicedDataset(GroupedDataset, SlicedDataset):
             return concatenated_info
         else:
             group_dfs = {}
-            for group, index_group in self.iter_groups():
+            for group, index_group in self.iter_grouped_indices():
                 group_info = {ix: self.slice_info[ix] for ix in index_group}
                 group_dfs[group] = pd.concat(
                     group_info.values(), keys=group_info.keys(), axis=1
@@ -1026,7 +1026,7 @@ class GroupedSlicedDataset(GroupedDataset, SlicedDataset):
                 "Arguments 'concatenate' and 'ignore_groups' are in conflict, choose one "
                 "or use the method get_facet()."
             )
-        for group, index_group in self.iter_groups():
+        for group, index_group in self.iter_grouped_indices():
             result = {}
             missing_id = []
             for index in index_group:

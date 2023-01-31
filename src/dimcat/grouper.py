@@ -47,7 +47,7 @@ class Grouper(PipelineStep, ABC):
         """
         result = GroupedData(data)
         new_grouped_indices = defaultdict(list)
-        for group, index_group in result.iter_groups():
+        for group, index_group in result.iter_grouped_indices():
             # Iterate through groups, i.e. a name and a list of index tuples.
             # A group can only be divided into smaller groups or stay the same ("top-down").
             for index in index_group:
