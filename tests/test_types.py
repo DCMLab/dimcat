@@ -66,6 +66,7 @@ def test_dataset2dataset(input_type, conversion_type):
         converted = conversion_type(input_object)
         print(f"\nConverted {c_name}({i_name}) -> {type(converted).__name__}")
         assert isinstance(converted, conversion_type)
+        assert hasattr(converted, "indices")
         if isinstance(converted, GroupedData):
             assert hasattr(converted, "grouped_indices")
     else:

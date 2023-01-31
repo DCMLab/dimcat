@@ -21,7 +21,7 @@ import ms3
 import pandas as pd
 from ms3._typing import ScoreFacet
 
-from ._typing import ID, GroupID, Pandas
+from ._typing import ID, GroupID, Pandas, PieceID
 from .utils import clean_index_levels
 
 logger = logging.getLogger(__name__)
@@ -376,13 +376,26 @@ class Dataset(_Dataset):
         """Fills self.pieces with metadata and IDs for all loaded data. This resets previously
         applied groupings."""
         self.pieces = {}
-        self.indices = []
         # self.group_labels = {}
         for corpus_name, ms3_corpus in self.data.iter_corpora():
             for fname, piece in ms3_corpus.iter_pieces():
                 ID = (corpus_name, fname)
                 self.pieces[ID] = piece
-        self.indices = list(self.pieces.keys())
+        self.set_indices(list(self.pieces.keys()))
+
+    def set_indices(
+        self, new_indices: Union[List[PieceID], Dict[Any, List[PieceID]]]
+    ) -> None:
+        """Replace :attr:`indices` with a new list of IDs.
+
+        Args:
+            new_indices:
+                The new list IDs or a dictionary of several lists of IDs. The latter is useful for re-grouping
+                freshly sliced IDs of a :class:`GroupedDataset`.
+        """
+        if isinstance(new_indices, dict):
+            new_indices = sum(new_indices.values(), [])
+        self.indices = new_indices
 
     def iter_facet(
         self, what: ScoreFacet, unfold: bool = False
@@ -953,6 +966,42 @@ class GroupedDataset(GroupedData, Dataset):
             )
             yield group, result
 
+    def set_indices(
+        self, new_indices: Union[List[PieceID], Dict[ID, List[PieceID]]]
+    ) -> None:
+        """Replace :attr:`indices` with a new list of IDs and update the :attr:`grouped_indices` accordingly.
+
+        Args:
+            new_indices:
+                The new list of IDs or an {old_id -> [new_id]} dictionary to replace the IDs with a list of new IDs.
+        """
+        id2group = defaultdict(lambda: ())
+        if len(self.indices) > 0:
+            id2group.update(
+                {
+                    ID: group
+                    for group, group_ids in self.iter_grouped_indices()
+                    for ID in group_ids
+                }
+            )
+        new_grouped_indices = defaultdict(list)
+        if isinstance(new_indices, dict):
+            for old_id, new_ids in new_indices.items():
+                old_group = id2group[old_id]
+                new_grouped_indices[old_group].extend(new_ids)
+        else:
+            for new_id in new_indices:
+                old_group = id2group[new_id]
+                new_grouped_indices[old_group].append(new_id)
+        self.grouped_indices = {
+            k: new_grouped_indices[k] for k in sorted(new_grouped_indices.keys())
+        }
+        # logger.warning(f"id2group: {id2group}\n\n"
+        #                f"new_indices: {new_indices}\n\n"
+        #                f"self.grouped_indices: {self.grouped_indices}")
+        new_indices = sum(new_grouped_indices.values(), [])
+        self.indices = sorted(new_indices)
+
 
 class AnalyzedDataset(AnalyzedData, Dataset):
     pass
@@ -991,80 +1040,80 @@ class GroupedSlicedDataset(GroupedDataset, SlicedDataset):
             )
             return clean_index_levels(concatenated_info)
 
-    def iter_facet(self, what, unfold=False, concatenate=False, ignore_groups=False):
-        """Iterate through groups of potentially sliced facet DataFrames.
-
-        Parameters
-        ----------
-        what : {'form_labels', 'events', 'expanded', 'notes_and_rests', 'notes', 'labels',
-                'cadences', 'chords', 'measures', 'rests'}
-            What facet to retrieve.
-        unfold : :obj:`bool`, optional
-            Pass True if you need repeats to be unfolded.
-        concatenate : :obj:`bool`, optional
-            By default, the returned dict contains one DataFrame per ID in the group.
-            Pass True to instead concatenate the DataFrames. Then, the dict will contain only
-            one entry where the key is a tuple containing all IDs and the value is a DataFrame,
-            the components of which can be distinguished using its MultiIndex.
-        ignore_groups : :obj:`bool`, False
-            If set to True, the iteration loop is flattened and yields (index, facet_df) pairs directly. Clashes
-            with the setting concatenate=True which concatenates facets per group.
-
-        Yields
-        ------
-        :obj:`tuple`
-            Group identifier
-        :obj:`dict` or :obj:`pandas.DataFrame`
-            Default: {ID -> DataFrame}.
-            If concatenate=True: DataFrame with MultiIndex identifying ID, and (eventual) interval.
-        """
-        if not self.slice_facet_if_necessary(what, unfold):
-            logger.info(f"No sliced {what} available.")
-            raise StopIteration
-        if sum((concatenate, ignore_groups)) > 1:
-            raise ValueError(
-                "Arguments 'concatenate' and 'ignore_groups' are in conflict, choose one "
-                "or use the method get_facet()."
-            )
-        for group, index_group in self.iter_grouped_indices():
-            result = {}
-            missing_id = []
-            for index in index_group:
-                df = self.get_item(index, what=what, unfold=unfold)
-                if df is None:
-                    continue
-                elif ignore_groups:
-                    yield index, df
-                if len(df.index) == 0:
-                    missing_id.append(index)
-                result[index] = df
-            if ignore_groups:
-                continue
-            n_results = len(result)
-            if len(missing_id) > 0:
-                if n_results == 0:
-                    pass
-                    # logger.info(f"No '{what}' available for {group}.")
-                else:
-                    logger.info(
-                        f"Group {group} is missing '{what}' for the following indices:\n"
-                        f"{missing_id}"
-                    )
-            if n_results == 0:
-                continue
-            if concatenate:
-                if n_results == 1:
-                    # workaround necessary because of nasty "cannot handle overlapping indices;
-                    # use IntervalIndex.get_indexer_non_unique" error
-                    result["empty"] = pd.DataFrame()
-                result = pd.concat(
-                    result.values(),
-                    keys=result.keys(),
-                    names=self.index_levels["indices"] + ["interval"],
-                )
-                result = {tuple(index_group): result}
-
-            yield group, result
+    # def iter_facet(self, what, unfold=False, concatenate=False, ignore_groups=False):
+    #     """Iterate through groups of potentially sliced facet DataFrames.
+    #
+    #     Parameters
+    #     ----------
+    #     what : {'form_labels', 'events', 'expanded', 'notes_and_rests', 'notes', 'labels',
+    #             'cadences', 'chords', 'measures', 'rests'}
+    #         What facet to retrieve.
+    #     unfold : :obj:`bool`, optional
+    #         Pass True if you need repeats to be unfolded.
+    #     concatenate : :obj:`bool`, optional
+    #         By default, the returned dict contains one DataFrame per ID in the group.
+    #         Pass True to instead concatenate the DataFrames. Then, the dict will contain only
+    #         one entry where the key is a tuple containing all IDs and the value is a DataFrame,
+    #         the components of which can be distinguished using its MultiIndex.
+    #     ignore_groups : :obj:`bool`, False
+    #         If set to True, the iteration loop is flattened and yields (index, facet_df) pairs directly. Clashes
+    #         with the setting concatenate=True which concatenates facets per group.
+    #
+    #     Yields
+    #     ------
+    #     :obj:`tuple`
+    #         Group identifier
+    #     :obj:`dict` or :obj:`pandas.DataFrame`
+    #         Default: {ID -> DataFrame}.
+    #         If concatenate=True: DataFrame with MultiIndex identifying ID, and (eventual) interval.
+    #     """
+    #     if not self.slice_facet_if_necessary(what, unfold):
+    #         logger.info(f"No sliced {what} available.")
+    #         raise StopIteration
+    #     if sum((concatenate, ignore_groups)) > 1:
+    #         raise ValueError(
+    #             "Arguments 'concatenate' and 'ignore_groups' are in conflict, choose one "
+    #             "or use the method get_facet()."
+    #         )
+    #     for group, index_group in self.iter_grouped_indices():
+    #         result = {}
+    #         missing_id = []
+    #         for index in index_group:
+    #             df = self.get_item(index, what=what, unfold=unfold)
+    #             if df is None:
+    #                 continue
+    #             elif ignore_groups:
+    #                 yield index, df
+    #             if len(df.index) == 0:
+    #                 missing_id.append(index)
+    #             result[index] = df
+    #         if ignore_groups:
+    #             continue
+    #         n_results = len(result)
+    #         if len(missing_id) > 0:
+    #             if n_results == 0:
+    #                 pass
+    #                 # logger.info(f"No '{what}' available for {group}.")
+    #             else:
+    #                 logger.info(
+    #                     f"Group {group} is missing '{what}' for the following indices:\n"
+    #                     f"{missing_id}"
+    #                 )
+    #         if n_results == 0:
+    #             continue
+    #         if concatenate:
+    #             if n_results == 1:
+    #                 # workaround necessary because of nasty "cannot handle overlapping indices;
+    #                 # use IntervalIndex.get_indexer_non_unique" error
+    #                 result["empty"] = pd.DataFrame()
+    #             result = pd.concat(
+    #                 result.values(),
+    #                 keys=result.keys(),
+    #                 names=self.index_levels["indices"] + ["interval"],
+    #             )
+    #             result = {tuple(index_group): result}
+    #
+    #         yield group, result
 
 
 class AnalyzedGroupedDataset(AnalyzedDataset, GroupedDataset):

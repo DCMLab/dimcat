@@ -2,7 +2,7 @@
 import re
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from typing import Tuple
+from typing import Dict, List, Tuple
 
 import pandas as pd
 from ms3 import (
@@ -13,6 +13,7 @@ from ms3 import (
     slice_df,
 )
 
+from ._typing import PieceID, SliceID
 from .data import AnalyzedData, Data, SlicedData
 from .pipeline import PipelineStep
 from .utils import interval_index2interval
@@ -110,29 +111,28 @@ class LazyFacetSlicer(FacetSlicer):
         # where keys are the new indices. Each piece's (corpus, fname) index tuple will be
         # multiplied according to the number of slices and the new index tuples will be
         # differentiated by the slices' intervals: (corpus, fname, interval)
-        indices = (
-            {}
-        )  # {group -> [(index)]}; each list of indices will be at least as long as before
-        slice_infos = (
-            {}
-        )  # for each slice, the relevant info about it, e.g. for later grouping
+        slice_indices: Dict[PieceID, List[SliceID]] = defaultdict(list)
+        slice_infos: Dict[PieceID, pd.DataFrame] = {}
+        """For each slice, the relevant info about it, e.g. for later grouping"""
+
         facet_in_question = self.required_facets[0]
-        for group, dfs in result.iter_facet(facet_in_question):
-            new_index_group = []
-            for index, facet_df in dfs.items():
+        for index, facet_df in result.iter_facet(facet_in_question):
+            try:
                 eligible, message = self.check(facet_df)
-                if not eligible:
-                    print(f"{index}: {message}")
-                    continue
-                for slice_index, slice_info in self.iter_slices(
-                    index, facet_df, **self.config
-                ):
-                    new_index_group.append(slice_index)
-                    slice_infos[slice_index] = slice_info
-            indices[group] = new_index_group
+            except AttributeError:
+                print(result)
+                raise
+            if not eligible:
+                print(f"{index}: {message}")
+                continue
+            for slice_index, slice_info in self.iter_slices(
+                index, facet_df, **self.config
+            ):
+                slice_infos[slice_index] = slice_info
+                slice_indices[index].append(slice_index)
         result.track_pipeline(self, **self.level_names)
         result.slice_info = slice_infos
-        result.indices = indices
+        result.set_indices(dict(slice_indices))
         return result
 
 
@@ -414,7 +414,7 @@ class ChordCriterionSlicer(OnePassFacetSlicer):
 
 
 class SpecialFacetSlicer(LazyFacetSlicer):
-    """These facet slicers first gather slice intervals and info and then perform an individual kind slicing
+    """These facet slicers first gather slice intervals and info and then perform an individual kind of slicing
     afterwards.
     """
 

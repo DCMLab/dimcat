@@ -35,7 +35,7 @@ class Filter(PipelineStep, ABC):
         result.track_pipeline(
             self,
         )
-        result.indices = indices
+        result.set_indices(indices)
         return result
 
 
