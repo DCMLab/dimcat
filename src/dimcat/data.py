@@ -605,6 +605,11 @@ class SlicedData(_ProcessedData):
         "Dataset": "SlicedDataset",
     }
 
+    def __new__(
+        cls, data: Data, **kwargs
+    ) -> Union["SlicedDataset", "GroupedSlicedDataset"]:
+        return super().__new__(cls, data=data, **kwargs)
+
     def __init__(self, data: Data, **kwargs):
         logger.debug(f"{type(self).__name__} -> before {super()}.__init__()")
         super().__init__(data=data, **kwargs)
@@ -650,6 +655,16 @@ class GroupedData(_ProcessedData):
         "Dataset": "GroupedDataset",
     }
 
+    def __new__(
+        cls, data: Data, **kwargs
+    ) -> Union[
+        "GroupedDataset",
+        "GroupedSlicedDataset",
+        "AnalyzedGroupedDataset",
+        "AnalyzedGroupedSlicedDataset",
+    ]:
+        return super().__new__(cls, data=data, **kwargs)
+
     def __init__(self, data: Data, **kwargs):
         logger.debug(f"{type(self).__name__} -> before {super()}.__init__()")
         super().__init__(data=data, **kwargs)
@@ -694,6 +709,16 @@ class AnalyzedData(_ProcessedData):
         ("AnalyzedGroupedDataset", "GroupedDataset"): "AnalyzedGroupedDataset",
         "Dataset": "AnalyzedDataset",
     }
+
+    def __new__(
+        cls, data: Data, **kwargs
+    ) -> Union[
+        "AnalyzedDataset",
+        "AnalyzedGroupedDataset",
+        "AnalyzedSlicedDataset",
+        "AnalyzedGroupedSlicedDataset",
+    ]:
+        return super().__new__(cls, data=data, **kwargs)
 
     def __init__(self, data: Data, **kwargs):
         logger.debug(f"{type(self).__name__} -> before {super()}.__init__()")
