@@ -26,6 +26,17 @@ from .utils import clean_index_levels
 
 logger = logging.getLogger(__name__)
 
+PROCESSED_DATA_FIELDS: Dict[str, Tuple[str, ...]] = {
+    "SlicedData": (
+        "sliced",
+        "slice_info",
+    ),
+    "GroupedData": ("grouped_indices",),
+    "AnalyzedData": ("processed",),
+}
+"""Name of the data fields that the three types of processing add to any _Dataset object.
+Important for copying objects."""
+
 
 class Data(ABC):
     """
@@ -253,7 +264,7 @@ class Dataset(_Dataset):
         return self._data
 
     @data.setter
-    def data(self, data_object: Optional[Union["Dataset", ms3.Parse]]):
+    def data(self, data_object: Optional[Union["Dataset", ms3.Parse]]) -> None:
         """Check if the assigned object is suitable for conversion."""
         if data_object is None:
             self._data = ms3.Parse()
@@ -272,13 +283,25 @@ class Dataset(_Dataset):
         self.pieces = dict(data_object.pieces)
         # ^^^ doesn't copy the ms3.Parse and ms3.Piece objects, only the references ^^^
         # vvv all other fields are deepcopied vvv
-        self.indices = list(data_object.indices)
+        if isinstance(data_object, SlicedData) and not isinstance(self, SlicedData):
+            self.indices = sorted(set(ID[:2] for ID in data_object.indices))
+        elif self.__class__.__name__ == "Dataset":
+            self.indices = []
+            self.get_indices()
+        else:
+            self.indices = list(data_object.indices)
         self.index_levels = deepcopy(data_object.index_levels)
         self.pipeline_steps = list(data_object.pipeline_steps)
         self.group2pandas = data_object.group2pandas
-        optional_fields = ("grouped_indices", "processed", "sliced", "slice_info")
-        for field in optional_fields:
-            if hasattr(self, field) and hasattr(data_object, field):
+        if self.__class__.__name__ == "Dataset":
+            return
+        dtypes = typestrings2types(PROCESSED_DATA_FIELDS.keys())
+        dtypes = dict(zip(PROCESSED_DATA_FIELDS.keys(), dtypes))
+        for processed_type, optional_fields in PROCESSED_DATA_FIELDS.items():
+            dtype = dtypes[processed_type]
+            if not (isinstance(data_object, dtype) and isinstance(self, dtype)):
+                continue
+            for field in optional_fields:
                 setattr(self, field, deepcopy(getattr(data_object, field)))
 
     def copy(self):
@@ -540,12 +563,12 @@ class _ProcessedData(_Dataset):
         assert_types = typestrings2types(cls.assert_types)
         if not isinstance(data, assert_types):
             raise TypeError(
-                f"{cls.__name__} objects can only be created from {assert_types}, not '{type(data)}'"
+                f"{cls.__name__} objects can only be created from {cls.assert_types}, not '{type(data).__name__}'"
             )
         excluded_types = typestrings2types(cls.excluded_types)
         if isinstance(data, excluded_types):
             raise TypeError(
-                f"{cls.__name__} objects cannot be created from '{type(data)}' because it is among the "
+                f"{cls.__name__} objects cannot be created from '{type(data).__name__}' because it is among the "
                 f"excluded_types {cls.excluded_types}."
             )
         type_mapping = {
@@ -597,6 +620,9 @@ class SlicedData(_ProcessedData):
 
     def get_slice_info(self) -> pd.DataFrame:
         """Concatenates slice_info Series and returns them as a DataFrame."""
+        if len(self.slice_info) == 0:
+            logger.info("No slices available.")
+            return pd.DataFrame()
         concatenated_info = pd.concat(
             self.slice_info.values(), keys=self.slice_info.keys(), axis=1
         ).T
