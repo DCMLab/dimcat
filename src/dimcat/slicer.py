@@ -1,4 +1,5 @@
 """A Slicer is a PipelineStep that cuts Data into segments, effectively multiplying IDs."""
+import logging
 import re
 from abc import ABC, abstractmethod
 from collections import defaultdict
@@ -17,6 +18,8 @@ from ._typing import PieceID, SliceID
 from .data import AnalyzedData, Data, SlicedData
 from .pipeline import PipelineStep
 from .utils import interval_index2interval
+
+logger = logging.getLogger(__name__)
 
 
 class Slicer(PipelineStep, ABC):
@@ -111,7 +114,8 @@ class LazyFacetSlicer(FacetSlicer):
         # where keys are the new indices. Each piece's (corpus, fname) index tuple will be
         # multiplied according to the number of slices and the new index tuples will be
         # differentiated by the slices' intervals: (corpus, fname, interval)
-        slice_indices: Dict[PieceID, List[SliceID]] = defaultdict(list)
+        slicer_name = self.__class__.__name__
+        slice_indices: Dict[PieceID, List[SliceID]] = {}
         slice_infos: Dict[PieceID, pd.DataFrame] = {}
         """For each slice, the relevant info about it, e.g. for later grouping"""
 
@@ -125,14 +129,29 @@ class LazyFacetSlicer(FacetSlicer):
             if not eligible:
                 print(f"{index}: {message}")
                 continue
+            slice_indices[index] = []
             for slice_index, slice_info in self.iter_slices(
                 index, facet_df, **self.config
             ):
                 slice_infos[slice_index] = slice_info
                 slice_indices[index].append(slice_index)
+        n_slices_per_id = {
+            index: len(slice_ids) for index, slice_ids in slice_indices.items()
+        }
+        if sum(n_slices_per_id.values()) == 0:
+            raise RuntimeError(
+                f"{slicer_name} did not yield any slices. Probably the data is missing a feature "
+                f"(such as particular annotations) that is required for slicing."
+            )
+        no_slice_ids = [ID for ID, n_slices in n_slices_per_id.items() if n_slices == 0]
+        if len(no_slice_ids) > 0:
+            logger.warning(
+                f"{slicer_name} did not yield any slices for the following IDs "
+                f"(annotations missing?):\n{no_slice_ids}"
+            )
         result.track_pipeline(self, **self.level_names)
         result.slice_info = slice_infos
-        result.set_indices(dict(slice_indices))
+        result.set_indices(slice_indices)
         return result
 
 
