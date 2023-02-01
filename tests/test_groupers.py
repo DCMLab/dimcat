@@ -1,9 +1,15 @@
-from dimcat.data import AnalyzedData, Dataset
+from dimcat.data import (
+    AnalyzedData,
+    AnalyzedGroupedDataset,
+    Dataset,
+    GroupedDataset,
+    GroupedSlicedDataset,
+)
 from IPython.display import display
 from ms3 import pretty_dict
 
 
-def property_test_on_grouped_data(grpd_dt):
+def property_test_on_grouped_data(grpd_dt: GroupedDataset):
     assert hasattr(grpd_dt, "grouped_indices")
     idcs = grpd_dt.grouped_indices
     n_groups = len(idcs)
@@ -20,16 +26,16 @@ def property_test_on_grouped_data(grpd_dt):
 
 def test_properties(grouped_data):
     property_test_on_grouped_data(grouped_data)
-    analyzed_grouped = AnalyzedData(grouped_data)
+    analyzed_grouped: AnalyzedGroupedDataset = AnalyzedData(grouped_data)
     property_test_on_grouped_data(analyzed_grouped)
 
 
 def test_transitivity_with_slicers(grouped_data, slicer):
-    sliced_grouped = slicer.process_data(grouped_data)
+    sliced_grouped: GroupedSlicedDataset = slicer.process_data(grouped_data)
     test_grouper = grouped_data.get_previous_pipeline_step()
     reset_data = Dataset(grouped_data)
     sliced_data = slicer.process_data(reset_data)
-    grouped_sliced = test_grouper.process_data(sliced_data)
+    grouped_sliced: GroupedSlicedDataset = test_grouper.process_data(sliced_data)
     for (sl_gr_group, sl_gr_notes), (gr_sl_group, gr_sl_notes) in zip(
         sliced_grouped.iter_grouped_facet("notes"),
         grouped_sliced.iter_grouped_facet("notes"),
