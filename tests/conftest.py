@@ -12,16 +12,29 @@ from collections import defaultdict
 
 import pytest
 from dimcat.analyzer import (
+    Analyzer,
     ChordSymbolBigrams,
     ChordSymbolUnigrams,
     PitchClassVectors,
     TPCrange,
 )
-from dimcat.data import Dataset
-from dimcat.filter import IsAnnotatedFilter
-from dimcat.grouper import CorpusGrouper, ModeGrouper, PieceGrouper, YearGrouper
+from dimcat.data import Dataset, GroupedDataset, SlicedDataset
+from dimcat.filter import Filter, IsAnnotatedFilter
+from dimcat.grouper import (
+    CorpusGrouper,
+    Grouper,
+    ModeGrouper,
+    PieceGrouper,
+    YearGrouper,
+)
 from dimcat.pipeline import Pipeline
-from dimcat.slicer import LocalKeySlicer, MeasureSlicer, NoteSlicer, PhraseSlicer
+from dimcat.slicer import (
+    LocalKeySlicer,
+    MeasureSlicer,
+    NoteSlicer,
+    PhraseSlicer,
+    Slicer,
+)
 from git import Repo
 from ms3 import pretty_dict
 
@@ -33,14 +46,14 @@ CORPUS_DIR = "~"
     scope="session",
     params=[
         ("pleyel_quartets", "10a25eb"),
-        ("unittest_metacorpus", "2d922c7"),
+        ("unittest_metacorpus", "51e4cb5"),
     ],
     ids=[
         "corpus",
         "metacorpus",
     ],
 )
-def small_corpora_path(request):
+def small_corpora_path(request) -> str:
     """Compose the paths for the test corpora."""
     print("Path was requested")
     repo_name, test_commit = request.param
@@ -55,7 +68,7 @@ def small_corpora_path(request):
 
 
 @pytest.fixture(scope="session")
-def all_corpora_path():
+def all_corpora_path() -> str:
     path = os.path.join(CORPUS_DIR, "all_subcorpora")
     return path
 
@@ -64,8 +77,8 @@ def all_corpora_path():
     scope="session",
     params=[
         (Dataset, True, False),
-        #        (Corpus, False, True),
-        #        (Corpus, True, True),
+        #        (Dataset, False, True),
+        #        (Dataset, True, True),
     ],
     ids=[
         "TSV only",
@@ -73,7 +86,7 @@ def all_corpora_path():
         #        "TSV + scores"
     ],
 )
-def corpus(small_corpora_path, request):
+def dataset(small_corpora_path, request) -> Dataset:
     path = small_corpora_path
     obj, tsv, scores = request.param
     initialized_obj = obj(directory=path, parse_tsv=tsv, parse_scores=scores)
@@ -88,7 +101,7 @@ def corpus(small_corpora_path, request):
     params=[True, False],
     ids=["once_per_group", ""],
 )
-def once_per_group(request):
+def once_per_group(request) -> bool:
     return request.param
 
 
@@ -101,7 +114,7 @@ def once_per_group(request):
     ],
     ids=["TPCrange", "PitchClassVectors", "ChordSymbolUnigrams", "ChordSymbolBigrams"],
 )
-def analyzer(once_per_group, request):
+def analyzer(once_per_group, request) -> Analyzer:
     return request.param(once_per_group=once_per_group)
 
 
@@ -122,17 +135,17 @@ def analyzer(once_per_group, request):
         "LocalKeySlicer",
     ],
 )
-def slicer(request):
+def slicer(request) -> Slicer:
     return request.param
 
 
 @pytest.fixture(
     scope="session",
 )
-def apply_slicer(slicer, corpus):
-    sliced_data = slicer.process_data(corpus)
+def apply_slicer(slicer, dataset) -> SlicedDataset:
+    sliced_data = slicer.process_data(dataset)
     print(
-        f"\n{len(corpus.indices[()])} indices before slicing, after: {len(sliced_data.indices[()])}"
+        f"\n{len(dataset.indices[()])} indices before slicing, after: {len(sliced_data.indices[()])}"
     )
     assert len(sliced_data.sliced) > 0
     assert len(sliced_data.slice_info) > 0
@@ -160,7 +173,7 @@ def apply_slicer(slicer, corpus):
 @pytest.fixture(
     scope="session",
 )
-def sliced_data(apply_slicer):
+def sliced_data(apply_slicer) -> SlicedDataset:
     return apply_slicer
 
 
@@ -173,22 +186,22 @@ def sliced_data(apply_slicer):
     ],
     ids=["CorpusGrouper", "PieceGrouper", "YearGrouper"],
 )
-def grouper(request):
+def grouper(request) -> Grouper:
     return request.param
 
 
 @pytest.fixture(
     scope="session",
 )
-def apply_grouper(grouper, corpus):
-    grouped_data = grouper.process_data(corpus)
+def apply_grouper(grouper, dataset) -> GroupedDataset:
+    grouped_data = grouper.process_data(dataset)
     return grouped_data
 
 
 @pytest.fixture(
     scope="session",
 )
-def grouped_data(apply_grouper):
+def grouped_data(apply_grouper) -> GroupedDataset:
     return apply_grouper
 
 
@@ -203,8 +216,8 @@ def grouped_data(apply_grouper):
         "IsAnnotatedFilter",
     ],
 )
-def pipeline(request, corpus):
-    grouped_data = request.param.process_data(corpus)
+def pipeline(request, dataset) -> Pipeline:
+    grouped_data = request.param.process_data(dataset)
     print(f"\n{pretty_dict(grouped_data.indices)}")
     return grouped_data
 
@@ -212,7 +225,7 @@ def pipeline(request, corpus):
 @pytest.fixture(
     scope="session",
 )
-def pipelined_data(pipeline):
+def pipelined_data(pipeline) -> Dataset:
     return pipeline
 
 
@@ -223,7 +236,7 @@ def pipelined_data(pipeline):
     ],
     ids=["IsAnnotatedFilter"],
 )
-def filter(request, corpus):
-    filtered_data = request.param.process_data(corpus)
+def filter(request, dataset) -> Filter:
+    filtered_data = request.param.process_data(dataset)
     print(f"\n{pretty_dict(filtered_data.indices)}")
     return filtered_data
