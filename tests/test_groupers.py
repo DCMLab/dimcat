@@ -1,4 +1,4 @@
-from dimcat.data import AnalyzedData
+from dimcat.data import AnalyzedData, Dataset
 from IPython.display import display
 from ms3 import pretty_dict
 
@@ -22,3 +22,17 @@ def test_properties(grouped_data):
     property_test_on_grouped_data(grouped_data)
     analyzed_grouped = AnalyzedData(grouped_data)
     property_test_on_grouped_data(analyzed_grouped)
+
+
+def test_transitivity_with_slicers(grouped_data, slicer):
+    sliced_grouped = slicer.process_data(grouped_data)
+    test_grouper = grouped_data.get_previous_pipeline_step()
+    reset_data = Dataset(grouped_data)
+    sliced_data = slicer.process_data(reset_data)
+    grouped_sliced = test_grouper.process_data(sliced_data)
+    for (sl_gr_group, sl_gr_notes), (gr_sl_group, gr_sl_notes) in zip(
+        sliced_grouped.iter_grouped_facet("notes"),
+        grouped_sliced.iter_grouped_facet("notes"),
+    ):
+        assert sl_gr_group == gr_sl_group
+        assert len(sl_gr_notes) == len(gr_sl_notes)
