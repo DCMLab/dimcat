@@ -119,13 +119,8 @@ class LazyFacetSlicer(FacetSlicer):
         slice_infos: Dict[PieceID, pd.DataFrame] = {}
         """For each slice, the relevant info about it, e.g. for later grouping"""
 
-        facet_in_question = self.required_facets[0]
-        for index, facet_df in result.iter_facet(facet_in_question):
-            try:
-                eligible, message = self.check(facet_df)
-            except AttributeError:
-                print(result)
-                raise
+        for index, facet_df in result.iter_facet(self.required_facets[0]):
+            eligible, message = self.check(facet_df)
             if not eligible:
                 print(f"{index}: {message}")
                 continue
@@ -186,33 +181,42 @@ class OnePassFacetSlicer(FacetSlicer):
         # where keys are the new indices. Each piece's (corpus, fname) index tuple will be
         # multiplied according to the number of slices and the new index tuples will be
         # differentiated by the slices' intervals: (corpus, fname, interval)
-        indices = (
-            {}
-        )  # {group -> [(index)]}; each list of indices will be at least as long as before
-        slice_infos = (
-            {}
-        )  # for each slice, the relevant info about it, e.g. for later grouping
-        sliced = (
-            {}
-        )  # for each piece, the relevant facet sliced into multiple DataFrames
-        for group, dfs in result.iter_facet(self.required_facets[0]):
-            new_index_group = []
-            for index, facet_df in dfs.items():
-                eligible, message = self.check(facet_df)
-                if not eligible:
-                    print(f"{index}: {message}")
-                    continue
-                for slice_index, slice_info, chunk in self.iter_slices(
-                    index, facet_df, **self.config
-                ):
-                    new_index_group.append(slice_index)
-                    sliced[slice_index] = chunk
-                    slice_infos[slice_index] = slice_info
-            indices[group] = new_index_group
+        slicer_name = self.__class__.__name__
+        slice_indices: Dict[PieceID, List[SliceID]] = {}
+        slice_infos: Dict[PieceID, pd.DataFrame] = {}
+        """For each slice, the relevant info about it, e.g. for later grouping"""
+        sliced: Dict[SliceID, pd.DataFrame] = {}
+        """For each piece, the relevant facet sliced into multiple DataFrames"""
+        for index, facet_df in result.iter_facet(self.required_facets[0]):
+            eligible, message = self.check(facet_df)
+            if not eligible:
+                print(f"{index}: {message}")
+                continue
+            slice_indices[index] = []
+            for slice_index, slice_info, chunk in self.iter_slices(
+                index, facet_df, **self.config
+            ):
+                slice_infos[slice_index] = slice_info
+                slice_indices[index].append(slice_index)
+                sliced[slice_index] = chunk
+        n_slices_per_id = {
+            index: len(slice_ids) for index, slice_ids in slice_indices.items()
+        }
+        if sum(n_slices_per_id.values()) == 0:
+            raise RuntimeError(
+                f"{slicer_name} did not yield any slices. Probably the data is missing a feature "
+                f"(such as particular annotations) that is required for slicing."
+            )
+        no_slice_ids = [ID for ID, n_slices in n_slices_per_id.items() if n_slices == 0]
+        if len(no_slice_ids) > 0:
+            logger.warning(
+                f"{slicer_name} did not yield any slices for the following IDs "
+                f"(annotations missing?):\n{no_slice_ids}"
+            )
         result.track_pipeline(self, **self.level_names)
-        result.sliced[self.required_facets[0]] = sliced
         result.slice_info = slice_infos
-        result.indices = indices
+        result.sliced[self.required_facets[0]] = sliced
+        result.set_indices(slice_indices)
         return result
 
 
