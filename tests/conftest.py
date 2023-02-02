@@ -1,10 +1,6 @@
 """
-    Dummy conftest.py for dimcat.
-
-    If you don't know what this is for, just leave it empty.
-    Read more about conftest.py under:
-    - https://docs.pytest.org/en/stable/fixture.html
-    - https://docs.pytest.org/en/stable/writing_plugins.html
+Configuration of the unittests. Set your directories here.
+Pytest fixtures defined in this module are accessible to all unittest modules (starting on ``test_``).
 """
 import math
 import os
@@ -15,6 +11,8 @@ from dimcat.analyzer import (
     Analyzer,
     ChordSymbolBigrams,
     ChordSymbolUnigrams,
+    LocalKeySequence,
+    LocalKeyUnique,
     PitchClassVectors,
     TPCrange,
 )
@@ -111,11 +109,20 @@ def once_per_group(request) -> bool:
         PitchClassVectors,
         ChordSymbolUnigrams,
         ChordSymbolBigrams,
+        LocalKeyUnique,
+        LocalKeySequence,
     ],
-    ids=["TPCrange", "PitchClassVectors", "ChordSymbolUnigrams", "ChordSymbolBigrams"],
+    ids=[
+        "TPCrange",
+        "PitchClassVectors",
+        "ChordSymbolUnigrams",
+        "ChordSymbolBigrams",
+        "LocalKeyUnique",
+        "LocalKeySequence",
+    ],
 )
-def analyzer(once_per_group, request) -> Analyzer:
-    return request.param(once_per_group=once_per_group)
+def analyzer(request) -> Analyzer:
+    return request.param()
 
 
 @pytest.fixture(
@@ -123,15 +130,15 @@ def analyzer(once_per_group, request) -> Analyzer:
     params=[
         PhraseSlicer(),
         MeasureSlicer(),
-        NoteSlicer(1),
-        NoteSlicer(),
+        NoteSlicer(4),
+        # NoteSlicer(),
         LocalKeySlicer(),
     ],
     ids=[
         "PhraseSlicer",
         "MeasureSlicer",
-        "NoteSlicer_quarters",
-        "NoteSlicer_onsets",
+        "NoteSlicer_whole",
+        # "NoteSlicer_onsets",
         "LocalKeySlicer",
     ],
 )
@@ -145,7 +152,7 @@ def slicer(request) -> Slicer:
 def apply_slicer(slicer, dataset) -> SlicedDataset:
     sliced_data = slicer.process_data(dataset)
     print(
-        f"\n{len(dataset.indices[()])} indices before slicing, after: {len(sliced_data.indices[()])}"
+        f"\n{len(dataset.indices)} indices before slicing, after: {len(sliced_data.indices)}"
     )
     assert len(sliced_data.sliced) > 0
     assert len(sliced_data.slice_info) > 0
@@ -209,16 +216,15 @@ def grouped_data(apply_grouper) -> GroupedDataset:
     scope="session",
     params=[
         Pipeline([LocalKeySlicer(), ModeGrouper()]),
-        Pipeline([IsAnnotatedFilter()]),
+        Pipeline([IsAnnotatedFilter(), PhraseSlicer()]),
     ],
     ids=[
-        "ModeGrouper",
-        "IsAnnotatedFilter",
+        "PL_ModeGrouper",
+        "PL_Filtered_PhraseSlicer",
     ],
 )
 def pipeline(request, dataset) -> Pipeline:
     grouped_data = request.param.process_data(dataset)
-    print(f"\n{pretty_dict(grouped_data.indices)}")
     return grouped_data
 
 

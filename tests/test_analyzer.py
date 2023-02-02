@@ -1,19 +1,55 @@
 import pandas as pd
 import pytest  # noqa: F401
-from dimcat import ChordSymbolBigrams, LocalKeySlicer, PhraseSlicer, TSVWriter
+from dimcat import PhraseSlicer, TSVWriter
 from ms3 import nan_eq
 
 __author__ = "Digital and Cognitive Musicology Lab"
 __copyright__ = "École Polytechnique Fédérale de Lausanne"
 __license__ = "GPL-3.0-or-later"
 
+from dimcat.analyzer import _stepstrings2steps
+from dimcat.data import GroupedData
 
-def assert_pipeline_dependency_raise(analyzer, data):
-    if isinstance(analyzer, ChordSymbolBigrams):
-        if not any(isinstance(step, LocalKeySlicer) for step in data.pipeline_steps):
-            with pytest.raises(AssertionError):
-                _ = analyzer.process_data(data)
+
+def assert_pipeline_dependency_raise(analyzer_obj, data):
+    analyzer_class = analyzer_obj.__class__
+    analyzer_name = analyzer_class.__name__
+    if len(analyzer_class.assert_steps) > 0:
+        assert_steps = _stepstrings2steps(analyzer_class.assert_steps)
+        for step in assert_steps:
+            if not any(
+                isinstance(previous_step, step) for previous_step in data.pipeline_steps
+            ):
+                with pytest.raises(ValueError):
+                    _ = analyzer_obj.process_data(data)
+                print(
+                    f"{analyzer_name} correctly raised ValueError "
+                    f"because no {step.__name__} had been previously applied."
+                )
+                return True
+    if len(analyzer_class.assert_previous_step) > 0:
+        assert_previous_step = _stepstrings2steps(analyzer_class.assert_previous_step)
+        previous_step = data.pipeline_steps[0]
+        if not isinstance(previous_step, assert_previous_step):
+            with pytest.raises(ValueError):
+                _ = analyzer_obj.process_data(data)
+            print(
+                f"{analyzer_name} correctly raised ValueError "
+                f"because {step.__name__} is not an instance of {analyzer_class.assert_previous_step}."
+            )
             return True
+    if len(analyzer_class.excluded_steps) > 0:
+        excluded_steps = _stepstrings2steps(analyzer_class.excluded_steps)
+        for step in excluded_steps:
+            if any(
+                isinstance(previous_step, step) for previous_step in data.pipeline_steps
+            ):
+                with pytest.raises(ValueError):
+                    _ = analyzer_obj.process_data(data)
+                print(
+                    f"{analyzer_name} correctly raised ValueError because {step.__name__} had been applied."
+                )
+                return True
     return False
 
 
@@ -32,53 +68,208 @@ def analyzer_results(request):
     print(identifier)
     if caller == "test_analyzer":
         expected_results = {
-            ("TSV only", "corpus", "TPCrange", "once_per_group"): {
-                (): "pleyel_quartets-TPCrange"
+            ("TSV only", "corpus", "TPCrange"): {
+                (
+                    "pleyel_quartets",
+                    "b307op2n1a",
+                ): "pleyel_quartets|b307op2n1a-TPCrange",
+                (
+                    "pleyel_quartets",
+                    "b307op2n1b",
+                ): "pleyel_quartets|b307op2n1b-TPCrange",
+                (
+                    "pleyel_quartets",
+                    "b307op2n1c",
+                ): "pleyel_quartets|b307op2n1c-TPCrange",
+                (
+                    "pleyel_quartets",
+                    "b309op2n3a",
+                ): "pleyel_quartets|b309op2n3a-TPCrange",
+                (
+                    "pleyel_quartets",
+                    "b309op2n3b",
+                ): "pleyel_quartets|b309op2n3b-TPCrange",
+                (
+                    "pleyel_quartets",
+                    "b309op2n3c",
+                ): "pleyel_quartets|b309op2n3c-TPCrange",
             },
-            ("TSV only", "corpus", "TPCrange", ""): {(): "pleyel_quartets-TPCrange"},
-            ("TSV only", "corpus", "PitchClassVectors", "once_per_group"): {
-                (): "pleyel_quartets-tpc-pcvs"
+            ("TSV only", "corpus", "PitchClassVectors"): {
+                (
+                    "pleyel_quartets",
+                    "b307op2n1a",
+                ): "pleyel_quartets|b307op2n1a-tpc-pcvs",
+                (
+                    "pleyel_quartets",
+                    "b307op2n1b",
+                ): "pleyel_quartets|b307op2n1b-tpc-pcvs",
+                (
+                    "pleyel_quartets",
+                    "b307op2n1c",
+                ): "pleyel_quartets|b307op2n1c-tpc-pcvs",
+                (
+                    "pleyel_quartets",
+                    "b309op2n3a",
+                ): "pleyel_quartets|b309op2n3a-tpc-pcvs",
+                (
+                    "pleyel_quartets",
+                    "b309op2n3b",
+                ): "pleyel_quartets|b309op2n3b-tpc-pcvs",
+                (
+                    "pleyel_quartets",
+                    "b309op2n3c",
+                ): "pleyel_quartets|b309op2n3c-tpc-pcvs",
             },
-            ("TSV only", "corpus", "PitchClassVectors", ""): {
-                (): "pleyel_quartets-tpc-pcvs"
+            ("TSV only", "corpus", "ChordSymbolUnigrams"): {
+                (
+                    "pleyel_quartets",
+                    "b307op2n1a",
+                ): "pleyel_quartets|b307op2n1a-ChordSymbolUnigrams",
+                (
+                    "pleyel_quartets",
+                    "b307op2n1b",
+                ): "pleyel_quartets|b307op2n1b-ChordSymbolUnigrams",
+                (
+                    "pleyel_quartets",
+                    "b307op2n1c",
+                ): "pleyel_quartets|b307op2n1c-ChordSymbolUnigrams",
+                (
+                    "pleyel_quartets",
+                    "b309op2n3a",
+                ): "pleyel_quartets|b309op2n3a-ChordSymbolUnigrams",
+                (
+                    "pleyel_quartets",
+                    "b309op2n3b",
+                ): "pleyel_quartets|b309op2n3b-ChordSymbolUnigrams",
+                (
+                    "pleyel_quartets",
+                    "b309op2n3c",
+                ): "pleyel_quartets|b309op2n3c-ChordSymbolUnigrams",
             },
-            ("TSV only", "corpus", "ChordSymbolUnigrams", "once_per_group"): {
-                (): "pleyel_quartets-ChordSymbolUnigrams"
+            ("TSV only", "corpus", "ChordSymbolBigrams"): {},
+            ("TSV only", "corpus", "LocalKeyUnique"): {},
+            ("TSV only", "corpus", "LocalKeySequence"): {},
+            ("TSV only", "metacorpus", "TPCrange"): {
+                (
+                    "ravel_piano",
+                    "Ravel_-_Jeux_dEau",
+                ): "ravel_piano|Ravel_-_Jeux_dEau-TPCrange",
+                (
+                    "ravel_piano",
+                    "Ravel_-_Miroirs_I._Noctuelles",
+                ): "ravel_piano|Ravel_-_Miroirs_I._Noctuelles-TPCrange",
+                (
+                    "ravel_piano",
+                    "Ravel_-_Miroirs_II._Oiseaux_tristes",
+                ): "ravel_piano|Ravel_-_Miroirs_II._Oiseaux_tristes-TPCrange",
+                (
+                    "ravel_piano",
+                    "Ravel_-_Miroirs_III._Une_Barque_sur_l'ocean",
+                ): "ravel_piano|Ravel_-_Miroirs_III._Une_Barque_sur_l'ocean-TPCrange",
+                (
+                    "ravel_piano",
+                    "Ravel_-_Miroirs_IV._Alborada_del_gracioso",
+                ): "ravel_piano|Ravel_-_Miroirs_IV._Alborada_del_gracioso-TPCrange",
+                (
+                    "sweelinck_keyboard",
+                    "SwWV258_fantasia_cromatica",
+                ): "sweelinck_keyboard|SwWV258_fantasia_cromatica-TPCrange",
+                (
+                    "wagner_overtures",
+                    "WWV090_Tristan_01_Vorspiel-Prelude_Ricordi1888Floridia",
+                ): "wagner_overtures|WWV090_Tristan_01_Vorspiel-Prelude_Ricordi1888Floridia-TPCrange",
+                (
+                    "wagner_overtures",
+                    "WWV096-Meistersinger_01_Vorspiel-Prelude_SchottKleinmichel",
+                ): "wagner_overtures|WWV096-Meistersinger_01_Vorspiel-Prelude_SchottKleinmichel-TPCrange",
             },
-            ("TSV only", "corpus", "ChordSymbolUnigrams", ""): {
-                (): "pleyel_quartets-ChordSymbolUnigrams"
+            ("TSV only", "metacorpus", "PitchClassVectors"): {
+                (
+                    "ravel_piano",
+                    "Ravel_-_Jeux_dEau",
+                ): "ravel_piano|Ravel_-_Jeux_dEau-tpc-pcvs",
+                (
+                    "ravel_piano",
+                    "Ravel_-_Miroirs_I._Noctuelles",
+                ): "ravel_piano|Ravel_-_Miroirs_I._Noctuelles-tpc-pcvs",
+                (
+                    "ravel_piano",
+                    "Ravel_-_Miroirs_II._Oiseaux_tristes",
+                ): "ravel_piano|Ravel_-_Miroirs_II._Oiseaux_tristes-tpc-pcvs",
+                (
+                    "ravel_piano",
+                    "Ravel_-_Miroirs_III._Une_Barque_sur_l'ocean",
+                ): "ravel_piano|Ravel_-_Miroirs_III._Une_Barque_sur_l'ocean-tpc-pcvs",
+                (
+                    "ravel_piano",
+                    "Ravel_-_Miroirs_IV._Alborada_del_gracioso",
+                ): "ravel_piano|Ravel_-_Miroirs_IV._Alborada_del_gracioso-tpc-pcvs",
+                (
+                    "sweelinck_keyboard",
+                    "SwWV258_fantasia_cromatica",
+                ): "sweelinck_keyboard|SwWV258_fantasia_cromatica-tpc-pcvs",
+                (
+                    "wagner_overtures",
+                    "WWV090_Tristan_01_Vorspiel-Prelude_Ricordi1888Floridia",
+                ): "wagner_overtures|WWV090_Tristan_01_Vorspiel-Prelude_Ricordi1888Floridia-tpc-pcvs",
+                (
+                    "wagner_overtures",
+                    "WWV096-Meistersinger_01_Vorspiel-Prelude_SchottKleinmichel",
+                ): "wagner_overtures|WWV096-Meistersinger_01_Vorspiel-Prelude_SchottKleinmichel-tpc-pcvs",
             },
-            ("TSV only", "corpus", "ChordSymbolBigrams", "once_per_group"): {},
-            ("TSV only", "corpus", "ChordSymbolBigrams", ""): {},
-            ("TSV only", "metacorpus", "TPCrange", "once_per_group"): {
-                (): "all-TPCrange"
+            ("TSV only", "metacorpus", "ChordSymbolUnigrams"): {
+                (
+                    "ravel_piano",
+                    "Ravel_-_Jeux_dEau",
+                ): "ravel_piano|Ravel_-_Jeux_dEau-ChordSymbolUnigrams",
+                (
+                    "ravel_piano",
+                    "Ravel_-_Miroirs_I._Noctuelles",
+                ): "ravel_piano|Ravel_-_Miroirs_I._Noctuelles-ChordSymbolUnigrams",
+                (
+                    "ravel_piano",
+                    "Ravel_-_Miroirs_II._Oiseaux_tristes",
+                ): "ravel_piano|Ravel_-_Miroirs_II._Oiseaux_tristes-ChordSymbolUnigrams",
+                (
+                    "ravel_piano",
+                    "Ravel_-_Miroirs_III._Une_Barque_sur_l'ocean",
+                ): "ravel_piano|Ravel_-_Miroirs_III._Une_Barque_sur_l'ocean-ChordSymbolUnigrams",
+                (
+                    "ravel_piano",
+                    "Ravel_-_Miroirs_IV._Alborada_del_gracioso",
+                ): "ravel_piano|Ravel_-_Miroirs_IV._Alborada_del_gracioso-ChordSymbolUnigrams",
+                (
+                    "sweelinck_keyboard",
+                    "SwWV258_fantasia_cromatica",
+                ): "sweelinck_keyboard|SwWV258_fantasia_cromatica-ChordSymbolUnigrams",
+                (
+                    "wagner_overtures",
+                    "WWV090_Tristan_01_Vorspiel-Prelude_Ricordi1888Floridia",
+                ): "wagner_overtures|WWV090_Tristan_01_Vorspiel-Prelude_Ricordi1888Floridia-ChordSymbolUnigrams",
+                (
+                    "wagner_overtures",
+                    "WWV096-Meistersinger_01_Vorspiel-Prelude_SchottKleinmichel",
+                ): "wagner_overtures|WWV096-Meistersinger_01_Vorspiel-Prelude_SchottKleinmichel-ChordSymbolUnigrams",
             },
-            ("TSV only", "metacorpus", "TPCrange", ""): {(): "all-TPCrange"},
-            ("TSV only", "metacorpus", "PitchClassVectors", "once_per_group"): {
-                (): "all-tpc-pcvs"
-            },
-            ("TSV only", "metacorpus", "PitchClassVectors", ""): {(): "all-tpc-pcvs"},
-            ("TSV only", "metacorpus", "ChordSymbolUnigrams", "once_per_group"): {
-                (): "all-ChordSymbolUnigrams"
-            },
-            ("TSV only", "metacorpus", "ChordSymbolUnigrams", ""): {
-                (): "all-ChordSymbolUnigrams"
-            },
-            ("TSV only", "metacorpus", "ChordSymbolBigrams", "once_per_group"): {},
-            ("TSV only", "metacorpus", "ChordSymbolBigrams", ""): {},
+            ("TSV only", "metacorpus", "ChordSymbolBigrams"): {},
+            ("TSV only", "metacorpus", "LocalKeyUnique"): {},
+            ("TSV only", "metacorpus", "LocalKeySequence"): {},
         }
     return expected_results[identifier]
 
 
-def test_analyzer(analyzer, corpus, analyzer_results):
-    assert len(corpus.index_levels["processed"]) == 0
-    if assert_pipeline_dependency_raise(analyzer, corpus):
+def test_analyzer(analyzer, dataset, analyzer_results):
+    assert len(dataset.index_levels["processed"]) == 0
+    if assert_pipeline_dependency_raise(analyzer, dataset):
         return
-    data = analyzer.process_data(corpus)
+    data = analyzer.process_data(dataset)
     print(f"{data.get()}")
     assert len(data.processed) > 0
     assert len(data.pipeline_steps) > 0
-    automatic_filenames = TSVWriter(".").make_filenames(data)
+    if isinstance(data, GroupedData):
+        automatic_filenames = TSVWriter(".").make_group_filenames(data)
+    else:
+        automatic_filenames = TSVWriter(".").make_index_filenames(data)
     assert automatic_filenames == analyzer_results
 
 
@@ -184,9 +375,6 @@ def test_analyzing_pipelines(
 
 def test_analyzing_grouped_pipelines(analyzer, pipelined_data, grouper):
     grouped = grouper.process_data(pipelined_data)
-    for facet, slices in grouped.sliced.items():
-        for id, df in slices.items():
-            assert df.index.nlevels == 1
     if assert_pipeline_dependency_raise(analyzer, grouped):
         return
     data = analyzer.process_data(grouped)
