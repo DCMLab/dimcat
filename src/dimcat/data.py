@@ -4,24 +4,13 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from copy import deepcopy
 from functools import lru_cache
-from typing import (
-    Any,
-    Collection,
-    Dict,
-    Iterator,
-    List,
-    Literal,
-    Optional,
-    Tuple,
-    Union,
-    overload,
-)
+from typing import Any, Collection, Dict, Iterator, List, Optional, Tuple, Union
 
 import ms3
 import pandas as pd
 from ms3._typing import ScoreFacet
 
-from ._typing import ID, GroupID, Pandas, PieceID, SliceID
+from ._typing import ID, GroupID, PieceID, SliceID
 from .utils import clean_index_levels
 
 logger = logging.getLogger(__name__)
@@ -36,6 +25,23 @@ PROCESSED_DATA_FIELDS: Dict[str, Tuple[str, ...]] = {
 }
 """Name of the data fields that the three types of processing add to any _Dataset object.
 Important for copying objects."""
+
+_TYPE_CACHE = {}
+"""Used by :func:`_typestrings2types` to cache the module's globals()"""
+
+
+def _typestrings2types(typestrings: Union[str, Collection[str]]) -> Tuple[Any]:
+    """Turns one or several names of classes contained in this module into a
+    tuple of references to these classes."""
+    global _TYPE_CACHE
+    if isinstance(typestrings, str):
+        typestrings = [typestrings]
+    result = []
+    for typ in typestrings:
+        if typ not in _TYPE_CACHE:
+            _TYPE_CACHE = globals()
+        result.append(_TYPE_CACHE[typ])
+    return tuple(result)
 
 
 class Data(ABC):
@@ -112,6 +118,39 @@ class _Dataset(Data, ABC):
     @abstractmethod
     def get_item(self, index, what):
         """Get an individual piece of data."""
+
+    def get_previous_pipeline_step(self, idx=0, of_type=None):
+        """Retrieve one of the previously applied PipelineSteps, either by index or by type.
+
+        Parameters
+        ----------
+        idx : :obj:`int`, optional
+            List index used if ``of_type`` is None. Defaults to 0, which is the PipeLine step
+            most recently applied.
+        of_type : :obj:`PipelineStep`, optional
+            Return the most recently applied PipelineStep of this type.
+
+        Returns
+        -------
+        :obj:`PipelineStep`
+        """
+        if of_type is None:
+            n_previous_steps = len(self.pipeline_steps)
+            try:
+                return self.pipeline_steps[idx]
+            except IndexError:
+                logger.info(
+                    f"Invalid index idx={idx} for list of length {n_previous_steps}"
+                )
+                raise
+        try:
+            return next(
+                step for step in self.pipeline_steps if isinstance(step, of_type)
+            )
+        except StopIteration:
+            raise StopIteration(
+                f"Previously applied PipelineSteps do not include any {of_type}: {self.pipeline_steps}"
+            )
 
     def set_indices(self, new_indices: List[tuple]) -> None:
         """Replace :attr:`indices` with a new list of IDs.
@@ -307,7 +346,7 @@ class Dataset(_Dataset):
         self.group2pandas = data_object.group2pandas
         if self.__class__.__name__ == "Dataset":
             return
-        dtypes = typestrings2types(PROCESSED_DATA_FIELDS.keys())
+        dtypes = _typestrings2types(PROCESSED_DATA_FIELDS.keys())
         dtypes = dict(zip(PROCESSED_DATA_FIELDS.keys(), dtypes))
         for processed_type, optional_fields in PROCESSED_DATA_FIELDS.items():
             dtype = dtypes[processed_type]
@@ -452,39 +491,6 @@ class Dataset(_Dataset):
                 continue
             yield index, df
 
-    def get_previous_pipeline_step(self, idx=0, of_type=None):
-        """Retrieve one of the previously applied PipelineSteps, either by index or by type.
-
-        Parameters
-        ----------
-        idx : :obj:`int`, optional
-            List index used if ``of_type`` is None. Defaults to 0, which is the PipeLine step
-            most recently applied.
-        of_type : :obj:`PipelineStep`, optional
-            Return the most recently applied PipelineStep of this type.
-
-        Returns
-        -------
-        :obj:`PipelineStep`
-        """
-        if of_type is None:
-            n_previous_steps = len(self.pipeline_steps)
-            try:
-                return self.pipeline_steps[idx]
-            except IndexError:
-                logger.info(
-                    f"Invalid index idx={idx} for list of length {n_previous_steps}"
-                )
-                raise
-        try:
-            return next(
-                step for step in self.pipeline_steps if isinstance(step, of_type)
-            )
-        except StopIteration:
-            raise StopIteration(
-                f"Previously applied PipelineSteps do not include any {of_type}: {self.pipeline_steps}"
-            )
-
     @lru_cache()
     def get_item(
         self, index: PieceID, what: ScoreFacet, unfold: bool = False
@@ -515,22 +521,10 @@ class Dataset(_Dataset):
         return df
 
 
-TYPE_CACHE = {}
+class Result(dict, Data):
+    """Represents the result of an Analyzer processing a :class:`_Dataset`"""
 
-
-def typestrings2types(typestrings: Union[str, Collection[str]]) -> Tuple[Any]:
-    global TYPE_CACHE
-    if isinstance(typestrings, str):
-        typestrings = [typestrings]
-    result = []
-    all_objects = None
-    for typ in typestrings:
-        if typ not in TYPE_CACHE:
-            if all_objects is None:
-                all_objects = globals()
-            TYPE_CACHE[typ] = all_objects[typ]
-        result.append(TYPE_CACHE[typ])
-    return tuple(result)
+    pass
 
 
 class _ProcessedData(_Dataset):
@@ -562,19 +556,19 @@ class _ProcessedData(_Dataset):
             data: Dataset to be converted into a processed subtype.
             **kwargs:
         """
-        assert_types = typestrings2types(cls.assert_types)
+        assert_types = _typestrings2types(cls.assert_types)
         if not isinstance(data, assert_types):
             raise TypeError(
                 f"{cls.__name__} objects can only be created from {cls.assert_types}, not '{type(data).__name__}'"
             )
-        excluded_types = typestrings2types(cls.excluded_types)
+        excluded_types = _typestrings2types(cls.excluded_types)
         if isinstance(data, excluded_types):
             raise TypeError(
                 f"{cls.__name__} objects cannot be created from '{type(data).__name__}' because it is among the "
                 f"excluded_types {cls.excluded_types}."
             )
         type_mapping = {
-            typestrings2types(input_type): typestrings2types(output_type)[0]
+            _typestrings2types(input_type): _typestrings2types(output_type)[0]
             for input_type, output_type in cls.type_mapping.items()
         }
         new_obj_type = None
@@ -680,7 +674,7 @@ class GroupedData(_ProcessedData):
                 The group_keys are an empty tuple by default; with every applied Grouper,
                 the length of all group_keys grows by one and the number of group_keys grows or stays the same."""
 
-    def iter_grouped_indices(self):
+    def iter_grouped_indices(self) -> Iterator[Tuple[str, List[ID]]]:
         """Iterate through groups of indices as defined by the previously applied Groupers.
 
         Yields
@@ -695,6 +689,16 @@ class GroupedData(_ProcessedData):
         if any(len(index_list) == 0 for index_list in self.grouped_indices.values()):
             logger.warning("Data object contains empty groups.")
         yield from self.grouped_indices.items()
+
+    def iter_grouped_slice_info(self) -> Iterator[Tuple[tuple, pd.DataFrame]]:
+        """Iterate through concatenated slice_info DataFrame for each group."""
+        for group, index_group in self.iter_grouped_indices():
+            group_info = {ix: self.slice_info[ix] for ix in index_group}
+            group_df = pd.concat(group_info.values(), keys=group_info.keys(), axis=1).T
+            group_df.index = self._rename_multiindex_levels(
+                group_df.index, self.index_levels["indices"]
+            )
+            yield group, group_df
 
 
 class AnalyzedData(_ProcessedData):
@@ -728,124 +732,129 @@ class AnalyzedData(_ProcessedData):
             if hasattr(data, "processed"):
                 self.processed = data.processed
             else:
-                self.processed: Dict[GroupID, Union[Dict[ID, Any], List[str]]] = {}
-                """Analyzers store there result here. Those that compute one result per item per group
-                store {ID -> result} dicts, all others store simply the result for each group. In the first case,
-                :attr:`group2pandas` needs to be specified for correctly converting the dict to a pandas object."""
+                self.processed: List[Result] = []
+                """Analyzers store there result here using :meth:`set_result`."""
 
-    @overload
-    def get(self, as_pandas: bool = Literal[True]) -> Pandas:
-        ...
+    def set_result(self, analyzer: "Analyzer", result: Result):  # noqa: F821
+        assert analyzer == self.get_previous_pipeline_step()
+        self.processed = [result] + self.processed
 
-    @overload
-    def get(self, as_pandas: bool = Literal[False]) -> Dict[GroupID, Any]:
-        ...
+    # @overload
+    # def get(self, as_pandas: bool = Literal[True]) -> Pandas:
+    #     ...
+    #
+    # @overload
+    # def get(self, as_pandas: bool = Literal[False]) -> Dict[GroupID, Any]:
+    #     ...
+    #
+    # def get(self, as_pandas: bool = True) -> Union[Pandas, Dict[GroupID, Any]]:
+    #     """Collects the results of :meth:`iter` to retrieve all processed data at once.
+    #
+    #     Args:
+    #         as_pandas:
+    #             By default, the result is a pandas DataFrame or Series where the first levels
+    #             display group identifiers (if any). Pass False to obtain a nested {group -> group_result}
+    #             dictionary instead.
+    #
+    #     Returns:
+    #         The contents of :attr:`processed` in original or adapted form.
+    #     """
+    #     if len(self.processed) == 0:
+    #         logger.info("No data has been processed so far.")
+    #         return
+    #     results = {group: result for group, result in self.iter(as_pandas=as_pandas)}
+    #     if not as_pandas:
+    #         return results
+    #     if self.group2pandas is None:
+    #         return pd.Series(results)
+    #     # default: concatenate to a single pandas object
+    #     if len(results) == 1 and () in results:
+    #         pandas_obj = pd.concat(results.values())
+    #     else:
+    #         try:
+    #             pandas_obj = pd.concat(
+    #                 results.values(),
+    #                 keys=results.keys(),
+    #                 names=self.index_levels["groups"],
+    #             )
+    #         except ValueError:
+    #             logger.info(self.index_levels["groups"])
+    #             logger.info(results.keys())
+    #             raise
+    #     return clean_index_levels(pandas_obj)
+    #
+    def get(self):
+        return self.processed[0]
 
-    def get(self, as_pandas: bool = True) -> Union[Pandas, Dict[GroupID, Any]]:
-        """Collects the results of :meth:`iter` to retrieve all processed data at once.
-
-        Args:
-            as_pandas:
-                By default, the result is a pandas DataFrame or Series where the first levels
-                display group identifiers (if any). Pass False to obtain a nested {group -> group_result}
-                dictionary instead.
-
-        Returns:
-            The contents of :attr:`processed` in original or adapted form.
-        """
-        if len(self.processed) == 0:
-            logger.info("No data has been processed so far.")
-            return
-        results = {group: result for group, result in self.iter(as_pandas=as_pandas)}
-        if not as_pandas:
-            return results
-        if self.group2pandas is None:
-            return pd.Series(results)
-        # default: concatenate to a single pandas object
-        if len(results) == 1 and () in results:
-            pandas_obj = pd.concat(results.values())
-        else:
-            try:
-                pandas_obj = pd.concat(
-                    results.values(),
-                    keys=results.keys(),
-                    names=self.index_levels["groups"],
-                )
-            except ValueError:
-                logger.info(self.index_levels["groups"])
-                logger.info(results.keys())
-                raise
-        return clean_index_levels(pandas_obj)
-
-    @overload
-    def iter(
-        self, as_pandas: bool = Literal[False], ignore_groups: bool = Literal[False]
-    ) -> Iterator[Tuple[GroupID, Union[Dict[ID, Any], Any]]]:
-        ...
-
-    @overload
-    def iter(
-        self, as_pandas: bool = Literal[True], ignore_groups: bool = Literal[False]
-    ) -> Iterator[Tuple[GroupID, Union[Pandas, Any]]]:
-        ...
-
-    @overload
-    def iter(
-        self, as_pandas: bool = Literal[False], ignore_groups: bool = Literal[True]
-    ) -> Iterator[Union[Tuple[ID, Any], Any]]:
-        ...
-
-    @overload
-    def iter(
-        self, as_pandas: bool = Literal[True], ignore_groups: bool = Literal[True]
-    ) -> Iterator[Union[Pandas, Any]]:
-        ...
-
-    def iter(
-        self, as_pandas: bool = True, ignore_groups: bool = False
-    ) -> Iterator[
-        Union[
-            Tuple[GroupID, Union[Dict[ID, Any], Any]],
-            Tuple[GroupID, Union[Pandas, Any]],
-            Union[Tuple[ID, Any], Any],
-            Union[Pandas, Any],
-        ]
-    ]:
-        """Iterate through :attr:`processed` data.
-
-        Args:
-            as_pandas:
-                Setting this value to False corresponds to iterating through .processed.items(),
-                where keys are group IDs and values are results for Analyzers that compute
-                one result per group, or {ID -> result} dicts for Analyzers that compute
-                one result per item per group. The default value (True) has no effect in the first case,
-                but in the second case, the dictionary will be converted to a Series if the conversion method is
-                set in :attr:`group2pandas`.
-            ignore_groups:
-                If set to True, the iteration loop is flattened and does not include group identifiers. If as_pandas
-                is False (default), and the applied Analyzer computes one {ID -> result} dict per group,
-                this will correspond to iterating through the (ID, result) tuples for all groups.
-
-        Yields:
-            The result of the last applied Analyzer for each group or for each item of each group.
-        """
-        if ignore_groups and not as_pandas:
-            raise ValueError(
-                "If you set 'as_dict' and 'ignore_groups' are in conflict, choose one or use _.get()."
-            )
-        for group, result in self.processed.items():
-            if ignore_groups:
-                if self.group2pandas is None:
-                    yield result
-                elif as_pandas:
-                    yield self.convert_group2pandas(result)
-                else:
-                    yield from result.items()
-            else:
-                if as_pandas and self.group2pandas is not None:
-                    yield group, self.convert_group2pandas(result)
-                else:
-                    yield group, result
+    # @overload
+    # def iter(
+    #     self, as_pandas: bool = Literal[False], ignore_groups: bool = Literal[False]
+    # ) -> Iterator[Tuple[GroupID, Union[Dict[ID, Any], Any]]]:
+    #     ...
+    #
+    # @overload
+    # def iter(
+    #     self, as_pandas: bool = Literal[True], ignore_groups: bool = Literal[False]
+    # ) -> Iterator[Tuple[GroupID, Union[Pandas, Any]]]:
+    #     ...
+    #
+    # @overload
+    # def iter(
+    #     self, as_pandas: bool = Literal[False], ignore_groups: bool = Literal[True]
+    # ) -> Iterator[Union[Tuple[ID, Any], Any]]:
+    #     ...
+    #
+    # @overload
+    # def iter(
+    #     self, as_pandas: bool = Literal[True], ignore_groups: bool = Literal[True]
+    # ) -> Iterator[Union[Pandas, Any]]:
+    #     ...
+    #
+    # def iter(
+    #     self, as_pandas: bool = True, ignore_groups: bool = False
+    # ) -> Iterator[
+    #     Union[
+    #         Tuple[GroupID, Union[Dict[ID, Any], Any]],
+    #         Tuple[GroupID, Union[Pandas, Any]],
+    #         Union[Tuple[ID, Any], Any],
+    #         Union[Pandas, Any],
+    #     ]
+    # ]:
+    #     """Iterate through :attr:`processed` data.
+    #
+    #     Args:
+    #         as_pandas:
+    #             Setting this value to False corresponds to iterating through .processed.items(),
+    #             where keys are group IDs and values are results for Analyzers that compute
+    #             one result per group, or {ID -> result} dicts for Analyzers that compute
+    #             one result per item per group. The default value (True) has no effect in the first case,
+    #             but in the second case, the dictionary will be converted to a Series if the conversion method is
+    #             set in :attr:`group2pandas`.
+    #         ignore_groups:
+    #             If set to True, the iteration loop is flattened and does not include group identifiers. If as_pandas
+    #             is False (default), and the applied Analyzer computes one {ID -> result} dict per group,
+    #             this will correspond to iterating through the (ID, result) tuples for all groups.
+    #
+    #     Yields:
+    #         The result of the last applied Analyzer for each group or for each item of each group.
+    #     """
+    #     if ignore_groups and not as_pandas:
+    #         raise ValueError(
+    #             "If you set 'as_dict' and 'ignore_groups' are in conflict, choose one or use _.get()."
+    #         )
+    #     for group, result in self.processed.items():
+    #         if ignore_groups:
+    #             if self.group2pandas is None:
+    #                 yield result
+    #             elif as_pandas:
+    #                 yield self.convert_group2pandas(result)
+    #             else:
+    #                 yield from result.items()
+    #         else:
+    #             if as_pandas and self.group2pandas is not None:
+    #                 yield group, self.convert_group2pandas(result)
+    #             else:
+    #                 yield group, result
 
 
 class SlicedDataset(SlicedData, Dataset):
@@ -867,8 +876,8 @@ class SlicedDataset(SlicedData, Dataset):
         match index:
             case (_, _, _):
                 return self.get_slice(index, what)
-            case (_, _):
-                return super().get_item(index=index, what=what, unfold=unfold)
+            case (corpus, piece):
+                return super().get_item(index=(corpus, piece), what=what, unfold=unfold)
 
     def iter_facet(
         self, what: ScoreFacet, unfold: bool = False
@@ -1029,35 +1038,18 @@ class GroupedSlicedDataset(GroupedDataset, SlicedDataset):
 
     def get_slice_info(self, ignore_groups=False) -> pd.DataFrame:
         """Concatenates slice_info Series and returns them as a DataFrame."""
-        if ignore_groups or not self.is_grouped:
-            concatenated_info = pd.concat(
-                self.slice_info.values(), keys=self.slice_info.keys(), axis=1
-            ).T
-            concatenated_info.index.rename(self.index_levels["indices"], inplace=True)
-            return concatenated_info
-        else:
-            group_dfs = {}
-            for group, index_group in self.iter_grouped_indices():
-                group_info = {ix: self.slice_info[ix] for ix in index_group}
-                group_dfs[group] = pd.concat(
-                    group_info.values(), keys=group_info.keys(), axis=1
-                ).T
-            concatenated_info = pd.concat(group_dfs.values(), keys=group_dfs.keys())
-            concatenated_info.index = self._rename_multiindex_levels(
-                concatenated_info.index,
-                self.index_levels["groups"] + self.index_levels["indices"],
-            )
-            return clean_index_levels(concatenated_info)
-
-    def iter_grouped_slice_info(self) -> Iterator[Tuple[tuple, pd.DataFrame]]:
-        """Iterate through concatenated slice_info DataFrame for each group."""
+        group_dfs = {}
         for group, index_group in self.iter_grouped_indices():
             group_info = {ix: self.slice_info[ix] for ix in index_group}
-            group_df = pd.concat(group_info.values(), keys=group_info.keys(), axis=1).T
-            group_df.index = self._rename_multiindex_levels(
-                group_df.index, self.index_levels["indices"]
-            )
-            yield group, group_df
+            group_dfs[group] = pd.concat(
+                group_info.values(), keys=group_info.keys(), axis=1
+            ).T
+        concatenated_info = pd.concat(group_dfs.values(), keys=group_dfs.keys())
+        concatenated_info.index = self._rename_multiindex_levels(
+            concatenated_info.index,
+            self.index_levels["groups"] + self.index_levels["indices"],
+        )
+        return clean_index_levels(concatenated_info)
 
     # def iter_facet(self, what, unfold=False, concatenate=False, ignore_groups=False):
     #     """Iterate through groups of potentially sliced facet DataFrames.
