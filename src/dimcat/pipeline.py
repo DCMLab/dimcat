@@ -1,8 +1,11 @@
 """A Pipeline performs computation iteratively on a List of PipelineSteps."""
 from abc import ABC, abstractmethod
-from typing import List, Tuple
+from typing import Dict, List, Tuple, Type
 
 from .data import Data
+
+_STR2STEP: Dict[str, Type] = {}
+"""This is where :class:`PipelineStep` registers all its subclasses."""
 
 
 class PipelineStep(ABC):
@@ -17,6 +20,11 @@ class PipelineStep(ABC):
         self.required_facets = []
         """Specifies a list of facets (such as 'notes' or 'labels') that the passed Data object
         needs to provide."""
+
+    def __init_subclass__(cls, **kwargs):
+        """Registers every subclass under the global variable :const:`_STR2STEP`"""
+        super().__init_subclass__(**kwargs)
+        _STR2STEP[cls.__name__] = cls
 
     def check(self, _) -> Tuple[bool, str]:
         """Test piece of data for certain properties before computing analysis.
