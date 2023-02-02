@@ -23,19 +23,14 @@ class Filter(PipelineStep, ABC):
         """Returns a copy of the Data object where the list of indices for each existing group has
         potentially fewer elements than before.
         """
-        indices = {}
-        for group, index_group in data.iter_grouped_indices():
-            new_group = []
-            for index in index_group:
-                if self.criterion(index, data):
-                    new_group.append(index)
-            if self.keep_empty_groups or len(new_group) > 0:
-                indices[group] = new_group
+        filtered_indices = [
+            index for index in data.indices if self.criterion(index, data)
+        ]
         result = data.copy()
         result.track_pipeline(
             self,
         )
-        result.set_indices(indices)
+        result.set_indices(filtered_indices)
         return result
 
 

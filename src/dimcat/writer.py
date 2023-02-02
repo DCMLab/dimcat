@@ -1,10 +1,11 @@
 """Writers are pipeline steps that write (potentially processed) data to disk."""
 import os
+from typing import Any, List, Optional
 
 import pandas as pd
 from ms3 import resolve_dir, write_tsv
 
-from .data import Data, Dataset
+from .data import Dataset, GroupedData
 from .pipeline import PipelineStep
 from .utils import make_suffix
 
@@ -14,7 +15,14 @@ class TSVWriter(PipelineStep):
     file with a file name individually constructed based on the applied pipeline steps.
     """
 
-    def __init__(self, directory, prefix=None, index=True, round=None, fillna=None):
+    def __init__(
+        self,
+        directory: str,
+        prefix: Optional[str] = None,
+        index: bool = True,
+        round: Optional[int] = None,
+        fillna: Optional[Any] = None,
+    ):
         """This pipeline step writes the processed data for each group to a TSV file.
 
         Parameters
@@ -43,12 +51,12 @@ class TSVWriter(PipelineStep):
         self.round = round
         self.fillna = fillna
 
-    def make_filenames(self, data: Dataset) -> dict:
+    def make_group_filenames(self, data: GroupedData) -> dict:
         """Returns a {group -> filename} dict."""
         result = {}
         pipeline_steps = [ps.filename_factory() for ps in reversed(data.pipeline_steps)]
-        for group in data.indices.keys():
-            name_components = [] if self.prefix is None else [self.prefix]
+        for group, _ in data.iter_grouped_indices():
+            name_components: List[str] = [] if self.prefix is None else [self.prefix]
             if group == ():
                 corpora = data.data.keys()
                 if len(corpora) == 1:
@@ -56,18 +64,31 @@ class TSVWriter(PipelineStep):
                 else:
                     name_components.append("all")
             else:
-                if isinstance(group, str):
-                    name_components.append(group)
-                else:
-                    name_components.append(make_suffix(list(group)))
+                name_components.append(make_suffix(list(group)))
             name_components.extend(pipeline_steps)
             result[group] = "-".join(c for c in name_components if c != "")
         return result
 
-    def process_data(self, data: Data) -> Data:
-        filenames = self.make_filenames(data)
-        for group, df in data.iter():
-            tsv_name = filenames[group] + ".tsv"
+    def make_index_filenames(self, data: Dataset) -> dict:
+        """Returns a {group -> filename} dict."""
+        result = {}
+        pipeline_steps = [ps.filename_factory() for ps in reversed(data.pipeline_steps)]
+        for index in data.indices:
+            name_components: List[str] = [] if self.prefix is None else [self.prefix]
+            name_components.append(make_suffix(list(index)))
+            name_components.extend(pipeline_steps)
+            result[index] = "-".join(c for c in name_components if c != "")
+        return result
+
+    def process_data(self, data: Dataset) -> Dataset:
+        if isinstance(data, GroupedData):
+            filenames = self.make_group_filenames(data)
+            iterator = data.iter_grouped_results()
+        else:
+            filenames = self.make_group_filenames(data)
+            iterator = data.iter_results()
+        for key, df in iterator:
+            tsv_name = filenames[key] + ".tsv"
             tsv_path = os.path.join(self.directory, tsv_name)
             df = pd.DataFrame(df)
             if self.fillna is not None:
