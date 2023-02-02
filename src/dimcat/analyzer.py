@@ -1,36 +1,54 @@
 """Analyzers are PipelineSteps that process data and store the results in Data.processed."""
+import logging
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from typing import List
+from typing import (
+    Any,
+    Collection,
+    Iterable,
+    Iterator,
+    List,
+    Literal,
+    Tuple,
+    Type,
+    Union,
+)
 
 import pandas as pd
 from ms3 import add_weighted_grace_durations, fifths2name
 
-from .data import AnalyzedData, AnalyzedSlicedDataset, Data, SlicedData
-from .grouper import PieceGrouper
-from .pipeline import PipelineStep
-from .slicer import LocalKeySlicer, Slicer
+from ._typing import ID
+from .data import AnalyzedData, AnalyzedGroupedDataset, AnalyzedSlicedDataset, _Dataset
+from .pipeline import _STR2STEP, PipelineStep
 from .utils import grams, make_suffix
+
+logger = logging.getLogger(__name__)
+
+
+def _stepstrings2steps(stepstrings: Union[str, Collection[str]]) -> Tuple[Type, ...]:
+    """Turns one or several names of :obj:`PipelineStep` objects into a
+    tuple of references to these classes."""
+    if isinstance(stepstrings, str):
+        stepstrings = [stepstrings]
+    result = [_STR2STEP[step] for step in stepstrings]
+    return tuple(result)
 
 
 class Analyzer(PipelineStep, ABC):
     """Analyzers are PipelineSteps that process data and store the results in Data.processed."""
 
+    assert_steps: Union[str, Collection[str]] = []
+    """Analyzer.process_data() raises ValueError if at least one of the names does not belong to
+    a :obj:`PipelineStep` that is among the previous PipelineSteps applied to the :obj:`_Dataset`."""
+    assert_previous_step: Union[str, Collection[str]] = []
+    """Analyzer.process_data() raises ValueError if last :obj:`PipelineStep` applied to the
+    :obj:`_Dataset` does not match any of these types."""
+    excluded_steps: Union[str, Collection[str]] = []
+    """Analyzer.process_data() raises ValueError if any of the previous :obj:`PipelineStep` applied to the
+    :obj:`_Dataset` matches one of these types."""
 
-class FacetAnalyzer(Analyzer):
-    """Analyzers that work on one particular type of DataFrames."""
-
-    def __init__(self, once_per_group=False):
-        """
-
-        Parameters
-        ----------
-        once_per_group : :obj:`bool`
-            By default, computes one result per group item.
-            Set to True to instead compute only one for each group.
-        """
-        self.required_facets = []
-        self.once_per_group = once_per_group
+    def __init__(self):
+        """Creates essential fields."""
         self.config = {}
         """:obj:`dict`
         This dictionary stores the parameters to be passed to the compute() method."""
@@ -38,7 +56,7 @@ class FacetAnalyzer(Analyzer):
         """:obj:`str`
         The name of the function that allows displaying one group's results as a single
         pandas object. See data.Corpus.convert_group2pandas()"""
-        self.level_names = {"indices": "IDs"} if once_per_group else {}
+        self.level_names = {}
         """:obj:`dict`
         Define {"indices": "index_level_name"} if the analysis is applied once per group,
         because the index of the DataFrame holding the processed data won't be showing the
@@ -46,87 +64,108 @@ class FacetAnalyzer(Analyzer):
         """
 
     @abstractmethod
-    def compute(self, df):
+    def compute(self, **kwargs):
         """Where the actual computation takes place."""
 
-    def post_process(self, processed):
-        return processed
+    @abstractmethod
+    def data_iterator(self, data: AnalyzedData) -> Iterator[Tuple[ID, Any]]:
+        """How a particular analyzer iterates through a dataset, getting the chunks passed to :meth:`compute`."""
+        yield from data
 
-    def process_data(self, data: Data) -> AnalyzedData:
-        """Returns a copy of the Data object containing processed data."""
+    def process_data(self, data: _Dataset) -> AnalyzedData:
+        """Returns an :obj:`AnalyzedData` copy of the Dataset with the added analysis result."""
+        analyzer_name = self.__class__.__name__
+        if len(self.assert_steps) > 0:
+            assert_steps = _stepstrings2steps(self.assert_steps)
+            for step in assert_steps:
+                if not any(
+                    isinstance(previous_step, step)
+                    for previous_step in data.pipeline_steps
+                ):
+                    raise ValueError(
+                        f"{analyzer_name} require previous application of a {step.__name__}."
+                    )
+        if len(self.assert_previous_step) > 0:
+            assert_previous_step = _stepstrings2steps(self.assert_previous_step)
+            previous_step = data.pipeline_steps[0]
+            if not isinstance(previous_step, assert_previous_step):
+                raise ValueError(
+                    f"{analyzer_name} requires the previous pipeline step to be an "
+                    f"instance of {self.assert_previous_step}, not {previous_step.__name__}."
+                )
+        if len(self.excluded_steps) > 0:
+            excluded_steps = _stepstrings2steps(self.excluded_steps)
+            for step in excluded_steps:
+                if any(
+                    isinstance(previous_step, step)
+                    for previous_step in data.pipeline_steps
+                ):
+                    raise ValueError(
+                        f"{analyzer_name} cannot be applied when a {step.__name__} has been applied before."
+                    )
         result = AnalyzedData(data)
         processed = {}
-        for group, dfs in data.iter_facet(
-            self.required_facets[0], concatenate=self.once_per_group
-        ):
-            processed_group = {}
-            for ID, df in dfs.items():
-                key = "group_ids" if self.once_per_group else ID
-                eligible, message = self.check(df)
-                if not eligible:
-                    print(f"{ID}: {message}")
-                    continue
-                processed_group[key] = self.compute(df, **self.config)
-            if len(processed_group) == 0:
-                print(f"Group '{group}' will be missing from the processed data.")
+        for idx, df in self.data_iterator(result):
+            eligible, message = self.check(df)
+            if not eligible:
+                logger.info(f"{idx}: {message}")
                 continue
-            processed[group] = processed_group
+            processed[idx] = self.compute(df, **self.config)
         processed = self.post_process(processed)
         result.track_pipeline(self, group2pandas=self.group2pandas, **self.level_names)
-        result.processed = processed
+        result.set_result(self, processed)
         return result
+
+    def post_process(self, processed):
+        """Whatever needs to be done after analyzing the data before passing it to the dataset."""
+        return processed
+
+
+class FacetAnalyzer(Analyzer):
+    """Analyzers that work on one particular type of DataFrames."""
+
+    def __init__(self):
+        """Adds the field :attr:`required_facets`"""
+        super().__init__()
+        self.required_facets = []
+
+    def data_iterator(self, data: AnalyzedData) -> Iterator[Tuple[ID, pd.DataFrame]]:
+        yield from data.iter_facet(self.required_facets[0])
 
 
 class NotesAnalyzer(FacetAnalyzer):
-    def __init__(self, once_per_group=False):
-        """Analyzers that work on notes tables.
-
-        Parameters
-        ----------
-        once_per_group : :obj:`bool`
-            By default, computes one result per group item.
-            Set to True to instead compute only one for each group.
-        """
-        super().__init__(once_per_group=once_per_group)
+    def __init__(self):
+        """Analyzers that work on notes tables."""
+        super().__init__()
         self.required_facets = ["notes"]
 
 
 class ChordSymbolAnalyzer(FacetAnalyzer):
-    def __init__(self, once_per_group=False):
-        """Analyzers that work on expanded annotation tables.
-
-        Parameters
-        ----------
-        once_per_group : :obj:`bool`
-            By default, computes one result per group item.
-            Set to True to instead compute only one for each group.
-        """
-        super().__init__(once_per_group=once_per_group)
+    def __init__(self):
+        """Analyzers that work on expanded annotation tables."""
+        super().__init__()
         self.required_facets = ["expanded"]
 
 
 class TPCrange(NotesAnalyzer):
     """Computes the range from the minimum to the maximum Tonal Pitch Class (TPC)."""
 
-    def __init__(self, once_per_group=False):
-        super().__init__(once_per_group=once_per_group)
+    def __init__(self):
+        super().__init__()
         self.level_names["processed"] = "tpc_range"
         self.group2pandas = "group_of_values2series"
 
     @staticmethod
-    def compute(df):
+    def compute(notes: pd.DataFrame) -> int:
         """Computes the range from the minimum to the maximum Tonal Pitch Class (TPC).
 
-        Parameters
-        ----------
-        df : pandas.DataFrame
-            notes table with the column ``tpc``
+        Args:
+            notes: Notes table with the column ``tpc``
 
-        Returns
-        -------
-        int
+        Returns:
+            The difference between the minimal and the maximal tonal pitch class, measured in perfect fifths.
         """
-        return df.tpc.max() - df.tpc.min()
+        return notes.tpc.max() - notes.tpc.min()
 
 
 class PitchClassVectors(NotesAnalyzer):
@@ -134,7 +173,6 @@ class PitchClassVectors(NotesAnalyzer):
 
     def __init__(
         self,
-        once_per_group=False,
         pitch_class_format="tpc",
         weight_grace_durations: float = 0.0,
         normalize=False,
@@ -145,9 +183,6 @@ class PitchClassVectors(NotesAnalyzer):
 
         Parameters
         ----------
-        once_per_group : :obj:`bool`
-            By default, computes one pitch class vector per group item.
-            Set to True to instead compute only one for each group.
         pitch_class_format : :obj:`str`, optional
             | Defines the type of pitch classes.
             | 'tpc' (default): tonal pitch class, such that -1=F, 0=C, 1=G etc.
@@ -169,7 +204,7 @@ class PitchClassVectors(NotesAnalyzer):
             therefore not appear in the concatenated results. Set to True if you want to include
             them as empty rows in a post processing step.
         """
-        super().__init__(once_per_group=once_per_group)
+        super().__init__()
         self.config = dict(
             pitch_class_format=pitch_class_format,
             weight_grace_durations=float(weight_grace_durations),
@@ -182,6 +217,7 @@ class PitchClassVectors(NotesAnalyzer):
         self.used_pitch_classes = set()
 
     def filename_factory(self):
+        """Generate file name component based on the configuration."""
         return make_suffix(
             ("w", self.config["weight_grace_durations"]),
             ("normalized", self.config["normalize"]),
@@ -192,40 +228,38 @@ class PitchClassVectors(NotesAnalyzer):
     @staticmethod
     def compute(
         notes: pd.DataFrame,
-        pitch_class_format="tpc",
+        pitch_class_format: Literal["tpc", "name", "pc", "midi"] = "tpc",
         weight_grace_durations: float = 0.0,
-        normalize=False,
-        ensure_pitch_classes=None,
-    ):
+        normalize: bool = False,
+        ensure_pitch_classes: Iterable = None,
+    ) -> pd.Series:
         """Group notes by their pitch class and aggregate their durations.
 
-        Parameters
-        ----------
-        notes : :obj:`pandas.DataFrame`
-            Note table to be transformed into a Pitch Class Vector. The DataFrame needs to
-            contain at least the columns 'duration_qb' and 'tpc' or 'midi', depending
-            on ``pitch_class_format``.
-        pitch_class_format : :obj:`str`, optional
-            | Defines the type of pitch classes to use for the vectors.
-            | 'tpc' (default): tonal pitch class, such that -1=F, 0=C, 1=G etc.
-            | 'name': tonal pitch class as spelled pitch, e.g. 'C', 'F#', 'Abb' etc.
-            | 'pc': chromatic pitch classes where 0=C, 1=C#/Db, ... 11=B/Cb.
-            | 'midi': original MIDI numbers; the result are pitch vectors, not pitch class vectors.
-        weight_grace_durations : :obj:`float`, optional
-            By default (0.), grace notes have duration 0. Set this value to include their weighted
-            durations in the computation of PCVs, e.g. 0.5.
-        normalize : :obj:`bool`, optional
-            By default, the PCVs contain absolute durations in quarter notes. Pass True to normalize
-            the PCV for each group.
-        ensure_pitch_classes : :obj:`Iterable`, optional
-            By default, pitch classes that don't appear don't appear. Pass a collection of pitch
-            classes if you want to ensure their presence even if empty. For example, if
-            ``pitch_class_format='pc'`` you could pass ``ensure_columns=range(12)``.
+        Args:
+            notes:
+                Note table to be transformed into a Pitch Class Vector. The DataFrame needs to
+                contain at least the columns 'duration_qb' and 'tpc' or 'midi', depending
+                on ``pitch_class_format``.
+            pitch_class_format:
+                | Defines the type of pitch classes to use for the vectors.
+                | 'tpc' (default): tonal pitch class, such that -1=F, 0=C, 1=G etc.
+                | 'name': tonal pitch class as spelled pitch, e.g. 'C', 'F#', 'Abb' etc.
+                | 'pc': chromatic pitch classes where 0=C, 1=C#/Db, ... 11=B/Cb.
+                | 'midi': original MIDI numbers; the result are pitch vectors, not pitch class vectors.
+            weight_grace_durations:
+                By default (0.), grace notes have duration 0. Set this value to include their weighted
+                durations in the computation of PCVs, e.g. 0.5.
+            normalize:
+                By default, the PCVs contain absolute durations in quarter notes. Pass True to normalize
+                the PCV for each group.
+            ensure_pitch_classes:
+                By default, pitch classes that don't appear don't appear. Pass a collection of pitch
+                classes if you want to ensure their presence even if empty. For example, if
+                ``pitch_class_format='pc'`` you could pass ``ensure_columns=range(12)``.
 
-
-        Returns
-        -------
-        :obj:`pandas.Series`
+        Returns:
+            A pitch class vector where the aggregated duration of each pitch class is given in quarter notes or,
+            if ``normalize=True``, as decimal fractions [0.0, 1.0].
         """
         notes = notes.reset_index(drop=True)
         if pitch_class_format in ("tpc", "name"):
@@ -235,11 +269,10 @@ class PitchClassVectors(NotesAnalyzer):
         elif pitch_class_format == "midi":
             pitch_class_grouper = notes.midi
         else:
-            print(
+            raise ValueError(
                 "pitch_class_format needs to be one of 'tpc', 'name', 'pc', 'midi', not "
                 + str(pitch_class_format)
             )
-            return pd.DataFrame()
         if weight_grace_durations > 0:
             notes = add_weighted_grace_durations(notes, weight=weight_grace_durations)
         try:
@@ -259,6 +292,7 @@ class PitchClassVectors(NotesAnalyzer):
         return pcvs
 
     def post_process(self, processed):
+        """Inserts empty pitch class vectors for"""
         if not self.include_empty:
             return processed
         empty_pcv_ixs = defaultdict(list)
@@ -281,32 +315,24 @@ class ChordSymbolUnigrams(ChordSymbolAnalyzer):
     frequency.
     """
 
-    def __init__(self, once_per_group=False):
+    def __init__(self):
         """Analyzer that returns the counts of chord symbols for each group, ordered by descending
-            frequency.
+        frequency.
 
-        Parameters
-        ----------
-        once_per_group : :obj:`bool`
-            By default, computes one unigram ranking per group item.
-            Set to True to instead compute only one for each group.
+
         """
-        super().__init__(once_per_group=once_per_group)
+        super().__init__()
         self.level_names["processed"] = "chord"
         self.group2pandas = "group_of_series2series"
 
     @staticmethod
-    def compute(expanded):
+    def compute(expanded: pd.DataFrame) -> pd.Series:
         """Computes the value counts of the chord symbol column.
 
-        Parameters
-        ----------
-        expanded : :obj:`pandas.DataFrame`
-            Expanded harmony labels.
+        Args:
+            expanded: Expanded harmony labels
 
-        Returns
-        -------
-        :obj:`pandas.Series`
+        Returns:
             The last index level has unique chord symbols, Series values are their corresponding
             counts.
         """
@@ -320,21 +346,20 @@ class ChordSymbolBigrams(ChordSymbolAnalyzer):
     ordered by descending frequency.
     """
 
-    def __init__(self, once_per_group=False, dropna=True):
+    assert_steps = ["LocalKeySlicer"]
+
+    def __init__(self, dropna=True):
         """Analyzer that returns the bigram counts for all valid chord transitions within a group,
             ordered by descending frequency.
 
         Parameters
         ----------
-        once_per_group : :obj:`bool`
-            By default, computes one bigram ranking per group item.
-            Set to True to instead compute only one for each group.
         dropna : :obj:`bool`, optional
             By default, NaN values are dropped before computing bigrams, resulting in transitions
             from a missing value's preceding to its subsequent value. Pass False to include
             bigrams from and to NaN values.
         """
-        super().__init__(once_per_group=once_per_group)
+        super().__init__()
         self.level_names["processed"] = ["from", "to"]
         self.group2pandas = "group_of_series2series"
         self.config["dropna"] = dropna
@@ -354,10 +379,11 @@ class ChordSymbolBigrams(ChordSymbolAnalyzer):
         """Turns the chord column into bigrams and returns their counts in descending order.
 
         Args:
-            expanded: Expanded harmony labels.
-            dropna: By default, NaN values are dropped before computing bigrams, resulting in transitions
-            from a missing value's preceding to its subsequent value. Pass False to include
-            bigrams from and to NaN values.
+            expanded: Expanded harmony table with the columns ``localkey`` and ``chord``.
+            dropna:
+                By default, NaN values are dropped before computing bigrams, resulting in transitions
+                from a missing value's preceding to its subsequent value. Pass False to include
+                bigrams from and to NaN values.
 
         Returns:
             The last two index level are unique (from, to) bigrams, Series values are their
@@ -398,60 +424,38 @@ class ChordSymbolBigrams(ChordSymbolAnalyzer):
             raise
         return counts
 
-    def process_data(self, data: Data) -> AnalyzedData:
-        assert any(
-            isinstance(step, LocalKeySlicer) for step in data.pipeline_steps
-        ), "ChordSymbolBigrams requires previous application of LocalKeySlicer()."
-        return super().process_data(data=data)
-
 
 class SliceInfoAnalyzer(Analyzer):
     """"""
 
-    def __init__(
-        self,
-    ):
-        """"""
-        self.config = {}
-        """:obj:`dict`
-        This dictionary stores the parameters to be passed to the compute() method."""
-        self.group2pandas = None
-        """:obj:`str`
-        The name of the function that allows displaying one group's results as a single
-        pandas object. See data.Corpus.convert_group2pandas()"""
-        self.level_names = {}
-        """:obj:`dict`
-        Define {"processed": "index_level_name(s)"}.
-        """
+    assert_steps = ["Slicer"]
 
     def check(self, df):
         if len(df) == 0:
             return False, "DataFrame is empty."
         return True, ""
 
-    @abstractmethod
-    def compute(self, df):
-        """Where the actual computation takes place."""
-
-    def process_data(self, data: SlicedData) -> AnalyzedSlicedDataset:
-        assert any(
-            isinstance(step, Slicer) for step in data.pipeline_steps
-        ), "At least one Slicer needs to be applied before using a SliceInfoAnalyzer."
-        result = AnalyzedData(data)
-        processed = {}
-        for group, info_df in data.iter_slice_info():
-            processed[group] = self.compute(info_df)
-        processed = self.post_process(processed)
-        result.track_pipeline(self, group2pandas=self.group2pandas, **self.level_names)
-        result.processed = processed
-        return result
-
-    def post_process(self, processed):
-        return processed
+    def data_iterator(
+        self, data: AnalyzedSlicedDataset
+    ) -> Iterator[Tuple[Literal["all_slices"], pd.DataFrame]]:
+        yield from [("all_slices", data.get_slice_info())]
 
 
-class LocalKeySliceInfoAnalyzer(SliceInfoAnalyzer):
+class GroupedSliceInfoAnalyzer(SliceInfoAnalyzer):
     """"""
+
+    assert_steps = ["Slicer", "Grouper"]
+
+    def data_iterator(
+        self, data: AnalyzedGroupedDataset
+    ) -> Iterator[Tuple[ID, pd.DataFrame]]:
+        yield from data.iter_grouped_slice_info()
+
+
+class LocalKeySequence(GroupedSliceInfoAnalyzer):
+    """"""
+
+    assert_steps = ["LocalKeySlicer", "PieceGrouper"]
 
     def __init__(
         self,
@@ -461,26 +465,23 @@ class LocalKeySliceInfoAnalyzer(SliceInfoAnalyzer):
         self.level_names["processed"] = ["localkeys"]
         self.group2pandas = None
 
-    def process_data(self, data: Data) -> AnalyzedData:
-        assert any(
-            isinstance(step, PieceGrouper) for step in data.pipeline_steps
-        ), "LocalKeySequence requires previous application of PieceGrouper()."
-        assert any(
-            isinstance(step, LocalKeySlicer) for step in data.pipeline_steps
-        ), "ChordSymbolBigrams requires previous application of LocalKeySlicer()."
-        return super().process_data(data=data)
-
-
-class LocalKeySequence(LocalKeySliceInfoAnalyzer):
-    """"""
-
     @staticmethod
     def compute(slice_info: pd.DataFrame) -> List[str]:
         return slice_info.localkey.to_list()
 
 
-class LocalKeyUnique(LocalKeySliceInfoAnalyzer):
+class LocalKeyUnique(SliceInfoAnalyzer):
     """"""
+
+    assert_steps = ["LocalKeySlicer"]
+
+    def __init__(
+        self,
+    ):
+        """"""
+        super().__init__()
+        self.level_names["processed"] = ["localkeys"]
+        self.group2pandas = None
 
     @staticmethod
     def compute(slice_info: pd.DataFrame) -> List[str]:
