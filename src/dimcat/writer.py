@@ -85,7 +85,7 @@ class TSVWriter(PipelineStep):
             filenames = self.make_group_filenames(data)
             iterator = data.iter_grouped_results()
         else:
-            filenames = self.make_group_filenames(data)
+            filenames = self.make_index_filenames(data)
             iterator = data.iter_results()
         for key, df in iterator:
             tsv_name = filenames[key] + ".tsv"

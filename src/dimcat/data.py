@@ -8,6 +8,7 @@ from typing import Any, Collection, Dict, Iterator, List, Optional, Tuple, Union
 
 import ms3
 import pandas as pd
+from ms3 import pretty_dict
 from ms3._typing import ScoreFacet
 
 from ._typing import ID, GroupID, PieceID, SliceID
@@ -521,10 +522,37 @@ class Dataset(_Dataset):
         return df
 
 
-class Result(dict, Data):
+class Result(Data):
     """Represents the result of an Analyzer processing a :class:`_Dataset`"""
 
-    pass
+    def __init__(self, analyzer: "Analyzer"):  # noqa: F821
+        self.analyzer = analyzer
+        self.config: dict = {}
+        self.result_dict: dict = {}
+        self._concatenated_results = None
+
+    def _concat_results(self) -> pd.DataFrame:
+        if self._concatenated_results is None:
+            self._concatenated_results = pd.concat(
+                self.result_dict.values(), keys=self.result_dict.keys()
+            ).unstack()
+        return self._concatenated_results
+
+    def __setitem__(self, key, value):
+        self.result_dict[key] = value
+
+    def __getitem__(self, item):
+        return self.result_dict[item]
+
+    def __repr__(self):
+        name = self.analyzer.__class__.__name__ + " Result"
+        name += "\n" + "-" * len(name)
+        config = pretty_dict(self.config)
+        results = self._concat_results().to_string()
+        return "\n\n".join((name, config, results))
+
+    def _repr_html_(self):
+        return self._concat_results().to_html()
 
 
 class _ProcessedData(_Dataset):
@@ -785,6 +813,9 @@ class AnalyzedData(_ProcessedData):
     #
     def get(self):
         return self.processed[0]
+
+    def iter_results(self):
+        yield from self.processed[0].items()
 
     # @overload
     # def iter(

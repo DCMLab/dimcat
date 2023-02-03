@@ -17,7 +17,13 @@ import pandas as pd
 from ms3 import add_weighted_grace_durations, fifths2name
 
 from ._typing import ID
-from .data import AnalyzedData, AnalyzedGroupedDataset, AnalyzedSlicedDataset, _Dataset
+from .data import (
+    AnalyzedData,
+    AnalyzedGroupedDataset,
+    AnalyzedSlicedDataset,
+    Result,
+    _Dataset,
+)
 from .pipeline import _STR2STEP, PipelineStep
 from .utils import grams, make_suffix
 
@@ -103,7 +109,8 @@ class Analyzer(PipelineStep, ABC):
                         f"{analyzer_name} cannot be applied when a {step.__name__} has been applied before."
                     )
         result = AnalyzedData(data)
-        processed = {}
+        processed = Result(analyzer=self)
+        processed.config = self.config
         for idx, df in self.data_iterator(result):
             eligible, message = self.check(df)
             if not eligible:
