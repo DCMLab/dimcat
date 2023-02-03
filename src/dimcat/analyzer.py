@@ -1,7 +1,6 @@
 """Analyzers are PipelineSteps that process data and store the results in Data.processed."""
 import logging
 from abc import ABC, abstractmethod
-from collections import defaultdict
 from typing import (
     Any,
     Collection,
@@ -292,21 +291,19 @@ class PitchClassVectors(NotesAnalyzer):
         return pcvs
 
     def post_process(self, processed):
-        """Inserts empty pitch class vectors for"""
+        """Inserts empty pitch class vectors for chunks without pitches, if any."""
         if not self.include_empty:
             return processed
-        empty_pcv_ixs = defaultdict(list)
-        for group, index_group in processed.items():
-            for ix, pcv in index_group.items():
-                if len(pcv) == 0:
-                    empty_pcv_ixs[group].append(ix)
-                else:
-                    self.used_pitch_classes.update(pcv.index)
+        empty_pcv_ixs = []
+        for ix, pcv in processed.items():
+            if len(pcv) == 0:
+                empty_pcv_ixs.append(ix)
+            else:
+                self.used_pitch_classes.update(pcv.index)
         if len(empty_pcv_ixs) > 0:
             empty_pcv = pd.Series(pd.NA, index=self.used_pitch_classes)
-            for group, ixs in empty_pcv_ixs.items():
-                for ix in ixs:
-                    processed[group][ix] = empty_pcv
+            for ix in empty_pcv_ixs:
+                processed[ix] = empty_pcv
         return processed
 
 
