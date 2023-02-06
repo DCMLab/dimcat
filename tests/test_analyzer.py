@@ -12,6 +12,10 @@ from dimcat.data import GroupedData
 
 
 def assert_pipeline_dependency_raise(analyzer_obj, data):
+    """Checks if the given Analyzer can actually be applied to the given Dataset and returns False if yes (with
+    the result that the test which called the function will continue).
+    If it cannot, the function tests if a ValueError is thrown as expected and returns True (with the result that
+    the test which called the function will stop). If no error is thrown, the test in question will fail."""
     analyzer_class = analyzer_obj.__class__
     analyzer_name = analyzer_class.__name__
     if len(analyzer_class.assert_steps) > 0:
@@ -263,7 +267,7 @@ def test_analyzer(analyzer, dataset, analyzer_results):
     if assert_pipeline_dependency_raise(analyzer, dataset):
         return
     data = analyzer.process_data(dataset)
-    print(f"{data.get()}")
+    print(f"{data.get_result_object()}")
     assert len(data.processed) > 0
     assert len(data.pipeline_steps) > 0
     if isinstance(data, GroupedData):
@@ -349,7 +353,7 @@ def test_analyzing_slices(analyzer, sliced_data):
                 )
                 assert False
 
-    analyzed_slices = data.get()
+    analyzed_slices = data.get_result_object()
     print(f"{analyzed_slices}")
     # assert analyzed_slices.index.nlevels == 4
 
@@ -360,7 +364,7 @@ def test_analyzing_groups(analyzer, grouped_data):
     data = analyzer.process_data(grouped_data)
     assert () not in data.indices
     assert len(data.index_levels["groups"]) > 0
-    print(f"{data.get()}")
+    print(f"{data.get_result_object()}")
 
 
 def test_analyzing_pipelines(
@@ -370,7 +374,7 @@ def test_analyzing_pipelines(
     if assert_pipeline_dependency_raise(analyzer, pipelined_data):
         return
     data = analyzer.process_data(pipelined_data)
-    print(f"{data.get()}")
+    print(f"{data.get_result_object()}")
 
 
 def test_analyzing_grouped_pipelines(analyzer, pipelined_data, grouper):
@@ -381,4 +385,4 @@ def test_analyzing_grouped_pipelines(analyzer, pipelined_data, grouper):
     for facet, slices in data.sliced.items():
         for id, df in slices.items():
             assert df.index.nlevels == 1
-    print(f"{data.get()}")
+    print(f"{data.get_result_object()}")

@@ -7,6 +7,7 @@ from dimcat.data import (
 )
 from IPython.display import display
 from ms3 import pretty_dict
+from test_analyzer import assert_pipeline_dependency_raise
 
 
 def property_test_on_grouped_data(grpd_dt: GroupedDataset):
@@ -42,3 +43,19 @@ def test_transitivity_with_slicers(grouped_data, slicer):
     ):
         assert sl_gr_group == gr_sl_group
         assert len(sl_gr_notes) == len(gr_sl_notes)
+
+
+def test_transitivity_with_analyzers(grouped_data, analyzer):
+    reset_data = Dataset(grouped_data)
+    if assert_pipeline_dependency_raise(analyzer, reset_data):
+        return
+    analyzed_data = analyzer.process_data(reset_data)
+    test_grouper = grouped_data.get_previous_pipeline_step()
+    grouped_analyzed: AnalyzedGroupedDataset = test_grouper.process_data(analyzed_data)
+    analyzed_grouped: AnalyzedGroupedDataset = analyzer.process_data(grouped_data)
+    for (an_gr_group, an_gr_notes), (gr_an_group, gr_an_notes) in zip(
+        analyzed_grouped.iter_group_results(),
+        grouped_analyzed.iter_group_results(),
+    ):
+        assert an_gr_group == gr_an_group
+        assert len(an_gr_notes) == len(gr_an_notes)
