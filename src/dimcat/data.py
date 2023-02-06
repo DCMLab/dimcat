@@ -1,10 +1,10 @@
 """Class hierarchy for data types."""
+import copy
 import logging
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from copy import deepcopy
-from functools import lru_cache
-from typing import Any, Collection, Dict, Iterator, List, Optional, Tuple, Union
+from functools import lru_cache, reduce
+from typing import Any, Collection, Dict, Iterator, List, Optional, Tuple, Type, Union
 
 import ms3
 import pandas as pd
@@ -31,7 +31,7 @@ _TYPE_CACHE = {}
 """Used by :func:`_typestrings2types` to cache the module's globals()"""
 
 
-def _typestrings2types(typestrings: Union[str, Collection[str]]) -> Tuple[Any]:
+def _typestrings2types(typestrings: Union[str, Collection[str]]) -> Tuple[Type]:
     """Turns one or several names of classes contained in this module into a
     tuple of references to these classes."""
     global _TYPE_CACHE
@@ -342,19 +342,19 @@ class Dataset(_Dataset):
             self.get_indices()
         else:
             self.indices = list(data_object.indices)
-        self.index_levels = deepcopy(data_object.index_levels)
+        self.index_levels = copy.deepcopy(data_object.index_levels)
         self.pipeline_steps = list(data_object.pipeline_steps)
         self.group2pandas = data_object.group2pandas
         if self.__class__.__name__ == "Dataset":
             return
-        dtypes = _typestrings2types(PROCESSED_DATA_FIELDS.keys())
-        dtypes = dict(zip(PROCESSED_DATA_FIELDS.keys(), dtypes))
-        for processed_type, optional_fields in PROCESSED_DATA_FIELDS.items():
-            dtype = dtypes[processed_type]
+        processed_types = _typestrings2types(PROCESSED_DATA_FIELDS.keys())
+        typestring2dtype = dict(zip(PROCESSED_DATA_FIELDS.keys(), processed_types))
+        for typestring, optional_fields in PROCESSED_DATA_FIELDS.items():
+            dtype = typestring2dtype[typestring]
             if not (isinstance(data_object, dtype) and isinstance(self, dtype)):
                 continue
             for field in optional_fields:
-                setattr(self, field, deepcopy(getattr(data_object, field)))
+                setattr(self, field, copy.deepcopy(getattr(data_object, field)))
 
     def copy(self):
         return self.__class__(data=self)
@@ -520,39 +520,6 @@ class Dataset(_Dataset):
             df.index.nlevels == 1
         ), f"Retrieved DataFrame has {df.index.nlevels}, not 1"
         return df
-
-
-class Result(Data):
-    """Represents the result of an Analyzer processing a :class:`_Dataset`"""
-
-    def __init__(self, analyzer: "Analyzer"):  # noqa: F821
-        self.analyzer = analyzer
-        self.config: dict = {}
-        self.result_dict: dict = {}
-        self._concatenated_results = None
-
-    def _concat_results(self) -> pd.DataFrame:
-        if self._concatenated_results is None:
-            self._concatenated_results = pd.concat(
-                self.result_dict.values(), keys=self.result_dict.keys()
-            ).unstack()
-        return self._concatenated_results
-
-    def __setitem__(self, key, value):
-        self.result_dict[key] = value
-
-    def __getitem__(self, item):
-        return self.result_dict[item]
-
-    def __repr__(self):
-        name = self.analyzer.__class__.__name__ + " Result"
-        name += "\n" + "-" * len(name)
-        config = pretty_dict(self.config)
-        results = self._concat_results().to_string()
-        return "\n\n".join((name, config, results))
-
-    def _repr_html_(self):
-        return self._concat_results().to_html()
 
 
 class _ProcessedData(_Dataset):
@@ -763,7 +730,7 @@ class AnalyzedData(_ProcessedData):
                 self.processed: List[Result] = []
                 """Analyzers store there result here using :meth:`set_result`."""
 
-    def set_result(self, analyzer: "Analyzer", result: Result):  # noqa: F821
+    def set_result(self, analyzer: "Analyzer", result: "Result"):  # noqa: F821
         assert analyzer == self.get_previous_pipeline_step()
         self.processed = [result] + self.processed
 
@@ -811,11 +778,24 @@ class AnalyzedData(_ProcessedData):
     #             raise
     #     return clean_index_levels(pandas_obj)
     #
-    def get(self):
-        return self.processed[0]
+    def get_result_object(self, idx=0):
+        return self.processed[idx]
+
+    def get_results(self) -> pd.DataFrame:
+        result_obj = self.get_result_object()
+        return result_obj.get_results()
+
+    def get_group_results(self) -> pd.DataFrame:
+        result_obj = self.get_result_object()
+        return result_obj.get_group_results()
 
     def iter_results(self):
-        yield from self.processed[0].items()
+        result_obj = self.get_result_object()
+        yield from result_obj.iter_results()
+
+    def iter_group_results(self):
+        result_obj = self.get_result_object()
+        yield from result_obj.iter_group_results()
 
     # @overload
     # def iter(
@@ -1045,11 +1025,11 @@ class GroupedDataset(GroupedData, Dataset):
         self.grouped_indices = {
             k: new_grouped_indices[k] for k in sorted(new_grouped_indices.keys())
         }
-        # logger.warning(f"id2group: {id2group}\n\n"
-        #                f"new_indices: {new_indices}\n\n"
-        #                f"self.grouped_indices: {self.grouped_indices}")
         new_indices = sum(new_grouped_indices.values(), [])
         self.indices = sorted(new_indices)
+
+    def set_grouped_indices(self, grouped_indices: Dict[GroupID, List[ID]]):
+        self.grouped_indices = grouped_indices
 
 
 class AnalyzedDataset(AnalyzedData, Dataset):
@@ -1197,6 +1177,124 @@ class AnalyzedGroupedSlicedDataset(AnalyzedSlicedDataset, GroupedSlicedDataset):
         ): "AnalyzedGroupedSlicedDataset",
     }
     pass
+
+
+class Result(Data):
+    """Represents the result of an Analyzer processing a :class:`_Dataset`"""
+
+    def __init__(
+        self,
+        analyzer: "Analyzer",  # noqa: F821
+        dataset_before: _Dataset,
+        dataset_after: AnalyzedData,
+    ):
+        self.analyzer = analyzer
+        self.dataset_before = dataset_before
+        self.dataset_after = dataset_after
+        self.config: dict = {}
+        self.result_dict: dict = {}
+        self._concatenated_results = None
+
+    def _concat_results(
+        self,
+        index_result_dict: Optional[dict] = None,
+        level_names: Optional[Union[Tuple[str], str]] = None,
+        sort_columns: bool = True,
+    ) -> pd.DataFrame:
+        if index_result_dict is None:
+            index_result_dict = self.result_dict
+            if level_names is None:
+                level_names = self.dataset_after.index_levels["indices"]
+        elif level_names is None:
+            raise ValueError("Names of index level(s) need(s) to be specified.")
+        df = pd.DataFrame.from_dict(index_result_dict, orient="index")
+        try:
+            df.index.rename(level_names, inplace=True)
+        except TypeError:
+            print(f"level_names = {level_names}; nlevels = {df.index.nlevels}")
+            raise
+        if sort_columns:
+            return df[sorted(df.columns)]
+        return df
+
+    def get_results(self):
+        return self._concat_results()
+
+    def get_group_results(self):
+        group_results = dict(self.iter_group_results())
+        level_names = tuple(self.dataset_after.index_levels["groups"])
+        if len(level_names) == 0:
+            level_names = "group"
+        return self._concat_results(group_results, level_names=level_names)
+
+    def items(self):
+        yield from self.result_dict.items()
+
+    def iter_results(self):
+        yield from self.result_dict.values()
+
+    def iter_group_results(self):
+        if isinstance(self.dataset_after, GroupedData):
+            for group, indices in self.dataset_after.iter_grouped_indices():
+                group_results = [
+                    self.result_dict[idx] for idx in indices if idx in self.result_dict
+                ]
+                if len(group_results) == 0:
+                    logger.warning(
+                        f"{self.analyzer.__class__.__name__} yielded no result for group {group}"
+                    )
+                    continue
+                aggregated = reduce(self.analyzer.aggregate, group_results)
+                yield group, aggregated
+        else:
+            aggregated = reduce(self.analyzer.aggregate, self.iter_results())
+            yield self.dataset_before.__class__.__name__, aggregated
+
+    def __copy__(self):
+        new_obj = self.__class__(
+            analyzer=self.analyzer,
+            dataset_before=self.dataset_before,
+            dataset_after=self.dataset_after,
+        )
+        for k, v in self.__dict__.items():
+            if k not in ["analyzer", "dataset_before", "dataset_after"]:
+                setattr(new_obj, k, copy.copy(v))
+        return new_obj
+
+    def __deepcopy__(self, memodict={}):
+        new_obj = self.__class__(
+            analyzer=self.analyzer,
+            dataset_before=self.dataset_before,
+            dataset_after=self.dataset_after,
+        )
+        for k, v in self.__dict__.items():
+            if k not in ["analyzer", "dataset_before", "dataset_after"]:
+                setattr(new_obj, k, copy.deepcopy(v, memodict))
+        return new_obj
+
+    def __setitem__(self, key, value):
+        self.result_dict[key] = value
+
+    def __getitem__(self, item):
+        return self.result_dict[item]
+
+    def __len__(self):
+        return len(self.result_dict)
+
+    def __repr__(self):
+        name = f"{self.analyzer.__class__.__name__} of {self.dataset_before.__class__.__name__}"
+        name += "\n" + "-" * len(name)
+        n_results = f"{len(self)} results"
+        if len(self.config) > 0:
+            config = pretty_dict(
+                self.config, heading_key="config", heading_value="value"
+            )
+        else:
+            config = ""
+        return "\n\n".join((name, n_results, config))
+
+    def _repr_html_(self):
+        return self._concat_results().to_html()
 
 
 def remove_corpus_from_ids(result):

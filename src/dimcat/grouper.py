@@ -3,7 +3,7 @@ import logging
 from abc import ABC, abstractmethod
 from collections import defaultdict
 
-from .data import Data, GroupedData
+from .data import AnalyzedData, GroupedData, _Dataset
 from .pipeline import PipelineStep
 from .slicer import LocalKeySlicer
 from .utils import get_composition_year
@@ -35,41 +35,43 @@ class Grouper(PipelineStep, ABC):
         return self.level_names["grouper"] + "_wise"
 
     @abstractmethod
-    def criterion(self, index: tuple, data: Data) -> str:
+    def criterion(self, index: tuple, dataset: _Dataset) -> str:
         """Takes one index and (potentially) looks it up in the data object to return the name
         of the new group that the corresponding element is attributed to. The name will be appended
         to the previous group names tuple.
         """
 
-    def process_data(self, data: Data) -> GroupedData:
+    def process_data(self, dataset: _Dataset) -> GroupedData:
         """Returns a copy of the Data object where the list of indices for each existing group has
         been further subdivided into smaller groups.
         """
-        result = GroupedData(data)
-        new_grouped_indices = defaultdict(list)
-        for group, index_group in result.iter_grouped_indices():
+        new_dataset = GroupedData(dataset)
+        if isinstance(dataset, AnalyzedData):
+            for result in new_dataset.processed:
+                result.dataset_after = new_dataset
+        grouped_indices = defaultdict(list)
+        for group, index_group in new_dataset.iter_grouped_indices():
             # Iterate through groups, i.e. a name and a list of index tuples.
             # A group can only be divided into smaller groups or stay the same ("top-down").
             for index in index_group:
                 # iterate through this group's indices and apply the grouping criterion to each
-                new_group = self.criterion(index, data)
+                new_group = self.criterion(index, new_dataset)
                 if new_group is None:
                     logger.info(
                         f"Grouping criterion could not be computed for {index}."
                     )
                     continue
-                new_grouped_indices[group + (new_group,)].append(index)
+                grouped_indices[group + (new_group,)].append(index)
         if self.sort:
-            new_grouped_indices = {
-                key: new_grouped_indices[key]
-                for key in sorted(new_grouped_indices.keys())
+            grouped_indices = {
+                key: grouped_indices[key] for key in sorted(grouped_indices.keys())
             }
-        result.grouped_indices = new_grouped_indices
-        result.track_pipeline(
+        new_dataset.track_pipeline(
             self,
             **self.level_names,
         )
-        return result
+        new_dataset.set_grouped_indices(grouped_indices)
+        return new_dataset
 
 
 class CorpusGrouper(Grouper):
@@ -80,7 +82,7 @@ class CorpusGrouper(Grouper):
         self.sort = sort
         self.level_names = dict(grouper="corpus")
 
-    def criterion(self, index: tuple, data: Data) -> str:
+    def criterion(self, index: tuple, dataset: _Dataset) -> str:
         return index[0]
 
 
@@ -95,7 +97,7 @@ class PieceGrouper(Grouper):
     def filename_factory(self):
         return "piece_wise"
 
-    def criterion(self, index: tuple, data: Data) -> str:
+    def criterion(self, index: tuple, dataset: _Dataset) -> str:
         return index[1]
 
 
@@ -108,17 +110,17 @@ class YearGrouper(Grouper):
         self.level_names = dict(grouper="year")
         self.year_cache = {}
 
-    def criterion(self, index: tuple, data: Data) -> str:
+    def criterion(self, index: tuple, dataset: _Dataset) -> str:
         ix = index[:2]
         if ix in self.year_cache:
             return self.year_cache[ix]
-        metadata_dict = data.pieces[ix].tsv_metadata
+        metadata_dict = dataset.pieces[ix].tsv_metadata
         year = get_composition_year(metadata_dict)
         self.year_cache[ix] = year
         return year
 
-    def process_data(self, data: Data) -> GroupedData:
-        result = super().process_data(data=data)
+    def process_data(self, dataset: _Dataset) -> GroupedData:
+        result = super().process_data(dataset=dataset)
         self.year_cache = {}
         return result
 
@@ -136,14 +138,14 @@ class ModeGrouper(Grouper):
     def filename_factory(self):
         return "mode_wise"
 
-    def criterion(self, index: tuple, data: Data) -> str:
-        slice_info = data.slice_info[index]
+    def criterion(self, index: tuple, dataset: _Dataset) -> str:
+        slice_info = dataset.slice_info[index]
         try:
             return slice_info["localkey_is_minor"]
         except KeyError:
             print(f"Information on localkey not present in the slice_info of {index}:")
             print(slice_info)
 
-    def process_data(self, data: Data) -> GroupedData:
-        self.slicer = data.get_previous_pipeline_step(of_type=LocalKeySlicer)
-        return super().process_data(data)
+    def process_data(self, dataset: _Dataset) -> GroupedData:
+        self.slicer = dataset.get_previous_pipeline_step(of_type=LocalKeySlicer)
+        return super().process_data(dataset)
