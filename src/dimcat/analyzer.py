@@ -10,20 +10,16 @@ from typing import (
     Literal,
     Tuple,
     Type,
+    TypeVar,
     Union,
 )
 
+import dimcat.data as data_module
 import pandas as pd
 from ms3 import add_weighted_grace_durations, fifths2name
 
 from ._typing import ID
-from .data import (
-    AnalyzedData,
-    AnalyzedGroupedDataset,
-    AnalyzedSlicedDataset,
-    Result,
-    _Dataset,
-)
+from .data import AnalyzedData, AnalyzedGroupedDataset, AnalyzedSlicedDataset, _Dataset
 from .pipeline import _STR2STEP, PipelineStep
 from .utils import grams, make_suffix
 
@@ -39,8 +35,17 @@ def _stepstrings2steps(stepstrings: Union[str, Collection[str]]) -> Tuple[Type, 
     return tuple(result)
 
 
+def _typestring2type(typestring: str) -> Type:
+    return getattr(data_module, typestring)
+
+
+R = TypeVar("R")
+
+
 class Analyzer(PipelineStep, ABC):
     """Analyzers are PipelineSteps that process data and store the results in Data.processed."""
+
+    result_type = "Result"
 
     assert_steps: Union[str, Collection[str]] = []
     """Analyzer.process_data() raises ValueError if at least one of the names does not belong to
@@ -68,16 +73,26 @@ class Analyzer(PipelineStep, ABC):
         individual indices anymore.
         """
 
+    @staticmethod
     @abstractmethod
-    def compute(self, **kwargs):
-        """Where the actual computation takes place."""
+    def aggregate(result_a: R, result_b: R) -> R:
+        """Static method that combines two results of :meth:`compute`.
+
+        This needs to be equivalent to calling self.compute on the concatenation of the respective data resulting
+        in the two arguments."""
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def compute(self, **kwargs) -> R:
+        """Static method that performs the actual computation takes place."""
 
     @abstractmethod
     def data_iterator(self, data: AnalyzedData) -> Iterator[Tuple[ID, Any]]:
         """How a particular analyzer iterates through a dataset, getting the chunks passed to :meth:`compute`."""
         yield from data
 
-    def process_data(self, data: _Dataset) -> AnalyzedData:
+    def process_data(self, dataset: _Dataset) -> AnalyzedData:
         """Returns an :obj:`AnalyzedData` copy of the Dataset with the added analysis result."""
         analyzer_name = self.__class__.__name__
         if len(self.assert_steps) > 0:
@@ -85,14 +100,14 @@ class Analyzer(PipelineStep, ABC):
             for step in assert_steps:
                 if not any(
                     isinstance(previous_step, step)
-                    for previous_step in data.pipeline_steps
+                    for previous_step in dataset.pipeline_steps
                 ):
                     raise ValueError(
                         f"{analyzer_name} require previous application of a {step.__name__}."
                     )
         if len(self.assert_previous_step) > 0:
             assert_previous_step = _stepstrings2steps(self.assert_previous_step)
-            previous_step = data.pipeline_steps[0]
+            previous_step = dataset.pipeline_steps[0]
             if not isinstance(previous_step, assert_previous_step):
                 raise ValueError(
                     f"{analyzer_name} requires the previous pipeline step to be an "
@@ -103,24 +118,29 @@ class Analyzer(PipelineStep, ABC):
             for step in excluded_steps:
                 if any(
                     isinstance(previous_step, step)
-                    for previous_step in data.pipeline_steps
+                    for previous_step in dataset.pipeline_steps
                 ):
                     raise ValueError(
                         f"{analyzer_name} cannot be applied when a {step.__name__} has been applied before."
                     )
-        result = AnalyzedData(data)
-        processed = Result(analyzer=self)
-        processed.config = self.config
-        for idx, df in self.data_iterator(result):
+        new_dataset = AnalyzedData(dataset)
+        result_type = _typestring2type(self.result_type)
+        result_object = result_type(
+            analyzer=self, dataset_before=dataset, dataset_after=new_dataset
+        )
+        result_object.config = self.config
+        for idx, df in self.data_iterator(new_dataset):
             eligible, message = self.check(df)
             if not eligible:
                 logger.info(f"{idx}: {message}")
                 continue
-            processed[idx] = self.compute(df, **self.config)
-        processed = self.post_process(processed)
-        result.track_pipeline(self, group2pandas=self.group2pandas, **self.level_names)
-        result.set_result(self, processed)
-        return result
+            result_object[idx] = self.compute(df, **self.config)
+        result_object = self.post_process(result_object)
+        new_dataset.track_pipeline(
+            self, group2pandas=self.group2pandas, **self.level_names
+        )
+        new_dataset.set_result(self, result_object)
+        return new_dataset
 
     def post_process(self, processed):
         """Whatever needs to be done after analyzing the data before passing it to the dataset."""
@@ -129,6 +149,10 @@ class Analyzer(PipelineStep, ABC):
 
 class FacetAnalyzer(Analyzer):
     """Analyzers that work on one particular type of DataFrames."""
+
+    @staticmethod
+    def aggregate(result_a: pd.Series, result_b: pd.Series) -> pd.Series:
+        return result_a.add(result_b, fill_value=0.0)
 
     def __init__(self):
         """Adds the field :attr:`required_facets`"""
@@ -162,7 +186,18 @@ class TPCrange(NotesAnalyzer):
         self.group2pandas = "group_of_values2series"
 
     @staticmethod
-    def compute(notes: pd.DataFrame) -> int:
+    def aggregate(result_a: pd.Series, result_b: pd.Series) -> pd.Series:
+        lowest = min(result_a.lowest, result_b.lowest)
+        highest = max(result_a.highest, result_b.highest)
+        result = dict(
+            lowest=lowest,
+            highest=highest,
+            range=highest - lowest,
+        )
+        return pd.Series(result)
+
+    @staticmethod
+    def compute(notes: pd.DataFrame) -> pd.Series:
         """Computes the range from the minimum to the maximum Tonal Pitch Class (TPC).
 
         Args:
@@ -171,7 +206,10 @@ class TPCrange(NotesAnalyzer):
         Returns:
             The difference between the minimal and the maximal tonal pitch class, measured in perfect fifths.
         """
-        return notes.tpc.max() - notes.tpc.min()
+        highest = notes.tpc.max()
+        lowest = notes.tpc.min()
+        result = dict(lowest=lowest, highest=highest, range=highest - lowest)
+        return pd.Series(result)
 
 
 class PitchClassVectors(NotesAnalyzer):
@@ -470,8 +508,12 @@ class LocalKeySequence(GroupedSliceInfoAnalyzer):
         self.group2pandas = None
 
     @staticmethod
-    def compute(slice_info: pd.DataFrame) -> List[str]:
-        return slice_info.localkey.to_list()
+    def aggregate(result_a: pd.Series, result_b: pd.Series) -> pd.Series:
+        return pd.concat(result_a, result_b)
+
+    @staticmethod
+    def compute(slice_info: pd.DataFrame) -> pd.Series:
+        return slice_info.localkey
 
 
 class LocalKeyUnique(SliceInfoAnalyzer):
@@ -486,6 +528,12 @@ class LocalKeyUnique(SliceInfoAnalyzer):
         super().__init__()
         self.level_names["processed"] = ["localkeys"]
         self.group2pandas = None
+
+    @staticmethod
+    def aggregate(result_a: List[str], result_b: List[str]) -> List[str]:
+        set_a = set(result_a)
+        set_a.update(result_b)
+        return sorted(set_a)
 
     @staticmethod
     def compute(slice_info: pd.DataFrame) -> List[str]:
