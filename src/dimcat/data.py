@@ -384,7 +384,7 @@ class Dataset(_Dataset):
         if len(dfs) == 1:
             return list(dfs.values())[0]
         concatenated_groups = pd.concat(
-            dfs.values(), keys=dfs.keys(), names=self.index_levels["groups"]
+            dfs.values(), keys=dfs.keys(), names=self.index_levels["indices"]
         )
         return clean_index_levels(concatenated_groups)
 

@@ -50,9 +50,11 @@ class Analyzer(PipelineStep, ABC):
     assert_steps: Union[str, Collection[str]] = []
     """Analyzer.process_data() raises ValueError if at least one of the names does not belong to
     a :obj:`PipelineStep` that is among the previous PipelineSteps applied to the :obj:`_Dataset`."""
+
     assert_previous_step: Union[str, Collection[str]] = []
     """Analyzer.process_data() raises ValueError if last :obj:`PipelineStep` applied to the
     :obj:`_Dataset` does not match any of these types."""
+
     excluded_steps: Union[str, Collection[str]] = []
     """Analyzer.process_data() raises ValueError if any of the previous :obj:`PipelineStep` applied to the
     :obj:`_Dataset` matches one of these types."""
