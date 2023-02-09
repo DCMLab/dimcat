@@ -1,6 +1,6 @@
 import os
 
-from dimcat import Dataset
+from dimcat.data import Dataset
 from dimcat.cli import get_arg_parser, pcvs
 
 

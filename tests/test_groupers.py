@@ -31,7 +31,7 @@ def test_properties(grouped_data):
     property_test_on_grouped_data(analyzed_grouped)
 
 
-def test_transitivity_with_slicers(grouped_data, slicer):
+def test_commutative_with_slicers(grouped_data, slicer):
     sliced_grouped: GroupedSlicedDataset = slicer.process_data(grouped_data)
     test_grouper = grouped_data.get_previous_pipeline_step()
     reset_data = Dataset(grouped_data)
@@ -45,7 +45,7 @@ def test_transitivity_with_slicers(grouped_data, slicer):
         assert len(sl_gr_notes) == len(gr_sl_notes)
 
 
-def test_transitivity_with_analyzers(grouped_data, analyzer):
+def test_commutative_with_analyzers(grouped_data, analyzer):
     reset_data = Dataset(grouped_data)
     if assert_pipeline_dependency_raise(analyzer, reset_data):
         return

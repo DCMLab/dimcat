@@ -5,9 +5,9 @@ from typing import Any, List, Optional
 import pandas as pd
 from ms3 import resolve_dir, write_tsv
 
-from .data import Dataset, GroupedData
-from .pipeline import PipelineStep
-from .utils import make_suffix
+from dimcat.data import Dataset, GroupedData
+from dimcat.base import PipelineStep
+from dimcat.utils import make_suffix
 
 
 class TSVWriter(PipelineStep):

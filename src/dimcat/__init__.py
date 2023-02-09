@@ -15,14 +15,7 @@ except PackageNotFoundError:  # pragma: no cover
 finally:
     del version, PackageNotFoundError
 
-from .analyzer import (
-    ChordSymbolBigrams,
-    ChordSymbolUnigrams,
-    LocalKeySequence,
-    LocalKeyUnique,
-    PitchClassVectors,
-    TPCrange,
-)
+from .analyzer import *
 from .data import Dataset
 from .filter import HasCadenceAnnotationsFilter, IsAnnotatedFilter
 from .grouper import CorpusGrouper, ModeGrouper, PieceGrouper, YearGrouper

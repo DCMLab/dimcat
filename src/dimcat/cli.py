@@ -9,7 +9,7 @@ import sys
 
 from ms3.cli import check_and_create, check_dir
 
-from .analyzer import ChordSymbolBigrams, ChordSymbolUnigrams, PitchClassVectors
+from dimcat import PitchClassVectors, ChordSymbolUnigrams, ChordSymbolBigrams
 from .data import Dataset
 from .grouper import CorpusGrouper, ModeGrouper, PieceGrouper, YearGrouper
 from .pipeline import Pipeline

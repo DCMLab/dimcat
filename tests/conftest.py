@@ -7,31 +7,27 @@ import os
 from collections import defaultdict
 
 import pytest
-from dimcat.analyzer import (
+from dimcat.analyzer.base import (
     Analyzer,
-    ChordSymbolBigrams,
-    ChordSymbolUnigrams,
-    LocalKeySequence,
-    LocalKeyUnique,
-    PitchClassVectors,
-    TPCrange,
 )
+from dimcat import TPCrange, PitchClassVectors, ChordSymbolUnigrams, ChordSymbolBigrams, LocalKeySequence, LocalKeyUnique
 from dimcat.data import Dataset, GroupedDataset, SlicedDataset
-from dimcat.filter import Filter, IsAnnotatedFilter
+from dimcat.filter.base import Filter
+from dimcat.filter import IsAnnotatedFilter
+from dimcat.grouper.base import Grouper
 from dimcat.grouper import (
     CorpusGrouper,
-    Grouper,
     ModeGrouper,
     PieceGrouper,
     YearGrouper,
 )
 from dimcat.pipeline import Pipeline
+from dimcat.slicer.base import Slicer
 from dimcat.slicer import (
     LocalKeySlicer,
     MeasureSlicer,
     NoteSlicer,
     PhraseSlicer,
-    Slicer,
 )
 from git import Repo
 from ms3 import pretty_dict

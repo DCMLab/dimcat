@@ -14,10 +14,10 @@ from ms3 import (
     slice_df,
 )
 
-from ._typing import PieceID, SliceID
-from .data import AnalyzedData, Data, SlicedData
-from .pipeline import PipelineStep
-from .utils import interval_index2interval
+from dimcat._typing import PieceID, SliceID
+from dimcat.data import AnalyzedData, SlicedData
+from dimcat.base import Data, PipelineStep
+from dimcat.utils import interval_index2interval
 
 logger = logging.getLogger(__name__)
 

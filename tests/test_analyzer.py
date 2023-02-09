@@ -7,7 +7,7 @@ __author__ = "Digital and Cognitive Musicology Lab"
 __copyright__ = "École Polytechnique Fédérale de Lausanne"
 __license__ = "GPL-3.0-or-later"
 
-from dimcat.analyzer import _stepstrings2steps
+from dimcat.utils import typestrings2types
 from dimcat.data import GroupedData
 
 
@@ -19,7 +19,7 @@ def assert_pipeline_dependency_raise(analyzer_obj, data):
     analyzer_class = analyzer_obj.__class__
     analyzer_name = analyzer_class.__name__
     if len(analyzer_class.assert_steps) > 0:
-        assert_steps = _stepstrings2steps(analyzer_class.assert_steps)
+        assert_steps = typestrings2types(analyzer_class.assert_steps)
         for step in assert_steps:
             if not any(
                 isinstance(previous_step, step) for previous_step in data.pipeline_steps
@@ -32,7 +32,7 @@ def assert_pipeline_dependency_raise(analyzer_obj, data):
                 )
                 return True
     if len(analyzer_class.assert_previous_step) > 0:
-        assert_previous_step = _stepstrings2steps(analyzer_class.assert_previous_step)
+        assert_previous_step = typestrings2types(analyzer_class.assert_previous_step)
         previous_step = data.pipeline_steps[0]
         if not isinstance(previous_step, assert_previous_step):
             with pytest.raises(ValueError):
@@ -43,7 +43,7 @@ def assert_pipeline_dependency_raise(analyzer_obj, data):
             )
             return True
     if len(analyzer_class.excluded_steps) > 0:
-        excluded_steps = _stepstrings2steps(analyzer_class.excluded_steps)
+        excluded_steps = typestrings2types(analyzer_class.excluded_steps)
         for step in excluded_steps:
             if any(
                 isinstance(previous_step, step) for previous_step in data.pipeline_steps
