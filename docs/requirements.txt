@@ -1,8 +1,10 @@
 git+https://github.com/DCMLab/dimcat.git@datatypes
-ms3>=1.2.2
-myst-nb
-# Requirements file for ReadTheDocs, check .readthedocs.yml.
-# To build the module reference correctly, make sure every external package
-# under `install_requires` in `setup.cfg` is also listed here!
-sphinx>=3.2.1
-# sphinx_rtd_theme
+importlib-metadata~=6.0.0
+jupyter[dev]~=1.0.0
+ms3~=1.2.2
+myst-nb[dev]~=0.17.1
+pytest-cov[dev]~=4.0.0
+pytest[dev]~=7.1.2
+seaborn~=0.12.2
+setuptools[dev]
+sphinx[dev]~=5.3.0
