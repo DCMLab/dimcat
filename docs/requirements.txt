@@ -1,5 +1,6 @@
-git+https://github.com/DCMLab/dimcat.git@new_ms3
-ms3=>1.0.2
+git+https://github.com/DCMLab/dimcat.git@development
+GitPython
+ms3>=1.0.2
 myst-nb
 # Requirements file for ReadTheDocs, check .readthedocs.yml.
 # To build the module reference correctly, make sure every external package
