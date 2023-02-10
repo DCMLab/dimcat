@@ -1,12 +1,11 @@
-from typing import Iterator, Tuple, Literal, Iterable
+from typing import Iterable, Iterator, Literal, Tuple
 
 import pandas as pd
-from ms3 import add_weighted_grace_durations, fifths2name
-
 from dimcat._typing import ID
 from dimcat.analyzer.base import Analyzer
 from dimcat.data import AnalyzedData
-from dimcat.utils import make_suffix, grams
+from dimcat.utils import grams, make_suffix
+from ms3 import add_weighted_grace_durations, fifths2name
 
 
 class FacetAnalyzer(Analyzer):
@@ -26,6 +25,8 @@ class FacetAnalyzer(Analyzer):
 
 
 class NotesAnalyzer(FacetAnalyzer):
+    result_type = "NotesResult"
+
     def __init__(self):
         """Analyzers that work on notes tables."""
         super().__init__()
@@ -33,6 +34,8 @@ class NotesAnalyzer(FacetAnalyzer):
 
 
 class ChordSymbolAnalyzer(FacetAnalyzer):
+    result_type = "ChordSymbolResult"
+
     def __init__(self):
         """Analyzers that work on expanded annotation tables."""
         super().__init__()

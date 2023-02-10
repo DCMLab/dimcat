@@ -1,3 +1,12 @@
-from .base import _Dataset, AnalyzedData, GroupedData, SlicedData
-from .dcml import Dataset, AnalyzedDataset, GroupedDataset, SlicedDataset, AnalyzedGroupedDataset, AnalyzedSlicedDataset, AnalyzedGroupedSlicedDataset, GroupedSlicedDataset
-from .result import Result
+from .base import AnalyzedData, GroupedData, SlicedData, _Dataset
+from .dcml import (
+    AnalyzedDataset,
+    AnalyzedGroupedDataset,
+    AnalyzedGroupedSlicedDataset,
+    AnalyzedSlicedDataset,
+    Dataset,
+    GroupedDataset,
+    GroupedSlicedDataset,
+    SlicedDataset,
+)
+from .result import ChordSymbolResult, NotesResult, Result

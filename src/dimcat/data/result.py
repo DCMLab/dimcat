@@ -1,12 +1,12 @@
 import copy
 from functools import reduce
-from typing import Optional, Union, Tuple
+from typing import Iterable, Optional, Tuple, Union
 
 import pandas as pd
-from ms3 import pretty_dict
-
+from dimcat._typing import ID, GroupID
 from dimcat.base import Data
-from dimcat.data.base import _Dataset, AnalyzedData, GroupedData, logger
+from dimcat.data.base import AnalyzedData, GroupedData, _Dataset, logger
+from ms3 import pretty_dict
 
 
 class Result(Data):
@@ -29,7 +29,6 @@ class Result(Data):
         self,
         index_result_dict: Optional[dict] = None,
         level_names: Optional[Union[Tuple[str], str]] = None,
-        sort_columns: bool = True,
     ) -> pd.DataFrame:
         if index_result_dict is None:
             index_result_dict = self.result_dict
@@ -43,8 +42,6 @@ class Result(Data):
         except TypeError:
             print(f"level_names = {level_names}; nlevels = {df.index.nlevels}")
             raise
-        if sort_columns:
-            return df[sorted(df.columns)]
         return df
 
     def get_results(self):
@@ -57,6 +54,19 @@ class Result(Data):
             level_names = "group"
         return self._concat_results(group_results, level_names=level_names)
 
+    def _aggregate_results_by_ids(self, indices: Iterable[ID]):
+        group_results = [
+            self.result_dict[idx] for idx in indices if idx in self.result_dict
+        ]
+        if len(group_results) == 0:
+            return
+        aggregated = reduce(self.analyzer.aggregate, group_results)
+        return aggregated
+
+    def _get_aggregated_result_for_group(self, idx: GroupID):
+        indices = self.dataset_after.grouped_indices[idx]
+        return self._aggregate_results_by_ids(indices)
+
     def items(self):
         yield from self.result_dict.items()
 
@@ -66,18 +76,15 @@ class Result(Data):
     def iter_group_results(self):
         if isinstance(self.dataset_after, GroupedData):
             for group, indices in self.dataset_after.iter_grouped_indices():
-                group_results = [
-                    self.result_dict[idx] for idx in indices if idx in self.result_dict
-                ]
-                if len(group_results) == 0:
+                aggregated = self._aggregate_results_by_ids(indices)
+                if aggregated is None:
                     logger.warning(
                         f"{self.analyzer.__class__.__name__} yielded no result for group {group}"
                     )
                     continue
-                aggregated = reduce(self.analyzer.aggregate, group_results)
                 yield group, aggregated
         else:
-            aggregated = reduce(self.analyzer.aggregate, self.iter_results())
+            aggregated = self._aggregate_results_by_ids(self.iter_results())
             yield self.dataset_before.__class__.__name__, aggregated
 
     def __copy__(self):
@@ -106,7 +113,9 @@ class Result(Data):
         self.result_dict[key] = value
 
     def __getitem__(self, item):
-        return self.result_dict[item]
+        if item in self.result_dict:
+            return self.result_dict[item]
+        return self._get_aggregated_result_for_group[item]
 
     def __len__(self):
         return len(self.result_dict)
@@ -125,3 +134,42 @@ class Result(Data):
 
     def _repr_html_(self):
         return self._concat_results().to_html()
+
+
+class NotesResult(Result):
+    def _concat_results(
+        self,
+        index_result_dict: Optional[dict] = None,
+        level_names: Optional[Union[Tuple[str], str]] = None,
+    ) -> pd.DataFrame:
+        df = super()._concat_results(
+            index_result_dict=index_result_dict, level_names=level_names
+        )
+        return df[sorted(df.columns)]
+
+
+class ChordSymbolResult(Result):
+    def _concat_results(
+        self,
+        index_result_dict: Optional[dict] = None,
+        level_names: Optional[Union[Tuple[str], str]] = None,
+    ) -> pd.DataFrame:
+        if index_result_dict is None:
+            index_result_dict = self.result_dict
+            if level_names is None:
+                level_names = self.dataset_after.index_levels["indices"]
+        elif level_names is None:
+            raise ValueError("Names of index level(s) need(s) to be specified.")
+        df = pd.DataFrame.from_dict(index_result_dict, orient="index", dtype="Int64")
+        df.fillna(0, inplace=True)
+        try:
+            df.index.rename(level_names, inplace=True)
+        except TypeError:
+            print(f"level_names = {level_names}; nlevels = {df.index.nlevels}")
+            raise
+        # df.sort_values(df.index.to_list(), axis=1, ascending=False, inplace=True)
+        return df
+
+    def iter_group_results(self):
+        for idx, aggregated in super().iter_group_results():
+            yield idx, aggregated.sort_values(ascending=False).astype("Int64")
