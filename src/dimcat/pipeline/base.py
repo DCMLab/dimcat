@@ -1,9 +1,7 @@
 """A Pipeline performs computation iteratively on a List of PipelineSteps."""
 from typing import List
 
-from dimcat.base import PipelineStep, Data
-
-
+from dimcat.base import Data, PipelineStep
 
 
 class Pipeline(PipelineStep):

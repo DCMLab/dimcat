@@ -4,7 +4,6 @@ from abc import ABC, abstractmethod
 from typing import Any, Collection, Dict, Iterator, List, Optional, Tuple, Union
 
 import pandas as pd
-
 from dimcat._typing import ID, GroupID, SliceID
 from dimcat.base import Data
 from dimcat.utils.functions import typestrings2types
@@ -21,6 +20,7 @@ PROCESSED_DATA_FIELDS: Dict[str, Tuple[str, ...]] = {
 }
 """Name of the data fields that the three types of processing add to any _Dataset object.
 Important for copying objects."""
+
 
 class _Dataset(Data, ABC):
     def __init__(self, data: Optional[Data] = None, **kwargs):

@@ -3,8 +3,8 @@ import logging
 from abc import ABC, abstractmethod
 from collections import defaultdict
 
-from dimcat.data import AnalyzedData, GroupedData, _Dataset
 from dimcat.base import PipelineStep
+from dimcat.data import AnalyzedData, GroupedData, _Dataset
 from dimcat.slicer import LocalKeySlicer
 from dimcat.utils import get_composition_year
 

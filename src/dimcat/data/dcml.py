@@ -1,16 +1,22 @@
 import copy
 from collections import defaultdict
 from functools import lru_cache
-from typing import Optional, Union, Dict, List, Any, Iterator, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 import ms3
 import pandas as pd
-from ms3._typing import ScoreFacet
-
-from dimcat.data.base import _Dataset, SlicedData, PROCESSED_DATA_FIELDS, logger, GroupedData, AnalyzedData
-from dimcat.utils.functions import typestrings2types
+from dimcat._typing import ID, GroupID, PieceID, SliceID
+from dimcat.data.base import (
+    PROCESSED_DATA_FIELDS,
+    AnalyzedData,
+    GroupedData,
+    SlicedData,
+    _Dataset,
+    logger,
+)
 from dimcat.utils import clean_index_levels
-from dimcat._typing import ID, PieceID, SliceID, GroupID
+from dimcat.utils.functions import typestrings2types
+from ms3._typing import ScoreFacet
 
 
 class Dataset(_Dataset):

@@ -7,15 +7,16 @@ __author__ = "Digital and Cognitive Musicology Lab"
 __copyright__ = "École Polytechnique Fédérale de Lausanne"
 __license__ = "GPL-3.0-or-later"
 
-from dimcat.utils import typestrings2types
 from dimcat.data import GroupedData
+from dimcat.utils import typestrings2types
 
 
 def assert_pipeline_dependency_raise(analyzer_obj, data):
     """Checks if the given Analyzer can actually be applied to the given Dataset and returns False if yes (with
     the result that the test which called the function will continue).
     If it cannot, the function tests if a ValueError is thrown as expected and returns True (with the result that
-    the test which called the function will stop). If no error is thrown, the test in question will fail."""
+    the test which called the function will stop). If no error is thrown, the test in question will fail.
+    """
     analyzer_class = analyzer_obj.__class__
     analyzer_name = analyzer_class.__name__
     if len(analyzer_class.assert_steps) > 0:

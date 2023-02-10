@@ -6,6 +6,10 @@ from collections import defaultdict
 from typing import Dict, List, Tuple
 
 import pandas as pd
+from dimcat._typing import PieceID, SliceID
+from dimcat.base import Data, PipelineStep
+from dimcat.data import AnalyzedData, SlicedData
+from dimcat.utils import interval_index2interval
 from ms3 import (
     overlapping_chunk_per_interval,
     replace_index_by_intervals,
@@ -13,11 +17,6 @@ from ms3 import (
     segment_by_criterion,
     slice_df,
 )
-
-from dimcat._typing import PieceID, SliceID
-from dimcat.data import AnalyzedData, SlicedData
-from dimcat.base import Data, PipelineStep
-from dimcat.utils import interval_index2interval
 
 logger = logging.getLogger(__name__)
 

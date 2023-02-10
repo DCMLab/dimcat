@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Tuple, Dict, Type
+from typing import Dict, Tuple, Type
+
 
 class Data(ABC):
     """

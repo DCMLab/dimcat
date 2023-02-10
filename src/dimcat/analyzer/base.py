@@ -1,25 +1,15 @@
 """Analyzers are PipelineSteps that process data and store the results in Data.processed."""
 import logging
 from abc import ABC, abstractmethod
-from typing import (
-    Any,
-    Collection,
-    Iterator,
-    Tuple,
-    Type,
-    TypeVar,
-    Union,
-)
+from typing import Any, Collection, Iterator, Tuple, Type, TypeVar, Union
 
 import dimcat.data as data_module
-
 from dimcat._typing import ID
-from dimcat.data import AnalyzedData, _Dataset
 from dimcat.base import PipelineStep
+from dimcat.data import AnalyzedData, _Dataset
 from dimcat.utils import typestrings2types
 
 logger = logging.getLogger(__name__)
-
 
 
 def _typestring2type(typestring: str) -> Type:
@@ -134,5 +124,3 @@ class Analyzer(PipelineStep, ABC):
     def post_process(self, processed):
         """Whatever needs to be done after analyzing the data before passing it to the dataset."""
         return processed
-
-

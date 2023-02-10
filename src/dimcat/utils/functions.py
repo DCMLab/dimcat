@@ -1,5 +1,5 @@
 """Utility functions that are or might be used by several modules or useful in external contexts."""
-from typing import Collection, Union, Tuple, Type
+from typing import Collection, Tuple, Type, Union
 
 import pandas as pd
 from dimcat.base import Data, PipelineStep
@@ -132,11 +132,9 @@ def interval_index2interval(ix):
     return pd.Interval(left, right, closed="left")
 
 
-
 def typestrings2types(typestrings: Union[str, Collection[str]]) -> Tuple[Type]:
     """Turns one or several names of classes contained in this module into a
     tuple of references to these classes."""
-    global Data, PipelineStep
     d_types = Data._registry
     ps_types = PipelineStep._registry
     if isinstance(typestrings, str):
@@ -148,5 +146,8 @@ def typestrings2types(typestrings: Union[str, Collection[str]]) -> Tuple[Type]:
         elif typ in ps_types:
             result.append(ps_types[typ])
         else:
-            raise KeyError(f"Typestring '{typ}' does not correspond to a known subclass of PipelineStep or Data:\n{ps_types}\n{d_types}")
+            raise KeyError(
+                f"Typestring '{typ}' does not correspond to a known subclass of PipelineStep or Data:\n"
+                f"{ps_types}\n{d_types}"
+            )
     return tuple(result)

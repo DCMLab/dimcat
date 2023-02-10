@@ -3,11 +3,10 @@ import os
 from typing import Any, List, Optional
 
 import pandas as pd
-from ms3 import resolve_dir, write_tsv
-
-from dimcat.data import Dataset, GroupedData
 from dimcat.base import PipelineStep
+from dimcat.data import Dataset, GroupedData
 from dimcat.utils import make_suffix
+from ms3 import resolve_dir, write_tsv
 
 
 class TSVWriter(PipelineStep):
