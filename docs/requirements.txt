@@ -3,7 +3,7 @@ dimcat[dev]==0.3.0
 importlib-metadata~=6.0.0
 jupyter~=1.0.0
 kaleido~=0.2.1
-ms3~=1.0.2
+ms3~=1.1.1
 myst-nb~=0.17.1
 pitchtypes>=0.4.0
 plotly~=5.13.0

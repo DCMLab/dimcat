@@ -77,6 +77,12 @@ extensions = [
 ]
 # pip install myst-nb
 
+# MyST-NB configuration https://myst-nb.readthedocs.io/en/latest/configuration.html
+nb_execution_timeout = 180
+nb_execution_raise_on_error = True
+nb_execution_show_tb = True
+nb_execution_mode = "off"
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
 
