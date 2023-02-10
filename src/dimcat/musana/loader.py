@@ -47,7 +47,7 @@ class SequentialData(ABC):
     def get_changes(self) -> SequentialData:
         """Transform label seq [A, A, A, B, C, C, A, C, C, C] --->  [A, B, C, A, C]"""
         prev = object()
-        occurrence_list = [prev := v for v in self._series if prev != v]
+        occurrence_list = [prev := v for v in self._series if prev != v]  # noqa: F841
         series = pd.Series(occurrence_list)
         sequential_data = SequentialData.from_pd_series(series)
         return sequential_data
@@ -346,7 +346,7 @@ class CorpusInfo(BaseCorpusInfo):
     @classmethod
     def from_directory(cls, corpus_path: str) -> CorpusInfo:
         """Assemble all required args for CorpusInfo class"""
-        corpus_name: str = corpus_path.split(os.sep)[-2]
+        # corpus_name: str = corpus_path.split(os.sep)[-2]
         metadata_tsv_df: pd.DataFrame = pd.read_csv(
             corpus_path + "metadata.tsv", sep="\t"
         )
@@ -370,7 +370,7 @@ class CorpusInfo(BaseCorpusInfo):
             note_df: pd.DataFrame = pd.concat(
                 [item.note_info._df for item in pieceinfo_list]
             )
-        except:
+        except Exception:
             raise Warning(
                 "piece does not have all the required .tsv files in this corpus"
             )
@@ -461,7 +461,9 @@ class MetaCorporaInfo(BaseCorpusInfo):
         return filtered_pieces
 
     def get_annotated_pieces(self) -> List[PieceInfo]:
-        is_annotated = lambda pieceinfo: pieceinfo.annotated
+        def is_annotated(pieceinfo):
+            return pieceinfo.annotated
+
         annotated_pieces = self.filter_pieces_by_condition(condition=is_annotated)
         return annotated_pieces
 
@@ -491,7 +493,7 @@ class MetaCorporaInfo(BaseCorpusInfo):
             note_df: pd.DataFrame = pd.concat(
                 [item.note_info._df for item in corpusinfo_list]
             )
-        except:
+        except Exception:
             raise Warning(
                 "Corpus does not have all the required .tsv files in this corpus"
             )

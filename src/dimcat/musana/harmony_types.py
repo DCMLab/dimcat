@@ -35,7 +35,7 @@ class HarmonyRegexes:
         "^(?P<class>[A-G])(?P<modifiers>(b*)|(#*))$", re.I
     )  # case-insensitive
 
-    arabic_degree_regex = re.compile("^(?P<modifiers>[#b]*)(?P<number>(\d+))$")
+    arabic_degree_regex = re.compile(r"^(?P<modifiers>[#b]*)(?P<number>(\d+))$")
     roman_degree_regex = re.compile(
         "^(?P<modifiers>[#b]*)(?P<roman_numeral>([VI]+))$", re.I
     )
@@ -117,7 +117,7 @@ class Key:
         elif self.mode == "M":
             resulting_str = str(self.root)
         else:
-            raise ValueError(f"not applicable mode")
+            raise ValueError("not applicable mode")
         return resulting_str
 
 
@@ -176,7 +176,8 @@ class Degree:
                 degree_number = int(match["number"])
             case _:
                 raise ValueError(
-                    f"could not match {match} with regex: {HarmonyRegexes.roman_degree_regex} or {HarmonyRegexes.arabic_degree_regex}"
+                    f"could not match {match} with regex: {HarmonyRegexes.roman_degree_regex} or "
+                    f"{HarmonyRegexes.arabic_degree_regex}"
                 )
         modifiers_match = match["modifiers"]
         alteration = SpelledPitchClass(f"C{modifiers_match}").alteration()
@@ -239,7 +240,7 @@ class IP(IntervalQuality):
 class HarmonyQuality:
     """Examples:
     stack_of_thirds_3_Mm = HarmonyQuality(stacksize=3,ic_quality_list=[IP(1),IP(-1)]) # Major triad
-    stack_of_thirds_4_mmm = HarmonyQuality(stacksize=3,ic_quality_list=[IP(-1),IP(-1),IP(-1)]) # fully diminished seventh chord
+    stack_of_thirds_4_mmm = HarmonyQuality(stacksize=3,ic_quality_list=[IP(-1),IP(-1),IP(-1)]) # fully diminished 7th
     stack_of_fifth_4_PPP = HarmonyQuality(stacksize=5,ic_quality_list=[P(0),P(0),P(0)])
     stack_of_fifth_3_ADP = HarmonyQuality(stacksize=5,ic_quality_list=[P(-1),P(1),P(0)])
     """
@@ -382,12 +383,12 @@ class SingleNumeralParts:
 
     # the regular expression conforms with the DCML annotation standards
     _sn_regex = re.compile(
-        "^(?P<modifiers>(b*)|(#*))"  # accidentals
-        "(?P<roman_numeral>(VII|VI|V|IV|III|II|I|vii|vi|v|iv|iii|ii|i|Ger|It|Fr|@none))"  # roman numeral
-        "(?P<form>(%|o|\+|M|\+M))?"  # quality form
-        "(?P<figbass>(7|65|43|42|2|64|6))?"  # figured bass
-        "(?P<added_tones>(\(\+[#b]*\d*)\))?"  # added tones, non-chord tones added within parentheses and preceded by a "+"
-        "(?P<replacement_tones>(\([\^v][#b]*\d*)\))?$"
+        r"^(?P<modifiers>(b*)|(#*))"  # accidentals
+        r"(?P<roman_numeral>(VII|VI|V|IV|III|II|I|vii|vi|v|iv|iii|ii|i|Ger|It|Fr|@none))"  # roman numeral
+        r"(?P<form>(%|o|\+|M|\+M))?"  # quality form
+        r"(?P<figbass>(7|65|43|42|2|64|6))?"  # figured bass
+        r"(?P<added_tones>(\(\+[#b]*\d*)\))?"  # added tones, non-chord tones added within parentheses preceded by a "+"
+        r"(?P<replacement_tones>(\([\^v][#b]*\d*)\))?$"
     )  # replaced chord tones expressed through intervals <= 8
 
     @classmethod
