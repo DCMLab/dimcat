@@ -51,3 +51,4 @@ MANIFEST
 .venv*/
 .conda*/
 .python-version
+/docs/.ipynb_checkpoints/
