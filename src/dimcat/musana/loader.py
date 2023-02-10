@@ -6,12 +6,13 @@ from dataclasses import dataclass
 from functools import cached_property
 from typing import Callable, List
 
-import musana.util as util
 import numpy as np
 import pandas as pd
-from musana.generics import Sequential
-from musana.harmony_types import Key, TonalHarmony
 from scipy.stats import entropy
+
+from .generics import Sequential
+from .harmony_types import Key, TonalHarmony
+from .util import determine_era_based_on_year
 
 
 @dataclass(frozen=True)
@@ -149,7 +150,7 @@ class PieceMetaData:
 
     @cached_property
     def era(self) -> str:
-        era = util.determine_era_based_on_year(year=self.composed_end._series[0])
+        era = determine_era_based_on_year(year=self.composed_end._series[0])
         return era
 
 
