@@ -26,6 +26,10 @@ class Grouper(PipelineStep, ABC):
         the resulting groups has a meaningful name. E.g., for grouping by years, a good index
         level name could be 'year'.
         """
+        self.level_names = dict(grouper="name")
+
+    def filename_factory(self):
+        return self.level_names["grouper"] + "_wise"
 
     @abstractmethod
     def criterion(self, index: tuple, data: Data) -> str:
@@ -82,6 +86,9 @@ class PieceGrouper(Grouper):
         self.sort = sort
         self.level_names = dict(grouper="fname")
 
+    def filename_factory(self):
+        return "piece_wise"
+
     def criterion(self, index: tuple, data: Data) -> str:
         return index[1]
 
@@ -99,7 +106,7 @@ class YearGrouper(Grouper):
         ix = index[:2]
         if ix in self.year_cache:
             return self.year_cache[ix]
-        metadata_dict = data.pieces[ix]["metadata"]
+        metadata_dict = data.pieces[ix].tsv_metadata
         year = get_composition_year(metadata_dict)
         self.year_cache[ix] = year
         return year
@@ -120,8 +127,11 @@ class ModeGrouper(Grouper):
         self.level_names = dict(grouper="localkey_is_minor")
         self.slicer = None
 
+    def filename_factory(self):
+        return "mode_wise"
+
     def criterion(self, index: tuple, data: Data) -> str:
-        slice_info = data.slice_info[self.slicer][index]
+        slice_info = data.slice_info[index]
         try:
             return slice_info["localkey_is_minor"]
         except KeyError:
@@ -129,12 +139,5 @@ class ModeGrouper(Grouper):
             print(slice_info)
 
     def process_data(self, data: Data) -> Data:
-        try:
-            self.slicer = next(
-                step for step in data.pipeline_steps if isinstance(step, LocalKeySlicer)
-            )
-        except StopIteration:
-            raise Exception(
-                f"Previous PipelineSteps do not include LocalKeySlicer: {data.pipeline_steps}"
-            )
+        self.slicer = data.get_previous_pipeline_step(of_type=LocalKeySlicer)
         return super().process_data(data)

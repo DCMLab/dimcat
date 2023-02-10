@@ -30,6 +30,8 @@ Contents
    :maxdepth: 2
 
    Overview <readme>
+   tutorial
+   manual
    Contributions & Help <contributing>
    License <license>
    Authors <authors>
