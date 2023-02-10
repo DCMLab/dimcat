@@ -1,3 +1,4 @@
+from .constants import DCML_CORPORA
 from .functions import (
     clean_index_levels,
     get_composition_year,

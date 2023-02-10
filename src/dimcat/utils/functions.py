@@ -1,5 +1,5 @@
 """Utility functions that are or might be used by several modules or useful in external contexts."""
-from typing import Collection, Tuple, Type, Union
+from typing import Collection, Literal, Tuple, Type, Union
 
 import pandas as pd
 from dimcat.base import Data, PipelineStep
@@ -123,6 +123,10 @@ def make_suffix(*params):
             as_str += str(p)
         param_strings.append(as_str)
     return "-".join(param_strings)
+
+
+def infer_dataset_type(d: str) -> Literal["dcml"]:
+    return "dcml"
 
 
 def interval_index2interval(ix):
