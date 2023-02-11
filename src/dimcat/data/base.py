@@ -1,12 +1,19 @@
 """Class hierarchy for data types."""
+import copy
 import logging
-from abc import ABC, abstractmethod
-from typing import Any, Collection, Dict, Iterator, List, Optional, Tuple, Union
+from functools import lru_cache
+from typing import Collection, Dict, Iterator, List, Optional, Tuple, Union
 
+import ms3
 import pandas as pd
-from dimcat._typing import ID, GroupID, SliceID
+from dimcat._typing import ID, GroupID, PieceID, SliceID
 from dimcat.base import Data
-from dimcat.utils.functions import typestrings2types
+from dimcat.utils.functions import (
+    clean_index_levels,
+    infer_dataset_type,
+    typestrings2types,
+)
+from ms3._typing import ScoreFacet
 
 logger = logging.getLogger(__name__)
 
@@ -22,13 +29,21 @@ PROCESSED_DATA_FIELDS: Dict[str, Tuple[str, ...]] = {
 Important for copying objects."""
 
 
-class _Dataset(Data, ABC):
-    def __init__(self, data: Optional[Data] = None, **kwargs):
-        """Create a new :obj:`Data` object."""
+class Dataset(Data):
+    def __init__(self, data: Optional[Union["Dataset", ms3.Parse]] = None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        data : Data
+            Convert a given Data object into a Corpus if possible.
+        kwargs
+            All keyword arguments are passed to load().
+        """
         self._data = None
         """Protected attribute for storing and internally accessing the loaded data."""
 
-        self.pieces: Dict[ID, Any] = {}
+        self.pieces: Dict[ID, ms3.Piece] = {}
         """{(corpus, fname) -> Any}
         References to the individual pieces contained in the data. The exact type depends on the type of data.
         """
@@ -52,40 +67,110 @@ class _Dataset(Data, ABC):
 
         self.group2pandas = None  # ToDo: deprecate this by using different datatypes for different types of results
 
-        # __init__() methods of subclasses should end with:
-        # self.data = data
+        self.data = data
+        if len(kwargs) > 0:
+            self.load(**kwargs)
 
     @property
-    @abstractmethod
-    def data(self):
+    def data(self) -> ms3.Parse:
         """Get the data field in its raw form."""
         return self._data
 
     @data.setter
-    @abstractmethod
-    def data(self, data_object):
-        """Implement setting the _data field after performing type check."""
-        if data_object is not None:
-            raise NotImplementedError
-        self._data = data_object
+    def data(self, data_object: Optional[Union["Dataset", ms3.Parse]]) -> None:
+        """Check if the assigned object is suitable for conversion."""
+        if data_object is None:
+            self._data = ms3.Parse()
+            return
+        is_dataset_object = isinstance(data_object, Dataset)
+        is_parse_object = isinstance(data_object, ms3.Parse)
+        if not (is_dataset_object or is_parse_object):
+            raise TypeError(
+                f"{data_object.__class__} could not be converted to a DCML dataset."
+            )
+        if is_parse_object:
+            self._data = data_object
+            return
+        # else: got a Dataset object and need to copy its fields
+        self._data = data_object._data
+        self.pieces = dict(data_object.pieces)
+        # ^^^ doesn't copy the ms3.Parse and ms3.Piece objects, only the references ^^^
+        # vvv all other fields are deepcopied vvv
+        if isinstance(data_object, SlicedData) and not isinstance(self, SlicedData):
+            self.indices = sorted(set(ID[:2] for ID in data_object.indices))
+        elif self.__class__.__name__ == "Dataset":
+            self.indices = []
+            self.reset_indices()
+        else:
+            self.indices = list(data_object.indices)
+        self.index_levels = copy.deepcopy(data_object.index_levels)
+        self.pipeline_steps = list(data_object.pipeline_steps)
+        self.group2pandas = data_object.group2pandas
+        if self.__class__.__name__ == "Dataset":
+            return
+        processed_types = typestrings2types(PROCESSED_DATA_FIELDS.keys())
+        typestring2dtype = dict(zip(PROCESSED_DATA_FIELDS.keys(), processed_types))
+        for typestring, optional_fields in PROCESSED_DATA_FIELDS.items():
+            dtype = typestring2dtype[typestring]
+            if not (isinstance(data_object, dtype) and isinstance(self, dtype)):
+                continue
+            for field in optional_fields:
+                setattr(self, field, copy.deepcopy(getattr(data_object, field)))
 
     @property
     def n_indices(self):
         return len(self.indices)
 
-    @abstractmethod
     def copy(self):
-        return self.__class__()
+        return self.__class__(data=self)
 
-    @abstractmethod
-    def iter_facet(self, what):
-        """Iterate through (potentially grouped) pieces of data."""
-        for index in self.indices:
-            yield self.get_item(index, what)
+    def get_facet(self, what: ScoreFacet) -> pd.DataFrame:
+        """Uses _.iter_facet() to collect and concatenate all DataFrames for a particular facet.
 
-    @abstractmethod
-    def get_item(self, index, what):
-        """Get an individual piece of data."""
+        Parameters
+        ----------
+        what : {'form_labels', 'events', 'expanded', 'notes_and_rests', 'notes', 'labels',
+                'cadences', 'chords', 'measures', 'rests'}
+            What facet to retrieve.
+
+        Returns
+        -------
+        :obj:`pandas.DataFrame`
+        """
+        dfs = {idx: df for idx, df in self.iter_facet(what=what)}
+        if len(dfs) == 1:
+            return list(dfs.values())[0]
+        concatenated_groups = pd.concat(
+            dfs.values(), keys=dfs.keys(), names=self.index_levels["indices"]
+        )
+        return clean_index_levels(concatenated_groups)
+
+    def get_indices(self) -> List[PieceID]:
+        return list(self.indices)
+
+    @lru_cache()
+    def get_item(self, ID: PieceID, what: ScoreFacet) -> Optional[pd.DataFrame]:
+        """Retrieve a DataFrame pertaining to the facet ``what`` of the piece ``index``.
+
+        Args:
+            ID: (corpus, fname) or (corpus, fname, interval)
+            what: What facet to retrieve.
+
+        Returns:
+            DataFrame representing an entire score facet, or a chunk (slice) of it.
+        """
+
+        file, df = self.pieces[ID].get_facet(what, interval_index=True)
+        logger.debug(f"Retrieved {what} from {file}.")
+        if df is not None and not isinstance(df.index, pd.IntervalIndex):
+            logger.info(f"'{what}' of {ID} does not come with an IntervalIndex")
+            df = None
+        if df is None:
+            return
+        assert (
+            df.index.nlevels == 1
+        ), f"Retrieved DataFrame has {df.index.nlevels}, not 1"
+        return df
 
     def get_previous_pipeline_step(self, idx=0, of_type=None):
         """Retrieve one of the previously applied PipelineSteps, either by index or by type.
@@ -120,7 +205,28 @@ class _Dataset(Data, ABC):
                 f"Previously applied PipelineSteps do not include any {of_type}: {self.pipeline_steps}"
             )
 
-    def set_indices(self, new_indices: List[tuple]) -> None:
+    def iter_facet(self, what: ScoreFacet) -> Iterator[Tuple[ID, pd.DataFrame]]:
+        """Iterate through facet DataFrames.
+
+        Args:
+            what: Which type of facet to retrieve.
+
+        Yields:
+            Index tuple.
+            Facet DataFrame.
+        """
+        for idx, piece in self.iter_pieces():
+            _, df = piece.get_parsed(facet=what)
+            if df is None or len(df.index) == 0:
+                logger.info(f"{idx} has no {what}.")
+                continue
+            yield idx, df
+
+    def iter_pieces(self) -> Iterator[Tuple[PieceID, ms3.Piece]]:
+        for idx in self.indices:
+            yield idx, self.pieces[idx]
+
+    def set_indices(self, new_indices: Union[List[ID], Dict[ID, List[ID]]]) -> None:
         """Replace :attr:`indices` with a new list of IDs.
 
         Args:
@@ -174,9 +280,33 @@ class _Dataset(Data, ABC):
         if slicer is not None:
             self.index_levels["slicer"] = [slicer]
 
-    @abstractmethod
-    def load(self):
-        """Load data into memory."""
+    def load(self, directory: Optional[Union[str, List[str]]]):
+        """
+        Load and parse all of the desired raw data and metadata.
+
+        Parameters
+        ----------
+        directory : str
+            The path(s) to all the data to load.
+        """
+        if isinstance(directory, str):
+            directory = [directory]
+        for d in directory:
+            dataset_type = infer_dataset_type(d)
+            if dataset_type == "dcml":
+                self.load_dcml(d)
+
+    def load_dcml(self, directory: Optional[Union[str, List[str]]], **kwargs):
+        ms3_parse = ms3.Parse()
+        if isinstance(directory, str):
+            directory = [directory]
+        for d in directory:
+            ms3_parse.add_dir(directory=d, **kwargs)
+        for corpus_name, ms3_corpus in ms3_parse.iter_corpora():
+            for fname, piece in ms3_corpus.iter_pieces():
+                ID = PieceID(corpus_name, fname)
+                self.pieces[ID] = piece
+                self.indices.append(ID)
 
     def group_of_values2series(self, group_dict) -> pd.Series:
         """Converts an {ID -> processing_result} dict into a Series."""
@@ -252,8 +382,12 @@ class _Dataset(Data, ABC):
         # TODO: This method should include a call to clean_multiindex_levels and make use of self.index_levels
         return multiindex
 
+    def reset_indices(self):
+        """"""
+        self.set_indices(list(self.pieces.keys()))
 
-class _ProcessedData(_Dataset):
+
+class _ProcessedData(Dataset):
     """Base class for types of processed :obj:`_Dataset` objects.
     Processed datatypes are created by passing a _Dataset object. The new object will be a copy of the Data with the
     :attr:`prefix` prepended. Subclasses should have an __init__() method that calls super().__init__() and then

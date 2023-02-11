@@ -1,10 +1,9 @@
-from .base import AnalyzedData, GroupedData, SlicedData, _Dataset
+from .base import AnalyzedData, Dataset, GroupedData, SlicedData
 from .dcml import (
     AnalyzedDataset,
     AnalyzedGroupedDataset,
     AnalyzedGroupedSlicedDataset,
     AnalyzedSlicedDataset,
-    Dataset,
     GroupedDataset,
     GroupedSlicedDataset,
     SlicedDataset,

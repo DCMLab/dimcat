@@ -6,7 +6,7 @@ from typing import Any, Collection, Iterator, Tuple, Type, TypeVar, Union
 import dimcat.data as data_module
 from dimcat._typing import ID
 from dimcat.base import PipelineStep
-from dimcat.data import AnalyzedData, _Dataset
+from dimcat.data import AnalyzedData, Dataset
 from dimcat.utils import typestrings2types
 
 logger = logging.getLogger(__name__)
@@ -71,7 +71,7 @@ class Analyzer(PipelineStep, ABC):
         """How a particular analyzer iterates through a dataset, getting the chunks passed to :meth:`compute`."""
         yield from data
 
-    def process_data(self, dataset: _Dataset) -> AnalyzedData:
+    def process_data(self, dataset: Dataset) -> AnalyzedData:
         """Returns an :obj:`AnalyzedData` copy of the Dataset with the added analysis result."""
         analyzer_name = self.__class__.__name__
         if len(self.assert_steps) > 0:

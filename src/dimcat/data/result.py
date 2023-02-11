@@ -5,7 +5,7 @@ from typing import Iterable, Optional, Tuple, Union
 import pandas as pd
 from dimcat._typing import ID, GroupID
 from dimcat.base import Data
-from dimcat.data.base import AnalyzedData, GroupedData, _Dataset, logger
+from dimcat.data.base import AnalyzedData, Dataset, GroupedData, logger
 from ms3 import pretty_dict
 
 
@@ -15,7 +15,7 @@ class Result(Data):
     def __init__(
         self,
         analyzer: "Analyzer",  # noqa: F821
-        dataset_before: _Dataset,
+        dataset_before: Dataset,
         dataset_after: AnalyzedData,
     ):
         self.analyzer = analyzer

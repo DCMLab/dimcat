@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 
 from dimcat.base import PipelineStep
-from dimcat.data import AnalyzedData, GroupedData, _Dataset
+from dimcat.data import AnalyzedData, Dataset, GroupedData
 from dimcat.slicer import LocalKeySlicer
 from dimcat.utils import get_composition_year
 
@@ -35,13 +35,13 @@ class Grouper(PipelineStep, ABC):
         return self.level_names["grouper"] + "_wise"
 
     @abstractmethod
-    def criterion(self, index: tuple, dataset: _Dataset) -> str:
+    def criterion(self, index: tuple, dataset: Dataset) -> str:
         """Takes one index and (potentially) looks it up in the data object to return the name
         of the new group that the corresponding element is attributed to. The name will be appended
         to the previous group names tuple.
         """
 
-    def process_data(self, dataset: _Dataset) -> GroupedData:
+    def process_data(self, dataset: Dataset) -> GroupedData:
         """Returns a copy of the Data object where the list of indices for each existing group has
         been further subdivided into smaller groups.
         """
@@ -82,7 +82,7 @@ class CorpusGrouper(Grouper):
         self.sort = sort
         self.level_names = dict(grouper="corpus")
 
-    def criterion(self, index: tuple, dataset: _Dataset) -> str:
+    def criterion(self, index: tuple, dataset: Dataset) -> str:
         return index[0]
 
 
@@ -97,7 +97,7 @@ class PieceGrouper(Grouper):
     def filename_factory(self):
         return "piece_wise"
 
-    def criterion(self, index: tuple, dataset: _Dataset) -> str:
+    def criterion(self, index: tuple, dataset: Dataset) -> str:
         return index[1]
 
 
@@ -110,7 +110,7 @@ class YearGrouper(Grouper):
         self.level_names = dict(grouper="year")
         self.year_cache = {}
 
-    def criterion(self, index: tuple, dataset: _Dataset) -> str:
+    def criterion(self, index: tuple, dataset: Dataset) -> str:
         ix = index[:2]
         if ix in self.year_cache:
             return self.year_cache[ix]
@@ -119,7 +119,7 @@ class YearGrouper(Grouper):
         self.year_cache[ix] = year
         return year
 
-    def process_data(self, dataset: _Dataset) -> GroupedData:
+    def process_data(self, dataset: Dataset) -> GroupedData:
         result = super().process_data(dataset=dataset)
         self.year_cache = {}
         return result
@@ -138,7 +138,7 @@ class ModeGrouper(Grouper):
     def filename_factory(self):
         return "mode_wise"
 
-    def criterion(self, index: tuple, dataset: _Dataset) -> str:
+    def criterion(self, index: tuple, dataset: Dataset) -> str:
         slice_info = dataset.slice_info[index]
         try:
             return slice_info["localkey_is_minor"]
@@ -146,6 +146,6 @@ class ModeGrouper(Grouper):
             print(f"Information on localkey not present in the slice_info of {index}:")
             print(slice_info)
 
-    def process_data(self, dataset: _Dataset) -> GroupedData:
+    def process_data(self, dataset: Dataset) -> GroupedData:
         self.slicer = dataset.get_previous_pipeline_step(of_type=LocalKeySlicer)
         return super().process_data(dataset)

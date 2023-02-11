@@ -8,11 +8,7 @@ def test_pcvs():
     debussy = "/home/hentsche/debussy"
     parser = get_arg_parser()
     data = Dataset()
-    data.data.add_dir(
-        directory=debussy, file_re="l000", level="d"
-    )  # abbreviating the test works only with ms3 > 1.2.1
-    data.data.parse_tsv()
-    data.get_indices()
+    data.data.load_dcml(directory=debussy, file_re="l000")
     out = os.path.join(debussy, "pcvs")
     print(out)
     args = parser.parse_args(
