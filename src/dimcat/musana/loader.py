@@ -8,9 +8,9 @@ from typing import Callable, List
 
 import numpy as np
 import pandas as pd
+from dimcat._typing import Sequential
 from scipy.stats import entropy
 
-from .generics import Sequential
 from .harmony_types import Key, TonalHarmony
 from .util import determine_era_based_on_year
 
