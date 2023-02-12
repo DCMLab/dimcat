@@ -4,14 +4,14 @@ import collections
 from dataclasses import dataclass
 
 import pandas as pd
-from dimcat._typing import ST, Sequential
+from dimcat._typing import Ngrams, TypedSequence
 
-# set typing, Sequential of tuples:
+# set typing, TypedSequence[tuple]:
 
 
 @dataclass
 class TransitionMatrix:
-    n_grams: ST
+    n_grams: Ngrams
 
     def __repr__(self) -> str:
         return f"TransitionMatrix(n_grams={self.n_grams})"
@@ -80,7 +80,7 @@ class TransitionMatrix:
 
 if __name__ == "__main__":
     test_seq = [1, 1, 1, 2, 2, 3, 4, 5, 6]
-    sequential = Sequential.from_sequence(sequence=test_seq)
-    # bigrams = sequential.get_n_grams(n=2)
-    # print(bigrams)
+    sequential = TypedSequence(test_seq)
+    bigrams = sequential.get_n_grams(n=2)
+    print(bigrams)
     print(sequential[6])

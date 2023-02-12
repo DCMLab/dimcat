@@ -8,11 +8,10 @@ from typing import Callable, List
 
 import numpy as np
 import pandas as pd
-from dimcat._typing import Sequential
+from dimcat._typing import TypedSequence
+from dimcat.musana.harmony_types import Key, TonalHarmony
+from dimcat.musana.util import determine_era_based_on_year
 from scipy.stats import entropy
-
-from .harmony_types import Key, TonalHarmony
-from .util import determine_era_based_on_year
 
 
 @dataclass(frozen=True)
@@ -281,7 +280,7 @@ class PieceInfo:
             return False
 
     @cached_property
-    def get_tonal_harmony_sequential(self) -> Sequential:
+    def get_tonal_harmony_sequential(self) -> TypedSequence:
         """Essentially get the "chord" column from the dataframe and transform each chord to a TonalHarmony object."""
         dropped_nan_df = self.harmony_info._df.dropna(
             how="any", subset=["chord", "globalkey", "localkey"]
@@ -299,7 +298,7 @@ class PieceInfo:
         tonal_harmony_list = dropped_nan_df.apply(create_tonal_harmony, axis=1)
 
         # Create a Sequential object from the list of TonalHarmony objects
-        tonal_harmony_sequential = Sequential.from_sequence(tonal_harmony_list)
+        tonal_harmony_sequential = TypedSequence(tonal_harmony_list)
 
         return tonal_harmony_sequential
 
@@ -572,7 +571,7 @@ if __name__ == "__main__":
     # print(transition_dict)
 
     piece = PieceInfo.from_directory(
-        parent_corpus_path="../petit_dcml_corpus/corelli//", piece_name="op01n01a"
+        parent_corpus_path="~/corelli//", piece_name="op01n01a"
     )
 
     result = piece.harmony_info._df[["globalkey", "localkey", "chord"]].to_numpy()
