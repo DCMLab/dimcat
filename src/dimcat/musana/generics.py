@@ -4,7 +4,7 @@ import collections
 from dataclasses import dataclass
 
 import pandas as pd
-from dimcat._typing import Ngrams, TypedSequence
+from dimcat.dtypes import Ngrams, TypedSequence
 
 # set typing, TypedSequence[tuple]:
 

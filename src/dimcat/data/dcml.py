@@ -4,8 +4,8 @@ from typing import Dict, Iterator, List, Optional, Tuple, Union
 
 import ms3
 import pandas as pd
-from dimcat._typing import ID, GroupID, PieceID, SliceID
 from dimcat.data.base import AnalyzedData, Dataset, GroupedData, SlicedData, logger
+from dimcat.dtypes import ID, GroupID, PieceID, SliceID
 from dimcat.utils import clean_index_levels
 from ms3._typing import ScoreFacet
 

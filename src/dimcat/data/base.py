@@ -6,8 +6,8 @@ from typing import Collection, Dict, Iterator, List, Optional, Tuple, Union
 
 import ms3
 import pandas as pd
-from dimcat._typing import ID, GroupID, PieceID, SliceID
 from dimcat.base import Data
+from dimcat.dtypes import ID, GroupID, PieceID, SliceID
 from dimcat.utils.functions import (
     clean_index_levels,
     infer_dataset_type,

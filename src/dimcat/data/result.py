@@ -3,9 +3,9 @@ from functools import reduce
 from typing import Iterable, Optional, Tuple, Union
 
 import pandas as pd
-from dimcat._typing import ID, GroupID
 from dimcat.base import Data
 from dimcat.data.base import AnalyzedData, Dataset, GroupedData, logger
+from dimcat.dtypes import ID, GroupID
 from ms3 import pretty_dict
 
 

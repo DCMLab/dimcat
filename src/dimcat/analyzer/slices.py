@@ -1,9 +1,9 @@
 from typing import Iterator, List, Literal, Tuple
 
 import pandas as pd
-from dimcat._typing import ID
 from dimcat.analyzer.base import Analyzer
 from dimcat.data import AnalyzedGroupedDataset, AnalyzedSlicedDataset
+from dimcat.dtypes import ID
 
 
 class SliceInfoAnalyzer(Analyzer):

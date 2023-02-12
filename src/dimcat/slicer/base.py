@@ -6,9 +6,9 @@ from collections import defaultdict
 from typing import Dict, List, Tuple
 
 import pandas as pd
-from dimcat._typing import PieceID, SliceID
 from dimcat.base import Data, PipelineStep
 from dimcat.data import AnalyzedData, SlicedData
+from dimcat.dtypes import PieceID, SliceID
 from dimcat.utils import interval_index2interval
 from ms3 import (
     overlapping_chunk_per_interval,

@@ -25,8 +25,7 @@ from typing import (
 
 import numpy as np
 import pandas as pd
-from dimcat.utils import grams
-from dimcat.utils.functions import transition_matrix
+from dimcat.utils import grams, transition_matrix
 
 logger = logging.getLogger(__name__)
 

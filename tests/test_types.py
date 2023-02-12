@@ -17,7 +17,6 @@ import dimcat.data as data_module
 import numpy as np
 import pandas as pd
 import pytest
-from dimcat._typing import PieceID, TypedSequence, to_tuple
 from dimcat.data import (
     AnalyzedData,
     AnalyzedDataset,
@@ -31,6 +30,7 @@ from dimcat.data import (
     SlicedData,
     SlicedDataset,
 )
+from dimcat.dtypes import PieceID, TypedSequence, to_tuple
 from ms3 import scale_degree2name
 from pandas._testing import assert_frame_equal
 

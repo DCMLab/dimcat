@@ -1,9 +1,9 @@
 from typing import Iterable, Iterator, Literal, Tuple
 
 import pandas as pd
-from dimcat._typing import ID
 from dimcat.analyzer.base import Analyzer
 from dimcat.data import AnalyzedData
+from dimcat.dtypes import ID
 from dimcat.utils import grams, make_suffix
 from ms3 import add_weighted_grace_durations, fifths2name
 

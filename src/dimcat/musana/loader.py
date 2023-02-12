@@ -8,7 +8,7 @@ from typing import Callable, List
 
 import numpy as np
 import pandas as pd
-from dimcat._typing import TypedSequence
+from dimcat.dtypes import TypedSequence
 from dimcat.musana.harmony_types import Key, TonalHarmony
 from dimcat.musana.util import determine_era_based_on_year
 from scipy.stats import entropy

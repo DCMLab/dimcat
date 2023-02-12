@@ -4,9 +4,9 @@ from abc import ABC, abstractmethod
 from typing import Any, Collection, Iterator, Tuple, Type, TypeVar, Union
 
 import dimcat.data as data_module
-from dimcat._typing import ID
 from dimcat.base import PipelineStep
 from dimcat.data import AnalyzedData, Dataset
+from dimcat.dtypes import ID
 from dimcat.utils import typestrings2types
 
 logger = logging.getLogger(__name__)
