@@ -6,5 +6,6 @@ from .functions import (
     interval_index2interval,
     make_suffix,
     nest_level,
+    transition_matrix,
     typestrings2types,
 )

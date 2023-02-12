@@ -1,8 +1,22 @@
 """Utility functions that are or might be used by several modules or useful in external contexts."""
-from typing import Collection, Literal, Tuple, Type, Union
+import logging
+from typing import (
+    Collection,
+    List,
+    Literal,
+    Optional,
+    Tuple,
+    Type,
+    TypeAlias,
+    TypeVar,
+    Union,
+)
 
+import numpy as np
 import pandas as pd
 from dimcat.base import Data, PipelineStep
+
+logger = logging.getLogger(__name__)
 
 
 def nest_level(obj, include_tuples=False):
@@ -19,11 +33,14 @@ def nest_level(obj, include_tuples=False):
     return max_level + 1
 
 
-def grams(list_of_sequences, n=2):
+T = TypeVar("T")
+PotentiallyNested: TypeAlias = List[Union[T, "PotentiallyNested"]]
+
+
+def grams(list_of_sequences: PotentiallyNested, n: int = 2) -> List[Tuple[T, ...]]:
     """Returns a list of n-gram tuples for given list. List can be nested.
     Use nesting to exclude transitions between pieces or other units.
     Uses: nest_level()
-
     """
     if nest_level(list_of_sequences) > 1:
         ngrams = []
@@ -37,12 +54,7 @@ def grams(list_of_sequences, n=2):
             ngrams.extend(grams(no_sublists, n))
         return ngrams
     else:
-        # if len(l) < n:
-        #    print(f"{l} is too small for a {n}-gram.")
-        # ngrams = [l[i:(i+n)] for i in range(len(l)-n+1)]
-        ngrams = list(zip(*(list_of_sequences[i:] for i in range(n))))
-        # convert to tuple of strings
-        return [tuple(str(g) for g in gram) for gram in ngrams]
+        return list(zip(*(list_of_sequences[i:] for i in range(n))))
 
 
 def get_composition_year(metadata_dict):
@@ -134,6 +146,124 @@ def interval_index2interval(ix):
     left = ix.left.min()
     right = ix.right.max()
     return pd.Interval(left, right, closed="left")
+
+
+def transition_matrix(
+    list_of_sequences: Optional[PotentiallyNested] = None,
+    list_of_grams: Optional[List[Tuple[T, ...]]] = None,
+    n=2,
+    k=None,
+    smooth: int = 0,
+    normalize: bool = False,
+    entropy: bool = False,
+    excluded_symbols: Optional[List] = None,
+    distinct_only: bool = False,
+    sort: bool = False,
+    percent: bool = False,
+    decimals: Optional[int] = None,
+) -> pd.DataFrame:
+    """Returns a transition table from a list of symbols or a list of n-grams.
+    You need to pass either ``list_of_sequences`` or ``list_of_grams``. If you pass the former, the latter will be
+    created by calling the function :func:`grams`.
+
+    Args:
+        list_of_sequences:
+            List of elements or nested list of elements between which the transitions are calculated. If the list
+            is nested, bigrams are calculated recursively to exclude transitions between the lists. If you want
+            to create the transition matrix from a list of n-grams directly, pass it as ``list_of_grams`` instead.
+        list_of_grams: List of tuples being n-grams. If you want to have them computed from a list of sequences,
+            pass it as ``list_of_sequences`` instead.
+        n: If ``list_of_sequences`` is passed, the number of elements per n-gram tuple. Ignored otherwise.
+        k: If specified, the transition matrix will show only the top k n-grams.
+        smooth: If specified, this is the minimum value in the transition matrix.
+        normalize: By default, absolute counts are shown. Pass True to normalize each row.
+        entropy: Pass True to add a column showing the normalized entropy for each row.
+        excluded_symbols: Any n-gram containing any of these symbols will be excluded.
+        distinct_only: Pass True to exclude all n-grams consisting of identical elements only.
+        sort:
+            By default, the order of both index and columns follows the overall n-gram frequency.
+            Pass True to sort them separately, i.e. each by their own frequencies.
+        percent: Pass True to multiply the matrix by 100 before rounding to `decimals`
+        decimals: To how many decimals you want to round the matrix, if at all.
+
+    Returns:
+        DataFrame with frequency statistics of (n-1) grams transitioning to all occurring last elements.
+        The index is made up of strings corresponding to all but the last element of the n-grams,
+        with the column index containing all last elements.
+    """
+    if list_of_grams is None:
+        assert n > 1, f"Cannot print {n}-grams"
+        list_of_grams = grams(list_of_sequences, n=n)
+    elif list_of_sequences is not None:
+        assert True, "Specify either list_of_grams or list_of_grams, not both."
+    if len(list_of_grams) == 0:
+        raise ValueError(
+            "Unable to compute transition matrix from empty list of n-grams."
+        )
+    if excluded_symbols:
+        list_of_grams = list(
+            filter(lambda n: not any(g in excluded_symbols for g in n), list_of_grams)
+        )
+    if distinct_only:
+        list_of_grams = list(
+            filter(lambda tup: any(e != tup[0] for e in tup), list_of_grams)
+        )
+    ngrams = pd.Series(list_of_grams).value_counts()
+    multiindex = pd.MultiIndex.from_tuples(ngrams.index)
+    ngrams.index = multiindex
+    consequent_level = multiindex.get_level_values(-1)
+    if sort:
+        contexts = ngrams.droplevel(-1)
+        # add up the counts for identical contexts and consequents to sort them
+        context_counts = (
+            contexts.groupby(contexts.index).sum().sort_values(ascending=False)
+        )
+        context_levels = context_counts.index
+        consequents = ngrams.copy()
+        consequents.index = consequent_level
+        consequent_counts = (
+            consequents.groupby(consequents.index).sum().sort_values(ascending=False)
+        )
+        consequent_level = consequent_counts.index
+    else:
+        context_levels = multiindex.droplevel(-1).unique()
+        consequent_level = consequent_level.unique()
+    df = pd.DataFrame(smooth, index=context_levels, columns=consequent_level)
+
+    for (*context, consequent), occurrences in ngrams.items():
+        try:
+            df.loc[tuple(context), [consequent]] = occurrences
+        except Exception as e:
+            logger.warning(
+                f"Could not write the {occurrences} of the transition from {context}->{consequent}:\n{e}"
+            )
+            continue
+
+    if normalize or entropy:
+        df_norm = df.div(df.sum(axis=1), axis=0)
+
+    if entropy:
+        ic = np.log2(1 / df_norm)
+        entropy = (ic * df_norm).sum(axis=1)
+        # Identical calculations:
+        # entropy = scipy.stats.entropy(df.transpose(),base=2)
+        # entropy = -(df * np.log2(df)).sum(axis=1)
+        if normalize:
+            entropy /= np.log2(len(df.columns))
+            df = pd.concat([entropy, df_norm], axis=1)
+        else:
+            df = pd.concat([entropy, df], axis=1)
+
+    if k is not None:
+        df = df.iloc[:k, :k]
+
+    if percent:
+        df.iloc[:, 0:] *= 100
+
+    if decimals is not None:
+        df.round(decimals, inplace=True)
+
+    return df
 
 
 def typestrings2types(typestrings: Union[str, Collection[str]]) -> Tuple[Type]:
