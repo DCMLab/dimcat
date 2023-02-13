@@ -314,7 +314,15 @@ class TypedSequence(Sequence[T_co]):
                 f"Conversion {self.converter.__name__}({value}) -> {self.dtype} failed with:\n'{e}'"
             )
 
-    def append(self, value: T_co, convert: bool = False) -> None:
+    @overload
+    def append(self, value: T_co, convert: Literal[False]) -> None:
+        ...
+
+    @overload
+    def append(self, value: Union[T_co, C], convert: Literal[True]) -> None:
+        ...
+
+    def append(self, value: Union[T_co, C], convert: bool = False) -> None:
         if convert:
             self._values.append(self.convert(value))
         else:
@@ -353,6 +361,18 @@ class TypedSequence(Sequence[T_co]):
                 raise TypeError(
                     f"Cannot append {value} to {self.name}. Try setting convert=True."
                 )
+
+    @overload
+    def extend(self, values: Iterable[T_co], convert: Literal[False]) -> None:
+        ...
+
+    @overload
+    def extend(self, values: Iterable[Union[T_co, C]], convert: Literal[True]) -> None:
+        ...
+
+    def extend(self, values: Iterable[Union[T_co, C]], convert: bool = False) -> None:
+        for value in values:
+            self.append(value=value, convert=convert)
 
     def __eq__(self, other) -> bool:
         """Considered as equal when 'other' is a Sequence containing the same values."""
