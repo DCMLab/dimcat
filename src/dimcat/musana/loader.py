@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from functools import cached_property
 from typing import Callable, List
 
+import ms3
 import numpy as np
 import pandas as pd
 from dimcat.dtypes import TypedSequence
@@ -186,20 +187,21 @@ class PieceInfo:
 
     @classmethod
     def from_directory(cls, parent_corpus_path: str, piece_name: str) -> PieceInfo:
-        corpus_name: str = parent_corpus_path.split(os.sep)[-2]
-        metadata_tsv_df: pd.DataFrame = pd.read_csv(
-            parent_corpus_path + "metadata.tsv", sep="\t"
+        corpus_name: str = os.path.dirname(parent_corpus_path)
+        metadata_tsv_df: pd.DataFrame = ms3.load_tsv(
+            os.path.join(parent_corpus_path, "metadata.tsv")
         )
 
         try:
-            harmonies_df: pd.DataFrame = pd.read_csv(
-                parent_corpus_path + "harmonies/" + piece_name + ".tsv", sep="\t"
+            tsv_name = piece_name + ".tsv"
+            harmonies_df: pd.DataFrame = ms3.load_tsv(
+                os.path.join(parent_corpus_path, "harmonies", tsv_name)
             )
-            measure_df: pd.DataFrame = pd.read_csv(
-                parent_corpus_path + "measures/" + piece_name + ".tsv", sep="\t"
+            measure_df: pd.DataFrame = ms3.load_tsv(
+                os.path.join(parent_corpus_path, "measures", tsv_name)
             )
-            note_df: pd.DataFrame = pd.read_csv(
-                parent_corpus_path + "notes/" + piece_name + ".tsv", sep="\t"
+            note_df: pd.DataFrame = ms3.load_tsv(
+                os.path.join(parent_corpus_path, "notes", tsv_name)
             )
         except Exception:
             raise Warning(
