@@ -139,12 +139,12 @@ class KeyInfo(TabularData):
 @dataclass
 class PieceMetaData:
     corpus_path: str
-    corpus_name: SequentialData
-    piece_name: SequentialData
-    composed_start: SequentialData
-    composed_end: SequentialData
-    composer: SequentialData
-    annotated_key: SequentialData
+    corpus_name: TypedSequence
+    piece_name: TypedSequence
+    composed_start: TypedSequence
+    composed_end: TypedSequence
+    composer: TypedSequence
+    annotated_key: TypedSequence
     label_count: int | None
     piece_length: int
 
@@ -191,6 +191,14 @@ class PieceInfo:
         metadata_tsv_df: pd.DataFrame = ms3.load_tsv(
             os.path.join(parent_corpus_path, "metadata.tsv")
         )
+        metadata_tsv_df = ms3.enforce_fname_index_for_metadata(metadata_tsv_df)
+        try:
+            piece_metadata = metadata_tsv_df.loc[piece_name]
+        except KeyError:
+            raise KeyError(
+                f"Piece name {piece_name} not contained in metadata.tsv, only{metadata_tsv_df.index.to_list()}"
+            )
+        metadata_dict = piece_metadata.to_dict()
 
         try:
             tsv_name = piece_name + ".tsv"
@@ -217,40 +225,28 @@ class PieceInfo:
 
         piece_length = harmonies_df.shape[0]
 
-        piece_name_SeqData: SequentialData = SequentialData.from_series(
-            pd.Series([piece_name] * piece_length)
-        )
-        corpus_name_SeqData: SequentialData = SequentialData.from_series(
-            pd.Series([corpus_name] * piece_length)
+        piece_name_SeqData: TypedSequence = TypedSequence([piece_name] * piece_length)
+        corpus_name_SeqData: TypedSequence = TypedSequence([corpus_name] * piece_length)
+
+        annotated_key: str = metadata_dict["annotated_key"]
+        annotated_key_SeqData: TypedSequence = TypedSequence(
+            [annotated_key] * piece_length
         )
 
-        annotated_key: str = metadata_tsv_df.loc[
-            metadata_tsv_df["fnames"] == piece_name
-        ]["annotated_key"].values[0]
-        annotated_key_SeqData = SequentialData.from_series(
-            pd.Series([annotated_key] * piece_length)
+        composed_start: int = metadata_dict["composed_start"]
+        composed_start_SeqData: TypedSequence = TypedSequence(
+            [composed_start] * piece_length
         )
 
-        composed_start: int = metadata_tsv_df.loc[
-            metadata_tsv_df["fnames"] == piece_name
-        ]["composed_start"].values[0]
-        composed_start_SeqData: SequentialData = SequentialData.from_series(
-            pd.Series([composed_start] * piece_length)
+        composed_end: int = metadata_dict["composed_end"]
+        composed_end_SeqData: TypedSequence = TypedSequence(
+            [composed_end] * piece_length
         )
 
-        composed_end: int = metadata_tsv_df.loc[
-            metadata_tsv_df["fnames"] == piece_name
-        ]["composed_end"].values[0]
-        composed_end_SeqData: SequentialData = SequentialData.from_series(
-            pd.Series([composed_end] * piece_length)
+        composer: TypedSequence = TypedSequence(
+            [corpus_name.split("_")[0]] * piece_length
         )
-
-        composer: SequentialData = SequentialData.from_series(
-            pd.Series([corpus_name.split("_")[0]] * piece_length)
-        )
-        label_count = metadata_tsv_df.loc[metadata_tsv_df["fnames"] == piece_name][
-            "label_count"
-        ].values[0]
+        label_count = metadata_dict["label_count"]
 
         meta_info = PieceMetaData(
             corpus_path=parent_corpus_path,
