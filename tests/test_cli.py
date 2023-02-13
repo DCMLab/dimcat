@@ -10,7 +10,7 @@ def test_pcvs():
     parser = get_arg_parser()
     loader = DcmlLoader(directory=debussy, file_re="l000")
     data = Dataset()
-    data.add_loader(loader)
+    data.attach_loader(loader)
     out = os.path.join(debussy, "pcvs")
     print(out)
     args = parser.parse_args(
