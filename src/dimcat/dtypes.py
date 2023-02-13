@@ -26,6 +26,7 @@ from typing import (
 import numpy as np
 import pandas as pd
 from dimcat.utils import grams, transition_matrix
+from scipy.stats import entropy
 
 logger = logging.getLogger(__name__)
 
@@ -380,6 +381,46 @@ class TypedSequence(Sequence[T_co]):
     def extend(self, values: Iterable[Union[T_co, C]], convert: bool = False) -> None:
         for value in values:
             self.append(value=value, convert=convert)
+
+    def unique(self) -> TypedSequence[T_co]:
+        unique_values = (
+            self.to_series().unique()
+        )  # keeps order of first occurrence, unlike using set()
+        return TypedSequence(unique_values)
+
+    def get_changes(self) -> TypedSequence[T_co]:
+        """Transforms values [A, A, A, B, C, C, A, C, C, C] --->  [A, B, C, A, C]"""
+        prev = object()
+        occurrence_list = [
+            prev := v for v in self.to_series() if prev != v  # noqa: F841
+        ]
+        return TypedSequence(occurrence_list)
+
+    def count(self) -> pd.Series:
+        """Count the occurrences of objects in the sequence"""
+        return self.to_series().value_counts()
+
+    def mean(self) -> float:
+        return self.to_series().mean()
+
+    def probability(self) -> pd.Series:
+        return self.to_series().value_counts(normalize=True)
+
+    def entropy(self) -> float:
+        """
+        The Shannon entropy (information entropy), the expected/average surprisal based on its probability distrib.
+        """
+        # mean_entropy = self.event_entropy().mean()
+        p = self.probability()
+        distr_entropy = entropy(p, base=2)
+        return distr_entropy
+
+    def surprisal(self) -> pd.Series:
+        """The self entropy, information content, surprisal"""
+        probs = self.probability()
+        self_entropy = -np.log(probs)
+        series = pd.Series(data=self_entropy, name="surprisal")
+        return series
 
     def __eq__(self, other) -> bool:
         """Considered as equal when 'other' is a Sequence containing the same values."""

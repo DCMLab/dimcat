@@ -7,12 +7,10 @@ from functools import cached_property
 from typing import Callable, List
 
 import ms3
-import numpy as np
 import pandas as pd
 from dimcat.dtypes import TypedSequence
 from dimcat.musana.harmony_types import Key, TonalHarmony
 from dimcat.musana.util import determine_era_based_on_year
-from scipy.stats import entropy
 
 
 @dataclass(frozen=True)
@@ -24,66 +22,10 @@ class TabularData(ABC):
         instance = cls(_df=df)
         return instance
 
-    def get_aspect(self, key: str) -> SequentialData:
+    def get_aspect(self, key: str) -> TypedSequence:
         series: pd.Series = self._df[key]
-        sequential_data = SequentialData.from_series(series)
+        sequential_data = TypedSequence(series)
         return sequential_data
-
-
-@dataclass(frozen=True)
-class SequentialData(ABC):
-    _series: pd.Series
-
-    @classmethod
-    def from_series(cls, series: pd.Series):
-        instance = cls(_series=series)
-        return instance
-
-    def unique_labels(self) -> SequentialData:
-        unique_labels = self._series.unique()
-        series = pd.Series(unique_labels)
-        sequential_data = SequentialData.from_series(series)
-        return sequential_data
-
-    def get_changes(self) -> SequentialData:
-        """Transform label seq [A, A, A, B, C, C, A, C, C, C] --->  [A, B, C, A, C]"""
-        prev = object()
-        occurrence_list = [prev := v for v in self._series if prev != v]  # noqa: F841
-        series = pd.Series(occurrence_list)
-        sequential_data = SequentialData.from_series(series)
-        return sequential_data
-
-    def len(self):
-        return self._series.shape[0]
-
-    def count(self):
-        """Count the occurrences of objects in the sequence"""
-        value_count = pd.value_counts(self._series)
-        return value_count
-
-    def mean(self) -> float:
-        return self._series.mean()
-
-    def probability(self) -> pd.Series:
-        count = self.count()
-        prob = count / count.sum()
-        return prob
-
-    def entropy(self) -> float:
-        """
-        The Shannon entropy (information entropy), the expected/average surprisal based on its probability distribution.
-        """
-        # mean_entropy = self.event_entropy().mean()
-        p = self.probability()
-        distr_entropy = entropy(p, base=2)
-        return distr_entropy
-
-    def surprisal(self) -> pd.Series:
-        """The self entropy, information content, surprisal"""
-        probs = self.probability()
-        self_entropy = -np.log(probs)
-        series = pd.Series(data=self_entropy, name="surprisal")
-        return series
 
 
 # _____________________________ AspectInfo ______________________________________
@@ -109,9 +51,9 @@ class MeasureInfo(TabularData):
 @dataclass(frozen=True)
 class NoteInfo(TabularData):
     @cached_property
-    def tpc(self) -> SequentialData:
+    def tpc(self) -> TypedSequence:
         series = self._df["tpc"]
-        sequential = SequentialData.from_series(series=series)
+        sequential = TypedSequence.from_series(series=series)
         return sequential
 
 
@@ -127,9 +69,9 @@ class KeyInfo(TabularData):
         return key
 
     @cached_property
-    def local_key(self) -> SequentialData:
+    def local_key(self) -> TypedSequence:
         local_key_series = self._df["localkey"]
-        sequential_data = SequentialData.from_series(series=local_key_series)
+        sequential_data = TypedSequence.from_series(series=local_key_series)
         return sequential_data
 
 
@@ -150,28 +92,28 @@ class PieceMetaData:
 
     @cached_property
     def era(self) -> str:
-        era = determine_era_based_on_year(year=self.composed_end._series[0])
+        era = determine_era_based_on_year(year=self.composed_end.to_series()[0])
         return era
 
 
 @dataclass
 class CorpusMetaData:
-    corpus_name: SequentialData
-    composer: SequentialData
-    composed_start: SequentialData
-    composed_end: SequentialData
-    annotated_key: SequentialData
+    corpus_name: TypedSequence
+    composer: TypedSequence
+    composed_start: TypedSequence
+    composed_end: TypedSequence
+    annotated_key: TypedSequence
     piecename_list: List[str]  # don't count pieces with label_count=0
     pieceinfo_list: List[PieceInfo]  # don't count pieces with label_count=0
 
 
 @dataclass
 class MetaCorporaMetaData:
-    corpora_names: SequentialData
-    composer: SequentialData
-    composed_start: SequentialData
-    composed_end: SequentialData
-    annotated_key: SequentialData
+    corpora_names: TypedSequence
+    composer: TypedSequence
+    composed_start: TypedSequence
+    composed_end: TypedSequence
+    annotated_key: TypedSequence
     corpusname_list: List[str]
     corpusinfo_list: List[CorpusInfo]
 
@@ -348,11 +290,13 @@ class CorpusInfo(BaseCorpusInfo):
         metadata_tsv_df: pd.DataFrame = ms3.load_tsv(
             os.path.join(corpus_path, "metadata.tsv")
         )
+        metadata_tsv_df = ms3.enforce_fname_index_for_metadata(metadata_tsv_df)
 
         # don't count pieces with label_count=0, and annotated_key is empty
-        piecename_list = metadata_tsv_df.loc[metadata_tsv_df["label_count"] != 0][
-            "fnames"
+        metadata_tsv_annotated = metadata_tsv_df.loc[
+            metadata_tsv_df["label_count"] != 0
         ]
+        piecename_list = metadata_tsv_annotated.index.to_list()
         pieceinfo_list = [
             PieceInfo.from_directory(parent_corpus_path=corpus_path, piece_name=item)
             for item in piecename_list
@@ -380,36 +324,30 @@ class CorpusInfo(BaseCorpusInfo):
         key_df: pd.DataFrame = harmony_info._df[["globalkey", "localkey"]]
         key_info = KeyInfo.from_df(df=key_df)
 
-        concat_composed_start_series = pd.concat(
-            [item.meta_info.composed_start._series for item in pieceinfo_list]
+        concat_composed_start_series = sum(
+            (item.meta_info.composed_start.values for item in pieceinfo_list), []
         )
-        composed_start_SeqData = SequentialData.from_series(
-            series=concat_composed_start_series
-        )
+        composed_start_SeqData = TypedSequence(concat_composed_start_series)
 
-        concat_composed_end_series = pd.concat(
-            [item.meta_info.composed_end._series for item in pieceinfo_list]
+        concat_composed_end_series = sum(
+            (item.meta_info.composed_end.values for item in pieceinfo_list), []
         )
-        composed_end_SeqData = SequentialData.from_series(
-            series=concat_composed_end_series
-        )
+        composed_end_SeqData = TypedSequence(concat_composed_end_series)
 
-        corpusname_SeqData = SequentialData.from_series(
-            series=pd.concat(
-                [item.meta_info.corpus_name._series for item in pieceinfo_list]
-            )
+        concat_corpus_name = sum(
+            (item.meta_info.corpus_name.values for item in pieceinfo_list), []
         )
-        composer_SeqData = SequentialData.from_series(
-            series=pd.concat(
-                [item.meta_info.composer._series for item in pieceinfo_list]
-            )
-        )
+        corpusname_SeqData = TypedSequence(concat_corpus_name)
 
-        annotated_key_SeqData = SequentialData.from_series(
-            series=pd.concat(
-                [item.meta_info.annotated_key._series for item in pieceinfo_list]
-            )
+        concat_composer = sum(
+            (item.meta_info.composer.values for item in pieceinfo_list), []
         )
+        composer_SeqData = TypedSequence(concat_composer)
+
+        concat_annotated_key = sum(
+            (item.meta_info.annotated_key.values for item in pieceinfo_list), []
+        )
+        annotated_key_SeqData = TypedSequence(concat_annotated_key)
 
         meta_info = CorpusMetaData(
             corpus_name=corpusname_SeqData,
@@ -505,36 +443,30 @@ class MetaCorporaInfo(BaseCorpusInfo):
         key_df: pd.DataFrame = harmony_info._df[["globalkey", "localkey"]]
         key_info = KeyInfo.from_df(df=key_df)
 
-        concat_composed_start_series = pd.concat(
-            [item.meta_info.composed_start._series for item in corpusinfo_list]
+        concat_composed_start_series = sum(
+            (item.meta_info.composed_start.values for item in corpusinfo_list), []
         )
-        composed_start_SeqData = SequentialData.from_series(
-            series=concat_composed_start_series
-        )
+        composed_start_SeqData = TypedSequence(concat_composed_start_series)
 
-        concat_composed_end_series = pd.concat(
-            [item.meta_info.composed_end._series for item in corpusinfo_list]
+        concat_composed_end_series = sum(
+            (item.meta_info.composed_end.values for item in corpusinfo_list), []
         )
-        composed_end_SeqData = SequentialData.from_series(
-            series=concat_composed_end_series
-        )
+        composed_end_SeqData = TypedSequence(concat_composed_end_series)
 
-        corporaname_SeqData = SequentialData.from_series(
-            series=pd.concat(
-                [item.meta_info.corpus_name._series for item in corpusinfo_list]
-            )
+        concat_corpus_name = sum(
+            (item.meta_info.corpus_name.values for item in corpusinfo_list), []
         )
-        composer_SeqData = SequentialData.from_series(
-            series=pd.concat(
-                [item.meta_info.composer._series for item in corpusinfo_list]
-            )
-        )
+        corporaname_SeqData = TypedSequence(concat_corpus_name)
 
-        annotated_key_SeqData = SequentialData.from_series(
-            series=pd.concat(
-                [item.meta_info.annotated_key._series for item in corpusinfo_list]
-            )
+        concat_composer = sum(
+            (item.meta_info.composer.values for item in corpusinfo_list), []
         )
+        composer_SeqData = TypedSequence(concat_composer)
+
+        concat_annotated_key = sum(
+            (item.meta_info.annotated_key.values for item in corpusinfo_list), []
+        )
+        annotated_key_SeqData = TypedSequence(concat_annotated_key)
 
         meta_info = MetaCorporaMetaData(
             corpora_names=corporaname_SeqData,
