@@ -20,7 +20,7 @@ class TabularData(ABC):
     _df: pd.DataFrame
 
     @classmethod
-    def from_pd_df(cls, df: pd.DataFrame):
+    def from_df(cls, df: pd.DataFrame):
         instance = cls(_df=df)
         return instance
 
@@ -208,12 +208,12 @@ class PieceInfo:
                 "piece does not have all the required .tsv files in this corpus"
             )
 
-        harmony_info = HarmonyInfo.from_pd_df(df=harmonies_df)
-        measure_info = MeasureInfo.from_pd_df(df=measure_df)
-        note_info = NoteInfo.from_pd_df(df=note_df)
+        harmony_info = HarmonyInfo.from_df(df=harmonies_df)
+        measure_info = MeasureInfo.from_df(df=measure_df)
+        note_info = NoteInfo.from_df(df=note_df)
 
         key_df: pd.DataFrame = harmony_info._df[["globalkey", "localkey"]]
-        key_info = KeyInfo.from_pd_df(df=key_df)
+        key_info = KeyInfo.from_df(df=key_df)
 
         piece_length = harmonies_df.shape[0]
 
@@ -377,12 +377,12 @@ class CorpusInfo(BaseCorpusInfo):
                 "piece does not have all the required .tsv files in this corpus"
             )
 
-        harmony_info = HarmonyInfo.from_pd_df(df=harmonies_df)
-        measure_info = MeasureInfo.from_pd_df(df=measure_df)
-        note_info = NoteInfo.from_pd_df(df=note_df)
+        harmony_info = HarmonyInfo.from_df(df=harmonies_df)
+        measure_info = MeasureInfo.from_df(df=measure_df)
+        note_info = NoteInfo.from_df(df=note_df)
 
         key_df: pd.DataFrame = harmony_info._df[["globalkey", "localkey"]]
-        key_info = KeyInfo.from_pd_df(df=key_df)
+        key_info = KeyInfo.from_df(df=key_df)
 
         concat_composed_start_series = pd.concat(
             [item.meta_info.composed_start._series for item in pieceinfo_list]
@@ -500,12 +500,12 @@ class MetaCorporaInfo(BaseCorpusInfo):
                 "Corpus does not have all the required .tsv files in this corpus"
             )
 
-        harmony_info = HarmonyInfo.from_pd_df(df=harmonies_df)
-        measure_info = MeasureInfo.from_pd_df(df=measure_df)
-        note_info = NoteInfo.from_pd_df(df=note_df)
+        harmony_info = HarmonyInfo.from_df(df=harmonies_df)
+        measure_info = MeasureInfo.from_df(df=measure_df)
+        note_info = NoteInfo.from_df(df=note_df)
 
         key_df: pd.DataFrame = harmony_info._df[["globalkey", "localkey"]]
-        key_info = KeyInfo.from_pd_df(df=key_df)
+        key_info = KeyInfo.from_df(df=key_df)
 
         concat_composed_start_series = pd.concat(
             [item.meta_info.composed_start._series for item in corpusinfo_list]
