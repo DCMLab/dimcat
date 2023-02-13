@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import logging
+from enum import Enum
+from pathlib import Path
 from typing import (
     Any,
     Callable,
+    Collection,
     Dict,
     Hashable,
     Iterable,
@@ -12,6 +15,7 @@ from typing import (
     Literal,
     NamedTuple,
     Optional,
+    Protocol,
     Sequence,
     Tuple,
     Type,
@@ -21,6 +25,7 @@ from typing import (
     _GenericAlias,
     get_args,
     overload,
+    runtime_checkable,
 )
 
 import numpy as np
@@ -468,12 +473,6 @@ class Ngrams(TypedSequence[Tuple[T_co, ...]]):
         is followed by any of the n-grams' last elements.
 
         Args:
-            list_of_sequences:
-                List of elements or nested list of elements between which the transitions are calculated. If the list
-                is nested, bigrams are calculated recursively to exclude transitions between the lists. If you want
-                to create the transition matrix from a list of n-grams directly, pass it as ``list_of_grams`` instead.
-            list_of_grams: List of tuples being n-grams. If you want to have them computed from a list of sequences,
-                pass it as ``list_of_sequences`` instead.
             n: If ``list_of_sequences`` is passed, the number of elements per n-gram tuple. Ignored otherwise.
             k: If specified, the transition matrix will show only the top k n-grams.
             smooth: If specified, this is the minimum value in the transition matrix.
@@ -516,3 +515,38 @@ class Bigrams(Ngrams[Tuple[T_co, T_co]]):
 class PieceIndex(TypedSequence[PieceID], register_for=[PieceID]):
     def __init__(self, values: Sequence[Tuple[str, str]], converter=PieceID._make):
         super().__init__(values, converter)
+
+
+PathLike: TypeAlias = Union[str, Path]
+
+
+@runtime_checkable
+class PLoader(Protocol):
+    def __init__(self, directory: Union[PathLike, Collection[PathLike]]):
+        pass
+
+    def iter_pieces(self) -> Iterator[Tuple[PieceID, PPiece]]:
+        ...
+
+
+class PieceFacet(Enum):
+    MEASURES = ("measures",)
+    NOTES = ("notes",)
+    RESTS = ("rests",)
+    NOTES_AND_RESTS = ("notes_and_rests",)
+    LABELS = ("labels",)
+    EXPANDED = ("expanded",)
+    FORM_LABELS = ("form_labels",)
+    CADENCES = ("cadences",)
+    EVENTS = ("events",)
+    CHORDS = ("chords",)
+
+
+class PFacet(Protocol):
+    pass
+
+
+@runtime_checkable
+class PPiece(Protocol):
+    def get_facet(self, facet=PieceFacet) -> PFacet:
+        ...
