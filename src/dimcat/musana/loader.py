@@ -26,7 +26,7 @@ class TabularData(ABC):
 
     def get_aspect(self, key: str) -> SequentialData:
         series: pd.Series = self._df[key]
-        sequential_data = SequentialData.from_pd_series(series)
+        sequential_data = SequentialData.from_series(series)
         return sequential_data
 
 
@@ -35,14 +35,14 @@ class SequentialData(ABC):
     _series: pd.Series
 
     @classmethod
-    def from_pd_series(cls, series: pd.Series):
+    def from_series(cls, series: pd.Series):
         instance = cls(_series=series)
         return instance
 
     def unique_labels(self) -> SequentialData:
         unique_labels = self._series.unique()
         series = pd.Series(unique_labels)
-        sequential_data = SequentialData.from_pd_series(series)
+        sequential_data = SequentialData.from_series(series)
         return sequential_data
 
     def get_changes(self) -> SequentialData:
@@ -50,7 +50,7 @@ class SequentialData(ABC):
         prev = object()
         occurrence_list = [prev := v for v in self._series if prev != v]  # noqa: F841
         series = pd.Series(occurrence_list)
-        sequential_data = SequentialData.from_pd_series(series)
+        sequential_data = SequentialData.from_series(series)
         return sequential_data
 
     def len(self):
@@ -111,7 +111,7 @@ class NoteInfo(TabularData):
     @cached_property
     def tpc(self) -> SequentialData:
         series = self._df["tpc"]
-        sequential = SequentialData.from_pd_series(series=series)
+        sequential = SequentialData.from_series(series=series)
         return sequential
 
 
@@ -129,7 +129,7 @@ class KeyInfo(TabularData):
     @cached_property
     def local_key(self) -> SequentialData:
         local_key_series = self._df["localkey"]
-        sequential_data = SequentialData.from_pd_series(series=local_key_series)
+        sequential_data = SequentialData.from_series(series=local_key_series)
         return sequential_data
 
 
@@ -217,35 +217,35 @@ class PieceInfo:
 
         piece_length = harmonies_df.shape[0]
 
-        piece_name_SeqData: SequentialData = SequentialData.from_pd_series(
+        piece_name_SeqData: SequentialData = SequentialData.from_series(
             pd.Series([piece_name] * piece_length)
         )
-        corpus_name_SeqData: SequentialData = SequentialData.from_pd_series(
+        corpus_name_SeqData: SequentialData = SequentialData.from_series(
             pd.Series([corpus_name] * piece_length)
         )
 
         annotated_key: str = metadata_tsv_df.loc[
             metadata_tsv_df["fnames"] == piece_name
         ]["annotated_key"].values[0]
-        annotated_key_SeqData = SequentialData.from_pd_series(
+        annotated_key_SeqData = SequentialData.from_series(
             pd.Series([annotated_key] * piece_length)
         )
 
         composed_start: int = metadata_tsv_df.loc[
             metadata_tsv_df["fnames"] == piece_name
         ]["composed_start"].values[0]
-        composed_start_SeqData: SequentialData = SequentialData.from_pd_series(
+        composed_start_SeqData: SequentialData = SequentialData.from_series(
             pd.Series([composed_start] * piece_length)
         )
 
         composed_end: int = metadata_tsv_df.loc[
             metadata_tsv_df["fnames"] == piece_name
         ]["composed_end"].values[0]
-        composed_end_SeqData: SequentialData = SequentialData.from_pd_series(
+        composed_end_SeqData: SequentialData = SequentialData.from_series(
             pd.Series([composed_end] * piece_length)
         )
 
-        composer: SequentialData = SequentialData.from_pd_series(
+        composer: SequentialData = SequentialData.from_series(
             pd.Series([corpus_name.split("_")[0]] * piece_length)
         )
         label_count = metadata_tsv_df.loc[metadata_tsv_df["fnames"] == piece_name][
@@ -387,29 +387,29 @@ class CorpusInfo(BaseCorpusInfo):
         concat_composed_start_series = pd.concat(
             [item.meta_info.composed_start._series for item in pieceinfo_list]
         )
-        composed_start_SeqData = SequentialData.from_pd_series(
+        composed_start_SeqData = SequentialData.from_series(
             series=concat_composed_start_series
         )
 
         concat_composed_end_series = pd.concat(
             [item.meta_info.composed_end._series for item in pieceinfo_list]
         )
-        composed_end_SeqData = SequentialData.from_pd_series(
+        composed_end_SeqData = SequentialData.from_series(
             series=concat_composed_end_series
         )
 
-        corpusname_SeqData = SequentialData.from_pd_series(
+        corpusname_SeqData = SequentialData.from_series(
             series=pd.concat(
                 [item.meta_info.corpus_name._series for item in pieceinfo_list]
             )
         )
-        composer_SeqData = SequentialData.from_pd_series(
+        composer_SeqData = SequentialData.from_series(
             series=pd.concat(
                 [item.meta_info.composer._series for item in pieceinfo_list]
             )
         )
 
-        annotated_key_SeqData = SequentialData.from_pd_series(
+        annotated_key_SeqData = SequentialData.from_series(
             series=pd.concat(
                 [item.meta_info.annotated_key._series for item in pieceinfo_list]
             )
@@ -510,29 +510,29 @@ class MetaCorporaInfo(BaseCorpusInfo):
         concat_composed_start_series = pd.concat(
             [item.meta_info.composed_start._series for item in corpusinfo_list]
         )
-        composed_start_SeqData = SequentialData.from_pd_series(
+        composed_start_SeqData = SequentialData.from_series(
             series=concat_composed_start_series
         )
 
         concat_composed_end_series = pd.concat(
             [item.meta_info.composed_end._series for item in corpusinfo_list]
         )
-        composed_end_SeqData = SequentialData.from_pd_series(
+        composed_end_SeqData = SequentialData.from_series(
             series=concat_composed_end_series
         )
 
-        corporaname_SeqData = SequentialData.from_pd_series(
+        corporaname_SeqData = SequentialData.from_series(
             series=pd.concat(
                 [item.meta_info.corpus_name._series for item in corpusinfo_list]
             )
         )
-        composer_SeqData = SequentialData.from_pd_series(
+        composer_SeqData = SequentialData.from_series(
             series=pd.concat(
                 [item.meta_info.composer._series for item in corpusinfo_list]
             )
         )
 
-        annotated_key_SeqData = SequentialData.from_pd_series(
+        annotated_key_SeqData = SequentialData.from_series(
             series=pd.concat(
                 [item.meta_info.annotated_key._series for item in corpusinfo_list]
             )
