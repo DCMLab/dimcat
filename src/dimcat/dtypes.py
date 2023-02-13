@@ -98,6 +98,13 @@ class TypedSequence(Sequence[T_co]):
             return self.values[int_or_slice]
         raise KeyError(f"{self.name} cannot be subscripted with {int_or_slice}")
 
+    def to_series(self):
+        try:
+            S = pd.Series(self.values, dtype=self.dtype)
+        except Exception:
+            S = pd.Series(self.values, dtype=object)
+        return S
+
     def map(
         self,
         func: Callable[[T_co], Out],
