@@ -1,15 +1,25 @@
-from typing import Collection, Iterator, Tuple, Type, Union
+from typing import Collection, Iterator, Optional, Tuple, Type, Union
 
 import ms3
 from dimcat.dtypes import PathLike, PieceID, PLoader, PPiece
 
 
 class DcmlLoader(PLoader):
-    def __init__(self, directory: Union[PathLike, Collection[PathLike]], **kwargs):
+    def __init__(
+        self,
+        directory: Optional[Union[PathLike, Collection[PathLike]]] = None,
+        parse_scores: bool = False,
+        parse_tsv: bool = True,
+        **kwargs
+    ):
+        self.parse_scores = parse_scores
+        self.parse_tsv = parse_tsv
         self.directories = []
         self.loader = ms3.Parse()
         if isinstance(directory, str):
             directory = [directory]
+        if directory is None:
+            return
         for d in directory:
             self.add_dir(directory=d, **kwargs)
 
