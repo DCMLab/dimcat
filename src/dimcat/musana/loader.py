@@ -4,11 +4,11 @@ import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Callable, List
+from typing import Callable, List, Literal
 
 import ms3
 import pandas as pd
-from dimcat.dtypes import TypedSequence
+from dimcat.dtypes import Bigrams, TypedSequence
 from dimcat.musana.harmony_types import Key, TonalHarmony
 from dimcat.musana.util import determine_era_based_on_year
 
@@ -37,10 +37,14 @@ class HarmonyInfo(TabularData):
         """Returns a list of str representing the modulation bigram. e.g., "f#_IV/V_bIII/V" """
         globalkey = self._df["globalkey"][0]
         localkey_list = self.get_aspect(key="localkey").get_changes()
-        mod_bigrams = localkey_list.n_grams(n=2)
+        mod_bigrams = localkey_list.get_n_grams(n=2)
         mod_bigrams = ["_".join([item[0], item[1]]) for item in mod_bigrams]
         bigrams = [globalkey + "_" + item for item in mod_bigrams]
         return bigrams
+
+    def get_chord_bigrams(self) -> Bigrams:
+        chords = self.get_aspect("chord")
+        return chords.get_n_grams(2)
 
 
 @dataclass(frozen=True)
@@ -489,21 +493,33 @@ class MetaCorporaInfo(BaseCorpusInfo):
 
 
 if __name__ == "__main__":
-    # metacorpora = MetaCorporaInfo.from_directory(metacorpora_path='../romantic_piano_corpus/')
-    # piece_operation = lambda pieceinfo: pieceinfo.harmony_info.chord_ngrams(2)
-    #
-    # # define piece grouping
-    # eras = ['Renaissance', 'Baroque', 'Classical', 'Romantic']
-    # era_condition = lambda era: (lambda pieceinfo: pieceinfo.meta_info.era() == era)
-    #
-    # # automation
-    # transition_dict = {era: [piece_operation(piece) for piece in
-    #                          metacorpora.filter_pieces_by_condition(era_condition(era))] for era in eras}
-    #
-    # print(transition_dict)
+    metacorpora = MetaCorporaInfo.from_directory(
+        metacorpora_path="~/romantic_piano_corpus/"
+    )
+
+    def piece_operation(pieceinfo: PieceInfo):
+        return pieceinfo.harmony_info.get_chord_bigrams()
+
+    # define piece grouping
+    eras = ["Renaissance", "Baroque", "Classical", "Romantic"]
+
+    def era_condition(era: Literal["Renaissance", "Baroque", "Classical", "Romantic"]):
+        return lambda pieceinfo: pieceinfo.meta_info.era == era
+
+    # automation
+    transition_dict = {
+        era: [
+            piece_operation(piece)
+            for piece in metacorpora.filter_pieces_by_condition(era_condition(era))
+        ]
+        for era in eras
+    }
+
+    print(transition_dict)
 
     piece = PieceInfo.from_directory(
         parent_corpus_path="~/corelli//", piece_name="op01n01a"
     )
 
     result = piece.harmony_info._df[["globalkey", "localkey", "chord"]].to_numpy()
+    print(result)
