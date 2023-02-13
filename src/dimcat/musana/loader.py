@@ -345,8 +345,8 @@ class CorpusInfo(BaseCorpusInfo):
     def from_directory(cls, corpus_path: str) -> CorpusInfo:
         """Assemble all required args for CorpusInfo class"""
         # corpus_name: str = corpus_path.split(os.sep)[-2]
-        metadata_tsv_df: pd.DataFrame = pd.read_csv(
-            corpus_path + "metadata.tsv", sep="\t"
+        metadata_tsv_df: pd.DataFrame = ms3.load_tsv(
+            os.path.join(corpus_path, "metadata.tsv")
         )
 
         # don't count pieces with label_count=0, and annotated_key is empty
@@ -467,19 +467,21 @@ class MetaCorporaInfo(BaseCorpusInfo):
 
     @classmethod
     def from_directory(cls, metacorpora_path: str) -> MetaCorporaInfo:
-        corpusname_list = sorted(
-            [
-                f
-                for f in os.listdir(metacorpora_path)
-                if not f.startswith(".")
-                if not f.startswith("__")
-            ]
-        )
-
-        corpusinfo_list = [
-            CorpusInfo.from_directory(corpus_path=metacorpora_path + item + "/")
-            for item in corpusname_list
+        metacorpora_path = ms3.resolve_dir(metacorpora_path)
+        corpusname_list = [
+            folder
+            for folder in ms3.first_level_subdirs(metacorpora_path)
+            if not folder.startswith(".")
         ]
+        corpusinfo_list = []
+        for item in corpusname_list:
+            corpus_path = os.path.join(metacorpora_path, item)
+            try:
+                corpusinfo_list.append(
+                    CorpusInfo.from_directory(corpus_path=corpus_path)
+                )
+            except FileNotFoundError:
+                continue
 
         try:
             harmonies_df: pd.DataFrame = pd.concat(
