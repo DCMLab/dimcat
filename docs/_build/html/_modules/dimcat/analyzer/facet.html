@@ -1,0 +1,443 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>dimcat.analyzer.facet &#8212; dimcat 0.3.0.post1.dev48+gb31e433.d20230210 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/jquery.js"></script>
+    <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../../_static/doctools.js"></script>
+    <script src="../../../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+
+
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+
+
+          <div class="body" role="main">
+
+  <h1>Source code for dimcat.analyzer.facet</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">Iterator</span><span class="p">,</span> <span class="n">Literal</span><span class="p">,</span> <span class="n">Tuple</span>
+
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">from</span> <span class="nn">dimcat.analyzer.base</span> <span class="kn">import</span> <span class="n">Analyzer</span>
+<span class="kn">from</span> <span class="nn">dimcat.data</span> <span class="kn">import</span> <span class="n">AnalyzedData</span>
+<span class="kn">from</span> <span class="nn">dimcat.dtypes</span> <span class="kn">import</span> <span class="n">ID</span>
+<span class="kn">from</span> <span class="nn">dimcat.utils</span> <span class="kn">import</span> <span class="n">grams</span><span class="p">,</span> <span class="n">make_suffix</span>
+<span class="kn">from</span> <span class="nn">ms3</span> <span class="kn">import</span> <span class="n">add_weighted_grace_durations</span><span class="p">,</span> <span class="n">fifths2name</span>
+
+
+<div class="viewcode-block" id="FacetAnalyzer"><a class="viewcode-back" href="../../../api/dimcat.analyzer.html#dimcat.analyzer.facet.FacetAnalyzer">[docs]</a><span class="k">class</span> <span class="nc">FacetAnalyzer</span><span class="p">(</span><span class="n">Analyzer</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Analyzers that work on one particular type of DataFrames.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="FacetAnalyzer.aggregate"><a class="viewcode-back" href="../../../api/dimcat.analyzer.html#dimcat.analyzer.facet.FacetAnalyzer.aggregate">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">aggregate</span><span class="p">(</span><span class="n">result_a</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">,</span> <span class="n">result_b</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">result_a</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">result_b</span><span class="p">,</span> <span class="n">fill_value</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Adds the field :attr:`required_facets`&quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">required_facets</span> <span class="o">=</span> <span class="p">[]</span>
+
+<div class="viewcode-block" id="FacetAnalyzer.data_iterator"><a class="viewcode-back" href="../../../api/dimcat.analyzer.html#dimcat.analyzer.facet.FacetAnalyzer.data_iterator">[docs]</a>    <span class="k">def</span> <span class="nf">data_iterator</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">AnalyzedData</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">ID</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">]]:</span>
+        <span class="k">yield from</span> <span class="n">data</span><span class="o">.</span><span class="n">iter_facet</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">required_facets</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span></div></div>
+
+
+<div class="viewcode-block" id="NotesAnalyzer"><a class="viewcode-back" href="../../../api/dimcat.analyzer.html#dimcat.analyzer.facet.NotesAnalyzer">[docs]</a><span class="k">class</span> <span class="nc">NotesAnalyzer</span><span class="p">(</span><span class="n">FacetAnalyzer</span><span class="p">):</span>
+    <span class="n">result_type</span> <span class="o">=</span> <span class="s2">&quot;NotesResult&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Analyzers that work on notes tables.&quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">required_facets</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;notes&quot;</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="ChordSymbolAnalyzer"><a class="viewcode-back" href="../../../api/dimcat.analyzer.html#dimcat.analyzer.facet.ChordSymbolAnalyzer">[docs]</a><span class="k">class</span> <span class="nc">ChordSymbolAnalyzer</span><span class="p">(</span><span class="n">FacetAnalyzer</span><span class="p">):</span>
+    <span class="n">result_type</span> <span class="o">=</span> <span class="s2">&quot;ChordSymbolResult&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Analyzers that work on expanded annotation tables.&quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">required_facets</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;expanded&quot;</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="TPCrange"><a class="viewcode-back" href="../../../api/dimcat.analyzer.html#dimcat.analyzer.facet.TPCrange">[docs]</a><span class="k">class</span> <span class="nc">TPCrange</span><span class="p">(</span><span class="n">NotesAnalyzer</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Computes the range from the minimum to the maximum Tonal Pitch Class (TPC).&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">level_names</span><span class="p">[</span><span class="s2">&quot;processed&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;tpc_range&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">group2pandas</span> <span class="o">=</span> <span class="s2">&quot;group_of_values2series&quot;</span>
+
+<div class="viewcode-block" id="TPCrange.aggregate"><a class="viewcode-back" href="../../../api/dimcat.analyzer.html#dimcat.analyzer.facet.TPCrange.aggregate">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">aggregate</span><span class="p">(</span><span class="n">result_a</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">,</span> <span class="n">result_b</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
+        <span class="n">lowest</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">result_a</span><span class="o">.</span><span class="n">lowest</span><span class="p">,</span> <span class="n">result_b</span><span class="o">.</span><span class="n">lowest</span><span class="p">)</span>
+        <span class="n">highest</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">result_a</span><span class="o">.</span><span class="n">highest</span><span class="p">,</span> <span class="n">result_b</span><span class="o">.</span><span class="n">highest</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="n">lowest</span><span class="o">=</span><span class="n">lowest</span><span class="p">,</span>
+            <span class="n">highest</span><span class="o">=</span><span class="n">highest</span><span class="p">,</span>
+            <span class="nb">range</span><span class="o">=</span><span class="n">highest</span> <span class="o">-</span> <span class="n">lowest</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TPCrange.compute"><a class="viewcode-back" href="../../../api/dimcat.analyzer.html#dimcat.analyzer.facet.TPCrange.compute">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span><span class="n">notes</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Computes the range from the minimum to the maximum Tonal Pitch Class (TPC).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            notes: Notes table with the column ``tpc``</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The difference between the minimal and the maximal tonal pitch class, measured in perfect fifths.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">highest</span> <span class="o">=</span> <span class="n">notes</span><span class="o">.</span><span class="n">tpc</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+        <span class="n">lowest</span> <span class="o">=</span> <span class="n">notes</span><span class="o">.</span><span class="n">tpc</span><span class="o">.</span><span class="n">min</span><span class="p">()</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">lowest</span><span class="o">=</span><span class="n">lowest</span><span class="p">,</span> <span class="n">highest</span><span class="o">=</span><span class="n">highest</span><span class="p">,</span> <span class="nb">range</span><span class="o">=</span><span class="n">highest</span> <span class="o">-</span> <span class="n">lowest</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="PitchClassVectors"><a class="viewcode-back" href="../../../api/dimcat.analyzer.html#dimcat.analyzer.facet.PitchClassVectors">[docs]</a><span class="k">class</span> <span class="nc">PitchClassVectors</span><span class="p">(</span><span class="n">NotesAnalyzer</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Analyzer that groups notes by their pitch class and aggregates their durations.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">pitch_class_format</span><span class="o">=</span><span class="s2">&quot;tpc&quot;</span><span class="p">,</span>
+        <span class="n">weight_grace_durations</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+        <span class="n">normalize</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">ensure_pitch_classes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">include_empty</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Analyzer that groups notes by their pitch class and aggregates their durations.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        pitch_class_format : :obj:`str`, optional</span>
+<span class="sd">            | Defines the type of pitch classes.</span>
+<span class="sd">            | &#39;tpc&#39; (default): tonal pitch class, such that -1=F, 0=C, 1=G etc.</span>
+<span class="sd">            | &#39;name&#39;: tonal pitch class as spelled pitch, e.g. &#39;C&#39;, &#39;F#&#39;, &#39;Abb&#39; etc.</span>
+<span class="sd">            | &#39;pc&#39;: chromatic pitch classes where 0=C, 1=C#/Db, ... 11=B/Cb.</span>
+<span class="sd">            | &#39;midi&#39;: original MIDI numbers; the result are pitch vectors, not pitch class vectors.</span>
+<span class="sd">        weight_grace_durations : :obj:`float`, optional</span>
+<span class="sd">            By default (0.), grace notes have duration 0. Set this value to include their weighted</span>
+<span class="sd">            durations in the computation of PCVs, e.g. 0.5.</span>
+<span class="sd">        normalize : :obj:`bool`, optional</span>
+<span class="sd">            By default, the PCVs contain absolute durations in quarter notes. Pass True to normalize</span>
+<span class="sd">            the PCV for each slice.</span>
+<span class="sd">        ensure_pitch_classes : :obj:`Iterable`, optional</span>
+<span class="sd">            By default, pitch classes that don&#39;t appear don&#39;t appear. Pass a collection of pitch</span>
+<span class="sd">            classes if you want to ensure their presence even if empty. For example, if</span>
+<span class="sd">            ``pitch_class_format=&#39;pc&#39;`` you could pass ``ensure_columns=range(12)``.</span>
+<span class="sd">        include_empty : :obj:`bool`, optional</span>
+<span class="sd">            By default, indices for which no notes occur will have length 0 PCV Series and will</span>
+<span class="sd">            therefore not appear in the concatenated results. Set to True if you want to include</span>
+<span class="sd">            them as empty rows in a post processing step.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="n">pitch_class_format</span><span class="o">=</span><span class="n">pitch_class_format</span><span class="p">,</span>
+            <span class="n">weight_grace_durations</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="n">weight_grace_durations</span><span class="p">),</span>
+            <span class="n">normalize</span><span class="o">=</span><span class="n">normalize</span><span class="p">,</span>
+            <span class="n">ensure_pitch_classes</span><span class="o">=</span><span class="n">ensure_pitch_classes</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">level_names</span><span class="p">[</span><span class="s2">&quot;processed&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pitch_class_format</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">group2pandas</span> <span class="o">=</span> <span class="s2">&quot;group2dataframe_unstacked&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">include_empty</span> <span class="o">=</span> <span class="n">include_empty</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">used_pitch_classes</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+<div class="viewcode-block" id="PitchClassVectors.filename_factory"><a class="viewcode-back" href="../../../api/dimcat.analyzer.html#dimcat.analyzer.facet.PitchClassVectors.filename_factory">[docs]</a>    <span class="k">def</span> <span class="nf">filename_factory</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate file name component based on the configuration.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">make_suffix</span><span class="p">(</span>
+            <span class="p">(</span><span class="s2">&quot;w&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;weight_grace_durations&quot;</span><span class="p">]),</span>
+            <span class="p">(</span><span class="s2">&quot;normalized&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;normalize&quot;</span><span class="p">]),</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;pitch_class_format&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;pcvs&quot;</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+<div class="viewcode-block" id="PitchClassVectors.compute"><a class="viewcode-back" href="../../../api/dimcat.analyzer.html#dimcat.analyzer.facet.PitchClassVectors.compute">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span>
+        <span class="n">notes</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+        <span class="n">pitch_class_format</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;tpc&quot;</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="s2">&quot;pc&quot;</span><span class="p">,</span> <span class="s2">&quot;midi&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;tpc&quot;</span><span class="p">,</span>
+        <span class="n">weight_grace_durations</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+        <span class="n">normalize</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">ensure_pitch_classes</span><span class="p">:</span> <span class="n">Iterable</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Group notes by their pitch class and aggregate their durations.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            notes:</span>
+<span class="sd">                Note table to be transformed into a Pitch Class Vector. The DataFrame needs to</span>
+<span class="sd">                contain at least the columns &#39;duration_qb&#39; and &#39;tpc&#39; or &#39;midi&#39;, depending</span>
+<span class="sd">                on ``pitch_class_format``.</span>
+<span class="sd">            pitch_class_format:</span>
+<span class="sd">                | Defines the type of pitch classes to use for the vectors.</span>
+<span class="sd">                | &#39;tpc&#39; (default): tonal pitch class, such that -1=F, 0=C, 1=G etc.</span>
+<span class="sd">                | &#39;name&#39;: tonal pitch class as spelled pitch, e.g. &#39;C&#39;, &#39;F#&#39;, &#39;Abb&#39; etc.</span>
+<span class="sd">                | &#39;pc&#39;: chromatic pitch classes where 0=C, 1=C#/Db, ... 11=B/Cb.</span>
+<span class="sd">                | &#39;midi&#39;: original MIDI numbers; the result are pitch vectors, not pitch class vectors.</span>
+<span class="sd">            weight_grace_durations:</span>
+<span class="sd">                By default (0.), grace notes have duration 0. Set this value to include their weighted</span>
+<span class="sd">                durations in the computation of PCVs, e.g. 0.5.</span>
+<span class="sd">            normalize:</span>
+<span class="sd">                By default, the PCVs contain absolute durations in quarter notes. Pass True to normalize</span>
+<span class="sd">                the PCV for each group.</span>
+<span class="sd">            ensure_pitch_classes:</span>
+<span class="sd">                By default, pitch classes that don&#39;t appear don&#39;t appear. Pass a collection of pitch</span>
+<span class="sd">                classes if you want to ensure their presence even if empty. For example, if</span>
+<span class="sd">                ``pitch_class_format=&#39;pc&#39;`` you could pass ``ensure_columns=range(12)``.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A pitch class vector where the aggregated duration of each pitch class is given in quarter notes or,</span>
+<span class="sd">            if ``normalize=True``, as decimal fractions [0.0, 1.0].</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">notes</span> <span class="o">=</span> <span class="n">notes</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">pitch_class_format</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;tpc&quot;</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">):</span>
+            <span class="n">pitch_class_grouper</span> <span class="o">=</span> <span class="n">notes</span><span class="o">.</span><span class="n">tpc</span>
+        <span class="k">elif</span> <span class="n">pitch_class_format</span> <span class="o">==</span> <span class="s2">&quot;pc&quot;</span><span class="p">:</span>
+            <span class="n">pitch_class_grouper</span> <span class="o">=</span> <span class="p">(</span><span class="n">notes</span><span class="o">.</span><span class="n">midi</span> <span class="o">%</span> <span class="mi">12</span><span class="p">)</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="s2">&quot;pc&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">pitch_class_format</span> <span class="o">==</span> <span class="s2">&quot;midi&quot;</span><span class="p">:</span>
+            <span class="n">pitch_class_grouper</span> <span class="o">=</span> <span class="n">notes</span><span class="o">.</span><span class="n">midi</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;pitch_class_format needs to be one of &#39;tpc&#39;, &#39;name&#39;, &#39;pc&#39;, &#39;midi&#39;, not &quot;</span>
+                <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">pitch_class_format</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="n">weight_grace_durations</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">notes</span> <span class="o">=</span> <span class="n">add_weighted_grace_durations</span><span class="p">(</span><span class="n">notes</span><span class="p">,</span> <span class="n">weight</span><span class="o">=</span><span class="n">weight_grace_durations</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">pcvs</span> <span class="o">=</span> <span class="n">notes</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">pitch_class_grouper</span><span class="p">,</span> <span class="n">dropna</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">duration_qb</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">notes</span><span class="p">)</span>
+            <span class="k">raise</span>
+        <span class="k">if</span> <span class="n">pitch_class_format</span> <span class="o">==</span> <span class="s2">&quot;name&quot;</span><span class="p">:</span>
+            <span class="n">pcvs</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">fifths2name</span><span class="p">(</span><span class="n">pcvs</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">normalize</span><span class="p">:</span>
+            <span class="n">pcvs</span> <span class="o">=</span> <span class="p">(</span><span class="n">pcvs</span> <span class="o">/</span> <span class="n">pcvs</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="s2">&quot;duration_qb_normalized&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">ensure_pitch_classes</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">missing</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">ensure_pitch_classes</span> <span class="k">if</span> <span class="n">c</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">pcvs</span><span class="o">.</span><span class="n">index</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">missing</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">new_values</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">NA</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="n">missing</span><span class="p">)</span>
+                <span class="n">pcvs</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">pcvs</span><span class="p">,</span> <span class="n">new_values</span><span class="p">])</span><span class="o">.</span><span class="n">sort_index</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">pcvs</span></div>
+
+<div class="viewcode-block" id="PitchClassVectors.post_process"><a class="viewcode-back" href="../../../api/dimcat.analyzer.html#dimcat.analyzer.facet.PitchClassVectors.post_process">[docs]</a>    <span class="k">def</span> <span class="nf">post_process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">processed</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Inserts empty pitch class vectors for chunks without pitches, if any.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">include_empty</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">processed</span>
+        <span class="n">empty_pcv_ixs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">ix</span><span class="p">,</span> <span class="n">pcv</span> <span class="ow">in</span> <span class="n">processed</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">pcv</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">empty_pcv_ixs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ix</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">used_pitch_classes</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">pcv</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">empty_pcv_ixs</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">empty_pcv</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">NA</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">used_pitch_classes</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">ix</span> <span class="ow">in</span> <span class="n">empty_pcv_ixs</span><span class="p">:</span>
+                <span class="n">processed</span><span class="p">[</span><span class="n">ix</span><span class="p">]</span> <span class="o">=</span> <span class="n">empty_pcv</span>
+        <span class="k">return</span> <span class="n">processed</span></div></div>
+
+
+<div class="viewcode-block" id="ChordSymbolUnigrams"><a class="viewcode-back" href="../../../api/dimcat.analyzer.html#dimcat.analyzer.facet.ChordSymbolUnigrams">[docs]</a><span class="k">class</span> <span class="nc">ChordSymbolUnigrams</span><span class="p">(</span><span class="n">ChordSymbolAnalyzer</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Analyzer that returns the counts of chord symbols for each group, ordered by descending</span>
+<span class="sd">    frequency.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Analyzer that returns the counts of chord symbols for each group, ordered by descending</span>
+<span class="sd">        frequency.</span>
+
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">level_names</span><span class="p">[</span><span class="s2">&quot;processed&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;chord&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">group2pandas</span> <span class="o">=</span> <span class="s2">&quot;group_of_series2series&quot;</span>
+
+<div class="viewcode-block" id="ChordSymbolUnigrams.compute"><a class="viewcode-back" href="../../../api/dimcat.analyzer.html#dimcat.analyzer.facet.ChordSymbolUnigrams.compute">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span><span class="n">expanded</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Computes the value counts of the chord symbol column.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            expanded: Expanded harmony labels</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The last index level has unique chord symbols, Series values are their corresponding</span>
+<span class="sd">            counts.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">expanded</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">expanded</span><span class="o">.</span><span class="n">chord</span><span class="o">.</span><span class="n">value_counts</span><span class="p">()</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="s2">&quot;count&quot;</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="ChordSymbolBigrams"><a class="viewcode-back" href="../../../api/dimcat.analyzer.html#dimcat.analyzer.facet.ChordSymbolBigrams">[docs]</a><span class="k">class</span> <span class="nc">ChordSymbolBigrams</span><span class="p">(</span><span class="n">ChordSymbolAnalyzer</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Analyzer that returns the bigram counts for all valid chord transitions within a group,</span>
+<span class="sd">    ordered by descending frequency.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">assert_steps</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;LocalKeySlicer&quot;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dropna</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Analyzer that returns the bigram counts for all valid chord transitions within a group,</span>
+<span class="sd">            ordered by descending frequency.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        dropna : :obj:`bool`, optional</span>
+<span class="sd">            By default, NaN values are dropped before computing bigrams, resulting in transitions</span>
+<span class="sd">            from a missing value&#39;s preceding to its subsequent value. Pass False to include</span>
+<span class="sd">            bigrams from and to NaN values.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">level_names</span><span class="p">[</span><span class="s2">&quot;processed&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;from&quot;</span><span class="p">,</span> <span class="s2">&quot;to&quot;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">group2pandas</span> <span class="o">=</span> <span class="s2">&quot;group_of_series2series&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;dropna&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">dropna</span>
+
+<div class="viewcode-block" id="ChordSymbolBigrams.check"><a class="viewcode-back" href="../../../api/dimcat.analyzer.html#dimcat.analyzer.facet.ChordSymbolBigrams.check">[docs]</a>    <span class="k">def</span> <span class="nf">check</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">index</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;DataFrame has only one row, cannot compute bigram.&quot;</span>
+        <span class="k">if</span> <span class="n">df</span><span class="o">.</span><span class="n">localkey</span><span class="o">.</span><span class="n">nunique</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">df</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">nlevels</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">(</span>
+                <span class="kc">False</span><span class="p">,</span>
+                <span class="s2">&quot;DataFrame contains labels from several local keys but no MultiIndex.&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">&quot;&quot;</span></div>
+
+<div class="viewcode-block" id="ChordSymbolBigrams.compute"><a class="viewcode-back" href="../../../api/dimcat.analyzer.html#dimcat.analyzer.facet.ChordSymbolBigrams.compute">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span><span class="n">expanded</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">dropna</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Turns the chord column into bigrams and returns their counts in descending order.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            expanded: Expanded harmony table with the columns ``localkey`` and ``chord``.</span>
+<span class="sd">            dropna:</span>
+<span class="sd">                By default, NaN values are dropped before computing bigrams, resulting in transitions</span>
+<span class="sd">                from a missing value&#39;s preceding to its subsequent value. Pass False to include</span>
+<span class="sd">                bigrams from and to NaN values.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The last two index level are unique (from, to) bigrams, Series values are their</span>
+<span class="sd">            corresponding counts.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">expanded</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">()</span>
+        <span class="n">n_index_levels</span> <span class="o">=</span> <span class="n">expanded</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">nlevels</span>
+        <span class="k">if</span> <span class="n">n_index_levels</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="c1"># create a nested list to exclude transitions between groups</span>
+            <span class="n">index_levels_but_last</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">n_index_levels</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span>
+            <span class="n">gpb</span> <span class="o">=</span> <span class="n">expanded</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">index_levels_but_last</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span><span class="n">gpb</span><span class="o">.</span><span class="n">localkey</span><span class="o">.</span><span class="n">nunique</span><span class="p">()</span> <span class="o">==</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Grouping by the first </span><span class="si">{</span><span class="n">n_index_levels</span><span class="o">-</span><span class="mi">1</span><span class="si">}</span><span class="s2"> &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;index levels does not result in localkey segments. Has &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;the LocalKeySlicer been applied?</span><span class="se">\n</span><span class="si">{</span><span class="n">gpb</span><span class="o">.</span><span class="n">localkey</span><span class="o">.</span><span class="n">nunique</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">dropna</span><span class="p">:</span>
+                <span class="n">chords</span> <span class="o">=</span> <span class="n">gpb</span><span class="o">.</span><span class="n">chord</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">S</span><span class="p">:</span> <span class="n">S</span><span class="o">.</span><span class="n">dropna</span><span class="p">()</span><span class="o">.</span><span class="n">to_list</span><span class="p">())</span><span class="o">.</span><span class="n">to_list</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">chords</span> <span class="o">=</span> <span class="n">gpb</span><span class="o">.</span><span class="n">chord</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span><span class="o">.</span><span class="n">to_list</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">dropna</span><span class="p">:</span>
+                <span class="n">chords</span> <span class="o">=</span> <span class="n">expanded</span><span class="o">.</span><span class="n">chord</span><span class="o">.</span><span class="n">dropna</span><span class="p">()</span><span class="o">.</span><span class="n">to_list</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">chords</span> <span class="o">=</span> <span class="n">expanded</span><span class="o">.</span><span class="n">chord</span><span class="o">.</span><span class="n">to_list</span><span class="p">()</span>
+        <span class="n">bigrams</span> <span class="o">=</span> <span class="n">grams</span><span class="p">(</span><span class="n">chords</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">expanded</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">bigrams</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;from&quot;</span><span class="p">,</span> <span class="s2">&quot;to&quot;</span><span class="p">])</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">counts</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">expanded</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s2">&quot;from&quot;</span><span class="p">,</span> <span class="s2">&quot;to&quot;</span><span class="p">])</span>
+                <span class="o">.</span><span class="n">size</span><span class="p">()</span>
+                <span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                <span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="s2">&quot;count&quot;</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">expanded</span><span class="p">)</span>
+            <span class="k">raise</span>
+        <span class="k">return</span> <span class="n">counts</span></div></div>
+</pre></div>
+
+          </div>
+
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">dimcat</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../readme.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorial.html">Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../manual.html">Manual</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks/index.html">Example Notebooks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing.html">Contributions &amp; Help</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../authors.html">Authors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/modules.html">Module Reference</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Digital and Cognitive Musicology Lab @ École Polytechnique Fédérale de Lausanne.
+
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
+
+    </div>
+
+
+
+
+  </body>
+</html>

@@ -1,0 +1,21 @@
+dimcat.slicer package
+=====================
+
+Submodules
+----------
+
+dimcat.slicer.base module
+-------------------------
+
+.. automodule:: dimcat.slicer.base
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Module contents
+---------------
+
+.. automodule:: dimcat.slicer
+   :members:
+   :undoc-members:
+   :show-inheritance:

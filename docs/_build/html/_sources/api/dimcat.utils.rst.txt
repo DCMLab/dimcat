@@ -1,0 +1,29 @@
+dimcat.utils package
+====================
+
+Submodules
+----------
+
+dimcat.utils.constants module
+-----------------------------
+
+.. automodule:: dimcat.utils.constants
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+dimcat.utils.functions module
+-----------------------------
+
+.. automodule:: dimcat.utils.functions
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Module contents
+---------------
+
+.. automodule:: dimcat.utils
+   :members:
+   :undoc-members:
+   :show-inheritance:

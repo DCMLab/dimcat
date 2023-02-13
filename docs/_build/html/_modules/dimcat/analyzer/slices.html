@@ -1,0 +1,190 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>dimcat.analyzer.slices &#8212; dimcat 0.3.0.post1.dev48+gb31e433.d20230210 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/jquery.js"></script>
+    <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../../_static/doctools.js"></script>
+    <script src="../../../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+
+
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+
+
+          <div class="body" role="main">
+
+  <h1>Source code for dimcat.analyzer.slices</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Iterator</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Literal</span><span class="p">,</span> <span class="n">Tuple</span>
+
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">from</span> <span class="nn">dimcat.analyzer.base</span> <span class="kn">import</span> <span class="n">Analyzer</span>
+<span class="kn">from</span> <span class="nn">dimcat.data</span> <span class="kn">import</span> <span class="n">AnalyzedGroupedDataset</span><span class="p">,</span> <span class="n">AnalyzedSlicedDataset</span>
+<span class="kn">from</span> <span class="nn">dimcat.dtypes</span> <span class="kn">import</span> <span class="n">ID</span>
+
+
+<div class="viewcode-block" id="SliceInfoAnalyzer"><a class="viewcode-back" href="../../../api/dimcat.analyzer.html#dimcat.analyzer.slices.SliceInfoAnalyzer">[docs]</a><span class="k">class</span> <span class="nc">SliceInfoAnalyzer</span><span class="p">(</span><span class="n">Analyzer</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;&quot;&quot;&quot;</span>
+
+    <span class="n">assert_steps</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Slicer&quot;</span><span class="p">]</span>
+
+<div class="viewcode-block" id="SliceInfoAnalyzer.check"><a class="viewcode-back" href="../../../api/dimcat.analyzer.html#dimcat.analyzer.slices.SliceInfoAnalyzer.check">[docs]</a>    <span class="k">def</span> <span class="nf">check</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">df</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;DataFrame is empty.&quot;</span>
+        <span class="k">return</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">&quot;&quot;</span></div>
+
+<div class="viewcode-block" id="SliceInfoAnalyzer.data_iterator"><a class="viewcode-back" href="../../../api/dimcat.analyzer.html#dimcat.analyzer.slices.SliceInfoAnalyzer.data_iterator">[docs]</a>    <span class="k">def</span> <span class="nf">data_iterator</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">AnalyzedSlicedDataset</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;all_slices&quot;</span><span class="p">],</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">]]:</span>
+        <span class="k">yield from</span> <span class="p">[(</span><span class="s2">&quot;all_slices&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">get_slice_info</span><span class="p">())]</span></div></div>
+
+
+<div class="viewcode-block" id="GroupedSliceInfoAnalyzer"><a class="viewcode-back" href="../../../api/dimcat.analyzer.html#dimcat.analyzer.slices.GroupedSliceInfoAnalyzer">[docs]</a><span class="k">class</span> <span class="nc">GroupedSliceInfoAnalyzer</span><span class="p">(</span><span class="n">SliceInfoAnalyzer</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;&quot;&quot;&quot;</span>
+
+    <span class="n">assert_steps</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Slicer&quot;</span><span class="p">,</span> <span class="s2">&quot;Grouper&quot;</span><span class="p">]</span>
+
+<div class="viewcode-block" id="GroupedSliceInfoAnalyzer.data_iterator"><a class="viewcode-back" href="../../../api/dimcat.analyzer.html#dimcat.analyzer.slices.GroupedSliceInfoAnalyzer.data_iterator">[docs]</a>    <span class="k">def</span> <span class="nf">data_iterator</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">AnalyzedGroupedDataset</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">ID</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">]]:</span>
+        <span class="k">yield from</span> <span class="n">data</span><span class="o">.</span><span class="n">iter_grouped_slice_info</span><span class="p">()</span></div></div>
+
+
+<div class="viewcode-block" id="LocalKeySequence"><a class="viewcode-back" href="../../../api/dimcat.analyzer.html#dimcat.analyzer.slices.LocalKeySequence">[docs]</a><span class="k">class</span> <span class="nc">LocalKeySequence</span><span class="p">(</span><span class="n">GroupedSliceInfoAnalyzer</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;&quot;&quot;&quot;</span>
+
+    <span class="n">assert_steps</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;LocalKeySlicer&quot;</span><span class="p">,</span> <span class="s2">&quot;PieceGrouper&quot;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;&quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">level_names</span><span class="p">[</span><span class="s2">&quot;processed&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;localkeys&quot;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">group2pandas</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="LocalKeySequence.aggregate"><a class="viewcode-back" href="../../../api/dimcat.analyzer.html#dimcat.analyzer.slices.LocalKeySequence.aggregate">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">aggregate</span><span class="p">(</span><span class="n">result_a</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">,</span> <span class="n">result_b</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">result_a</span><span class="p">,</span> <span class="n">result_b</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="LocalKeySequence.compute"><a class="viewcode-back" href="../../../api/dimcat.analyzer.html#dimcat.analyzer.slices.LocalKeySequence.compute">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span><span class="n">slice_info</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">slice_info</span><span class="o">.</span><span class="n">localkey</span></div></div>
+
+
+<div class="viewcode-block" id="LocalKeyUnique"><a class="viewcode-back" href="../../../api/dimcat.analyzer.html#dimcat.analyzer.slices.LocalKeyUnique">[docs]</a><span class="k">class</span> <span class="nc">LocalKeyUnique</span><span class="p">(</span><span class="n">SliceInfoAnalyzer</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;&quot;&quot;&quot;</span>
+
+    <span class="n">assert_steps</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;LocalKeySlicer&quot;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;&quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">level_names</span><span class="p">[</span><span class="s2">&quot;processed&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;localkeys&quot;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">group2pandas</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="LocalKeyUnique.aggregate"><a class="viewcode-back" href="../../../api/dimcat.analyzer.html#dimcat.analyzer.slices.LocalKeyUnique.aggregate">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">aggregate</span><span class="p">(</span><span class="n">result_a</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">result_b</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+        <span class="n">set_a</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">result_a</span><span class="p">)</span>
+        <span class="n">set_a</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">result_b</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">set_a</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="LocalKeyUnique.compute"><a class="viewcode-back" href="../../../api/dimcat.analyzer.html#dimcat.analyzer.slices.LocalKeyUnique.compute">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span><span class="n">slice_info</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">slice_info</span><span class="o">.</span><span class="n">localkey</span><span class="o">.</span><span class="n">unique</span><span class="p">())</span></div></div>
+</pre></div>
+
+          </div>
+
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">dimcat</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../readme.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorial.html">Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../manual.html">Manual</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks/index.html">Example Notebooks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing.html">Contributions &amp; Help</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../authors.html">Authors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/modules.html">Module Reference</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Digital and Cognitive Musicology Lab @ École Polytechnique Fédérale de Lausanne.
+
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
+
+    </div>
+
+
+
+
+  </body>
+</html>

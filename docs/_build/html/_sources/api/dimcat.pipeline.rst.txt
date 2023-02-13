@@ -1,0 +1,21 @@
+dimcat.pipeline package
+=======================
+
+Submodules
+----------
+
+dimcat.pipeline.base module
+---------------------------
+
+.. automodule:: dimcat.pipeline.base
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Module contents
+---------------
+
+.. automodule:: dimcat.pipeline
+   :members:
+   :undoc-members:
+   :show-inheritance:

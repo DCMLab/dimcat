@@ -1,0 +1,1555 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+    <title>Working with Harmonic Annotations &#8212; dimcat 0.3.0.post1.dev48+gb31e433.d20230210 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Corpus overview plots" href="generate.html" />
+    <link rel="prev" title="Working with Harmonic Annotations" href="chord_slicing_test.html" />
+
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+
+
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+
+
+          <div class="body" role="main">
+
+  <div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">git</span> <span class="kn">import</span> <span class="n">Repo</span>
+<span class="kn">import</span> <span class="nn">dimcat</span> <span class="k">as</span> <span class="nn">dc</span>
+<span class="kn">from</span> <span class="nn">ms3</span> <span class="kn">import</span> <span class="n">__version__</span> <span class="k">as</span> <span class="n">ms3_version</span>
+<span class="n">corpus_path</span> <span class="o">=</span> <span class="s2">&quot;~/ABC&quot;</span>
+<span class="n">repo</span> <span class="o">=</span> <span class="n">Repo</span><span class="p">(</span><span class="n">corpus_path</span><span class="p">)</span>
+<span class="n">notebook_repo</span> <span class="o">=</span> <span class="n">Repo</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="n">search_parent_directories</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">notebook_repo_path</span> <span class="o">=</span> <span class="n">notebook_repo</span><span class="o">.</span><span class="n">git</span><span class="o">.</span><span class="n">rev_parse</span><span class="p">(</span><span class="s2">&quot;--show-toplevel&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Notebook repository &#39;</span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">notebook_repo_path</span><span class="p">)</span><span class="si">}</span><span class="s2">&#39; @ </span><span class="si">{</span><span class="n">notebook_repo</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span><span class="o">.</span><span class="n">hexsha</span><span class="p">[:</span><span class="mi">7</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Data repo &#39;</span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">corpus_path</span><span class="p">)</span><span class="si">}</span><span class="s2">&#39; @ </span><span class="si">{</span><span class="n">repo</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span><span class="o">.</span><span class="n">hexsha</span><span class="p">[:</span><span class="mi">7</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;dimcat version </span><span class="si">{</span><span class="n">dc</span><span class="o">.</span><span class="n">__version__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;ms3 version </span><span class="si">{</span><span class="n">ms3_version</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Notebook repository &#39;dimcat&#39; @ 2332fcf
+Data repo &#39;ABC&#39; @ 560802e
+dimcat version 0.2.0.post1.dev109+g2332fcf.d20230210
+ms3 version 1.2.2
+</pre></div>
+</div>
+</div>
+</div>
+<section id="working-with-harmonic-annotations">
+<h1>Working with Harmonic Annotations<a class="headerlink" href="#working-with-harmonic-annotations" title="Permalink to this heading">¶</a></h1>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">pitchtypes</span> <span class="k">as</span> <span class="nn">pt</span> <span class="c1"># this requires the development branch of pitchtypes</span>
+<span class="kn">import</span> <span class="nn">seaborn</span> <span class="k">as</span> <span class="nn">sns</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span>
+<span class="n">log</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">WARNING</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<section id="load-dataset">
+<h2>Load dataset<a class="headerlink" href="#load-dataset" title="Permalink to this heading">¶</a></h2>
+<p>Use dimcat’s <code class="docutils literal notranslate"><span class="pre">Dataset</span></code> class to load a dataset.
+Each dataset consists of several corpora (here only <code class="docutils literal notranslate"><span class="pre">ABC</span></code>),
+which in turn consist of several pieces (here <code class="docutils literal notranslate"><span class="pre">n01_op18-1_01</span></code>, <code class="docutils literal notranslate"><span class="pre">n01_op18-1_02</span></code>, etc.).</p>
+<p>A <code class="docutils literal notranslate"><span class="pre">Dataset</span></code> has several representations of each piece (e.g. a list of chord labels or a list of notes) called <em>facets</em>.
+Each facet is represented by a dataframe.</p>
+<p>Corpora can be processed, e.g. slicing notes according to different criteria (see below).
+The output of these operations is again a dataset with facets.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">dataset</span> <span class="o">=</span> <span class="n">dc</span><span class="o">.</span><span class="n">Dataset</span><span class="p">()</span>
+<span class="n">dataset</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">corpus_path</span><span class="p">)</span>
+<span class="n">dataset</span><span class="o">.</span><span class="n">data</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>[<span class=" -Color -Color-Bold">default</span>|all]
+All corpora
+-----------
+View: This view is called &#39;default&#39;. It
+	- excludes fnames that are not contained in the metadata,
+	- filters out file extensions requiring conversion (such as .xml), and
+	- excludes review files and folders.
+
+            has   active   scores measures           notes        expanded
+       metadata     view detected detected parsed detected parsed detected parsed
+corpus
+ABC         yes  default       70       70     70       70     70       70     70
+
+210/560 files are excluded from this view.
+
+210 files have been excluded based on their subdir.
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="get-notes">
+<h2>Get notes<a class="headerlink" href="#get-notes" title="Permalink to this heading">¶</a></h2>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">notes</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">get_facet</span><span class="p">(</span><span class="s2">&quot;notes&quot;</span><span class="p">)</span>
+<span class="n">notes</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_html"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th></th>
+      <th></th>
+      <th>mc</th>
+      <th>mn</th>
+      <th>quarterbeats</th>
+      <th>duration_qb</th>
+      <th>mc_onset</th>
+      <th>mn_onset</th>
+      <th>timesig</th>
+      <th>staff</th>
+      <th>voice</th>
+      <th>duration</th>
+      <th>...</th>
+      <th>nominal_duration</th>
+      <th>scalar</th>
+      <th>tied</th>
+      <th>tpc</th>
+      <th>midi</th>
+      <th>name</th>
+      <th>octave</th>
+      <th>chord_id</th>
+      <th>tremolo</th>
+      <th>volta</th>
+    </tr>
+    <tr>
+      <th>corpus</th>
+      <th>fname</th>
+      <th>interval</th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="11" valign="top">ABC</th>
+      <th rowspan="5" valign="top">n01op18-1_01</th>
+      <th>[0.0, 1.0)</th>
+      <td>1</td>
+      <td>1</td>
+      <td>0</td>
+      <td>1.0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>3/4</td>
+      <td>3</td>
+      <td>1</td>
+      <td>1/4</td>
+      <td>...</td>
+      <td>1/4</td>
+      <td>1</td>
+      <td>1</td>
+      <td>-1</td>
+      <td>53</td>
+      <td>F3</td>
+      <td>3</td>
+      <td>12</td>
+      <td>NaN</td>
+      <td>&lt;NA&gt;</td>
+    </tr>
+    <tr>
+      <th>[0.0, 1.0)</th>
+      <td>1</td>
+      <td>1</td>
+      <td>0</td>
+      <td>1.0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>3/4</td>
+      <td>4</td>
+      <td>1</td>
+      <td>1/4</td>
+      <td>...</td>
+      <td>1/4</td>
+      <td>1</td>
+      <td>1</td>
+      <td>-1</td>
+      <td>53</td>
+      <td>F3</td>
+      <td>3</td>
+      <td>18</td>
+      <td>NaN</td>
+      <td>&lt;NA&gt;</td>
+    </tr>
+    <tr>
+      <th>[0.0, 1.0)</th>
+      <td>1</td>
+      <td>1</td>
+      <td>0</td>
+      <td>1.0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>3/4</td>
+      <td>1</td>
+      <td>1</td>
+      <td>1/4</td>
+      <td>...</td>
+      <td>1/4</td>
+      <td>1</td>
+      <td>1</td>
+      <td>-1</td>
+      <td>65</td>
+      <td>F4</td>
+      <td>4</td>
+      <td>0</td>
+      <td>NaN</td>
+      <td>&lt;NA&gt;</td>
+    </tr>
+    <tr>
+      <th>[0.0, 1.0)</th>
+      <td>1</td>
+      <td>1</td>
+      <td>0</td>
+      <td>1.0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>3/4</td>
+      <td>2</td>
+      <td>1</td>
+      <td>1/4</td>
+      <td>...</td>
+      <td>1/4</td>
+      <td>1</td>
+      <td>1</td>
+      <td>-1</td>
+      <td>65</td>
+      <td>F4</td>
+      <td>4</td>
+      <td>6</td>
+      <td>NaN</td>
+      <td>&lt;NA&gt;</td>
+    </tr>
+    <tr>
+      <th>[1.0, 1.5)</th>
+      <td>1</td>
+      <td>1</td>
+      <td>1</td>
+      <td>0.5</td>
+      <td>1/4</td>
+      <td>1/4</td>
+      <td>3/4</td>
+      <td>3</td>
+      <td>1</td>
+      <td>1/8</td>
+      <td>...</td>
+      <td>1/8</td>
+      <td>1</td>
+      <td>-1</td>
+      <td>-1</td>
+      <td>53</td>
+      <td>F3</td>
+      <td>3</td>
+      <td>13</td>
+      <td>NaN</td>
+      <td>&lt;NA&gt;</td>
+    </tr>
+    <tr>
+      <th>...</th>
+      <th>...</th>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+    </tr>
+    <tr>
+      <th rowspan="5" valign="top">n16op135_04</th>
+      <th>[1146.0, 1147.0)</th>
+      <td>283</td>
+      <td>282</td>
+      <td>1146</td>
+      <td>1.0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>4/4</td>
+      <td>3</td>
+      <td>1</td>
+      <td>1/4</td>
+      <td>...</td>
+      <td>1/4</td>
+      <td>1</td>
+      <td>&lt;NA&gt;</td>
+      <td>-1</td>
+      <td>53</td>
+      <td>F3</td>
+      <td>3</td>
+      <td>2731</td>
+      <td>NaN</td>
+      <td>&lt;NA&gt;</td>
+    </tr>
+    <tr>
+      <th>[1146.0, 1147.0)</th>
+      <td>283</td>
+      <td>282</td>
+      <td>1146</td>
+      <td>1.0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>4/4</td>
+      <td>1</td>
+      <td>1</td>
+      <td>1/4</td>
+      <td>...</td>
+      <td>1/4</td>
+      <td>1</td>
+      <td>&lt;NA&gt;</td>
+      <td>3</td>
+      <td>69</td>
+      <td>A4</td>
+      <td>4</td>
+      <td>2729</td>
+      <td>NaN</td>
+      <td>&lt;NA&gt;</td>
+    </tr>
+    <tr>
+      <th>[1146.0, 1147.0)</th>
+      <td>283</td>
+      <td>282</td>
+      <td>1146</td>
+      <td>1.0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>4/4</td>
+      <td>2</td>
+      <td>1</td>
+      <td>1/4</td>
+      <td>...</td>
+      <td>1/4</td>
+      <td>1</td>
+      <td>&lt;NA&gt;</td>
+      <td>3</td>
+      <td>69</td>
+      <td>A4</td>
+      <td>4</td>
+      <td>2730</td>
+      <td>NaN</td>
+      <td>&lt;NA&gt;</td>
+    </tr>
+    <tr>
+      <th>[1146.0, 1147.0)</th>
+      <td>283</td>
+      <td>282</td>
+      <td>1146</td>
+      <td>1.0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>4/4</td>
+      <td>2</td>
+      <td>1</td>
+      <td>1/4</td>
+      <td>...</td>
+      <td>1/4</td>
+      <td>1</td>
+      <td>&lt;NA&gt;</td>
+      <td>-1</td>
+      <td>77</td>
+      <td>F5</td>
+      <td>5</td>
+      <td>2730</td>
+      <td>NaN</td>
+      <td>&lt;NA&gt;</td>
+    </tr>
+    <tr>
+      <th>[1146.0, 1147.0)</th>
+      <td>283</td>
+      <td>282</td>
+      <td>1146</td>
+      <td>1.0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>4/4</td>
+      <td>1</td>
+      <td>1</td>
+      <td>1/4</td>
+      <td>...</td>
+      <td>1/4</td>
+      <td>1</td>
+      <td>&lt;NA&gt;</td>
+      <td>-1</td>
+      <td>89</td>
+      <td>F6</td>
+      <td>6</td>
+      <td>2729</td>
+      <td>NaN</td>
+      <td>&lt;NA&gt;</td>
+    </tr>
+  </tbody>
+</table>
+<p>240132 rows × 21 columns</p>
+</div></div></div>
+</div>
+</section>
+<section id="example-1-get-pitches-from-dataframe-and-store-them-back">
+<h2>Example 1: Get pitches from dataframe and store them back<a class="headerlink" href="#example-1-get-pitches-from-dataframe-and-store-them-back" title="Permalink to this heading">¶</a></h2>
+<p>Translate pitch columns to actual pitches:</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">get_pitches</span><span class="p">(</span><span class="n">tpc</span><span class="p">,</span> <span class="n">midi</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Takes the tpc and midi columns of the notes df.</span>
+<span class="sd">    Returns a SpelledPitchArray</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">pcs</span> <span class="o">=</span> <span class="n">pt</span><span class="o">.</span><span class="n">SpelledPitchClassArray</span><span class="p">(</span><span class="n">tpc</span><span class="p">)</span>
+    <span class="n">alterations</span> <span class="o">=</span> <span class="n">pcs</span><span class="o">.</span><span class="n">alteration</span><span class="p">()</span>
+    <span class="n">midi_base</span> <span class="o">=</span> <span class="n">midi</span> <span class="o">-</span> <span class="n">alterations</span>
+    <span class="n">octaves</span> <span class="o">=</span> <span class="p">(</span><span class="n">midi_base</span> <span class="o">//</span> <span class="mi">12</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+    <span class="k">return</span> <span class="n">pt</span><span class="o">.</span><span class="n">SpelledPitchArray</span><span class="o">.</span><span class="n">from_independent</span><span class="p">(</span><span class="n">tpc</span><span class="p">,</span> <span class="n">octaves</span><span class="p">)</span>
+
+<span class="n">pitches</span> <span class="o">=</span> <span class="n">get_pitches</span><span class="p">(</span><span class="n">notes</span><span class="p">[</span><span class="s1">&#39;tpc&#39;</span><span class="p">],</span> <span class="n">notes</span><span class="p">[</span><span class="s1">&#39;midi&#39;</span><span class="p">])</span>
+<span class="n">pitches</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>asp([&#39;F3&#39;, &#39;F3&#39;, &#39;F4&#39;, ..., &#39;A4&#39;, &#39;F5&#39;, &#39;F6&#39;])
+</pre></div>
+</div>
+</div>
+</div>
+<p>Assign back into dataframe:</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">notes</span><span class="p">[</span><span class="s1">&#39;pitch_str&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pitches</span><span class="o">.</span><span class="n">name</span><span class="p">()</span> <span class="c1"># a vector of names</span>
+<span class="n">notes</span><span class="p">[</span><span class="s1">&#39;octave&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pitches</span><span class="o">.</span><span class="n">octaves</span><span class="p">()</span> <span class="c1"># this makes it easier to convert back to a pitch array</span>
+<span class="n">notes</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_html"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th></th>
+      <th></th>
+      <th>mc</th>
+      <th>mn</th>
+      <th>quarterbeats</th>
+      <th>duration_qb</th>
+      <th>mc_onset</th>
+      <th>mn_onset</th>
+      <th>timesig</th>
+      <th>staff</th>
+      <th>voice</th>
+      <th>duration</th>
+      <th>...</th>
+      <th>scalar</th>
+      <th>tied</th>
+      <th>tpc</th>
+      <th>midi</th>
+      <th>name</th>
+      <th>octave</th>
+      <th>chord_id</th>
+      <th>tremolo</th>
+      <th>volta</th>
+      <th>pitch_str</th>
+    </tr>
+    <tr>
+      <th>corpus</th>
+      <th>fname</th>
+      <th>interval</th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="11" valign="top">ABC</th>
+      <th rowspan="5" valign="top">n01op18-1_01</th>
+      <th>[0.0, 1.0)</th>
+      <td>1</td>
+      <td>1</td>
+      <td>0</td>
+      <td>1.0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>3/4</td>
+      <td>3</td>
+      <td>1</td>
+      <td>1/4</td>
+      <td>...</td>
+      <td>1</td>
+      <td>1</td>
+      <td>-1</td>
+      <td>53</td>
+      <td>F3</td>
+      <td>3</td>
+      <td>12</td>
+      <td>NaN</td>
+      <td>&lt;NA&gt;</td>
+      <td>F3</td>
+    </tr>
+    <tr>
+      <th>[0.0, 1.0)</th>
+      <td>1</td>
+      <td>1</td>
+      <td>0</td>
+      <td>1.0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>3/4</td>
+      <td>4</td>
+      <td>1</td>
+      <td>1/4</td>
+      <td>...</td>
+      <td>1</td>
+      <td>1</td>
+      <td>-1</td>
+      <td>53</td>
+      <td>F3</td>
+      <td>3</td>
+      <td>18</td>
+      <td>NaN</td>
+      <td>&lt;NA&gt;</td>
+      <td>F3</td>
+    </tr>
+    <tr>
+      <th>[0.0, 1.0)</th>
+      <td>1</td>
+      <td>1</td>
+      <td>0</td>
+      <td>1.0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>3/4</td>
+      <td>1</td>
+      <td>1</td>
+      <td>1/4</td>
+      <td>...</td>
+      <td>1</td>
+      <td>1</td>
+      <td>-1</td>
+      <td>65</td>
+      <td>F4</td>
+      <td>4</td>
+      <td>0</td>
+      <td>NaN</td>
+      <td>&lt;NA&gt;</td>
+      <td>F4</td>
+    </tr>
+    <tr>
+      <th>[0.0, 1.0)</th>
+      <td>1</td>
+      <td>1</td>
+      <td>0</td>
+      <td>1.0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>3/4</td>
+      <td>2</td>
+      <td>1</td>
+      <td>1/4</td>
+      <td>...</td>
+      <td>1</td>
+      <td>1</td>
+      <td>-1</td>
+      <td>65</td>
+      <td>F4</td>
+      <td>4</td>
+      <td>6</td>
+      <td>NaN</td>
+      <td>&lt;NA&gt;</td>
+      <td>F4</td>
+    </tr>
+    <tr>
+      <th>[1.0, 1.5)</th>
+      <td>1</td>
+      <td>1</td>
+      <td>1</td>
+      <td>0.5</td>
+      <td>1/4</td>
+      <td>1/4</td>
+      <td>3/4</td>
+      <td>3</td>
+      <td>1</td>
+      <td>1/8</td>
+      <td>...</td>
+      <td>1</td>
+      <td>-1</td>
+      <td>-1</td>
+      <td>53</td>
+      <td>F3</td>
+      <td>3</td>
+      <td>13</td>
+      <td>NaN</td>
+      <td>&lt;NA&gt;</td>
+      <td>F3</td>
+    </tr>
+    <tr>
+      <th>...</th>
+      <th>...</th>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+    </tr>
+    <tr>
+      <th rowspan="5" valign="top">n16op135_04</th>
+      <th>[1146.0, 1147.0)</th>
+      <td>283</td>
+      <td>282</td>
+      <td>1146</td>
+      <td>1.0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>4/4</td>
+      <td>3</td>
+      <td>1</td>
+      <td>1/4</td>
+      <td>...</td>
+      <td>1</td>
+      <td>&lt;NA&gt;</td>
+      <td>-1</td>
+      <td>53</td>
+      <td>F3</td>
+      <td>3</td>
+      <td>2731</td>
+      <td>NaN</td>
+      <td>&lt;NA&gt;</td>
+      <td>F3</td>
+    </tr>
+    <tr>
+      <th>[1146.0, 1147.0)</th>
+      <td>283</td>
+      <td>282</td>
+      <td>1146</td>
+      <td>1.0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>4/4</td>
+      <td>1</td>
+      <td>1</td>
+      <td>1/4</td>
+      <td>...</td>
+      <td>1</td>
+      <td>&lt;NA&gt;</td>
+      <td>3</td>
+      <td>69</td>
+      <td>A4</td>
+      <td>4</td>
+      <td>2729</td>
+      <td>NaN</td>
+      <td>&lt;NA&gt;</td>
+      <td>A4</td>
+    </tr>
+    <tr>
+      <th>[1146.0, 1147.0)</th>
+      <td>283</td>
+      <td>282</td>
+      <td>1146</td>
+      <td>1.0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>4/4</td>
+      <td>2</td>
+      <td>1</td>
+      <td>1/4</td>
+      <td>...</td>
+      <td>1</td>
+      <td>&lt;NA&gt;</td>
+      <td>3</td>
+      <td>69</td>
+      <td>A4</td>
+      <td>4</td>
+      <td>2730</td>
+      <td>NaN</td>
+      <td>&lt;NA&gt;</td>
+      <td>A4</td>
+    </tr>
+    <tr>
+      <th>[1146.0, 1147.0)</th>
+      <td>283</td>
+      <td>282</td>
+      <td>1146</td>
+      <td>1.0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>4/4</td>
+      <td>2</td>
+      <td>1</td>
+      <td>1/4</td>
+      <td>...</td>
+      <td>1</td>
+      <td>&lt;NA&gt;</td>
+      <td>-1</td>
+      <td>77</td>
+      <td>F5</td>
+      <td>5</td>
+      <td>2730</td>
+      <td>NaN</td>
+      <td>&lt;NA&gt;</td>
+      <td>F5</td>
+    </tr>
+    <tr>
+      <th>[1146.0, 1147.0)</th>
+      <td>283</td>
+      <td>282</td>
+      <td>1146</td>
+      <td>1.0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>4/4</td>
+      <td>1</td>
+      <td>1</td>
+      <td>1/4</td>
+      <td>...</td>
+      <td>1</td>
+      <td>&lt;NA&gt;</td>
+      <td>-1</td>
+      <td>89</td>
+      <td>F6</td>
+      <td>6</td>
+      <td>2729</td>
+      <td>NaN</td>
+      <td>&lt;NA&gt;</td>
+      <td>F6</td>
+    </tr>
+  </tbody>
+</table>
+<p>240132 rows × 22 columns</p>
+</div></div></div>
+</div>
+</section>
+<section id="example-2-express-all-pitches-relative-to-the-key-of-the-piece">
+<h2>Example 2: Express all pitches relative to the key of the piece<a class="headerlink" href="#example-2-express-all-pitches-relative-to-the-key-of-the-piece" title="Permalink to this heading">¶</a></h2>
+<p>We get the keys from the harmonic annotations:</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">labels</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">get_facet</span><span class="p">(</span><span class="s2">&quot;expanded&quot;</span><span class="p">)</span>
+<span class="n">labels</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_html"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th></th>
+      <th></th>
+      <th>mc</th>
+      <th>mn</th>
+      <th>quarterbeats</th>
+      <th>duration_qb</th>
+      <th>mc_onset</th>
+      <th>mn_onset</th>
+      <th>timesig</th>
+      <th>staff</th>
+      <th>voice</th>
+      <th>label</th>
+      <th>...</th>
+      <th>phraseend</th>
+      <th>chord_type</th>
+      <th>globalkey_is_minor</th>
+      <th>localkey_is_minor</th>
+      <th>chord_tones</th>
+      <th>added_tones</th>
+      <th>root</th>
+      <th>bass_note</th>
+      <th>alt_label</th>
+      <th>volta</th>
+    </tr>
+    <tr>
+      <th>corpus</th>
+      <th>fname</th>
+      <th>interval</th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="11" valign="top">ABC</th>
+      <th rowspan="5" valign="top">n01op18-1_01</th>
+      <th>[0.0, 3.0)</th>
+      <td>1</td>
+      <td>1</td>
+      <td>0</td>
+      <td>3.0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>3/4</td>
+      <td>4</td>
+      <td>1</td>
+      <td>F.I</td>
+      <td>...</td>
+      <td>NaN</td>
+      <td>M</td>
+      <td>False</td>
+      <td>False</td>
+      <td>(0, 4, 1)</td>
+      <td>()</td>
+      <td>0</td>
+      <td>0</td>
+      <td>NaN</td>
+      <td>&lt;NA&gt;</td>
+    </tr>
+    <tr>
+      <th>[3.0, 6.0)</th>
+      <td>2</td>
+      <td>2</td>
+      <td>3</td>
+      <td>3.0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>3/4</td>
+      <td>4</td>
+      <td>1</td>
+      <td>V</td>
+      <td>...</td>
+      <td>NaN</td>
+      <td>M</td>
+      <td>False</td>
+      <td>False</td>
+      <td>(1, 5, 2)</td>
+      <td>()</td>
+      <td>1</td>
+      <td>1</td>
+      <td>NaN</td>
+      <td>&lt;NA&gt;</td>
+    </tr>
+    <tr>
+      <th>[6.0, 9.0)</th>
+      <td>3</td>
+      <td>3</td>
+      <td>6</td>
+      <td>3.0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>3/4</td>
+      <td>4</td>
+      <td>1</td>
+      <td>I</td>
+      <td>...</td>
+      <td>NaN</td>
+      <td>M</td>
+      <td>False</td>
+      <td>False</td>
+      <td>(0, 4, 1)</td>
+      <td>()</td>
+      <td>0</td>
+      <td>0</td>
+      <td>NaN</td>
+      <td>&lt;NA&gt;</td>
+    </tr>
+    <tr>
+      <th>[9.0, 15.0)</th>
+      <td>4</td>
+      <td>4</td>
+      <td>9</td>
+      <td>6.0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>3/4</td>
+      <td>4</td>
+      <td>1</td>
+      <td>IV6</td>
+      <td>...</td>
+      <td>NaN</td>
+      <td>M</td>
+      <td>False</td>
+      <td>False</td>
+      <td>(3, 0, -1)</td>
+      <td>()</td>
+      <td>-1</td>
+      <td>3</td>
+      <td>NaN</td>
+      <td>&lt;NA&gt;</td>
+    </tr>
+    <tr>
+      <th>[15.0, 18.0)</th>
+      <td>6</td>
+      <td>6</td>
+      <td>15</td>
+      <td>3.0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>3/4</td>
+      <td>4</td>
+      <td>1</td>
+      <td>V65</td>
+      <td>...</td>
+      <td>NaN</td>
+      <td>Mm7</td>
+      <td>False</td>
+      <td>False</td>
+      <td>(5, 2, -1, 1)</td>
+      <td>()</td>
+      <td>1</td>
+      <td>5</td>
+      <td>NaN</td>
+      <td>&lt;NA&gt;</td>
+    </tr>
+    <tr>
+      <th>...</th>
+      <th>...</th>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+    </tr>
+    <tr>
+      <th rowspan="5" valign="top">n16op135_04</th>
+      <th>[1140.0, 1141.0)</th>
+      <td>281</td>
+      <td>280</td>
+      <td>1140</td>
+      <td>1.0</td>
+      <td>1/2</td>
+      <td>1/2</td>
+      <td>4/4</td>
+      <td>4</td>
+      <td>1</td>
+      <td>I</td>
+      <td>...</td>
+      <td>NaN</td>
+      <td>M</td>
+      <td>True</td>
+      <td>False</td>
+      <td>(0, 4, 1)</td>
+      <td>()</td>
+      <td>0</td>
+      <td>0</td>
+      <td>NaN</td>
+      <td>&lt;NA&gt;</td>
+    </tr>
+    <tr>
+      <th>[1141.0, 1142.0)</th>
+      <td>281</td>
+      <td>280</td>
+      <td>1141</td>
+      <td>1.0</td>
+      <td>3/4</td>
+      <td>3/4</td>
+      <td>4/4</td>
+      <td>4</td>
+      <td>1</td>
+      <td>I6</td>
+      <td>...</td>
+      <td>NaN</td>
+      <td>M</td>
+      <td>True</td>
+      <td>False</td>
+      <td>(4, 1, 0)</td>
+      <td>()</td>
+      <td>0</td>
+      <td>4</td>
+      <td>NaN</td>
+      <td>&lt;NA&gt;</td>
+    </tr>
+    <tr>
+      <th>[1142.0, 1144.0)</th>
+      <td>282</td>
+      <td>281</td>
+      <td>1142</td>
+      <td>2.0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>4/4</td>
+      <td>4</td>
+      <td>1</td>
+      <td>V(64)</td>
+      <td>...</td>
+      <td>NaN</td>
+      <td>M</td>
+      <td>True</td>
+      <td>False</td>
+      <td>(1, 0, 4)</td>
+      <td>()</td>
+      <td>1</td>
+      <td>1</td>
+      <td>NaN</td>
+      <td>&lt;NA&gt;</td>
+    </tr>
+    <tr>
+      <th>[1144.0, 1146.0)</th>
+      <td>282</td>
+      <td>281</td>
+      <td>1144</td>
+      <td>2.0</td>
+      <td>1/2</td>
+      <td>1/2</td>
+      <td>4/4</td>
+      <td>4</td>
+      <td>1</td>
+      <td>V7</td>
+      <td>...</td>
+      <td>NaN</td>
+      <td>Mm7</td>
+      <td>True</td>
+      <td>False</td>
+      <td>(1, 5, 2, -1)</td>
+      <td>()</td>
+      <td>1</td>
+      <td>1</td>
+      <td>NaN</td>
+      <td>&lt;NA&gt;</td>
+    </tr>
+    <tr>
+      <th>[1146.0, 1150.0)</th>
+      <td>283</td>
+      <td>282</td>
+      <td>1146</td>
+      <td>4.0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>4/4</td>
+      <td>4</td>
+      <td>1</td>
+      <td>I\\</td>
+      <td>...</td>
+      <td>\\</td>
+      <td>M</td>
+      <td>True</td>
+      <td>False</td>
+      <td>(0, 4, 1)</td>
+      <td>()</td>
+      <td>0</td>
+      <td>0</td>
+      <td>NaN</td>
+      <td>&lt;NA&gt;</td>
+    </tr>
+  </tbody>
+</table>
+<p>27953 rows × 31 columns</p>
+</div></div></div>
+</div>
+<p>The global key is constrant throughout a piece, so we group by piece and take the first entry in each group.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">keys</span> <span class="o">=</span> <span class="n">labels</span><span class="p">[</span><span class="s1">&#39;globalkey&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s1">&#39;corpus&#39;</span><span class="p">,</span> <span class="s1">&#39;fname&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">first</span><span class="p">()</span>
+<span class="n">keys</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>corpus  fname
+ABC     n01op18-1_01     F
+        n01op18-1_02     d
+        n01op18-1_03     F
+        n01op18-1_04     F
+        n02op18-2_01     G
+                        ..
+        n15op132_05      a
+        n16op135_01      F
+        n16op135_02      F
+        n16op135_03     Db
+        n16op135_04      f
+Name: globalkey, Length: 70, dtype: object
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">keys</span><span class="p">[(</span><span class="s1">&#39;ABC&#39;</span><span class="p">,</span> <span class="s1">&#39;n01op18-1_01&#39;</span><span class="p">)]</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>&#39;F&#39;
+</pre></div>
+</div>
+</div>
+</div>
+<p>Now we group the dataframe by piece, get the key of each piece, and translate its pitches to intervals from the root (in octave 0).</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">to_relative_pitch</span><span class="p">(</span><span class="n">grp</span><span class="p">):</span>
+    <span class="c1"># find root</span>
+    <span class="n">index</span> <span class="o">=</span> <span class="n">grp</span><span class="o">.</span><span class="n">name</span>
+    <span class="n">root_name</span> <span class="o">=</span> <span class="n">keys</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+    <span class="c1"># the pitch&#39;s letter must be uppercase,</span>
+    <span class="c1"># but the harmonic labels express minor keys using lowercase letters:</span>
+    <span class="n">root_name</span> <span class="o">=</span> <span class="n">root_name</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">+</span> <span class="n">root_name</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+    <span class="n">root</span> <span class="o">=</span> <span class="n">pt</span><span class="o">.</span><span class="n">SpelledPitchClass</span><span class="p">(</span><span class="n">root_name</span><span class="p">)</span>
+
+    <span class="c1"># add new colums to the group: the key&#39;s root (name and tpc) and the relative pitch of each note</span>
+    <span class="n">grp</span> <span class="o">=</span> <span class="n">grp</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">grp</span><span class="p">[</span><span class="s1">&#39;global_root&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">root</span><span class="p">)</span>
+    <span class="n">grp</span><span class="p">[</span><span class="s1">&#39;global_root_tpc&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">root</span><span class="o">.</span><span class="n">fifths</span><span class="p">()</span>
+    <span class="c1"># load pitches from dataframe columns</span>
+    <span class="n">pitches</span> <span class="o">=</span> <span class="n">pt</span><span class="o">.</span><span class="n">SpelledPitchArray</span><span class="o">.</span><span class="n">from_independent</span><span class="p">(</span><span class="n">grp</span><span class="p">[</span><span class="s1">&#39;tpc&#39;</span><span class="p">],</span> <span class="n">grp</span><span class="p">[</span><span class="s1">&#39;octave&#39;</span><span class="p">])</span>
+    <span class="c1"># since the root is only a pitch class, we express pitches as interval classes.</span>
+    <span class="c1"># alternatively, we could embed the root into pitch space (octave 0) and work with non-class intervals</span>
+    <span class="n">rel_pitches</span> <span class="o">=</span> <span class="n">pitches</span><span class="o">.</span><span class="n">pc</span><span class="p">()</span> <span class="o">-</span> <span class="n">root</span>
+    <span class="n">grp</span><span class="p">[</span><span class="s1">&#39;rel_pitch&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">rel_pitches</span><span class="o">.</span><span class="n">name</span><span class="p">()</span> <span class="c1"># don&#39;t just assign rel_pitches, this will convert to a list of SpelledIntervalClass objects</span>
+    <span class="n">grp</span><span class="p">[</span><span class="s1">&#39;rel_tic&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">rel_pitches</span><span class="o">.</span><span class="n">fifths</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">grp</span>
+
+<span class="c1"># group by piece and add columns</span>
+<span class="n">df_rel</span> <span class="o">=</span> <span class="n">notes</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s1">&#39;corpus&#39;</span><span class="p">,</span> <span class="s1">&#39;fname&#39;</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="s2">&quot;rows&quot;</span><span class="p">,</span> <span class="n">sort</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">group_keys</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">to_relative_pitch</span><span class="p">)</span>
+<span class="n">df_rel</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="s1">&#39;ABC_notes.csv.zip&#39;</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="p">)</span>
+<span class="n">df_rel</span><span class="p">[[</span><span class="s1">&#39;tpc&#39;</span><span class="p">,</span> <span class="s1">&#39;midi&#39;</span><span class="p">,</span> <span class="s1">&#39;pitch_str&#39;</span><span class="p">,</span> <span class="s1">&#39;global_root&#39;</span><span class="p">,</span> <span class="s1">&#39;global_root_tpc&#39;</span><span class="p">,</span> <span class="s1">&#39;rel_pitch&#39;</span><span class="p">,</span> <span class="s1">&#39;rel_tic&#39;</span><span class="p">]]</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_html"><div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th></th>
+      <th></th>
+      <th>tpc</th>
+      <th>midi</th>
+      <th>pitch_str</th>
+      <th>global_root</th>
+      <th>global_root_tpc</th>
+      <th>rel_pitch</th>
+      <th>rel_tic</th>
+    </tr>
+    <tr>
+      <th>corpus</th>
+      <th>fname</th>
+      <th>interval</th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="11" valign="top">ABC</th>
+      <th rowspan="5" valign="top">n01op18-1_01</th>
+      <th>[0.0, 1.0)</th>
+      <td>-1</td>
+      <td>53</td>
+      <td>F3</td>
+      <td>F</td>
+      <td>-1</td>
+      <td>P1</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>[0.0, 1.0)</th>
+      <td>-1</td>
+      <td>53</td>
+      <td>F3</td>
+      <td>F</td>
+      <td>-1</td>
+      <td>P1</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>[0.0, 1.0)</th>
+      <td>-1</td>
+      <td>65</td>
+      <td>F4</td>
+      <td>F</td>
+      <td>-1</td>
+      <td>P1</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>[0.0, 1.0)</th>
+      <td>-1</td>
+      <td>65</td>
+      <td>F4</td>
+      <td>F</td>
+      <td>-1</td>
+      <td>P1</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>[1.0, 1.5)</th>
+      <td>-1</td>
+      <td>53</td>
+      <td>F3</td>
+      <td>F</td>
+      <td>-1</td>
+      <td>P1</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>...</th>
+      <th>...</th>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+      <td>...</td>
+    </tr>
+    <tr>
+      <th rowspan="5" valign="top">n16op135_04</th>
+      <th>[1146.0, 1147.0)</th>
+      <td>-1</td>
+      <td>53</td>
+      <td>F3</td>
+      <td>F</td>
+      <td>-1</td>
+      <td>P1</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>[1146.0, 1147.0)</th>
+      <td>3</td>
+      <td>69</td>
+      <td>A4</td>
+      <td>F</td>
+      <td>-1</td>
+      <td>M3</td>
+      <td>4</td>
+    </tr>
+    <tr>
+      <th>[1146.0, 1147.0)</th>
+      <td>3</td>
+      <td>69</td>
+      <td>A4</td>
+      <td>F</td>
+      <td>-1</td>
+      <td>M3</td>
+      <td>4</td>
+    </tr>
+    <tr>
+      <th>[1146.0, 1147.0)</th>
+      <td>-1</td>
+      <td>77</td>
+      <td>F5</td>
+      <td>F</td>
+      <td>-1</td>
+      <td>P1</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>[1146.0, 1147.0)</th>
+      <td>-1</td>
+      <td>89</td>
+      <td>F6</td>
+      <td>F</td>
+      <td>-1</td>
+      <td>P1</td>
+      <td>0</td>
+    </tr>
+  </tbody>
+</table>
+<p>240132 rows × 7 columns</p>
+</div></div></div>
+</div>
+<p>Let’s plot the distribution of untransposed tpcs vs the distribution of tpcs. You can see that the relative tpc is distributed more narrowly because we removed the variance that is due to the choice of key.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">sns</span><span class="o">.</span><span class="n">histplot</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">df_rel</span><span class="p">[[</span><span class="s1">&#39;tpc&#39;</span><span class="p">,</span> <span class="s1">&#39;rel_tic&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">melt</span><span class="p">(</span><span class="n">var_name</span><span class="o">=</span><span class="s1">&#39;type&#39;</span><span class="p">,</span> <span class="n">value_name</span><span class="o">=</span><span class="s1">&#39;fifth&#39;</span><span class="p">),</span>
+             <span class="n">x</span><span class="o">=</span><span class="s1">&#39;fifth&#39;</span><span class="p">,</span>
+             <span class="n">hue</span><span class="o">=</span><span class="s1">&#39;type&#39;</span><span class="p">,</span>
+             <span class="n">stat</span><span class="o">=</span><span class="s1">&#39;density&#39;</span><span class="p">,</span>
+             <span class="n">element</span><span class="o">=</span><span class="s1">&#39;bars&#39;</span><span class="p">,</span>
+             <span class="n">discrete</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>&lt;AxesSubplot: xlabel=&#39;fifth&#39;, ylabel=&#39;Density&#39;&gt;
+</pre></div>
+</div>
+<img alt="../_images/18f8df33a925a0c568fb1aedb814af0055ca712af65f03d7dfc9a7ccce06a358.png" src="../_images/18f8df33a925a0c568fb1aedb814af0055ca712af65f03d7dfc9a7ccce06a358.png" />
+</div>
+</div>
+</section>
+</section>
+
+
+          </div>
+
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">dimcat</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../readme.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial.html">Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../manual.html">Manual</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Example Notebooks</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="chord_slicing_test.html">Working with Harmonic Annotations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chord_slicing_test.html#match-salami-slices-with-chord-labels">Match salami slices with chord labels</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Working with Harmonic Annotations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generate.html">Corpus overview plots</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generate.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generate.html#phrases">Phrases</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generate.html#keys">Keys</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generate.html#cadences">Cadences</a></li>
+<li class="toctree-l2"><a class="reference internal" href="generate.html#id1">Harmony labels</a></li>
+<li class="toctree-l2"><a class="reference internal" href="notes_stats.html">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="cadences.html">Preliminaries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="cadences.html#keys">Keys</a></li>
+<li class="toctree-l2"><a class="reference internal" href="cadences.html#phrases">Phrases</a></li>
+<li class="toctree-l2"><a class="reference internal" href="cadences.html#cadences">Cadences</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributions &amp; Help</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../authors.html">Authors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/modules.html">Module Reference</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Example Notebooks</a><ul>
+      <li>Previous: <a href="chord_slicing_test.html" title="previous chapter">Working with Harmonic Annotations</a></li>
+      <li>Next: <a href="generate.html" title="next chapter">Corpus overview plots</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Digital and Cognitive Musicology Lab @ École Polytechnique Fédérale de Lausanne.
+
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
+
+      |
+      <a href="../_sources/notebooks/pitches.ipynb.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+
+
+
+  </body>
+</html>

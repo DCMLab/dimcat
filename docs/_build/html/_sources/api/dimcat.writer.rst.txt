@@ -1,0 +1,21 @@
+dimcat.writer package
+=====================
+
+Submodules
+----------
+
+dimcat.writer.base module
+-------------------------
+
+.. automodule:: dimcat.writer.base
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Module contents
+---------------
+
+.. automodule:: dimcat.writer
+   :members:
+   :undoc-members:
+   :show-inheritance:

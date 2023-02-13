@@ -1,0 +1,37 @@
+dimcat.analyzer package
+=======================
+
+Submodules
+----------
+
+dimcat.analyzer.base module
+---------------------------
+
+.. automodule:: dimcat.analyzer.base
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+dimcat.analyzer.facet module
+----------------------------
+
+.. automodule:: dimcat.analyzer.facet
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+dimcat.analyzer.slices module
+-----------------------------
+
+.. automodule:: dimcat.analyzer.slices
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Module contents
+---------------
+
+.. automodule:: dimcat.analyzer
+   :members:
+   :undoc-members:
+   :show-inheritance:

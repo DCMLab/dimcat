@@ -1,13 +1,29 @@
 dimcat package
 ==============
 
+Subpackages
+-----------
+
+.. toctree::
+   :maxdepth: 4
+
+   dimcat.analyzer
+   dimcat.data
+   dimcat.filter
+   dimcat.grouper
+   dimcat.musana
+   dimcat.pipeline
+   dimcat.slicer
+   dimcat.utils
+   dimcat.writer
+
 Submodules
 ----------
 
-dimcat.analyzer module
-----------------------
+dimcat.base module
+------------------
 
-.. automodule:: dimcat.analyzer
+.. automodule:: dimcat.base
    :members:
    :undoc-members:
    :show-inheritance:
@@ -20,34 +36,10 @@ dimcat.cli module
    :undoc-members:
    :show-inheritance:
 
-dimcat.data module
-------------------
-
-.. automodule:: dimcat.data
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-dimcat.pipeline module
-----------------------
-
-.. automodule:: dimcat.pipeline
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-dimcat.utils module
--------------------
-
-.. automodule:: dimcat.utils
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-dimcat.writer module
+dimcat.dtypes module
 --------------------
 
-.. automodule:: dimcat.writer
+.. automodule:: dimcat.dtypes
    :members:
    :undoc-members:
    :show-inheritance:

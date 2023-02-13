@@ -1,0 +1,740 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+    <title>dimcat.data package &#8212; dimcat 0.3.0.post1.dev48+gb31e433.d20230210 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="dimcat.filter package" href="dimcat.filter.html" />
+    <link rel="prev" title="dimcat.analyzer package" href="dimcat.analyzer.html" />
+
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+
+
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+
+
+          <div class="body" role="main">
+
+  <section id="dimcat-data-package">
+<h1>dimcat.data package<a class="headerlink" href="#dimcat-data-package" title="Permalink to this heading">¶</a></h1>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this heading">¶</a></h2>
+</section>
+<section id="module-dimcat.data.base">
+<span id="dimcat-data-base-module"></span><h2>dimcat.data.base module<a class="headerlink" href="#module-dimcat.data.base" title="Permalink to this heading">¶</a></h2>
+<p>Class hierarchy for data types.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.data.base.AnalyzedData">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.data.base.</span></span><span class="sig-name descname"><span class="pre">AnalyzedData</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="dimcat.html#dimcat.base.Data" title="dimcat.base.Data"><span class="pre">Data</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/data/base.html#AnalyzedData"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.base.AnalyzedData" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">_ProcessedData</span></code></p>
+<p>A type of Data object that contains the results of an Analyzer and knows how to plot it.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.data.base.AnalyzedData.get_group_results">
+<span class="sig-name descname"><span class="pre">get_group_results</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.5.3)"><span class="pre">DataFrame</span></a></span></span><a class="reference internal" href="../_modules/dimcat/data/base.html#AnalyzedData.get_group_results"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.base.AnalyzedData.get_group_results" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.data.base.AnalyzedData.get_result_object">
+<span class="sig-name descname"><span class="pre">get_result_object</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">idx</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/data/base.html#AnalyzedData.get_result_object"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.base.AnalyzedData.get_result_object" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.data.base.AnalyzedData.get_results">
+<span class="sig-name descname"><span class="pre">get_results</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.5.3)"><span class="pre">DataFrame</span></a></span></span><a class="reference internal" href="../_modules/dimcat/data/base.html#AnalyzedData.get_results"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.base.AnalyzedData.get_results" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.data.base.AnalyzedData.iter_group_results">
+<span class="sig-name descname"><span class="pre">iter_group_results</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/data/base.html#AnalyzedData.iter_group_results"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.base.AnalyzedData.iter_group_results" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.data.base.AnalyzedData.iter_results">
+<span class="sig-name descname"><span class="pre">iter_results</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/data/base.html#AnalyzedData.iter_results"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.base.AnalyzedData.iter_results" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="dimcat.data.base.AnalyzedData.processed">
+<span class="sig-name descname"><span class="pre">processed</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'Result'</span></span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#dimcat.data.base.AnalyzedData.processed" title="Permalink to this definition">¶</a></dt>
+<dd><p>Analyzers store there result here using <a class="reference internal" href="#dimcat.data.base.AnalyzedData.set_result" title="dimcat.data.base.AnalyzedData.set_result"><code class="xref py py-meth docutils literal notranslate"><span class="pre">set_result()</span></code></a>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.data.base.AnalyzedData.set_result">
+<span class="sig-name descname"><span class="pre">set_result</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">analyzer</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="dimcat.analyzer.html#dimcat.analyzer.base.Analyzer" title="dimcat.analyzer.base.Analyzer"><span class="pre">Analyzer</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">result</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#dimcat.data.result.Result" title="dimcat.data.result.Result"><span class="pre">Result</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/data/base.html#AnalyzedData.set_result"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.base.AnalyzedData.set_result" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="dimcat.data.base.AnalyzedData.type_mapping">
+<span class="sig-name descname"><span class="pre">type_mapping</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Collection</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{('AnalyzedGroupedSlicedDataset',</span> <span class="pre">'GroupedSlicedDataset'):</span> <span class="pre">'AnalyzedGroupedSlicedDataset',</span> <span class="pre">('AnalyzedSlicedDataset',</span> <span class="pre">'SlicedDataset'):</span> <span class="pre">'AnalyzedSlicedDataset',</span> <span class="pre">('AnalyzedGroupedDataset',</span> <span class="pre">'GroupedDataset'):</span> <span class="pre">'AnalyzedGroupedDataset',</span> <span class="pre">'Dataset':</span> <span class="pre">'AnalyzedDataset'}</span></em><a class="headerlink" href="#dimcat.data.base.AnalyzedData.type_mapping" title="Permalink to this definition">¶</a></dt>
+<dd><p>{Input type(s) -&gt; Output type}. __new__() picks the first ‘value’ where the input Data are of type ‘key’.
+Objects raise TypeError if nothing matches. object or Data can be used as fallback/default key.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.data.base.Dataset">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.data.base.</span></span><span class="sig-name descname"><span class="pre">Dataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Optional" title="(in Python v3.10)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Union" title="(in Python v3.10)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#dimcat.data.base.Dataset" title="dimcat.data.base.Dataset"><span class="pre">Dataset</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Parse</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/data/base.html#Dataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.base.Dataset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="dimcat.html#dimcat.base.Data" title="dimcat.base.Data"><code class="xref py py-class docutils literal notranslate"><span class="pre">Data</span></code></a></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.data.base.Dataset.copy">
+<span class="sig-name descname"><span class="pre">copy</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/data/base.html#Dataset.copy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.base.Dataset.copy" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="dimcat.data.base.Dataset.data">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">data</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Parse</span></em><a class="headerlink" href="#dimcat.data.base.Dataset.data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the data field in its raw form.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.data.base.Dataset.get_facet">
+<span class="sig-name descname"><span class="pre">get_facet</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">what</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Literal" title="(in Python v3.10)"><span class="pre">Literal</span></a><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'measures'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'notes'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'rests'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'notes_and_rests'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'labels'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'expanded'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'form_labels'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'cadences'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'events'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'chords'</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.5.3)"><span class="pre">DataFrame</span></a></span></span><a class="reference internal" href="../_modules/dimcat/data/base.html#Dataset.get_facet"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.base.Dataset.get_facet" title="Permalink to this definition">¶</a></dt>
+<dd><p>Uses _.iter_facet() to collect and concatenate all DataFrames for a particular facet.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>what</strong> (<em>{'form_labels'</em><em>, </em><em>'events'</em><em>, </em><em>'expanded'</em><em>, </em><em>'notes_and_rests'</em><em>, </em><em>'notes'</em><em>, </em><em>'labels'</em><em>,</em>) – ‘cadences’, ‘chords’, ‘measures’, ‘rests’}
+What facet to retrieve.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.5.3)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pandas.DataFrame</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.data.base.Dataset.get_indices">
+<span class="sig-name descname"><span class="pre">get_indices</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.List" title="(in Python v3.10)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="dimcat.html#dimcat.dtypes.PieceID" title="dimcat.dtypes.PieceID"><span class="pre">PieceID</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/dimcat/data/base.html#Dataset.get_indices"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.base.Dataset.get_indices" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.data.base.Dataset.get_item">
+<span class="sig-name descname"><span class="pre">get_item</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ID</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="dimcat.html#dimcat.dtypes.PieceID" title="dimcat.dtypes.PieceID"><span class="pre">PieceID</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">what</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Literal" title="(in Python v3.10)"><span class="pre">Literal</span></a><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'measures'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'notes'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'rests'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'notes_and_rests'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'labels'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'expanded'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'form_labels'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'cadences'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'events'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'chords'</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Optional" title="(in Python v3.10)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.5.3)"><span class="pre">DataFrame</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/dimcat/data/base.html#Dataset.get_item"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.base.Dataset.get_item" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieve a DataFrame pertaining to the facet <code class="docutils literal notranslate"><span class="pre">what</span></code> of the piece <code class="docutils literal notranslate"><span class="pre">index</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ID</strong> – (corpus, fname) or (corpus, fname, interval)</p></li>
+<li><p><strong>what</strong> – What facet to retrieve.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>DataFrame representing an entire score facet, or a chunk (slice) of it.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.data.base.Dataset.get_previous_pipeline_step">
+<span class="sig-name descname"><span class="pre">get_previous_pipeline_step</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">idx</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">of_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/data/base.html#Dataset.get_previous_pipeline_step"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.base.Dataset.get_previous_pipeline_step" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieve one of the previously applied PipelineSteps, either by index or by type.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>idx</strong> (<a class="reference external" href="https://docs.python.org/3.10/library/functions.html#int" title="(in Python v3.10)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code></a>, optional) – List index used if <code class="docutils literal notranslate"><span class="pre">of_type</span></code> is None. Defaults to 0, which is the PipeLine step
+most recently applied.</p></li>
+<li><p><strong>of_type</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">PipelineStep</span></code>, optional) – Return the most recently applied PipelineStep of this type.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">PipelineStep</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.data.base.Dataset.group2dataframe">
+<span class="sig-name descname"><span class="pre">group2dataframe</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">group_dict</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.5.3)"><span class="pre">DataFrame</span></a></span></span><a class="reference internal" href="../_modules/dimcat/data/base.html#Dataset.group2dataframe"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.base.Dataset.group2dataframe" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts an {ID -&gt; processing_result} dict into a DataFrame.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.data.base.Dataset.group2dataframe_unstacked">
+<span class="sig-name descname"><span class="pre">group2dataframe_unstacked</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">group_dict</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/data/base.html#Dataset.group2dataframe_unstacked"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.base.Dataset.group2dataframe_unstacked" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.data.base.Dataset.group_of_series2series">
+<span class="sig-name descname"><span class="pre">group_of_series2series</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">group_dict</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.html#pandas.Series" title="(in pandas v1.5.3)"><span class="pre">Series</span></a></span></span><a class="reference internal" href="../_modules/dimcat/data/base.html#Dataset.group_of_series2series"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.base.Dataset.group_of_series2series" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts an {ID -&gt; processing_result} dict into a Series.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.data.base.Dataset.group_of_values2series">
+<span class="sig-name descname"><span class="pre">group_of_values2series</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">group_dict</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.html#pandas.Series" title="(in pandas v1.5.3)"><span class="pre">Series</span></a></span></span><a class="reference internal" href="../_modules/dimcat/data/base.html#Dataset.group_of_values2series"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.base.Dataset.group_of_values2series" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts an {ID -&gt; processing_result} dict into a Series.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="dimcat.data.base.Dataset.index_levels">
+<span class="sig-name descname"><span class="pre">index_levels</span></span><a class="headerlink" href="#dimcat.data.base.Dataset.index_levels" title="Permalink to this definition">¶</a></dt>
+<dd><p>Keeps track of index level names. Also used for automatic naming of output files.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="dimcat.data.base.Dataset.indices">
+<span class="sig-name descname"><span class="pre">indices</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">ID</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#dimcat.data.base.Dataset.indices" title="Permalink to this definition">¶</a></dt>
+<dd><p>List of indices (IDs) which serve for accessing individual pieces of data and
+associated metadata. An index is a (‘corpus_name’, ‘piece_name’) tuple (“ID”) that can have a third element
+identifying a segment/chunk of a piece.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.data.base.Dataset.iter_facet">
+<span class="sig-name descname"><span class="pre">iter_facet</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">what</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Literal" title="(in Python v3.10)"><span class="pre">Literal</span></a><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'measures'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'notes'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'rests'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'notes_and_rests'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'labels'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'expanded'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'form_labels'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'cadences'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'events'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'chords'</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Iterator" title="(in Python v3.10)"><span class="pre">Iterator</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Tuple" title="(in Python v3.10)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Union" title="(in Python v3.10)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="dimcat.html#dimcat.dtypes.PieceID" title="dimcat.dtypes.PieceID"><span class="pre">PieceID</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Tuple" title="(in Python v3.10)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Interval.html#pandas.Interval" title="(in pandas v1.5.3)"><span class="pre">Interval</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.5.3)"><span class="pre">DataFrame</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/dimcat/data/base.html#Dataset.iter_facet"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.base.Dataset.iter_facet" title="Permalink to this definition">¶</a></dt>
+<dd><p>Iterate through facet DataFrames.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>what</strong> – Which type of facet to retrieve.</p>
+</dd>
+<dt class="field-even">Yields<span class="colon">:</span></dt>
+<dd class="field-even"><p>Index tuple.
+Facet DataFrame.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.data.base.Dataset.iter_pieces">
+<span class="sig-name descname"><span class="pre">iter_pieces</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Iterator" title="(in Python v3.10)"><span class="pre">Iterator</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Tuple" title="(in Python v3.10)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="dimcat.html#dimcat.dtypes.PieceID" title="dimcat.dtypes.PieceID"><span class="pre">PieceID</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Piece</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/dimcat/data/base.html#Dataset.iter_pieces"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.base.Dataset.iter_pieces" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.data.base.Dataset.load">
+<span class="sig-name descname"><span class="pre">load</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">directory</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Optional" title="(in Python v3.10)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Union" title="(in Python v3.10)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.List" title="(in Python v3.10)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/data/base.html#Dataset.load"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.base.Dataset.load" title="Permalink to this definition">¶</a></dt>
+<dd><p>Load and parse all of the desired raw data and metadata.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>directory</strong> (<a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a>) – The path(s) to all the data to load.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.data.base.Dataset.load_dcml">
+<span class="sig-name descname"><span class="pre">load_dcml</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">directory</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Optional" title="(in Python v3.10)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Union" title="(in Python v3.10)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.List" title="(in Python v3.10)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/data/base.html#Dataset.load_dcml"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.base.Dataset.load_dcml" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="dimcat.data.base.Dataset.n_indices">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">n_indices</span></span><a class="headerlink" href="#dimcat.data.base.Dataset.n_indices" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="dimcat.data.base.Dataset.pieces">
+<span class="sig-name descname"><span class="pre">pieces</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">ID</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">ms3.Piece</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#dimcat.data.base.Dataset.pieces" title="Permalink to this definition">¶</a></dt>
+<dd><p>{(corpus, fname) -&gt; Any}
+References to the individual pieces contained in the data. The exact type depends on the type of data.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="dimcat.data.base.Dataset.pipeline_steps">
+<span class="sig-name descname"><span class="pre">pipeline_steps</span></span><a class="headerlink" href="#dimcat.data.base.Dataset.pipeline_steps" title="Permalink to this definition">¶</a></dt>
+<dd><p>The sequence of applied PipelineSteps that has led to the current state in reverse
+order (first element was applied last).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.data.base.Dataset.reset_indices">
+<span class="sig-name descname"><span class="pre">reset_indices</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/data/base.html#Dataset.reset_indices"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.base.Dataset.reset_indices" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.data.base.Dataset.set_indices">
+<span class="sig-name descname"><span class="pre">set_indices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">new_indices</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Union" title="(in Python v3.10)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.List" title="(in Python v3.10)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Union" title="(in Python v3.10)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="dimcat.html#dimcat.dtypes.PieceID" title="dimcat.dtypes.PieceID"><span class="pre">PieceID</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Tuple" title="(in Python v3.10)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Interval.html#pandas.Interval" title="(in pandas v1.5.3)"><span class="pre">Interval</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Dict" title="(in Python v3.10)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Union" title="(in Python v3.10)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="dimcat.html#dimcat.dtypes.PieceID" title="dimcat.dtypes.PieceID"><span class="pre">PieceID</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Tuple" title="(in Python v3.10)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Interval.html#pandas.Interval" title="(in pandas v1.5.3)"><span class="pre">Interval</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.List" title="(in Python v3.10)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Union" title="(in Python v3.10)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="dimcat.html#dimcat.dtypes.PieceID" title="dimcat.dtypes.PieceID"><span class="pre">PieceID</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Tuple" title="(in Python v3.10)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Interval.html#pandas.Interval" title="(in pandas v1.5.3)"><span class="pre">Interval</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3.10/library/constants.html#None" title="(in Python v3.10)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/dimcat/data/base.html#Dataset.set_indices"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.base.Dataset.set_indices" title="Permalink to this definition">¶</a></dt>
+<dd><p>Replace <a class="reference internal" href="#dimcat.data.base.Dataset.indices" title="dimcat.data.base.Dataset.indices"><code class="xref py py-attr docutils literal notranslate"><span class="pre">indices</span></code></a> with a new list of IDs.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>new_indices</strong> – The new list IDs or a dictionary of several lists of IDs. The latter is useful for re-grouping
+freshly sliced IDs of a <code class="xref py py-class docutils literal notranslate"><span class="pre">GroupedDataset</span></code>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.data.base.Dataset.track_pipeline">
+<span class="sig-name descname"><span class="pre">track_pipeline</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pipeline_step</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">group2pandas</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">indices</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">processed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grouper</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slicer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/data/base.html#Dataset.track_pipeline"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.base.Dataset.track_pipeline" title="Permalink to this definition">¶</a></dt>
+<dd><p>Keep track of the applied pipeline_steps and update index level names and group2pandas
+conversion method.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>pipeline_step</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">PipelineStep</span></code>) – </p></li>
+<li><p><strong>group2pandas</strong> (<a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">str</span></code></a>, optional) – </p></li>
+<li><p><strong>indices</strong> (<a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">str</span></code></a>, optional) – </p></li>
+<li><p><strong>processed</strong> (<a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">str</span></code></a>, optional) – </p></li>
+<li><p><strong>grouper</strong> (<a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">str</span></code></a>, optional) – </p></li>
+<li><p><strong>slicer</strong> (<a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">str</span></code></a>, optional) – </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.data.base.GroupedData">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.data.base.</span></span><span class="sig-name descname"><span class="pre">GroupedData</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="dimcat.html#dimcat.base.Data" title="dimcat.base.Data"><span class="pre">Data</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/data/base.html#GroupedData"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.base.GroupedData" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">_ProcessedData</span></code></p>
+<p>A type of Data object that behaves like its predecessor but returns and iterates through groups.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="dimcat.data.base.GroupedData.grouped_indices">
+<span class="sig-name descname"><span class="pre">grouped_indices</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">GroupID</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">ID</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#dimcat.data.base.GroupedData.grouped_indices" title="Permalink to this definition">¶</a></dt>
+<dd><p>{group_key -&gt; indices} dictionary of indices (IDs) which serve for accessing individual pieces of
+data and associated metadata. An index is a (‘corpus_name’, ‘piece_name’) tuple (“ID”)
+that can have a third element identifying a segment/chunk of a piece.
+The group_keys are an empty tuple by default; with every applied Grouper,
+the length of all group_keys grows by one and the number of group_keys grows or stays the same.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.data.base.GroupedData.iter_grouped_indices">
+<span class="sig-name descname"><span class="pre">iter_grouped_indices</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Iterator" title="(in Python v3.10)"><span class="pre">Iterator</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Tuple" title="(in Python v3.10)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.List" title="(in Python v3.10)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Union" title="(in Python v3.10)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="dimcat.html#dimcat.dtypes.PieceID" title="dimcat.dtypes.PieceID"><span class="pre">PieceID</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Tuple" title="(in Python v3.10)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Interval.html#pandas.Interval" title="(in pandas v1.5.3)"><span class="pre">Interval</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/dimcat/data/base.html#GroupedData.iter_grouped_indices"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.base.GroupedData.iter_grouped_indices" title="Permalink to this definition">¶</a></dt>
+<dd><p>Iterate through groups of indices as defined by the previously applied Groupers.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Yields<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#tuple" title="(in Python v3.10)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">tuple</span></code></a> of <a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">str</span></code></a> – A tuple of keys reflecting the group hierarchy</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#list" title="(in Python v3.10)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">list</span></code></a> of <a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#tuple" title="(in Python v3.10)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">tuple</span></code></a> – A list of IDs belonging to the same group.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.data.base.GroupedData.iter_grouped_slice_info">
+<span class="sig-name descname"><span class="pre">iter_grouped_slice_info</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Iterator" title="(in Python v3.10)"><span class="pre">Iterator</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Tuple" title="(in Python v3.10)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#tuple" title="(in Python v3.10)"><span class="pre">tuple</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.5.3)"><span class="pre">DataFrame</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/dimcat/data/base.html#GroupedData.iter_grouped_slice_info"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.base.GroupedData.iter_grouped_slice_info" title="Permalink to this definition">¶</a></dt>
+<dd><p>Iterate through concatenated slice_info DataFrame for each group.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="dimcat.data.base.GroupedData.type_mapping">
+<span class="sig-name descname"><span class="pre">type_mapping</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Collection</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{('AnalyzedGroupedSlicedDataset',</span> <span class="pre">'AnalyzedSlicedDataset'):</span> <span class="pre">'AnalyzedGroupedSlicedDataset',</span> <span class="pre">'GroupedSlicedDataset':</span> <span class="pre">'GroupedSlicedDataset',</span> <span class="pre">('AnalyzedGroupedDataset',</span> <span class="pre">'AnalyzedDataset'):</span> <span class="pre">'AnalyzedGroupedDataset',</span> <span class="pre">'SlicedDataset':</span> <span class="pre">'GroupedSlicedDataset',</span> <span class="pre">'Dataset':</span> <span class="pre">'GroupedDataset'}</span></em><a class="headerlink" href="#dimcat.data.base.GroupedData.type_mapping" title="Permalink to this definition">¶</a></dt>
+<dd><p>{Input type(s) -&gt; Output type}. __new__() picks the first ‘value’ where the input Data are of type ‘key’.
+Objects raise TypeError if nothing matches. object or Data can be used as fallback/default key.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="dimcat.data.base.PROCESSED_DATA_FIELDS">
+<span class="sig-prename descclassname"><span class="pre">dimcat.data.base.</span></span><span class="sig-name descname"><span class="pre">PROCESSED_DATA_FIELDS</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Dict" title="(in Python v3.10)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Tuple" title="(in Python v3.10)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'AnalyzedData':</span> <span class="pre">('processed',),</span> <span class="pre">'GroupedData':</span> <span class="pre">('grouped_indices',),</span> <span class="pre">'SlicedData':</span> <span class="pre">('sliced',</span> <span class="pre">'slice_info')}</span></em><a class="headerlink" href="#dimcat.data.base.PROCESSED_DATA_FIELDS" title="Permalink to this definition">¶</a></dt>
+<dd><p>Name of the data fields that the three types of processing add to any _Dataset object.
+Important for copying objects.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.data.base.SlicedData">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.data.base.</span></span><span class="sig-name descname"><span class="pre">SlicedData</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="dimcat.html#dimcat.base.Data" title="dimcat.base.Data"><span class="pre">Data</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/data/base.html#SlicedData"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.base.SlicedData" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">_ProcessedData</span></code></p>
+<p>A type of Data object that contains the slicing information created by a Slicer. It slices all requested
+facets based on that information.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="dimcat.data.base.SlicedData.excluded_types">
+<span class="sig-name descname"><span class="pre">excluded_types</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Collection</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">['AnalyzedData',</span> <span class="pre">'SlicedData']</span></em><a class="headerlink" href="#dimcat.data.base.SlicedData.excluded_types" title="Permalink to this definition">¶</a></dt>
+<dd><p>Objects raise TypeError upon instantiation if the passed data are of one of these types.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.data.base.SlicedData.get_slice">
+<span class="sig-name descname"><span class="pre">get_slice</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">index</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">what</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/data/base.html#SlicedData.get_slice"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.base.SlicedData.get_slice" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.data.base.SlicedData.get_slice_info">
+<span class="sig-name descname"><span class="pre">get_slice_info</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.5.3)"><span class="pre">DataFrame</span></a></span></span><a class="reference internal" href="../_modules/dimcat/data/base.html#SlicedData.get_slice_info"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.base.SlicedData.get_slice_info" title="Permalink to this definition">¶</a></dt>
+<dd><p>Concatenates slice_info Series and returns them as a DataFrame.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.data.base.SlicedData.iter_slice_info">
+<span class="sig-name descname"><span class="pre">iter_slice_info</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Iterator" title="(in Python v3.10)"><span class="pre">Iterator</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Tuple" title="(in Python v3.10)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Tuple" title="(in Python v3.10)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Interval.html#pandas.Interval" title="(in pandas v1.5.3)"><span class="pre">Interval</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.html#pandas.Series" title="(in pandas v1.5.3)"><span class="pre">Series</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/dimcat/data/base.html#SlicedData.iter_slice_info"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.base.SlicedData.iter_slice_info" title="Permalink to this definition">¶</a></dt>
+<dd><p>Iterate through concatenated slice_info Series for each group.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="dimcat.data.base.SlicedData.slice_info">
+<span class="sig-name descname"><span class="pre">slice_info</span></span><a class="headerlink" href="#dimcat.data.base.SlicedData.slice_info" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dict holding metadata of slices (e.g. the localkey of a segment).</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="dimcat.data.base.SlicedData.sliced">
+<span class="sig-name descname"><span class="pre">sliced</span></span><a class="headerlink" href="#dimcat.data.base.SlicedData.sliced" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dict for sliced data facets.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="dimcat.data.base.SlicedData.type_mapping">
+<span class="sig-name descname"><span class="pre">type_mapping</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Collection</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'Dataset':</span> <span class="pre">'SlicedDataset',</span> <span class="pre">'GroupedDataset':</span> <span class="pre">'GroupedSlicedDataset'}</span></em><a class="headerlink" href="#dimcat.data.base.SlicedData.type_mapping" title="Permalink to this definition">¶</a></dt>
+<dd><p>{Input type(s) -&gt; Output type}. __new__() picks the first ‘value’ where the input Data are of type ‘key’.
+Objects raise TypeError if nothing matches. object or Data can be used as fallback/default key.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dimcat.data.base.remove_corpus_from_ids">
+<span class="sig-prename descclassname"><span class="pre">dimcat.data.base.</span></span><span class="sig-name descname"><span class="pre">remove_corpus_from_ids</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">result</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/data/base.html#remove_corpus_from_ids"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.base.remove_corpus_from_ids" title="Permalink to this definition">¶</a></dt>
+<dd><p>Called when group contains corpus_names and removes redundant repetition from indices.</p>
+</dd></dl>
+
+</section>
+<section id="module-dimcat.data.dcml">
+<span id="dimcat-data-dcml-module"></span><h2>dimcat.data.dcml module<a class="headerlink" href="#module-dimcat.data.dcml" title="Permalink to this heading">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.data.dcml.AnalyzedDataset">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.data.dcml.</span></span><span class="sig-name descname"><span class="pre">AnalyzedDataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="dimcat.html#dimcat.base.Data" title="dimcat.base.Data"><span class="pre">Data</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/data/dcml.html#AnalyzedDataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.dcml.AnalyzedDataset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#dimcat.data.base.AnalyzedData" title="dimcat.data.base.AnalyzedData"><code class="xref py py-class docutils literal notranslate"><span class="pre">AnalyzedData</span></code></a>, <a class="reference internal" href="#dimcat.data.base.Dataset" title="dimcat.data.base.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dataset</span></code></a></p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.data.dcml.AnalyzedGroupedDataset">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.data.dcml.</span></span><span class="sig-name descname"><span class="pre">AnalyzedGroupedDataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="dimcat.html#dimcat.base.Data" title="dimcat.base.Data"><span class="pre">Data</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/data/dcml.html#AnalyzedGroupedDataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.dcml.AnalyzedGroupedDataset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#dimcat.data.dcml.AnalyzedDataset" title="dimcat.data.dcml.AnalyzedDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">AnalyzedDataset</span></code></a>, <a class="reference internal" href="#dimcat.data.dcml.GroupedDataset" title="dimcat.data.dcml.GroupedDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">GroupedDataset</span></code></a></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="dimcat.data.dcml.AnalyzedGroupedDataset.assert_types">
+<span class="sig-name descname"><span class="pre">assert_types</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Collection</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">['GroupedDataset',</span> <span class="pre">'AnalyzedDataset']</span></em><a class="headerlink" href="#dimcat.data.dcml.AnalyzedGroupedDataset.assert_types" title="Permalink to this definition">¶</a></dt>
+<dd><p>Objects raise TypeError upon instantiation if the passed data are not of one of these types.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="dimcat.data.dcml.AnalyzedGroupedDataset.type_mapping">
+<span class="sig-name descname"><span class="pre">type_mapping</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Collection</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{('AnalyzedGroupedDataset',</span> <span class="pre">'AnalyzedDataset',</span> <span class="pre">'GroupedDataset'):</span> <span class="pre">'AnalyzedGroupedDataset'}</span></em><a class="headerlink" href="#dimcat.data.dcml.AnalyzedGroupedDataset.type_mapping" title="Permalink to this definition">¶</a></dt>
+<dd><p>{Input type(s) -&gt; Output type}. __new__() picks the first ‘value’ where the input Data are of type ‘key’.
+Objects raise TypeError if nothing matches. object or Data can be used as fallback/default key.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.data.dcml.AnalyzedGroupedSlicedDataset">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.data.dcml.</span></span><span class="sig-name descname"><span class="pre">AnalyzedGroupedSlicedDataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="dimcat.html#dimcat.base.Data" title="dimcat.base.Data"><span class="pre">Data</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/data/dcml.html#AnalyzedGroupedSlicedDataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.dcml.AnalyzedGroupedSlicedDataset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#dimcat.data.dcml.AnalyzedSlicedDataset" title="dimcat.data.dcml.AnalyzedSlicedDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">AnalyzedSlicedDataset</span></code></a>, <a class="reference internal" href="#dimcat.data.dcml.GroupedSlicedDataset" title="dimcat.data.dcml.GroupedSlicedDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">GroupedSlicedDataset</span></code></a></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="dimcat.data.dcml.AnalyzedGroupedSlicedDataset.assert_types">
+<span class="sig-name descname"><span class="pre">assert_types</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Collection</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">['GroupedSlicedDataset',</span> <span class="pre">'AnalyzedGroupedDataset',</span> <span class="pre">'AnalyzedSlicedDataset']</span></em><a class="headerlink" href="#dimcat.data.dcml.AnalyzedGroupedSlicedDataset.assert_types" title="Permalink to this definition">¶</a></dt>
+<dd><p>Objects raise TypeError upon instantiation if the passed data are not of one of these types.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="dimcat.data.dcml.AnalyzedGroupedSlicedDataset.type_mapping">
+<span class="sig-name descname"><span class="pre">type_mapping</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Collection</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{('GroupedSlicedDataset',</span> <span class="pre">'AnalyzedGroupedDataset',</span> <span class="pre">'AnalyzedSlicedDataset',</span> <span class="pre">'AnalyzedGroupedSlicedDataset'):</span> <span class="pre">'AnalyzedGroupedSlicedDataset'}</span></em><a class="headerlink" href="#dimcat.data.dcml.AnalyzedGroupedSlicedDataset.type_mapping" title="Permalink to this definition">¶</a></dt>
+<dd><p>{Input type(s) -&gt; Output type}. __new__() picks the first ‘value’ where the input Data are of type ‘key’.
+Objects raise TypeError if nothing matches. object or Data can be used as fallback/default key.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.data.dcml.AnalyzedSlicedDataset">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.data.dcml.</span></span><span class="sig-name descname"><span class="pre">AnalyzedSlicedDataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="dimcat.html#dimcat.base.Data" title="dimcat.base.Data"><span class="pre">Data</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/data/dcml.html#AnalyzedSlicedDataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.dcml.AnalyzedSlicedDataset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#dimcat.data.dcml.AnalyzedDataset" title="dimcat.data.dcml.AnalyzedDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">AnalyzedDataset</span></code></a>, <a class="reference internal" href="#dimcat.data.dcml.SlicedDataset" title="dimcat.data.dcml.SlicedDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">SlicedDataset</span></code></a></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="dimcat.data.dcml.AnalyzedSlicedDataset.assert_types">
+<span class="sig-name descname"><span class="pre">assert_types</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Collection</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">['SlicedDataset',</span> <span class="pre">'AnalyzedDataset']</span></em><a class="headerlink" href="#dimcat.data.dcml.AnalyzedSlicedDataset.assert_types" title="Permalink to this definition">¶</a></dt>
+<dd><p>Objects raise TypeError upon instantiation if the passed data are not of one of these types.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="dimcat.data.dcml.AnalyzedSlicedDataset.excluded_types">
+<span class="sig-name descname"><span class="pre">excluded_types</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Collection</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">[]</span></em><a class="headerlink" href="#dimcat.data.dcml.AnalyzedSlicedDataset.excluded_types" title="Permalink to this definition">¶</a></dt>
+<dd><p>Objects raise TypeError upon instantiation if the passed data are of one of these types.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="dimcat.data.dcml.AnalyzedSlicedDataset.type_mapping">
+<span class="sig-name descname"><span class="pre">type_mapping</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Collection</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{('AnalyzedSlicedDataset',</span> <span class="pre">'AnalyzedDataset',</span> <span class="pre">'SlicedDataset'):</span> <span class="pre">'AnalyzedSlicedDataset'}</span></em><a class="headerlink" href="#dimcat.data.dcml.AnalyzedSlicedDataset.type_mapping" title="Permalink to this definition">¶</a></dt>
+<dd><p>{Input type(s) -&gt; Output type}. __new__() picks the first ‘value’ where the input Data are of type ‘key’.
+Objects raise TypeError if nothing matches. object or Data can be used as fallback/default key.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.data.dcml.GroupedDataset">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.data.dcml.</span></span><span class="sig-name descname"><span class="pre">GroupedDataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="dimcat.html#dimcat.base.Data" title="dimcat.base.Data"><span class="pre">Data</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/data/dcml.html#GroupedDataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.dcml.GroupedDataset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#dimcat.data.base.GroupedData" title="dimcat.data.base.GroupedData"><code class="xref py py-class docutils literal notranslate"><span class="pre">GroupedData</span></code></a>, <a class="reference internal" href="#dimcat.data.base.Dataset" title="dimcat.data.base.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dataset</span></code></a></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.data.dcml.GroupedDataset.iter_grouped_facet">
+<span class="sig-name descname"><span class="pre">iter_grouped_facet</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">what</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Literal" title="(in Python v3.10)"><span class="pre">Literal</span></a><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'measures'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'notes'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'rests'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'notes_and_rests'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'labels'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'expanded'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'form_labels'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'cadences'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'events'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'chords'</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Iterator" title="(in Python v3.10)"><span class="pre">Iterator</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Tuple" title="(in Python v3.10)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#tuple" title="(in Python v3.10)"><span class="pre">tuple</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.5.3)"><span class="pre">DataFrame</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/dimcat/data/dcml.html#GroupedDataset.iter_grouped_facet"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.dcml.GroupedDataset.iter_grouped_facet" title="Permalink to this definition">¶</a></dt>
+<dd><p>Iterate through one concatenated facet DataFrame per group.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>what</strong> – Which type of facet to retrieve.</p>
+</dd>
+<dt class="field-even">Yields<span class="colon">:</span></dt>
+<dd class="field-even"><p>Group index.
+Facet DataFrame.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.data.dcml.GroupedDataset.set_grouped_indices">
+<span class="sig-name descname"><span class="pre">set_grouped_indices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">grouped_indices</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Dict" title="(in Python v3.10)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#tuple" title="(in Python v3.10)"><span class="pre">tuple</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.List" title="(in Python v3.10)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Union" title="(in Python v3.10)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="dimcat.html#dimcat.dtypes.PieceID" title="dimcat.dtypes.PieceID"><span class="pre">PieceID</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Tuple" title="(in Python v3.10)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Interval.html#pandas.Interval" title="(in pandas v1.5.3)"><span class="pre">Interval</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/data/dcml.html#GroupedDataset.set_grouped_indices"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.dcml.GroupedDataset.set_grouped_indices" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.data.dcml.GroupedDataset.set_indices">
+<span class="sig-name descname"><span class="pre">set_indices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">new_indices</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Union" title="(in Python v3.10)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.List" title="(in Python v3.10)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="dimcat.html#dimcat.dtypes.PieceID" title="dimcat.dtypes.PieceID"><span class="pre">PieceID</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Dict" title="(in Python v3.10)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Union" title="(in Python v3.10)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="dimcat.html#dimcat.dtypes.PieceID" title="dimcat.dtypes.PieceID"><span class="pre">PieceID</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Tuple" title="(in Python v3.10)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Interval.html#pandas.Interval" title="(in pandas v1.5.3)"><span class="pre">Interval</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.List" title="(in Python v3.10)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="dimcat.html#dimcat.dtypes.PieceID" title="dimcat.dtypes.PieceID"><span class="pre">PieceID</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3.10/library/constants.html#None" title="(in Python v3.10)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/dimcat/data/dcml.html#GroupedDataset.set_indices"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.dcml.GroupedDataset.set_indices" title="Permalink to this definition">¶</a></dt>
+<dd><p>Replace <code class="xref py py-attr docutils literal notranslate"><span class="pre">indices</span></code> with a new list of IDs and update the <code class="xref py py-attr docutils literal notranslate"><span class="pre">grouped_indices</span></code> accordingly.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>new_indices</strong> – The new list of IDs or an {old_id -&gt; [new_id]} dictionary to replace the IDs with a list of new IDs.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.data.dcml.GroupedSlicedDataset">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.data.dcml.</span></span><span class="sig-name descname"><span class="pre">GroupedSlicedDataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="dimcat.html#dimcat.base.Data" title="dimcat.base.Data"><span class="pre">Data</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/data/dcml.html#GroupedSlicedDataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.dcml.GroupedSlicedDataset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#dimcat.data.dcml.GroupedDataset" title="dimcat.data.dcml.GroupedDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">GroupedDataset</span></code></a>, <a class="reference internal" href="#dimcat.data.dcml.SlicedDataset" title="dimcat.data.dcml.SlicedDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">SlicedDataset</span></code></a></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="dimcat.data.dcml.GroupedSlicedDataset.assert_types">
+<span class="sig-name descname"><span class="pre">assert_types</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Collection</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">['SlicedDataset',</span> <span class="pre">'GroupedDataset']</span></em><a class="headerlink" href="#dimcat.data.dcml.GroupedSlicedDataset.assert_types" title="Permalink to this definition">¶</a></dt>
+<dd><p>Objects raise TypeError upon instantiation if the passed data are not of one of these types.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="dimcat.data.dcml.GroupedSlicedDataset.excluded_types">
+<span class="sig-name descname"><span class="pre">excluded_types</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Collection</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">['AnalyzedData']</span></em><a class="headerlink" href="#dimcat.data.dcml.GroupedSlicedDataset.excluded_types" title="Permalink to this definition">¶</a></dt>
+<dd><p>Objects raise TypeError upon instantiation if the passed data are of one of these types.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.data.dcml.GroupedSlicedDataset.get_slice_info">
+<span class="sig-name descname"><span class="pre">get_slice_info</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ignore_groups</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.5.3)"><span class="pre">DataFrame</span></a></span></span><a class="reference internal" href="../_modules/dimcat/data/dcml.html#GroupedSlicedDataset.get_slice_info"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.dcml.GroupedSlicedDataset.get_slice_info" title="Permalink to this definition">¶</a></dt>
+<dd><p>Concatenates slice_info Series and returns them as a DataFrame.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="dimcat.data.dcml.GroupedSlicedDataset.type_mapping">
+<span class="sig-name descname"><span class="pre">type_mapping</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Collection</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{('SlicedDataset',</span> <span class="pre">'GroupedDataset',</span> <span class="pre">'GroupedSlicedDataset'):</span> <span class="pre">'GroupedSlicedDataset'}</span></em><a class="headerlink" href="#dimcat.data.dcml.GroupedSlicedDataset.type_mapping" title="Permalink to this definition">¶</a></dt>
+<dd><p>{Input type(s) -&gt; Output type}. __new__() picks the first ‘value’ where the input Data are of type ‘key’.
+Objects raise TypeError if nothing matches. object or Data can be used as fallback/default key.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.data.dcml.SlicedDataset">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.data.dcml.</span></span><span class="sig-name descname"><span class="pre">SlicedDataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="dimcat.html#dimcat.base.Data" title="dimcat.base.Data"><span class="pre">Data</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/data/dcml.html#SlicedDataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.dcml.SlicedDataset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#dimcat.data.base.SlicedData" title="dimcat.data.base.SlicedData"><code class="xref py py-class docutils literal notranslate"><span class="pre">SlicedData</span></code></a>, <a class="reference internal" href="#dimcat.data.base.Dataset" title="dimcat.data.base.Dataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dataset</span></code></a></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.data.dcml.SlicedDataset.get_item">
+<span class="sig-name descname"><span class="pre">get_item</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ID</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Tuple" title="(in Python v3.10)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Interval.html#pandas.Interval" title="(in pandas v1.5.3)"><span class="pre">Interval</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">what</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Literal" title="(in Python v3.10)"><span class="pre">Literal</span></a><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'measures'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'notes'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'rests'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'notes_and_rests'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'labels'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'expanded'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'form_labels'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'cadences'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'events'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'chords'</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Optional" title="(in Python v3.10)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.5.3)"><span class="pre">DataFrame</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/dimcat/data/dcml.html#SlicedDataset.get_item"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.dcml.SlicedDataset.get_item" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieve a DataFrame pertaining to the facet <code class="docutils literal notranslate"><span class="pre">what</span></code> of the piece <code class="docutils literal notranslate"><span class="pre">index</span></code>. If
+the facet has been sliced before, the sliced DataFrame is returned.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ID</strong> – (corpus, fname) or (corpus, fname, interval)</p></li>
+<li><p><strong>what</strong> – What facet to retrieve.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>DataFrame representing an entire score facet, or a chunk (slice) of it.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.data.dcml.SlicedDataset.iter_facet">
+<span class="sig-name descname"><span class="pre">iter_facet</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">what</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Literal" title="(in Python v3.10)"><span class="pre">Literal</span></a><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'measures'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'notes'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'rests'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'notes_and_rests'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'labels'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'expanded'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'form_labels'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'cadences'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'events'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'chords'</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Iterator" title="(in Python v3.10)"><span class="pre">Iterator</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Tuple" title="(in Python v3.10)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Tuple" title="(in Python v3.10)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Interval.html#pandas.Interval" title="(in pandas v1.5.3)"><span class="pre">Interval</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.5.3)"><span class="pre">DataFrame</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/dimcat/data/dcml.html#SlicedDataset.iter_facet"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.dcml.SlicedDataset.iter_facet" title="Permalink to this definition">¶</a></dt>
+<dd><p>Iterate through facet DataFrames.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>what</strong> – Which type of facet to retrieve.</p>
+</dd>
+<dt class="field-even">Yields<span class="colon">:</span></dt>
+<dd class="field-even"><p>Index tuple.
+Facet DataFrame.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.data.dcml.SlicedDataset.slice_facet_if_necessary">
+<span class="sig-name descname"><span class="pre">slice_facet_if_necessary</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">what</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/data/dcml.html#SlicedDataset.slice_facet_if_necessary"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.dcml.SlicedDataset.slice_facet_if_necessary" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>what</strong> (<a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">str</span></code></a>) – Facet for which to create slices if necessary</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True if slices are available or not needed, False otherwise.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3.10/library/functions.html#bool" title="(in Python v3.10)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">bool</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-dimcat.data.result">
+<span id="dimcat-data-result-module"></span><h2>dimcat.data.result module<a class="headerlink" href="#module-dimcat.data.result" title="Permalink to this heading">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.data.result.ChordSymbolResult">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.data.result.</span></span><span class="sig-name descname"><span class="pre">ChordSymbolResult</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">analyzer</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="dimcat.analyzer.html#dimcat.analyzer.base.Analyzer" title="dimcat.analyzer.base.Analyzer"><span class="pre">Analyzer</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset_before</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#dimcat.data.base.Dataset" title="dimcat.data.base.Dataset"><span class="pre">Dataset</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset_after</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#dimcat.data.base.AnalyzedData" title="dimcat.data.base.AnalyzedData"><span class="pre">AnalyzedData</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/data/result.html#ChordSymbolResult"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.result.ChordSymbolResult" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#dimcat.data.result.Result" title="dimcat.data.result.Result"><code class="xref py py-class docutils literal notranslate"><span class="pre">Result</span></code></a></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.data.result.ChordSymbolResult.iter_group_results">
+<span class="sig-name descname"><span class="pre">iter_group_results</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/data/result.html#ChordSymbolResult.iter_group_results"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.result.ChordSymbolResult.iter_group_results" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.data.result.NotesResult">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.data.result.</span></span><span class="sig-name descname"><span class="pre">NotesResult</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">analyzer</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="dimcat.analyzer.html#dimcat.analyzer.base.Analyzer" title="dimcat.analyzer.base.Analyzer"><span class="pre">Analyzer</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset_before</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#dimcat.data.base.Dataset" title="dimcat.data.base.Dataset"><span class="pre">Dataset</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset_after</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#dimcat.data.base.AnalyzedData" title="dimcat.data.base.AnalyzedData"><span class="pre">AnalyzedData</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/data/result.html#NotesResult"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.result.NotesResult" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#dimcat.data.result.Result" title="dimcat.data.result.Result"><code class="xref py py-class docutils literal notranslate"><span class="pre">Result</span></code></a></p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.data.result.Result">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.data.result.</span></span><span class="sig-name descname"><span class="pre">Result</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">analyzer</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="dimcat.analyzer.html#dimcat.analyzer.base.Analyzer" title="dimcat.analyzer.base.Analyzer"><span class="pre">Analyzer</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset_before</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#dimcat.data.base.Dataset" title="dimcat.data.base.Dataset"><span class="pre">Dataset</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset_after</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#dimcat.data.base.AnalyzedData" title="dimcat.data.base.AnalyzedData"><span class="pre">AnalyzedData</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/data/result.html#Result"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.result.Result" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="dimcat.html#dimcat.base.Data" title="dimcat.base.Data"><code class="xref py py-class docutils literal notranslate"><span class="pre">Data</span></code></a></p>
+<p>Represents the result of an Analyzer processing a <code class="xref py py-class docutils literal notranslate"><span class="pre">_Dataset</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.data.result.Result.get_group_results">
+<span class="sig-name descname"><span class="pre">get_group_results</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/data/result.html#Result.get_group_results"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.result.Result.get_group_results" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.data.result.Result.get_results">
+<span class="sig-name descname"><span class="pre">get_results</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/data/result.html#Result.get_results"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.result.Result.get_results" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.data.result.Result.items">
+<span class="sig-name descname"><span class="pre">items</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/data/result.html#Result.items"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.result.Result.items" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.data.result.Result.iter_group_results">
+<span class="sig-name descname"><span class="pre">iter_group_results</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/data/result.html#Result.iter_group_results"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.result.Result.iter_group_results" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.data.result.Result.iter_results">
+<span class="sig-name descname"><span class="pre">iter_results</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/data/result.html#Result.iter_results"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.data.result.Result.iter_results" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-dimcat.data">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-dimcat.data" title="Permalink to this heading">¶</a></h2>
+</section>
+</section>
+
+
+          </div>
+
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">dimcat</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../readme.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial.html">Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../manual.html">Manual</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notebooks/index.html">Example Notebooks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributions &amp; Help</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../authors.html">Authors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../changelog.html">Changelog</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">Module Reference</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="dimcat.html">dimcat package</a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="modules.html">dimcat</a><ul>
+  <li><a href="dimcat.html">dimcat package</a><ul>
+      <li>Previous: <a href="dimcat.analyzer.html" title="previous chapter">dimcat.analyzer package</a></li>
+      <li>Next: <a href="dimcat.filter.html" title="next chapter">dimcat.filter package</a></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Digital and Cognitive Musicology Lab @ École Polytechnique Fédérale de Lausanne.
+
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
+
+      |
+      <a href="../_sources/api/dimcat.data.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+
+
+
+  </body>
+</html>

@@ -1,0 +1,37 @@
+dimcat.data package
+===================
+
+Submodules
+----------
+
+dimcat.data.base module
+-----------------------
+
+.. automodule:: dimcat.data.base
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+dimcat.data.dcml module
+-----------------------
+
+.. automodule:: dimcat.data.dcml
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+dimcat.data.result module
+-------------------------
+
+.. automodule:: dimcat.data.result
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Module contents
+---------------
+
+.. automodule:: dimcat.data
+   :members:
+   :undoc-members:
+   :show-inheritance:

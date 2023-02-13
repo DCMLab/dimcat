@@ -1,22 +1,25 @@
 
 <!DOCTYPE html>
 
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
 
-    <title>Contributing &#8212; dimcat 0.1.0.post1.dev2+g3b16e52 documentation</title>
+    <title>Contributing &#8212; dimcat 0.3.0.post1.dev48+gb31e433.d20230210 documentation</title>
     <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="_static/alabaster.css" />
+    <link rel="stylesheet" type="text/css" href="_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
     <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
     <script src="_static/jquery.js"></script>
     <script src="_static/underscore.js"></script>
+    <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
     <script src="_static/doctools.js"></script>
+    <script src="_static/sphinx_highlight.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="License" href="license.html" />
-    <link rel="prev" title="dimcat" href="readme.html" />
+    <link rel="prev" title="Preliminaries" href="notebooks/cadences.html" />
 
   <link rel="stylesheet" href="_static/custom.css" type="text/css" />
 
@@ -34,20 +37,20 @@
           <div class="body" role="main">
 
   <section id="contributing">
-<h1>Contributing<a class="headerlink" href="#contributing" title="Permalink to this headline">¶</a></h1>
+<h1>Contributing<a class="headerlink" href="#contributing" title="Permalink to this heading">¶</a></h1>
 <p>Welcome to <code class="docutils literal notranslate"><span class="pre">dimcat</span></code> contributor’s guide.</p>
 <p>This document focuses on getting any potential contributor familiarized
 with the development processes, but <a class="reference external" href="https://opensource.guide/how-to-contribute">other kinds of contributions</a> are also
 appreciated.</p>
 <p>If you are new to using <a class="reference external" href="https://git-scm.com">git</a> or have never collaborated in a project previously,
 please have a look at <a class="reference external" href="https://www.contribution-guide.org/">contribution-guide.org</a>. Other resources are also
-listed in the excellent <a class="reference external" href="https://github.com/FreeCodeCamp/how-to-contribute-to-open-source">guide created by FreeCodeCamp</a> <a class="footnote-reference brackets" href="#contrib1" id="id4">1</a>.</p>
+listed in the excellent <a class="reference external" href="https://github.com/FreeCodeCamp/how-to-contribute-to-open-source">guide created by FreeCodeCamp</a> <a class="footnote-reference brackets" href="#contrib1" id="id4" role="doc-noteref"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></a>.</p>
 <p>Please notice, all users and contributors are expected to be <strong>open,
 considerate, reasonable, and respectful</strong>. When in doubt, <a class="reference external" href="https://www.python.org/psf/conduct/">Python Software
 Foundation’s Code of Conduct</a> is a good reference in terms of behavior
 guidelines.</p>
 <section id="issue-reports">
-<h2>Issue Reports<a class="headerlink" href="#issue-reports" title="Permalink to this headline">¶</a></h2>
+<h2>Issue Reports<a class="headerlink" href="#issue-reports" title="Permalink to this heading">¶</a></h2>
 <p>If you experience bugs or general issues with <code class="docutils literal notranslate"><span class="pre">dimcat</span></code>, please have a look
 on the <a class="reference external" href="https://github.com/&lt;USERNAME&gt;/dimcat/issues">issue tracker</a>. If you don’t see anything useful there, please feel
 free to fire an issue report.</p>
@@ -64,7 +67,7 @@ that still illustrates the problem you are facing. By removing other factors,
 you help us to identify the root cause of the issue.</p>
 </section>
 <section id="documentation-improvements">
-<h2>Documentation Improvements<a class="headerlink" href="#documentation-improvements" title="Permalink to this headline">¶</a></h2>
+<h2>Documentation Improvements<a class="headerlink" href="#documentation-improvements" title="Permalink to this heading">¶</a></h2>
 <p>You can help improve <code class="docutils literal notranslate"><span class="pre">dimcat</span></code> docs by making them more readable and coherent, or
 by adding missing information and correcting mistakes.</p>
 <p><code class="docutils literal notranslate"><span class="pre">dimcat</span></code> documentation uses <a class="reference external" href="https://www.sphinx-doc.org/en/master/">Sphinx</a> as its main documentation compiler.
@@ -82,15 +85,15 @@ compile them using <a class="reference external" href="https://tox.wiki/en/stabl
 </div>
 </section>
 <section id="code-contributions">
-<h2>Code Contributions<a class="headerlink" href="#code-contributions" title="Permalink to this headline">¶</a></h2>
+<h2>Code Contributions<a class="headerlink" href="#code-contributions" title="Permalink to this heading">¶</a></h2>
 <section id="submit-an-issue">
-<h3>Submit an issue<a class="headerlink" href="#submit-an-issue" title="Permalink to this headline">¶</a></h3>
+<h3>Submit an issue<a class="headerlink" href="#submit-an-issue" title="Permalink to this heading">¶</a></h3>
 <p>Before you work on any non-trivial code contribution it’s best to first create
 a report in the <a class="reference external" href="https://github.com/&lt;USERNAME&gt;/dimcat/issues">issue tracker</a> to start a discussion on the subject.
 This often provides additional considerations and avoids unnecessary work.</p>
 </section>
 <section id="create-an-environment">
-<h3>Create an environment<a class="headerlink" href="#create-an-environment" title="Permalink to this headline">¶</a></h3>
+<h3>Create an environment<a class="headerlink" href="#create-an-environment" title="Permalink to this heading">¶</a></h3>
 <p>Before you start coding, we recommend creating an isolated <a class="reference external" href="https://realpython.com/python-virtual-environments-a-primer/">virtual
 environment</a> to avoid any problems with your installed Python packages.
 This can easily be done via either <a class="reference external" href="https://virtualenv.pypa.io/en/stable/"><code class="docutils literal notranslate"><span class="pre">virtualenv</span></code></a>:</p>
@@ -105,7 +108,7 @@ This can easily be done via either <a class="reference external" href="https://v
 </div>
 </section>
 <section id="clone-the-repository">
-<h3>Clone the repository<a class="headerlink" href="#clone-the-repository" title="Permalink to this headline">¶</a></h3>
+<h3>Clone the repository<a class="headerlink" href="#clone-the-repository" title="Permalink to this heading">¶</a></h3>
 <ol class="arabic">
 <li><p>Create an user account on GitHub if you do not already have one.</p></li>
 <li><p>Fork the project <a class="reference external" href="https://github.com/&lt;USERNAME&gt;/dimcat">repository</a>: click on the <em>Fork</em> button near the top of the
@@ -133,7 +136,7 @@ developer to check the code being written.</p>
 </ol>
 </section>
 <section id="implement-your-changes">
-<h3>Implement your changes<a class="headerlink" href="#implement-your-changes" title="Permalink to this headline">¶</a></h3>
+<h3>Implement your changes<a class="headerlink" href="#implement-your-changes" title="Permalink to this heading">¶</a></h3>
 <ol class="arabic">
 <li><p>Create a branch to hold your changes:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">git</span> <span class="n">checkout</span> <span class="o">-</span><span class="n">b</span> <span class="n">my</span><span class="o">-</span><span class="n">feature</span>
@@ -177,7 +180,7 @@ repository. Try <code class="docutils literal notranslate"><span class="pre">tox
 </ol>
 </section>
 <section id="submit-your-contribution">
-<h3>Submit your contribution<a class="headerlink" href="#submit-your-contribution" title="Permalink to this headline">¶</a></h3>
+<h3>Submit your contribution<a class="headerlink" href="#submit-your-contribution" title="Permalink to this heading">¶</a></h3>
 <ol class="arabic">
 <li><p>If everything works fine, push your local branch to GitHub with:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">git</span> <span class="n">push</span> <span class="o">-</span><span class="n">u</span> <span class="n">origin</span> <span class="n">my</span><span class="o">-</span><span class="n">feature</span>
@@ -190,7 +193,7 @@ to send your changes for review.</p>
 </ol>
 </section>
 <section id="troubleshooting">
-<h3>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permalink to this headline">¶</a></h3>
+<h3>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permalink to this heading">¶</a></h3>
 <p>The following tips can be used when facing problems to build or test the
 package:</p>
 <ol class="arabic">
@@ -238,9 +241,9 @@ You can also setup breakpoints manually instead of using the <code class="docuti
 </section>
 </section>
 <section id="maintainer-tasks">
-<h2>Maintainer tasks<a class="headerlink" href="#maintainer-tasks" title="Permalink to this headline">¶</a></h2>
+<h2>Maintainer tasks<a class="headerlink" href="#maintainer-tasks" title="Permalink to this heading">¶</a></h2>
 <section id="releases">
-<h3>Releases<a class="headerlink" href="#releases" title="Permalink to this headline">¶</a></h3>
+<h3>Releases<a class="headerlink" href="#releases" title="Permalink to this heading">¶</a></h3>
 <p>If you are part of the group of maintainers and have correct user permissions
 on <a class="reference external" href="https://pypi.org/">PyPI</a>, the following steps can be used to release a new version for
 <code class="docutils literal notranslate"><span class="pre">dimcat</span></code>:</p>
@@ -258,14 +261,15 @@ Also check the sizes of the distributions, if they are too big (e.g., &gt;
 <li><p>Run <code class="docutils literal notranslate"><span class="pre">tox</span> <span class="pre">-e</span> <span class="pre">publish</span> <span class="pre">--</span> <span class="pre">--repository</span> <span class="pre">pypi</span></code> and check that everything was
 uploaded to <a class="reference external" href="https://pypi.org/">PyPI</a> correctly.</p></li>
 </ol>
-<dl class="footnote brackets">
-<dt class="label" id="contrib1"><span class="brackets"><a class="fn-backref" href="#id4">1</a></span></dt>
-<dd><p>Even though, these resources focus on open source projects and
+<aside class="footnote-list brackets">
+<aside class="footnote brackets" id="contrib1" role="note">
+<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id4">1</a><span class="fn-bracket">]</span></span>
+<p>Even though, these resources focus on open source projects and
 communities, the general ideas behind collaborating with other developers
 to collectively create software are general and can be applied to all sorts
 of environments, including private companies and proprietary code bases.</p>
-</dd>
-</dl>
+</aside>
+</aside>
 </section>
 </section>
 </section>
@@ -289,6 +293,9 @@ of environments, including private companies and proprietary code bases.</p>
 <h3>Navigation</h3>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="readme.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial.html">Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="manual.html">Manual</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks/index.html">Example Notebooks</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Contributions &amp; Help</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#issue-reports">Issue Reports</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#documentation-improvements">Documentation Improvements</a></li>
@@ -306,7 +313,7 @@ of environments, including private companies and proprietary code bases.</p>
 <h3>Related Topics</h3>
 <ul>
   <li><a href="index.html">Documentation overview</a><ul>
-      <li>Previous: <a href="readme.html" title="previous chapter">dimcat</a></li>
+      <li>Previous: <a href="notebooks/cadences.html" title="previous chapter">Preliminaries</a></li>
       <li>Next: <a href="license.html" title="next chapter">License</a></li>
   </ul></li>
 </ul>
@@ -320,7 +327,7 @@ of environments, including private companies and proprietary code bases.</p>
     </form>
     </div>
 </div>
-<script>$('#searchbox').show(0);</script>
+<script>document.getElementById('searchbox').style.display = "block"</script>
 
 
 
@@ -334,11 +341,11 @@ of environments, including private companies and proprietary code bases.</p>
       <div class="clearer"></div>
     </div>
     <div class="footer">
-      &copy;2022, Digital and Cognitive Musicology Lab @ École Polytechnique Fédérale de Lausanne.
+      &copy;2023, Digital and Cognitive Musicology Lab @ École Polytechnique Fédérale de Lausanne.
 
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.5.0</a>
-      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
 
       |
       <a href="_sources/contributing.rst.txt"

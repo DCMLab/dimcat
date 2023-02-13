@@ -1,0 +1,53 @@
+dimcat.musana package
+=====================
+
+Submodules
+----------
+
+dimcat.musana.generics module
+-----------------------------
+
+.. automodule:: dimcat.musana.generics
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+dimcat.musana.harmony\_types module
+-----------------------------------
+
+.. automodule:: dimcat.musana.harmony_types
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+dimcat.musana.loader module
+---------------------------
+
+.. automodule:: dimcat.musana.loader
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+dimcat.musana.plotting module
+-----------------------------
+
+.. automodule:: dimcat.musana.plotting
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+dimcat.musana.util module
+-------------------------
+
+.. automodule:: dimcat.musana.util
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Module contents
+---------------
+
+.. automodule:: dimcat.musana
+   :members:
+   :undoc-members:
+   :show-inheritance:

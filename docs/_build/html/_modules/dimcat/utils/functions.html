@@ -1,0 +1,398 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>dimcat.utils.functions &#8212; dimcat 0.3.0.post1.dev48+gb31e433.d20230210 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/jquery.js"></script>
+    <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../../_static/doctools.js"></script>
+    <script src="../../../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+
+
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+
+
+          <div class="body" role="main">
+
+  <h1>Source code for dimcat.utils.functions</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Utility functions that are or might be used by several modules or useful in external contexts.&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">Collection</span><span class="p">,</span>
+    <span class="n">List</span><span class="p">,</span>
+    <span class="n">Literal</span><span class="p">,</span>
+    <span class="n">Optional</span><span class="p">,</span>
+    <span class="n">Tuple</span><span class="p">,</span>
+    <span class="n">Type</span><span class="p">,</span>
+    <span class="n">TypeAlias</span><span class="p">,</span>
+    <span class="n">TypeVar</span><span class="p">,</span>
+    <span class="n">Union</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">from</span> <span class="nn">dimcat.base</span> <span class="kn">import</span> <span class="n">Data</span><span class="p">,</span> <span class="n">PipelineStep</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="nest_level"><a class="viewcode-back" href="../../../api/dimcat.utils.html#dimcat.utils.functions.nest_level">[docs]</a><span class="k">def</span> <span class="nf">nest_level</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">include_tuples</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Recursively calculate the depth of a nested list.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">obj</span><span class="o">.</span><span class="vm">__class__</span> <span class="o">!=</span> <span class="nb">list</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">include_tuples</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">obj</span><span class="o">.</span><span class="vm">__class__</span> <span class="o">!=</span> <span class="nb">tuple</span><span class="p">:</span>
+                <span class="k">return</span> <span class="mi">0</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mi">0</span>
+    <span class="n">max_level</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">obj</span><span class="p">:</span>
+        <span class="n">max_level</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">max_level</span><span class="p">,</span> <span class="n">nest_level</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">include_tuples</span><span class="o">=</span><span class="n">include_tuples</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">max_level</span> <span class="o">+</span> <span class="mi">1</span></div>
+
+
+<span class="n">T</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s2">&quot;T&quot;</span><span class="p">)</span>
+<span class="n">PotentiallyNested</span><span class="p">:</span> <span class="n">TypeAlias</span> <span class="o">=</span> <span class="n">List</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">T</span><span class="p">,</span> <span class="s2">&quot;PotentiallyNested&quot;</span><span class="p">]]</span>
+
+
+<div class="viewcode-block" id="grams"><a class="viewcode-back" href="../../../api/dimcat.utils.html#dimcat.utils.functions.grams">[docs]</a><span class="k">def</span> <span class="nf">grams</span><span class="p">(</span><span class="n">list_of_sequences</span><span class="p">:</span> <span class="n">PotentiallyNested</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">T</span><span class="p">,</span> <span class="o">...</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Returns a list of n-gram tuples for given list. List can be nested.</span>
+<span class="sd">    Use nesting to exclude transitions between pieces or other units.</span>
+<span class="sd">    Uses: nest_level()</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">nest_level</span><span class="p">(</span><span class="n">list_of_sequences</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">ngrams</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">no_sublists</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">list_of_sequences</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+                <span class="n">ngrams</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">grams</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">n</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">no_sublists</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">no_sublists</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">ngrams</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">grams</span><span class="p">(</span><span class="n">no_sublists</span><span class="p">,</span> <span class="n">n</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">ngrams</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="p">(</span><span class="n">list_of_sequences</span><span class="p">[</span><span class="n">i</span><span class="p">:]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">))))</span></div>
+
+
+<div class="viewcode-block" id="get_composition_year"><a class="viewcode-back" href="../../../api/dimcat.utils.html#dimcat.utils.functions.get_composition_year">[docs]</a><span class="k">def</span> <span class="nf">get_composition_year</span><span class="p">(</span><span class="n">metadata_dict</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The logic for getting a composition year out of the given metadata dictionary.&quot;&quot;&quot;</span>
+    <span class="n">start</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">metadata_dict</span><span class="p">[</span><span class="s2">&quot;composed_start&quot;</span><span class="p">]</span> <span class="k">if</span> <span class="s2">&quot;composed_start&quot;</span> <span class="ow">in</span> <span class="n">metadata_dict</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="p">)</span>
+    <span class="n">end</span> <span class="o">=</span> <span class="n">metadata_dict</span><span class="p">[</span><span class="s2">&quot;composed_end&quot;</span><span class="p">]</span> <span class="k">if</span> <span class="s2">&quot;composed_end&quot;</span> <span class="ow">in</span> <span class="n">metadata_dict</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">pd</span><span class="o">.</span><span class="n">isnull</span><span class="p">(</span><span class="n">start</span><span class="p">)</span> <span class="ow">and</span> <span class="n">pd</span><span class="o">.</span><span class="n">isnull</span><span class="p">(</span><span class="n">end</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">LookupError</span><span class="p">(</span><span class="s2">&quot;Metadata do not include composition dates.&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">pd</span><span class="o">.</span><span class="n">isnull</span><span class="p">(</span><span class="n">start</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">end</span>
+    <span class="k">if</span> <span class="n">pd</span><span class="o">.</span><span class="n">isnull</span><span class="p">(</span><span class="n">end</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">start</span>
+    <span class="k">return</span> <span class="nb">round</span><span class="p">((</span><span class="n">end</span> <span class="o">+</span> <span class="n">start</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="n">ndigits</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="clean_index_levels"><a class="viewcode-back" href="../../../api/dimcat.utils.html#dimcat.utils.functions.clean_index_levels">[docs]</a><span class="k">def</span> <span class="nf">clean_index_levels</span><span class="p">(</span><span class="n">pandas_obj</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Remove index levels &quot;IDs&quot;, &quot;corpus&quot; and &quot;fname&quot;, if redundant.&quot;&quot;&quot;</span>
+    <span class="n">idx</span> <span class="o">=</span> <span class="n">pandas_obj</span><span class="o">.</span><span class="n">index</span>
+    <span class="n">drop</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="n">idx</span><span class="o">.</span><span class="n">nlevels</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">and</span> <span class="s2">&quot;IDs&quot;</span> <span class="ow">in</span> <span class="n">idx</span><span class="o">.</span><span class="n">names</span><span class="p">:</span>
+        <span class="n">drop</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;IDs&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">idx</span><span class="o">.</span><span class="n">names</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s2">&quot;corpus&quot;</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">drop</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;corpus&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">idx</span><span class="o">.</span><span class="n">names</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s2">&quot;fname&quot;</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">drop</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;fname&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">drop</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="c1"># for each name, store the integer of the last level with that name</span>
+        <span class="n">name2level</span> <span class="o">=</span> <span class="p">{</span><span class="n">name</span><span class="p">:</span> <span class="n">level</span> <span class="k">for</span> <span class="n">level</span><span class="p">,</span> <span class="n">name</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">idx</span><span class="o">.</span><span class="n">names</span><span class="p">)}</span>
+        <span class="n">drop_levels</span> <span class="o">=</span> <span class="p">[</span><span class="n">name2level</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">drop</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">pandas_obj</span><span class="o">.</span><span class="n">droplevel</span><span class="p">(</span><span class="n">drop_levels</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">pandas_obj</span></div>
+
+
+<div class="viewcode-block" id="make_suffix"><a class="viewcode-back" href="../../../api/dimcat.utils.html#dimcat.utils.functions.make_suffix">[docs]</a><span class="k">def</span> <span class="nf">make_suffix</span><span class="p">(</span><span class="o">*</span><span class="n">params</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Turns the passed parameter values into a suffix string.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    params : str or Collection or number</span>
+<span class="sd">        Parameters to turn into string components of the returned suffix. None values are ignored.</span>
+<span class="sd">        Pairs of the form (str, &lt;param&gt;) are treated specially in that the initial str</span>
+<span class="sd">        is treated as a prefix of the string component unless &lt;param&gt; is an empty/None/False value.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    str</span>
+<span class="sd">        A suffix string where the passed values are joined together, separated by &#39;-&#39;.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; make_suffix(&#39;str&#39;, None, False, {0, 1.})</span>
+<span class="sd">    &#39;-str-False-0|1.0&#39;</span>
+<span class="sd">    &gt;&gt;&gt; make_suffix([&#39;collection&#39;, 0], (&#39;zero&#39;, 0), (&#39;prefix&#39;, 1), (&#39;flag&#39;, True))</span>
+<span class="sd">    &#39;-collection|0-prefix1-flag&#39;</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">param_strings</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">params</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">p</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">as_str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">as_str</span><span class="p">,</span> <span class="n">p</span> <span class="o">=</span> <span class="n">p</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">p</span><span class="p">:</span>  <span class="c1"># this catches 0, None, &#39;&#39;, False etc.</span>
+                    <span class="k">continue</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="nb">bool</span><span class="p">):</span>  <span class="c1"># param is True</span>
+                    <span class="n">param_strings</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">as_str</span><span class="p">)</span>
+                    <span class="k">continue</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">as_str</span> <span class="o">+=</span> <span class="n">p</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">Collection</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">as_str</span> <span class="o">+=</span> <span class="s2">&quot;|&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">p</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">as_str</span> <span class="o">+=</span> <span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+        <span class="n">param_strings</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">as_str</span><span class="p">)</span>
+    <span class="k">return</span> <span class="s2">&quot;-&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">param_strings</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="infer_dataset_type"><a class="viewcode-back" href="../../../api/dimcat.utils.html#dimcat.utils.functions.infer_dataset_type">[docs]</a><span class="k">def</span> <span class="nf">infer_dataset_type</span><span class="p">(</span><span class="n">d</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;dcml&quot;</span><span class="p">]:</span>
+    <span class="k">return</span> <span class="s2">&quot;dcml&quot;</span></div>
+
+
+<div class="viewcode-block" id="interval_index2interval"><a class="viewcode-back" href="../../../api/dimcat.utils.html#dimcat.utils.functions.interval_index2interval">[docs]</a><span class="k">def</span> <span class="nf">interval_index2interval</span><span class="p">(</span><span class="n">ix</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Takes an interval index and returns the interval corresponding to [min(left), max(right)).&quot;&quot;&quot;</span>
+    <span class="n">left</span> <span class="o">=</span> <span class="n">ix</span><span class="o">.</span><span class="n">left</span><span class="o">.</span><span class="n">min</span><span class="p">()</span>
+    <span class="n">right</span> <span class="o">=</span> <span class="n">ix</span><span class="o">.</span><span class="n">right</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">Interval</span><span class="p">(</span><span class="n">left</span><span class="p">,</span> <span class="n">right</span><span class="p">,</span> <span class="n">closed</span><span class="o">=</span><span class="s2">&quot;left&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="transition_matrix"><a class="viewcode-back" href="../../../api/dimcat.utils.html#dimcat.utils.functions.transition_matrix">[docs]</a><span class="k">def</span> <span class="nf">transition_matrix</span><span class="p">(</span>
+    <span class="n">list_of_sequences</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">PotentiallyNested</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">list_of_grams</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">T</span><span class="p">,</span> <span class="o">...</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">n</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+    <span class="n">k</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">smooth</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="n">normalize</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">entropy</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">excluded_symbols</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">distinct_only</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">sort</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">percent</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">decimals</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Returns a transition table from a list of symbols or a list of n-grams.</span>
+<span class="sd">    You need to pass either ``list_of_sequences`` or ``list_of_grams``. If you pass the former, the latter will be</span>
+<span class="sd">    created by calling the function :func:`grams`.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        list_of_sequences:</span>
+<span class="sd">            List of elements or nested list of elements between which the transitions are calculated. If the list</span>
+<span class="sd">            is nested, bigrams are calculated recursively to exclude transitions between the lists. If you want</span>
+<span class="sd">            to create the transition matrix from a list of n-grams directly, pass it as ``list_of_grams`` instead.</span>
+<span class="sd">        list_of_grams: List of tuples being n-grams. If you want to have them computed from a list of sequences,</span>
+<span class="sd">            pass it as ``list_of_sequences`` instead.</span>
+<span class="sd">        n: If ``list_of_sequences`` is passed, the number of elements per n-gram tuple. Ignored otherwise.</span>
+<span class="sd">        k: If specified, the transition matrix will show only the top k n-grams.</span>
+<span class="sd">        smooth: If specified, this is the minimum value in the transition matrix.</span>
+<span class="sd">        normalize: By default, absolute counts are shown. Pass True to normalize each row.</span>
+<span class="sd">        entropy: Pass True to add a column showing the normalized entropy for each row.</span>
+<span class="sd">        excluded_symbols: Any n-gram containing any of these symbols will be excluded.</span>
+<span class="sd">        distinct_only: Pass True to exclude all n-grams consisting of identical elements only.</span>
+<span class="sd">        sort:</span>
+<span class="sd">            By default, the order of both index and columns follows the overall n-gram frequency.</span>
+<span class="sd">            Pass True to sort them separately, i.e. each by their own frequencies.</span>
+<span class="sd">        percent: Pass True to multiply the matrix by 100 before rounding to `decimals`</span>
+<span class="sd">        decimals: To how many decimals you want to round the matrix, if at all.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        DataFrame with frequency statistics of (n-1) grams transitioning to all occurring last elements.</span>
+<span class="sd">        The index is made up of strings corresponding to all but the last element of the n-grams,</span>
+<span class="sd">        with the column index containing all last elements.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">list_of_grams</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="n">n</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;Cannot print </span><span class="si">{</span><span class="n">n</span><span class="si">}</span><span class="s2">-grams&quot;</span>
+        <span class="n">list_of_grams</span> <span class="o">=</span> <span class="n">grams</span><span class="p">(</span><span class="n">list_of_sequences</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="n">n</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">list_of_sequences</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">&quot;Specify either list_of_grams or list_of_grams, not both.&quot;</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">list_of_grams</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Unable to compute transition matrix from empty list of n-grams.&quot;</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">excluded_symbols</span><span class="p">:</span>
+        <span class="n">list_of_grams</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span>
+            <span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">n</span><span class="p">:</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="n">g</span> <span class="ow">in</span> <span class="n">excluded_symbols</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">n</span><span class="p">),</span> <span class="n">list_of_grams</span><span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">distinct_only</span><span class="p">:</span>
+        <span class="n">list_of_grams</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span>
+            <span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">tup</span><span class="p">:</span> <span class="nb">any</span><span class="p">(</span><span class="n">e</span> <span class="o">!=</span> <span class="n">tup</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">tup</span><span class="p">),</span> <span class="n">list_of_grams</span><span class="p">)</span>
+        <span class="p">)</span>
+    <span class="n">ngrams</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">list_of_grams</span><span class="p">)</span><span class="o">.</span><span class="n">value_counts</span><span class="p">()</span>
+    <span class="n">multiindex</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">MultiIndex</span><span class="o">.</span><span class="n">from_tuples</span><span class="p">(</span><span class="n">ngrams</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+    <span class="n">ngrams</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">multiindex</span>
+    <span class="n">consequent_level</span> <span class="o">=</span> <span class="n">multiindex</span><span class="o">.</span><span class="n">get_level_values</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">sort</span><span class="p">:</span>
+        <span class="n">contexts</span> <span class="o">=</span> <span class="n">ngrams</span><span class="o">.</span><span class="n">droplevel</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="c1"># add up the counts for identical contexts and consequents to sort them</span>
+        <span class="n">context_counts</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">contexts</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">contexts</span><span class="o">.</span><span class="n">index</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">context_levels</span> <span class="o">=</span> <span class="n">context_counts</span><span class="o">.</span><span class="n">index</span>
+        <span class="n">consequents</span> <span class="o">=</span> <span class="n">ngrams</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">consequents</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">consequent_level</span>
+        <span class="n">consequent_counts</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">consequents</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">consequents</span><span class="o">.</span><span class="n">index</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">consequent_level</span> <span class="o">=</span> <span class="n">consequent_counts</span><span class="o">.</span><span class="n">index</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">context_levels</span> <span class="o">=</span> <span class="n">multiindex</span><span class="o">.</span><span class="n">droplevel</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span>
+        <span class="n">consequent_level</span> <span class="o">=</span> <span class="n">consequent_level</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">smooth</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="n">context_levels</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">consequent_level</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="p">(</span><span class="o">*</span><span class="n">context</span><span class="p">,</span> <span class="n">consequent</span><span class="p">),</span> <span class="n">occurrences</span> <span class="ow">in</span> <span class="n">ngrams</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="nb">tuple</span><span class="p">(</span><span class="n">context</span><span class="p">),</span> <span class="p">[</span><span class="n">consequent</span><span class="p">]]</span> <span class="o">=</span> <span class="n">occurrences</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Could not write the </span><span class="si">{</span><span class="n">occurrences</span><span class="si">}</span><span class="s2"> of the transition from </span><span class="si">{</span><span class="n">context</span><span class="si">}</span><span class="s2">-&gt;</span><span class="si">{</span><span class="n">consequent</span><span class="si">}</span><span class="s2">:</span><span class="se">\n</span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+            <span class="k">continue</span>
+
+    <span class="k">if</span> <span class="n">normalize</span> <span class="ow">or</span> <span class="n">entropy</span><span class="p">:</span>
+        <span class="n">df_norm</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">div</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">entropy</span><span class="p">:</span>
+        <span class="n">ic</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log2</span><span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">df_norm</span><span class="p">)</span>
+        <span class="n">entropy</span> <span class="o">=</span> <span class="p">(</span><span class="n">ic</span> <span class="o">*</span> <span class="n">df_norm</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="c1"># Identical calculations:</span>
+        <span class="c1"># entropy = scipy.stats.entropy(df.transpose(),base=2)</span>
+        <span class="c1"># entropy = -(df * np.log2(df)).sum(axis=1)</span>
+        <span class="k">if</span> <span class="n">normalize</span><span class="p">:</span>
+            <span class="n">entropy</span> <span class="o">/=</span> <span class="n">np</span><span class="o">.</span><span class="n">log2</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">))</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">entropy</span><span class="p">,</span> <span class="n">df_norm</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">entropy</span><span class="p">,</span> <span class="n">df</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">k</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:</span><span class="n">k</span><span class="p">,</span> <span class="p">:</span><span class="n">k</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="n">percent</span><span class="p">:</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">:]</span> <span class="o">*=</span> <span class="mi">100</span>
+
+    <span class="k">if</span> <span class="n">decimals</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">decimals</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">df</span></div>
+
+
+<div class="viewcode-block" id="typestrings2types"><a class="viewcode-back" href="../../../api/dimcat.utils.html#dimcat.utils.functions.typestrings2types">[docs]</a><span class="k">def</span> <span class="nf">typestrings2types</span><span class="p">(</span><span class="n">typestrings</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Collection</span><span class="p">[</span><span class="nb">str</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Type</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Turns one or several names of classes contained in this module into a</span>
+<span class="sd">    tuple of references to these classes.&quot;&quot;&quot;</span>
+    <span class="n">d_types</span> <span class="o">=</span> <span class="n">Data</span><span class="o">.</span><span class="n">_registry</span>
+    <span class="n">ps_types</span> <span class="o">=</span> <span class="n">PipelineStep</span><span class="o">.</span><span class="n">_registry</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">typestrings</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">typestrings</span> <span class="o">=</span> <span class="p">[</span><span class="n">typestrings</span><span class="p">]</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">typ</span> <span class="ow">in</span> <span class="n">typestrings</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">typ</span> <span class="ow">in</span> <span class="n">d_types</span><span class="p">:</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">d_types</span><span class="p">[</span><span class="n">typ</span><span class="p">])</span>
+        <span class="k">elif</span> <span class="n">typ</span> <span class="ow">in</span> <span class="n">ps_types</span><span class="p">:</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ps_types</span><span class="p">[</span><span class="n">typ</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Typestring &#39;</span><span class="si">{</span><span class="n">typ</span><span class="si">}</span><span class="s2">&#39; does not correspond to a known subclass of PipelineStep or Data:</span><span class="se">\n</span><span class="s2">&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">ps_types</span><span class="si">}</span><span class="se">\n</span><span class="si">{</span><span class="n">d_types</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+    <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">dimcat</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../readme.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorial.html">Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../manual.html">Manual</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks/index.html">Example Notebooks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing.html">Contributions &amp; Help</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../authors.html">Authors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/modules.html">Module Reference</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Digital and Cognitive Musicology Lab @ École Polytechnique Fédérale de Lausanne.
+
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
+
+    </div>
+
+
+
+
+  </body>
+</html>

@@ -1,0 +1,589 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+    <title>dimcat.slicer package &#8212; dimcat 0.3.0.post1.dev48+gb31e433.d20230210 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="dimcat.utils package" href="dimcat.utils.html" />
+    <link rel="prev" title="dimcat.pipeline package" href="dimcat.pipeline.html" />
+
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+
+
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+
+
+          <div class="body" role="main">
+
+  <section id="dimcat-slicer-package">
+<h1>dimcat.slicer package<a class="headerlink" href="#dimcat-slicer-package" title="Permalink to this heading">¶</a></h1>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this heading">¶</a></h2>
+</section>
+<section id="module-dimcat.slicer.base">
+<span id="dimcat-slicer-base-module"></span><h2>dimcat.slicer.base module<a class="headerlink" href="#module-dimcat.slicer.base" title="Permalink to this heading">¶</a></h2>
+<p>A Slicer is a PipelineStep that cuts Data into segments, effectively multiplying IDs.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.slicer.base.ChordCriterionSlicer">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.slicer.base.</span></span><span class="sig-name descname"><span class="pre">ChordCriterionSlicer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">column</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'chord'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">contains_str</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">warn_na</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/slicer/base.html#ChordCriterionSlicer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.slicer.base.ChordCriterionSlicer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#dimcat.slicer.base.OnePassFacetSlicer" title="dimcat.slicer.base.OnePassFacetSlicer"><code class="xref py py-class docutils literal notranslate"><span class="pre">OnePassFacetSlicer</span></code></a></p>
+<p>Create slices based on a particular criterion such that each True row starts a new slice.</p>
+<p>The ‘expanded’ labels are not sliced but subselected. For the special case of phrase labels that may actually
+occur without a new harmony and need slice the table, use PhraseSlicer.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.slicer.base.ChordCriterionSlicer.check">
+<span class="sig-name descname"><span class="pre">check</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">facet_df</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/slicer/base.html#ChordCriterionSlicer.check"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.slicer.base.ChordCriterionSlicer.check" title="Permalink to this definition">¶</a></dt>
+<dd><p>Test piece of data for certain properties before computing analysis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3.10/library/functions.html#bool" title="(in Python v3.10)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">bool</span></code></a> – True if the passed data is eligible.</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">str</span></code></a> – Error message in case the passed data is not eligible.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.slicer.base.ChordCriterionSlicer.iter_slices">
+<span class="sig-name descname"><span class="pre">iter_slices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">index</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">facet_df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">column</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'chord'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">contains_str</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">warn_na</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/slicer/base.html#ChordCriterionSlicer.iter_slices"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.slicer.base.ChordCriterionSlicer.iter_slices" title="Permalink to this definition">¶</a></dt>
+<dd><p>Slices the facet_df (e.g. notes or annotations) and iterates through the slices
+so that they can be stored.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Yields<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#tuple" title="(in Python v3.10)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">tuple</span></code></a> – The DataFrame’s index with the slice’s quarterbeat interval appended. Will be used to
+store and look up information on this particular slice.</p></li>
+<li><p><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.html#pandas.Series" title="(in pandas v1.5.3)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pandas.Series</span></code></a> – Information about the slice, especially the feature value(s) based on which the segment
+has come about, such as the local key. Mainly used for subsequent grouping of slices.</p></li>
+<li><p><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.5.3)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pandas.DataFrame</span></code></a> – The slice, i.e. a chunk or subselection of <code class="docutils literal notranslate"><span class="pre">facet_df</span></code>.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.slicer.base.ChordFeatureSlicer">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.slicer.base.</span></span><span class="sig-name descname"><span class="pre">ChordFeatureSlicer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">feature</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'chord'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">na_values</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'ffill'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/slicer/base.html#ChordFeatureSlicer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.slicer.base.ChordFeatureSlicer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#dimcat.slicer.base.OnePassFacetSlicer" title="dimcat.slicer.base.OnePassFacetSlicer"><code class="xref py py-class docutils literal notranslate"><span class="pre">OnePassFacetSlicer</span></code></a></p>
+<p>Create slices based on a particular feature by grouping adjacent identical values.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.slicer.base.ChordFeatureSlicer.check">
+<span class="sig-name descname"><span class="pre">check</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">facet_df</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/slicer/base.html#ChordFeatureSlicer.check"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.slicer.base.ChordFeatureSlicer.check" title="Permalink to this definition">¶</a></dt>
+<dd><p>Test piece of data for certain properties before computing analysis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3.10/library/functions.html#bool" title="(in Python v3.10)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">bool</span></code></a> – True if the passed data is eligible.</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">str</span></code></a> – Error message in case the passed data is not eligible.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.slicer.base.ChordFeatureSlicer.iter_slices">
+<span class="sig-name descname"><span class="pre">iter_slices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">index</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">facet_df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">feature</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'chord'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">na_values</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'ffill'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/slicer/base.html#ChordFeatureSlicer.iter_slices"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.slicer.base.ChordFeatureSlicer.iter_slices" title="Permalink to this definition">¶</a></dt>
+<dd><p>Slices the facet_df (e.g. notes or annotations) and iterates through the slices
+so that they can be stored.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Yields<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#tuple" title="(in Python v3.10)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">tuple</span></code></a> – The DataFrame’s index with the slice’s quarterbeat interval appended. Will be used to
+store and look up information on this particular slice.</p></li>
+<li><p><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.html#pandas.Series" title="(in pandas v1.5.3)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pandas.Series</span></code></a> – Information about the slice, especially the feature value(s) based on which the segment
+has come about, such as the local key. Mainly used for subsequent grouping of slices.</p></li>
+<li><p><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.5.3)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pandas.DataFrame</span></code></a> – The slice, i.e. a chunk or subselection of <code class="docutils literal notranslate"><span class="pre">facet_df</span></code>.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.slicer.base.FacetSlicer">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.slicer.base.</span></span><span class="sig-name descname"><span class="pre">FacetSlicer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">facet</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slice_name</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">config</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/slicer/base.html#FacetSlicer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.slicer.base.FacetSlicer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#dimcat.slicer.base.Slicer" title="dimcat.slicer.base.Slicer"><code class="xref py py-class docutils literal notranslate"><span class="pre">Slicer</span></code></a></p>
+<p>A FacetSlicer creates slice information based on one particular data facet, e.g.
+note lists or annotations.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="dimcat.slicer.base.FacetSlicer.config">
+<span class="sig-name descname"><span class="pre">config</span></span><a class="headerlink" href="#dimcat.slicer.base.FacetSlicer.config" title="Permalink to this definition">¶</a></dt>
+<dd><p>“slice_level_name”} to give the third index column that contains
+the slices’ intervals a meaningful name. Define {“slicer”: “slicer_name”} for the
+creation of meaningful file names.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Define {“indices”</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.slicer.base.FacetSlicer.filename_factory">
+<span class="sig-name descname"><span class="pre">filename_factory</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/slicer/base.html#FacetSlicer.filename_factory"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.slicer.base.FacetSlicer.filename_factory" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.slicer.base.FacetSlicer.iter_slices">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">iter_slices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">index</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">facet_df</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">config</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Tuple" title="(in Python v3.10)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#tuple" title="(in Python v3.10)"><span class="pre">tuple</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.html#pandas.Series" title="(in pandas v1.5.3)"><span class="pre">Series</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/dimcat/slicer/base.html#FacetSlicer.iter_slices"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.slicer.base.FacetSlicer.iter_slices" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generates slice intervals and slice_info Series based on facet_df (e.g. notes or annotations) and
+iterates through them so that they can be stored and then used for slicing the facet.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Yields<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#tuple" title="(in Python v3.10)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">tuple</span></code></a> – The DataFrame’s index with the slice’s quarterbeat interval appended. Will be used to
+store and look up information on this particular slice.</p></li>
+<li><p><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.html#pandas.Series" title="(in pandas v1.5.3)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pandas.Series</span></code></a> – Information about the slice, especially the feature value(s) based on which the segment
+has come about, such as the local key. Mainly used for subsequent grouping of slices.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.slicer.base.FacetSlicer.process_data">
+<span class="sig-name descname"><span class="pre">process_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="dimcat.html#dimcat.base.Data" title="dimcat.base.Data"><span class="pre">Data</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="dimcat.data.html#dimcat.data.base.SlicedData" title="dimcat.data.base.SlicedData"><span class="pre">SlicedData</span></a></span></span><a class="reference internal" href="../_modules/dimcat/slicer/base.html#FacetSlicer.process_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.slicer.base.FacetSlicer.process_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Perform a transformation on an input Data object. This should never alter the
+Data or its properties in place, instead returning a copy or view of the input.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>data</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">Data</span></code>) – The data to be transformed. This should not be altered in place.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A copy or view of the input Data, transformed in some way defined by this
+PipelineStep.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">Data</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.slicer.base.LazyFacetSlicer">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.slicer.base.</span></span><span class="sig-name descname"><span class="pre">LazyFacetSlicer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">facet</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slice_name</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">config</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/slicer/base.html#LazyFacetSlicer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.slicer.base.LazyFacetSlicer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#dimcat.slicer.base.FacetSlicer" title="dimcat.slicer.base.FacetSlicer"><code class="xref py py-class docutils literal notranslate"><span class="pre">FacetSlicer</span></code></a></p>
+<p>A FacetSlicer creates slice information based on one particular data facet, e.g.
+note lists or annotations.</p>
+<p>It is called ‘lazy’ because it does not perform any actual slicing, which will be up to the Data object to do
+upon request.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.slicer.base.LazyFacetSlicer.iter_slices">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">iter_slices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">index</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">facet_df</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">config</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Tuple" title="(in Python v3.10)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#tuple" title="(in Python v3.10)"><span class="pre">tuple</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.html#pandas.Series" title="(in pandas v1.5.3)"><span class="pre">Series</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/dimcat/slicer/base.html#LazyFacetSlicer.iter_slices"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.slicer.base.LazyFacetSlicer.iter_slices" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generates slice intervals and slice_info Series based on facet_df (e.g. notes or annotations) and
+iterates through them so that they can be stored and then used for slicing the facet.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Yields<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#tuple" title="(in Python v3.10)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">tuple</span></code></a> – The DataFrame’s index with the slice’s quarterbeat interval appended. Will be used to
+store and look up information on this particular slice.</p></li>
+<li><p><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.html#pandas.Series" title="(in pandas v1.5.3)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pandas.Series</span></code></a> – Information about the slice, especially the feature value(s) based on which the segment
+has come about, such as the local key. Mainly used for subsequent grouping of slices.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.slicer.base.LazyFacetSlicer.process_data">
+<span class="sig-name descname"><span class="pre">process_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="dimcat.html#dimcat.base.Data" title="dimcat.base.Data"><span class="pre">Data</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="dimcat.data.html#dimcat.data.base.SlicedData" title="dimcat.data.base.SlicedData"><span class="pre">SlicedData</span></a></span></span><a class="reference internal" href="../_modules/dimcat/slicer/base.html#LazyFacetSlicer.process_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.slicer.base.LazyFacetSlicer.process_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Perform a transformation on an input Data object. This should never alter the
+Data or its properties in place, instead returning a copy or view of the input.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>data</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">Data</span></code>) – The data to be transformed. This should not be altered in place.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A copy or view of the input Data, transformed in some way defined by this
+PipelineStep.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">Data</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.slicer.base.LocalKeySlicer">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.slicer.base.</span></span><span class="sig-name descname"><span class="pre">LocalKeySlicer</span></span><a class="reference internal" href="../_modules/dimcat/slicer/base.html#LocalKeySlicer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.slicer.base.LocalKeySlicer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#dimcat.slicer.base.ChordFeatureSlicer" title="dimcat.slicer.base.ChordFeatureSlicer"><code class="xref py py-class docutils literal notranslate"><span class="pre">ChordFeatureSlicer</span></code></a></p>
+<p>Slices annotation tables based on adjacency groups of the ‘localkey’ column.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.slicer.base.LocalKeySlicer.iter_slices">
+<span class="sig-name descname"><span class="pre">iter_slices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">index</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">facet_df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">feature</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'localkey'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">na_values</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'group'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/slicer/base.html#LocalKeySlicer.iter_slices"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.slicer.base.LocalKeySlicer.iter_slices" title="Permalink to this definition">¶</a></dt>
+<dd><p>Slices the facet_df (e.g. notes or annotations) and iterates through the slices
+so that they can be stored.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Yields<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#tuple" title="(in Python v3.10)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">tuple</span></code></a> – The DataFrame’s index with the slice’s quarterbeat interval appended. Will be used to
+store and look up information on this particular slice.</p></li>
+<li><p><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.html#pandas.Series" title="(in pandas v1.5.3)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pandas.Series</span></code></a> – Information about the slice, especially the feature value(s) based on which the segment
+has come about, such as the local key. Mainly used for subsequent grouping of slices.</p></li>
+<li><p><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.5.3)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pandas.DataFrame</span></code></a> – The slice, i.e. a chunk or subselection of <code class="docutils literal notranslate"><span class="pre">facet_df</span></code>.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.slicer.base.MeasureSlicer">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.slicer.base.</span></span><span class="sig-name descname"><span class="pre">MeasureSlicer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">use_measure_numbers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/slicer/base.html#MeasureSlicer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.slicer.base.MeasureSlicer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#dimcat.slicer.base.OnePassFacetSlicer" title="dimcat.slicer.base.OnePassFacetSlicer"><code class="xref py py-class docutils literal notranslate"><span class="pre">OnePassFacetSlicer</span></code></a></p>
+<p>Slices note tables based on a regular interval size or on every onset.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.slicer.base.MeasureSlicer.check">
+<span class="sig-name descname"><span class="pre">check</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">facet_df</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/slicer/base.html#MeasureSlicer.check"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.slicer.base.MeasureSlicer.check" title="Permalink to this definition">¶</a></dt>
+<dd><p>Test piece of data for certain properties before computing analysis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3.10/library/functions.html#bool" title="(in Python v3.10)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">bool</span></code></a> – True if the passed data is eligible.</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">str</span></code></a> – Error message in case the passed data is not eligible.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.slicer.base.MeasureSlicer.iter_slices">
+<span class="sig-name descname"><span class="pre">iter_slices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">index</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">facet_df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_measure_numbers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/slicer/base.html#MeasureSlicer.iter_slices"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.slicer.base.MeasureSlicer.iter_slices" title="Permalink to this definition">¶</a></dt>
+<dd><p>Slices the facet_df (e.g. notes or annotations) and iterates through the slices
+so that they can be stored.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Yields<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#tuple" title="(in Python v3.10)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">tuple</span></code></a> – The DataFrame’s index with the slice’s quarterbeat interval appended. Will be used to
+store and look up information on this particular slice.</p></li>
+<li><p><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.html#pandas.Series" title="(in pandas v1.5.3)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pandas.Series</span></code></a> – Information about the slice, especially the feature value(s) based on which the segment
+has come about, such as the local key. Mainly used for subsequent grouping of slices.</p></li>
+<li><p><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.5.3)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pandas.DataFrame</span></code></a> – The slice, i.e. a chunk or subselection of <code class="docutils literal notranslate"><span class="pre">facet_df</span></code>.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.slicer.base.NoteSlicer">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.slicer.base.</span></span><span class="sig-name descname"><span class="pre">NoteSlicer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">quarters_per_slice</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/slicer/base.html#NoteSlicer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.slicer.base.NoteSlicer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#dimcat.slicer.base.OnePassFacetSlicer" title="dimcat.slicer.base.OnePassFacetSlicer"><code class="xref py py-class docutils literal notranslate"><span class="pre">OnePassFacetSlicer</span></code></a></p>
+<p>Slices note tables based on a regular interval size or on every onset.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.slicer.base.NoteSlicer.check">
+<span class="sig-name descname"><span class="pre">check</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">facet_df</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/slicer/base.html#NoteSlicer.check"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.slicer.base.NoteSlicer.check" title="Permalink to this definition">¶</a></dt>
+<dd><p>Test piece of data for certain properties before computing analysis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3.10/library/functions.html#bool" title="(in Python v3.10)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">bool</span></code></a> – True if the passed data is eligible.</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">str</span></code></a> – Error message in case the passed data is not eligible.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.slicer.base.NoteSlicer.iter_slices">
+<span class="sig-name descname"><span class="pre">iter_slices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">index</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">facet_df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">quarters_per_slice</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/slicer/base.html#NoteSlicer.iter_slices"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.slicer.base.NoteSlicer.iter_slices" title="Permalink to this definition">¶</a></dt>
+<dd><p>Slices the facet_df (e.g. notes or annotations) and iterates through the slices
+so that they can be stored.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Yields<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#tuple" title="(in Python v3.10)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">tuple</span></code></a> – The DataFrame’s index with the slice’s quarterbeat interval appended. Will be used to
+store and look up information on this particular slice.</p></li>
+<li><p><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.html#pandas.Series" title="(in pandas v1.5.3)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pandas.Series</span></code></a> – Information about the slice, especially the feature value(s) based on which the segment
+has come about, such as the local key. Mainly used for subsequent grouping of slices.</p></li>
+<li><p><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.5.3)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pandas.DataFrame</span></code></a> – The slice, i.e. a chunk or subselection of <code class="docutils literal notranslate"><span class="pre">facet_df</span></code>.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.slicer.base.OnePassFacetSlicer">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.slicer.base.</span></span><span class="sig-name descname"><span class="pre">OnePassFacetSlicer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">facet</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slice_name</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">config</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/slicer/base.html#OnePassFacetSlicer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.slicer.base.OnePassFacetSlicer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#dimcat.slicer.base.FacetSlicer" title="dimcat.slicer.base.FacetSlicer"><code class="xref py py-class docutils literal notranslate"><span class="pre">FacetSlicer</span></code></a></p>
+<p>These slicers use information already available based on the computation of slice intervals and slice_info.
+Either this computation has left them with chunks already, or the facet does not actually have to be sliced because
+chunks can be created by subselecting it with the computed intervals.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.slicer.base.OnePassFacetSlicer.iter_slices">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">iter_slices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">index</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">facet_df</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">config</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Tuple" title="(in Python v3.10)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#tuple" title="(in Python v3.10)"><span class="pre">tuple</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.html#pandas.Series" title="(in pandas v1.5.3)"><span class="pre">Series</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.5.3)"><span class="pre">DataFrame</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/dimcat/slicer/base.html#OnePassFacetSlicer.iter_slices"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.slicer.base.OnePassFacetSlicer.iter_slices" title="Permalink to this definition">¶</a></dt>
+<dd><p>Slices the facet_df (e.g. notes or annotations) and iterates through the slices
+so that they can be stored.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Yields<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#tuple" title="(in Python v3.10)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">tuple</span></code></a> – The DataFrame’s index with the slice’s quarterbeat interval appended. Will be used to
+store and look up information on this particular slice.</p></li>
+<li><p><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.html#pandas.Series" title="(in pandas v1.5.3)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pandas.Series</span></code></a> – Information about the slice, especially the feature value(s) based on which the segment
+has come about, such as the local key. Mainly used for subsequent grouping of slices.</p></li>
+<li><p><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.5.3)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pandas.DataFrame</span></code></a> – The slice, i.e. a chunk or subselection of <code class="docutils literal notranslate"><span class="pre">facet_df</span></code>.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.slicer.base.OnePassFacetSlicer.process_data">
+<span class="sig-name descname"><span class="pre">process_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="dimcat.html#dimcat.base.Data" title="dimcat.base.Data"><span class="pre">Data</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="dimcat.data.html#dimcat.data.base.SlicedData" title="dimcat.data.base.SlicedData"><span class="pre">SlicedData</span></a></span></span><a class="reference internal" href="../_modules/dimcat/slicer/base.html#OnePassFacetSlicer.process_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.slicer.base.OnePassFacetSlicer.process_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Perform a transformation on an input Data object. This should never alter the
+Data or its properties in place, instead returning a copy or view of the input.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>data</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">Data</span></code>) – The data to be transformed. This should not be altered in place.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A copy or view of the input Data, transformed in some way defined by this
+PipelineStep.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">Data</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.slicer.base.PhraseSlicer">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.slicer.base.</span></span><span class="sig-name descname"><span class="pre">PhraseSlicer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">warn_na</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/slicer/base.html#PhraseSlicer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.slicer.base.PhraseSlicer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#dimcat.slicer.base.SpecialFacetSlicer" title="dimcat.slicer.base.SpecialFacetSlicer"><code class="xref py py-class docutils literal notranslate"><span class="pre">SpecialFacetSlicer</span></code></a></p>
+<p>Create slice info from phrase beginnings.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="dimcat.slicer.base.PhraseSlicer.OVERWRITE_FEATURES">
+<span class="sig-name descname"><span class="pre">OVERWRITE_FEATURES</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">['alt_label',</span> <span class="pre">'chord',</span> <span class="pre">'numeral',</span> <span class="pre">'special',</span> <span class="pre">'form',</span> <span class="pre">'figbass',</span> <span class="pre">'changes',</span> <span class="pre">'relativeroot',</span> <span class="pre">'chord_type',</span> <span class="pre">'chord_tones',</span> <span class="pre">'added_tones',</span> <span class="pre">'root',</span> <span class="pre">'bass_note']</span></em><a class="headerlink" href="#dimcat.slicer.base.PhraseSlicer.OVERWRITE_FEATURES" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="dimcat.slicer.base.PhraseSlicer.SPLIT_REGEX">
+<span class="sig-name descname"><span class="pre">SPLIT_REGEX</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">re.compile('\n</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">^(?P&lt;label&gt;\\.?\n</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">(?:[a-gA-G](?:b*|\\#*)\\.)?\n</span>&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160; <span class="pre">(?:(?:(?:b*|\\#*)(?:VII|VI|V|IV|III|II|I|vii|vi|v|iv|iii|ii,</span> <span class="pre">re.VERBOSE)</span></em><a class="headerlink" href="#dimcat.slicer.base.PhraseSlicer.SPLIT_REGEX" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.slicer.base.PhraseSlicer.check">
+<span class="sig-name descname"><span class="pre">check</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">facet_df</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/slicer/base.html#PhraseSlicer.check"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.slicer.base.PhraseSlicer.check" title="Permalink to this definition">¶</a></dt>
+<dd><p>Test piece of data for certain properties before computing analysis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3.10/library/functions.html#bool" title="(in Python v3.10)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">bool</span></code></a> – True if the passed data is eligible.</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">str</span></code></a> – Error message in case the passed data is not eligible.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.slicer.base.PhraseSlicer.iter_slices">
+<span class="sig-name descname"><span class="pre">iter_slices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">index</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">facet_df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">warn_na</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/slicer/base.html#PhraseSlicer.iter_slices"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.slicer.base.PhraseSlicer.iter_slices" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generates slice intervals and slice_info Series based on facet_df (e.g. notes or annotations) and
+iterates through them so that they can be stored and then used for slicing the facet.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Yields<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#tuple" title="(in Python v3.10)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">tuple</span></code></a> – The DataFrame’s index with the slice’s quarterbeat interval appended. Will be used to
+store and look up information on this particular slice.</p></li>
+<li><p><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.html#pandas.Series" title="(in pandas v1.5.3)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pandas.Series</span></code></a> – Information about the slice, especially the feature value(s) based on which the segment
+has come about, such as the local key. Mainly used for subsequent grouping of slices.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.slicer.base.PhraseSlicer.perform_facet_slicing">
+<span class="sig-name descname"><span class="pre">perform_facet_slicing</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="dimcat.html#dimcat.base.Data" title="dimcat.base.Data"><span class="pre">Data</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="dimcat.html#dimcat.base.Data" title="dimcat.base.Data"><span class="pre">Data</span></a></span></span><a class="reference internal" href="../_modules/dimcat/slicer/base.html#PhraseSlicer.perform_facet_slicing"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.slicer.base.PhraseSlicer.perform_facet_slicing" title="Permalink to this definition">¶</a></dt>
+<dd><p>This is where the special slicing takes place.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.slicer.base.Slicer">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.slicer.base.</span></span><span class="sig-name descname"><span class="pre">Slicer</span></span><a class="reference internal" href="../_modules/dimcat/slicer/base.html#Slicer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.slicer.base.Slicer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="dimcat.html#dimcat.base.PipelineStep" title="dimcat.base.PipelineStep"><code class="xref py py-class docutils literal notranslate"><span class="pre">PipelineStep</span></code></a>, <a class="reference external" href="https://docs.python.org/3.10/library/abc.html#abc.ABC" title="(in Python v3.10)"><code class="xref py py-class docutils literal notranslate"><span class="pre">ABC</span></code></a></p>
+<p>A Slicer will process a Data object by extracting chunks of rows based on an IntervalIndex,
+which may potentially result in data points to be duplicated or split in two.</p>
+<p>Concretely, it iterates through index groups and, for each Interval to form a slice of a
+particular piece, creates a new index tuple with the Interval appended.</p>
+<p>If created from a facet, the slicer creates a pandas.Series per slice containing metadata for
+later grouping, and stores it in <code class="docutils literal notranslate"><span class="pre">data.slice_info[(corpus,</span> <span class="pre">fname,</span> <span class="pre">Interval)]</span></code>.  The
+slices generated from this can be found in <code class="docutils literal notranslate"><span class="pre">data.sliced[facet][(corpus,</span> <span class="pre">fname,</span> <span class="pre">Interval)]</span></code>.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.slicer.base.SpecialFacetSlicer">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.slicer.base.</span></span><span class="sig-name descname"><span class="pre">SpecialFacetSlicer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">facet</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slice_name</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">config</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/slicer/base.html#SpecialFacetSlicer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.slicer.base.SpecialFacetSlicer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#dimcat.slicer.base.LazyFacetSlicer" title="dimcat.slicer.base.LazyFacetSlicer"><code class="xref py py-class docutils literal notranslate"><span class="pre">LazyFacetSlicer</span></code></a></p>
+<p>These facet slicers first gather slice intervals and info and then perform an individual kind of slicing
+afterwards.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.slicer.base.SpecialFacetSlicer.perform_facet_slicing">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">perform_facet_slicing</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="dimcat.html#dimcat.base.Data" title="dimcat.base.Data"><span class="pre">Data</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="dimcat.html#dimcat.base.Data" title="dimcat.base.Data"><span class="pre">Data</span></a></span></span><a class="reference internal" href="../_modules/dimcat/slicer/base.html#SpecialFacetSlicer.perform_facet_slicing"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.slicer.base.SpecialFacetSlicer.perform_facet_slicing" title="Permalink to this definition">¶</a></dt>
+<dd><p>This is where the special slicing takes place.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.slicer.base.SpecialFacetSlicer.process_data">
+<span class="sig-name descname"><span class="pre">process_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="dimcat.html#dimcat.base.Data" title="dimcat.base.Data"><span class="pre">Data</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="dimcat.html#dimcat.base.Data" title="dimcat.base.Data"><span class="pre">Data</span></a></span></span><a class="reference internal" href="../_modules/dimcat/slicer/base.html#SpecialFacetSlicer.process_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.slicer.base.SpecialFacetSlicer.process_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Perform a transformation on an input Data object. This should never alter the
+Data or its properties in place, instead returning a copy or view of the input.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>data</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">Data</span></code>) – The data to be transformed. This should not be altered in place.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A copy or view of the input Data, transformed in some way defined by this
+PipelineStep.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">Data</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dimcat.slicer.base.move_cadence_labels_between_chunks">
+<span class="sig-prename descclassname"><span class="pre">dimcat.slicer.base.</span></span><span class="sig-name descname"><span class="pre">move_cadence_labels_between_chunks</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sliced_dict</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/slicer/base.html#move_cadence_labels_between_chunks"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.slicer.base.move_cadence_labels_between_chunks" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dimcat.slicer.base.split_chord_and_cadence_phrase">
+<span class="sig-prename descclassname"><span class="pre">dimcat.slicer.base.</span></span><span class="sig-name descname"><span class="pre">split_chord_and_cadence_phrase</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">expanded</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.5.3)"><span class="pre">DataFrame</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.5.3)"><span class="pre">DataFrame</span></a></span></span><a class="reference internal" href="../_modules/dimcat/slicer/base.html#split_chord_and_cadence_phrase"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.slicer.base.split_chord_and_cadence_phrase" title="Permalink to this definition">¶</a></dt>
+<dd><p>Labels containing a harmony label AND cadence or phrase label are separated into two individual rows.</p>
+</dd></dl>
+
+</section>
+<section id="module-dimcat.slicer">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-dimcat.slicer" title="Permalink to this heading">¶</a></h2>
+</section>
+</section>
+
+
+          </div>
+
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">dimcat</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../readme.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial.html">Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../manual.html">Manual</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notebooks/index.html">Example Notebooks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributions &amp; Help</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../authors.html">Authors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../changelog.html">Changelog</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">Module Reference</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="dimcat.html">dimcat package</a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="modules.html">dimcat</a><ul>
+  <li><a href="dimcat.html">dimcat package</a><ul>
+      <li>Previous: <a href="dimcat.pipeline.html" title="previous chapter">dimcat.pipeline package</a></li>
+      <li>Next: <a href="dimcat.utils.html" title="next chapter">dimcat.utils package</a></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Digital and Cognitive Musicology Lab @ École Polytechnique Fédérale de Lausanne.
+
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
+
+      |
+      <a href="../_sources/api/dimcat.slicer.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+
+
+
+  </body>
+</html>

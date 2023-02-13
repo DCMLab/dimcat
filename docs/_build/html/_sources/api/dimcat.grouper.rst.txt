@@ -1,0 +1,21 @@
+dimcat.grouper package
+======================
+
+Submodules
+----------
+
+dimcat.grouper.base module
+--------------------------
+
+.. automodule:: dimcat.grouper.base
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Module contents
+---------------
+
+.. automodule:: dimcat.grouper
+   :members:
+   :undoc-members:
+   :show-inheritance:

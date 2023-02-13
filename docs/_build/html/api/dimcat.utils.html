@@ -1,0 +1,244 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+    <title>dimcat.utils package &#8212; dimcat 0.3.0.post1.dev48+gb31e433.d20230210 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="dimcat.writer package" href="dimcat.writer.html" />
+    <link rel="prev" title="dimcat.slicer package" href="dimcat.slicer.html" />
+
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+
+
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+
+
+          <div class="body" role="main">
+
+  <section id="dimcat-utils-package">
+<h1>dimcat.utils package<a class="headerlink" href="#dimcat-utils-package" title="Permalink to this heading">¶</a></h1>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this heading">¶</a></h2>
+</section>
+<section id="module-dimcat.utils.constants">
+<span id="dimcat-utils-constants-module"></span><h2>dimcat.utils.constants module<a class="headerlink" href="#module-dimcat.utils.constants" title="Permalink to this heading">¶</a></h2>
+</section>
+<section id="module-dimcat.utils.functions">
+<span id="dimcat-utils-functions-module"></span><h2>dimcat.utils.functions module<a class="headerlink" href="#module-dimcat.utils.functions" title="Permalink to this heading">¶</a></h2>
+<p>Utility functions that are or might be used by several modules or useful in external contexts.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="dimcat.utils.functions.clean_index_levels">
+<span class="sig-prename descclassname"><span class="pre">dimcat.utils.functions.</span></span><span class="sig-name descname"><span class="pre">clean_index_levels</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pandas_obj</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/utils/functions.html#clean_index_levels"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.utils.functions.clean_index_levels" title="Permalink to this definition">¶</a></dt>
+<dd><p>Remove index levels “IDs”, “corpus” and “fname”, if redundant.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dimcat.utils.functions.get_composition_year">
+<span class="sig-prename descclassname"><span class="pre">dimcat.utils.functions.</span></span><span class="sig-name descname"><span class="pre">get_composition_year</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">metadata_dict</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/utils/functions.html#get_composition_year"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.utils.functions.get_composition_year" title="Permalink to this definition">¶</a></dt>
+<dd><p>The logic for getting a composition year out of the given metadata dictionary.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dimcat.utils.functions.grams">
+<span class="sig-prename descclassname"><span class="pre">dimcat.utils.functions.</span></span><span class="sig-name descname"><span class="pre">grams</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">list_of_sequences</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.List" title="(in Python v3.10)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Union" title="(in Python v3.10)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><span class="pre">T</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.List" title="(in Python v3.10)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Union" title="(in Python v3.10)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><span class="pre">T</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">PotentiallyNested</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3.10/library/functions.html#int" title="(in Python v3.10)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">2</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.List" title="(in Python v3.10)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Tuple" title="(in Python v3.10)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><span class="pre">T</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/dimcat/utils/functions.html#grams"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.utils.functions.grams" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a list of n-gram tuples for given list. List can be nested.
+Use nesting to exclude transitions between pieces or other units.
+Uses: nest_level()</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dimcat.utils.functions.infer_dataset_type">
+<span class="sig-prename descclassname"><span class="pre">dimcat.utils.functions.</span></span><span class="sig-name descname"><span class="pre">infer_dataset_type</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">d</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Literal" title="(in Python v3.10)"><span class="pre">Literal</span></a><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'dcml'</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/dimcat/utils/functions.html#infer_dataset_type"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.utils.functions.infer_dataset_type" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dimcat.utils.functions.interval_index2interval">
+<span class="sig-prename descclassname"><span class="pre">dimcat.utils.functions.</span></span><span class="sig-name descname"><span class="pre">interval_index2interval</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ix</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/utils/functions.html#interval_index2interval"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.utils.functions.interval_index2interval" title="Permalink to this definition">¶</a></dt>
+<dd><p>Takes an interval index and returns the interval corresponding to [min(left), max(right)).</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dimcat.utils.functions.make_suffix">
+<span class="sig-prename descclassname"><span class="pre">dimcat.utils.functions.</span></span><span class="sig-name descname"><span class="pre">make_suffix</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/utils/functions.html#make_suffix"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.utils.functions.make_suffix" title="Permalink to this definition">¶</a></dt>
+<dd><p>Turns the passed parameter values into a suffix string.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>params</strong> (<a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><em>str</em></a><em> or </em><em>Collection</em><em> or </em><em>number</em>) – Parameters to turn into string components of the returned suffix. None values are ignored.
+Pairs of the form (str, &lt;param&gt;) are treated specially in that the initial str
+is treated as a prefix of the string component unless &lt;param&gt; is an empty/None/False value.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A suffix string where the passed values are joined together, separated by ‘-‘.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)">str</a></p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">make_suffix</span><span class="p">(</span><span class="s1">&#39;str&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="p">{</span><span class="mi">0</span><span class="p">,</span> <span class="mf">1.</span><span class="p">})</span>
+<span class="go">&#39;-str-False-0|1.0&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">make_suffix</span><span class="p">([</span><span class="s1">&#39;collection&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">(</span><span class="s1">&#39;zero&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;prefix&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;flag&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">))</span>
+<span class="go">&#39;-collection|0-prefix1-flag&#39;</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dimcat.utils.functions.nest_level">
+<span class="sig-prename descclassname"><span class="pre">dimcat.utils.functions.</span></span><span class="sig-name descname"><span class="pre">nest_level</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">obj</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_tuples</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/utils/functions.html#nest_level"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.utils.functions.nest_level" title="Permalink to this definition">¶</a></dt>
+<dd><p>Recursively calculate the depth of a nested list.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dimcat.utils.functions.transition_matrix">
+<span class="sig-prename descclassname"><span class="pre">dimcat.utils.functions.</span></span><span class="sig-name descname"><span class="pre">transition_matrix</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">list_of_sequences</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Optional" title="(in Python v3.10)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.List" title="(in Python v3.10)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Union" title="(in Python v3.10)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><span class="pre">T</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.List" title="(in Python v3.10)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Union" title="(in Python v3.10)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><span class="pre">T</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">PotentiallyNested</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">list_of_grams</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Optional" title="(in Python v3.10)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.List" title="(in Python v3.10)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Tuple" title="(in Python v3.10)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><span class="pre">T</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">smooth</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3.10/library/functions.html#int" title="(in Python v3.10)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalize</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3.10/library/functions.html#bool" title="(in Python v3.10)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entropy</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3.10/library/functions.html#bool" title="(in Python v3.10)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">excluded_symbols</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Optional" title="(in Python v3.10)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.List" title="(in Python v3.10)"><span class="pre">List</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">distinct_only</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3.10/library/functions.html#bool" title="(in Python v3.10)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sort</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3.10/library/functions.html#bool" title="(in Python v3.10)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">percent</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3.10/library/functions.html#bool" title="(in Python v3.10)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">decimals</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Optional" title="(in Python v3.10)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/functions.html#int" title="(in Python v3.10)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.5.3)"><span class="pre">DataFrame</span></a></span></span><a class="reference internal" href="../_modules/dimcat/utils/functions.html#transition_matrix"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.utils.functions.transition_matrix" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a transition table from a list of symbols or a list of n-grams.
+You need to pass either <code class="docutils literal notranslate"><span class="pre">list_of_sequences</span></code> or <code class="docutils literal notranslate"><span class="pre">list_of_grams</span></code>. If you pass the former, the latter will be
+created by calling the function <a class="reference internal" href="#dimcat.utils.functions.grams" title="dimcat.utils.functions.grams"><code class="xref py py-func docutils literal notranslate"><span class="pre">grams()</span></code></a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>list_of_sequences</strong> – List of elements or nested list of elements between which the transitions are calculated. If the list
+is nested, bigrams are calculated recursively to exclude transitions between the lists. If you want
+to create the transition matrix from a list of n-grams directly, pass it as <code class="docutils literal notranslate"><span class="pre">list_of_grams</span></code> instead.</p></li>
+<li><p><strong>list_of_grams</strong> – List of tuples being n-grams. If you want to have them computed from a list of sequences,
+pass it as <code class="docutils literal notranslate"><span class="pre">list_of_sequences</span></code> instead.</p></li>
+<li><p><strong>n</strong> – If <code class="docutils literal notranslate"><span class="pre">list_of_sequences</span></code> is passed, the number of elements per n-gram tuple. Ignored otherwise.</p></li>
+<li><p><strong>k</strong> – If specified, the transition matrix will show only the top k n-grams.</p></li>
+<li><p><strong>smooth</strong> – If specified, this is the minimum value in the transition matrix.</p></li>
+<li><p><strong>normalize</strong> – By default, absolute counts are shown. Pass True to normalize each row.</p></li>
+<li><p><strong>entropy</strong> – Pass True to add a column showing the normalized entropy for each row.</p></li>
+<li><p><strong>excluded_symbols</strong> – Any n-gram containing any of these symbols will be excluded.</p></li>
+<li><p><strong>distinct_only</strong> – Pass True to exclude all n-grams consisting of identical elements only.</p></li>
+<li><p><strong>sort</strong> – By default, the order of both index and columns follows the overall n-gram frequency.
+Pass True to sort them separately, i.e. each by their own frequencies.</p></li>
+<li><p><strong>percent</strong> – Pass True to multiply the matrix by 100 before rounding to <cite>decimals</cite></p></li>
+<li><p><strong>decimals</strong> – To how many decimals you want to round the matrix, if at all.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>DataFrame with frequency statistics of (n-1) grams transitioning to all occurring last elements.
+The index is made up of strings corresponding to all but the last element of the n-grams,
+with the column index containing all last elements.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="dimcat.utils.functions.typestrings2types">
+<span class="sig-prename descclassname"><span class="pre">dimcat.utils.functions.</span></span><span class="sig-name descname"><span class="pre">typestrings2types</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">typestrings</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Union" title="(in Python v3.10)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Collection" title="(in Python v3.10)"><span class="pre">Collection</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Tuple" title="(in Python v3.10)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Type" title="(in Python v3.10)"><span class="pre">Type</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/dimcat/utils/functions.html#typestrings2types"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.utils.functions.typestrings2types" title="Permalink to this definition">¶</a></dt>
+<dd><p>Turns one or several names of classes contained in this module into a
+tuple of references to these classes.</p>
+</dd></dl>
+
+</section>
+<section id="module-dimcat.utils">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-dimcat.utils" title="Permalink to this heading">¶</a></h2>
+</section>
+</section>
+
+
+          </div>
+
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">dimcat</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../readme.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial.html">Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../manual.html">Manual</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notebooks/index.html">Example Notebooks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributions &amp; Help</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../authors.html">Authors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../changelog.html">Changelog</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">Module Reference</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="dimcat.html">dimcat package</a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="modules.html">dimcat</a><ul>
+  <li><a href="dimcat.html">dimcat package</a><ul>
+      <li>Previous: <a href="dimcat.slicer.html" title="previous chapter">dimcat.slicer package</a></li>
+      <li>Next: <a href="dimcat.writer.html" title="next chapter">dimcat.writer package</a></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Digital and Cognitive Musicology Lab @ École Polytechnique Fédérale de Lausanne.
+
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
+
+      |
+      <a href="../_sources/api/dimcat.utils.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+
+
+
+  </body>
+</html>

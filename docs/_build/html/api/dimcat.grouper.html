@@ -1,0 +1,265 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+    <title>dimcat.grouper package &#8212; dimcat 0.3.0.post1.dev48+gb31e433.d20230210 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="dimcat.musana package" href="dimcat.musana.html" />
+    <link rel="prev" title="dimcat.filter package" href="dimcat.filter.html" />
+
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+
+
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+
+
+          <div class="body" role="main">
+
+  <section id="dimcat-grouper-package">
+<h1>dimcat.grouper package<a class="headerlink" href="#dimcat-grouper-package" title="Permalink to this heading">¶</a></h1>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this heading">¶</a></h2>
+</section>
+<section id="module-dimcat.grouper.base">
+<span id="dimcat-grouper-base-module"></span><h2>dimcat.grouper.base module<a class="headerlink" href="#module-dimcat.grouper.base" title="Permalink to this heading">¶</a></h2>
+<p>A Grouper is a PipelineStep that groups rows of the Data together into subsets.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.grouper.base.CorpusGrouper">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.grouper.base.</span></span><span class="sig-name descname"><span class="pre">CorpusGrouper</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sort</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/grouper/base.html#CorpusGrouper"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.grouper.base.CorpusGrouper" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#dimcat.grouper.base.Grouper" title="dimcat.grouper.base.Grouper"><code class="xref py py-class docutils literal notranslate"><span class="pre">Grouper</span></code></a></p>
+<p>Groups indices that belong to the same corpus.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.grouper.base.CorpusGrouper.criterion">
+<span class="sig-name descname"><span class="pre">criterion</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">index</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#tuple" title="(in Python v3.10)"><span class="pre">tuple</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="dimcat.data.html#dimcat.data.base.Dataset" title="dimcat.data.base.Dataset"><span class="pre">Dataset</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a></span></span><a class="reference internal" href="../_modules/dimcat/grouper/base.html#CorpusGrouper.criterion"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.grouper.base.CorpusGrouper.criterion" title="Permalink to this definition">¶</a></dt>
+<dd><p>Takes one index and (potentially) looks it up in the data object to return the name
+of the new group that the corresponding element is attributed to. The name will be appended
+to the previous group names tuple.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.grouper.base.Grouper">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.grouper.base.</span></span><span class="sig-name descname"><span class="pre">Grouper</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sort</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/grouper/base.html#Grouper"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.grouper.base.Grouper" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="dimcat.html#dimcat.base.PipelineStep" title="dimcat.base.PipelineStep"><code class="xref py py-class docutils literal notranslate"><span class="pre">PipelineStep</span></code></a>, <a class="reference external" href="https://docs.python.org/3.10/library/abc.html#abc.ABC" title="(in Python v3.10)"><code class="xref py py-class docutils literal notranslate"><span class="pre">ABC</span></code></a></p>
+<p>A Grouper will process a Data object by iterating through the current index groups and
+introducing subgroups for each. Groupers always work top-down, meaning that they cannot
+group IDs belonging to different groups.</p>
+<p>Concretely, it will turn the <code class="docutils literal notranslate"><span class="pre">{(old_groups)</span> <span class="pre">-&gt;</span> <span class="pre">[(id)]}</span></code> dict stored in data.indices into
+<code class="docutils literal notranslate"><span class="pre">{(*old_groups,</span> <span class="pre">new_group)</span> <span class="pre">-&gt;</span> <span class="pre">[(id)]}</span></code>.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.grouper.base.Grouper.criterion">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">criterion</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">index</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#tuple" title="(in Python v3.10)"><span class="pre">tuple</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="dimcat.data.html#dimcat.data.base.Dataset" title="dimcat.data.base.Dataset"><span class="pre">Dataset</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a></span></span><a class="reference internal" href="../_modules/dimcat/grouper/base.html#Grouper.criterion"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.grouper.base.Grouper.criterion" title="Permalink to this definition">¶</a></dt>
+<dd><p>Takes one index and (potentially) looks it up in the data object to return the name
+of the new group that the corresponding element is attributed to. The name will be appended
+to the previous group names tuple.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.grouper.base.Grouper.filename_factory">
+<span class="sig-name descname"><span class="pre">filename_factory</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/grouper/base.html#Grouper.filename_factory"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.grouper.base.Grouper.filename_factory" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="dimcat.grouper.base.Grouper.level_names">
+<span class="sig-name descname"><span class="pre">level_names</span></span><a class="headerlink" href="#dimcat.grouper.base.Grouper.level_names" title="Permalink to this definition">¶</a></dt>
+<dd><p>“index_level_name”} so that the DataFrame index level distinguishing
+the resulting groups has a meaningful name. E.g., for grouping by years, a good index
+level name could be ‘year’.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Define {“grouper”</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.grouper.base.Grouper.process_data">
+<span class="sig-name descname"><span class="pre">process_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="dimcat.data.html#dimcat.data.base.Dataset" title="dimcat.data.base.Dataset"><span class="pre">Dataset</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="dimcat.data.html#dimcat.data.base.GroupedData" title="dimcat.data.base.GroupedData"><span class="pre">GroupedData</span></a></span></span><a class="reference internal" href="../_modules/dimcat/grouper/base.html#Grouper.process_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.grouper.base.Grouper.process_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a copy of the Data object where the list of indices for each existing group has
+been further subdivided into smaller groups.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.grouper.base.ModeGrouper">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.grouper.base.</span></span><span class="sig-name descname"><span class="pre">ModeGrouper</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sort</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/grouper/base.html#ModeGrouper"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.grouper.base.ModeGrouper" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#dimcat.grouper.base.Grouper" title="dimcat.grouper.base.Grouper"><code class="xref py py-class docutils literal notranslate"><span class="pre">Grouper</span></code></a></p>
+<p>Groups indices based on the mode of a given segment. Requires previous application of
+LocalKeySlicer.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.grouper.base.ModeGrouper.criterion">
+<span class="sig-name descname"><span class="pre">criterion</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">index</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#tuple" title="(in Python v3.10)"><span class="pre">tuple</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="dimcat.data.html#dimcat.data.base.Dataset" title="dimcat.data.base.Dataset"><span class="pre">Dataset</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a></span></span><a class="reference internal" href="../_modules/dimcat/grouper/base.html#ModeGrouper.criterion"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.grouper.base.ModeGrouper.criterion" title="Permalink to this definition">¶</a></dt>
+<dd><p>Takes one index and (potentially) looks it up in the data object to return the name
+of the new group that the corresponding element is attributed to. The name will be appended
+to the previous group names tuple.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.grouper.base.ModeGrouper.filename_factory">
+<span class="sig-name descname"><span class="pre">filename_factory</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/grouper/base.html#ModeGrouper.filename_factory"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.grouper.base.ModeGrouper.filename_factory" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.grouper.base.ModeGrouper.process_data">
+<span class="sig-name descname"><span class="pre">process_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="dimcat.data.html#dimcat.data.base.Dataset" title="dimcat.data.base.Dataset"><span class="pre">Dataset</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="dimcat.data.html#dimcat.data.base.GroupedData" title="dimcat.data.base.GroupedData"><span class="pre">GroupedData</span></a></span></span><a class="reference internal" href="../_modules/dimcat/grouper/base.html#ModeGrouper.process_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.grouper.base.ModeGrouper.process_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a copy of the Data object where the list of indices for each existing group has
+been further subdivided into smaller groups.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.grouper.base.PieceGrouper">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.grouper.base.</span></span><span class="sig-name descname"><span class="pre">PieceGrouper</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sort</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/grouper/base.html#PieceGrouper"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.grouper.base.PieceGrouper" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#dimcat.grouper.base.Grouper" title="dimcat.grouper.base.Grouper"><code class="xref py py-class docutils literal notranslate"><span class="pre">Grouper</span></code></a></p>
+<p>Groups indices that belong to the same piece.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.grouper.base.PieceGrouper.criterion">
+<span class="sig-name descname"><span class="pre">criterion</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">index</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#tuple" title="(in Python v3.10)"><span class="pre">tuple</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="dimcat.data.html#dimcat.data.base.Dataset" title="dimcat.data.base.Dataset"><span class="pre">Dataset</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a></span></span><a class="reference internal" href="../_modules/dimcat/grouper/base.html#PieceGrouper.criterion"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.grouper.base.PieceGrouper.criterion" title="Permalink to this definition">¶</a></dt>
+<dd><p>Takes one index and (potentially) looks it up in the data object to return the name
+of the new group that the corresponding element is attributed to. The name will be appended
+to the previous group names tuple.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.grouper.base.PieceGrouper.filename_factory">
+<span class="sig-name descname"><span class="pre">filename_factory</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/grouper/base.html#PieceGrouper.filename_factory"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.grouper.base.PieceGrouper.filename_factory" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.grouper.base.YearGrouper">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.grouper.base.</span></span><span class="sig-name descname"><span class="pre">YearGrouper</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sort</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/grouper/base.html#YearGrouper"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.grouper.base.YearGrouper" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#dimcat.grouper.base.Grouper" title="dimcat.grouper.base.Grouper"><code class="xref py py-class docutils literal notranslate"><span class="pre">Grouper</span></code></a></p>
+<p>Groups indices based on the composition years indicated in the metadata.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.grouper.base.YearGrouper.criterion">
+<span class="sig-name descname"><span class="pre">criterion</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">index</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#tuple" title="(in Python v3.10)"><span class="pre">tuple</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="dimcat.data.html#dimcat.data.base.Dataset" title="dimcat.data.base.Dataset"><span class="pre">Dataset</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a></span></span><a class="reference internal" href="../_modules/dimcat/grouper/base.html#YearGrouper.criterion"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.grouper.base.YearGrouper.criterion" title="Permalink to this definition">¶</a></dt>
+<dd><p>Takes one index and (potentially) looks it up in the data object to return the name
+of the new group that the corresponding element is attributed to. The name will be appended
+to the previous group names tuple.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.grouper.base.YearGrouper.process_data">
+<span class="sig-name descname"><span class="pre">process_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="dimcat.data.html#dimcat.data.base.Dataset" title="dimcat.data.base.Dataset"><span class="pre">Dataset</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="dimcat.data.html#dimcat.data.base.GroupedData" title="dimcat.data.base.GroupedData"><span class="pre">GroupedData</span></a></span></span><a class="reference internal" href="../_modules/dimcat/grouper/base.html#YearGrouper.process_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.grouper.base.YearGrouper.process_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a copy of the Data object where the list of indices for each existing group has
+been further subdivided into smaller groups.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-dimcat.grouper">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-dimcat.grouper" title="Permalink to this heading">¶</a></h2>
+</section>
+</section>
+
+
+          </div>
+
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">dimcat</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../readme.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial.html">Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../manual.html">Manual</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notebooks/index.html">Example Notebooks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributions &amp; Help</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../authors.html">Authors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../changelog.html">Changelog</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">Module Reference</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="dimcat.html">dimcat package</a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="modules.html">dimcat</a><ul>
+  <li><a href="dimcat.html">dimcat package</a><ul>
+      <li>Previous: <a href="dimcat.filter.html" title="previous chapter">dimcat.filter package</a></li>
+      <li>Next: <a href="dimcat.musana.html" title="next chapter">dimcat.musana package</a></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Digital and Cognitive Musicology Lab @ École Polytechnique Fédérale de Lausanne.
+
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
+
+      |
+      <a href="../_sources/api/dimcat.grouper.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+
+
+
+  </body>
+</html>

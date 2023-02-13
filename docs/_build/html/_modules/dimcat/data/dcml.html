@@ -1,0 +1,424 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>dimcat.data.dcml &#8212; dimcat 0.3.0.post1.dev48+gb31e433.d20230210 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/jquery.js"></script>
+    <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../../_static/doctools.js"></script>
+    <script src="../../../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+
+
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+
+
+          <div class="body" role="main">
+
+  <h1>Source code for dimcat.data.dcml</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">lru_cache</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Iterator</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">import</span> <span class="nn">ms3</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">from</span> <span class="nn">dimcat.data.base</span> <span class="kn">import</span> <span class="n">AnalyzedData</span><span class="p">,</span> <span class="n">Dataset</span><span class="p">,</span> <span class="n">GroupedData</span><span class="p">,</span> <span class="n">SlicedData</span><span class="p">,</span> <span class="n">logger</span>
+<span class="kn">from</span> <span class="nn">dimcat.dtypes</span> <span class="kn">import</span> <span class="n">ID</span><span class="p">,</span> <span class="n">GroupID</span><span class="p">,</span> <span class="n">PieceID</span><span class="p">,</span> <span class="n">SliceID</span>
+<span class="kn">from</span> <span class="nn">dimcat.utils</span> <span class="kn">import</span> <span class="n">clean_index_levels</span>
+<span class="kn">from</span> <span class="nn">ms3._typing</span> <span class="kn">import</span> <span class="n">ScoreFacet</span>
+
+
+<div class="viewcode-block" id="SlicedDataset"><a class="viewcode-back" href="../../../api/dimcat.data.html#dimcat.data.dcml.SlicedDataset">[docs]</a><span class="k">class</span> <span class="nc">SlicedDataset</span><span class="p">(</span><span class="n">SlicedData</span><span class="p">,</span> <span class="n">Dataset</span><span class="p">):</span>
+<div class="viewcode-block" id="SlicedDataset.get_item"><a class="viewcode-back" href="../../../api/dimcat.data.html#dimcat.data.dcml.SlicedDataset.get_item">[docs]</a>    <span class="nd">@lru_cache</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">get_item</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ID</span><span class="p">:</span> <span class="n">SliceID</span><span class="p">,</span> <span class="n">what</span><span class="p">:</span> <span class="n">ScoreFacet</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Retrieve a DataFrame pertaining to the facet ``what`` of the piece ``index``. If</span>
+<span class="sd">        the facet has been sliced before, the sliced DataFrame is returned.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            ID: (corpus, fname) or (corpus, fname, interval)</span>
+<span class="sd">            what: What facet to retrieve.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            DataFrame representing an entire score facet, or a chunk (slice) of it.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">match</span> <span class="n">ID</span><span class="p">:</span>
+            <span class="k">case</span><span class="w"> </span><span class="p">(</span><span class="k">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">):</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_slice</span><span class="p">(</span><span class="n">ID</span><span class="p">,</span> <span class="n">what</span><span class="p">)</span>
+            <span class="k">case</span> <span class="p">(</span><span class="n">corpus</span><span class="p">,</span> <span class="n">piece</span><span class="p">):</span>
+                <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">get_item</span><span class="p">(</span><span class="n">ID</span><span class="o">=</span><span class="n">PieceID</span><span class="p">(</span><span class="n">corpus</span><span class="p">,</span> <span class="n">piece</span><span class="p">),</span> <span class="n">what</span><span class="o">=</span><span class="n">what</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SlicedDataset.iter_facet"><a class="viewcode-back" href="../../../api/dimcat.data.html#dimcat.data.dcml.SlicedDataset.iter_facet">[docs]</a>    <span class="k">def</span> <span class="nf">iter_facet</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">what</span><span class="p">:</span> <span class="n">ScoreFacet</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">SliceID</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Iterate through facet DataFrames.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            what: Which type of facet to retrieve.</span>
+
+<span class="sd">        Yields:</span>
+<span class="sd">            Index tuple.</span>
+<span class="sd">            Facet DataFrame.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_facet_if_necessary</span><span class="p">(</span><span class="n">what</span><span class="p">):</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No sliced </span><span class="si">{</span><span class="n">what</span><span class="si">}</span><span class="s2"> available.&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">StopIteration</span>
+        <span class="k">yield from</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">iter_facet</span><span class="p">(</span><span class="n">what</span><span class="o">=</span><span class="n">what</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SlicedDataset.slice_facet_if_necessary"><a class="viewcode-back" href="../../../api/dimcat.data.html#dimcat.data.dcml.SlicedDataset.slice_facet_if_necessary">[docs]</a>    <span class="k">def</span> <span class="nf">slice_facet_if_necessary</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">what</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        what : :obj:`str`</span>
+<span class="sd">            Facet for which to create slices if necessary</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :obj:`bool`</span>
+<span class="sd">            True if slices are available or not needed, False otherwise.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;slice_info&quot;</span><span class="p">):</span>
+            <span class="c1"># no slicer applied</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slice_info</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c1"># applying slicer did not yield any slices</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">if</span> <span class="n">what</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sliced</span><span class="p">:</span>
+            <span class="c1"># already sliced</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sliced</span><span class="p">[</span><span class="n">what</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">facet_ids</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">corpus</span><span class="p">,</span> <span class="n">fname</span><span class="p">,</span> <span class="n">interval</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_info</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">facet_ids</span><span class="p">[(</span><span class="n">corpus</span><span class="p">,</span> <span class="n">fname</span><span class="p">)]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">interval</span><span class="p">)</span>
+        <span class="k">for</span> <span class="nb">id</span><span class="p">,</span> <span class="n">intervals</span> <span class="ow">in</span> <span class="n">facet_ids</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">facet_df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_item</span><span class="p">(</span><span class="nb">id</span><span class="p">,</span> <span class="n">what</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">facet_df</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">facet_df</span><span class="o">.</span><span class="n">index</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">sliced</span> <span class="o">=</span> <span class="n">ms3</span><span class="o">.</span><span class="n">overlapping_chunk_per_interval</span><span class="p">(</span><span class="n">facet_df</span><span class="p">,</span> <span class="n">intervals</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sliced</span><span class="p">[</span><span class="n">what</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+                <span class="p">{</span><span class="nb">id</span> <span class="o">+</span> <span class="p">(</span><span class="n">iv</span><span class="p">,):</span> <span class="n">chunk</span> <span class="k">for</span> <span class="n">iv</span><span class="p">,</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">sliced</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sliced</span><span class="p">[</span><span class="n">what</span><span class="p">])</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">sliced</span><span class="p">[</span><span class="n">what</span><span class="p">]</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">return</span> <span class="kc">True</span></div></div>
+
+
+<div class="viewcode-block" id="GroupedDataset"><a class="viewcode-back" href="../../../api/dimcat.data.html#dimcat.data.dcml.GroupedDataset">[docs]</a><span class="k">class</span> <span class="nc">GroupedDataset</span><span class="p">(</span><span class="n">GroupedData</span><span class="p">,</span> <span class="n">Dataset</span><span class="p">):</span>
+<div class="viewcode-block" id="GroupedDataset.iter_grouped_facet"><a class="viewcode-back" href="../../../api/dimcat.data.html#dimcat.data.dcml.GroupedDataset.iter_grouped_facet">[docs]</a>    <span class="k">def</span> <span class="nf">iter_grouped_facet</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">what</span><span class="p">:</span> <span class="n">ScoreFacet</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">GroupID</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Iterate through one concatenated facet DataFrame per group.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            what: Which type of facet to retrieve.</span>
+
+<span class="sd">        Yields:</span>
+<span class="sd">            Group index.</span>
+<span class="sd">            Facet DataFrame.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">group</span><span class="p">,</span> <span class="n">index_group</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">iter_grouped_indices</span><span class="p">():</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">missing_id</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">index_group</span><span class="p">:</span>
+                <span class="n">df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_item</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">what</span><span class="o">=</span><span class="n">what</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">df</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">index</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">missing_id</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+                    <span class="k">continue</span>
+                <span class="n">result</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span>
+            <span class="n">n_results</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">missing_id</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">n_results</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">pass</span>
+                    <span class="c1"># logger.info(f&quot;No &#39;{what}&#39; available for {group}.&quot;)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;Group </span><span class="si">{</span><span class="n">group</span><span class="si">}</span><span class="s2"> is missing &#39;</span><span class="si">{</span><span class="n">what</span><span class="si">}</span><span class="s2">&#39; for the following indices:</span><span class="se">\n</span><span class="si">{</span><span class="n">missing_id</span><span class="si">}</span><span class="s2">&quot;</span>
+                    <span class="p">)</span>
+            <span class="k">if</span> <span class="n">n_results</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">n_results</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="c1"># workaround necessary because of nasty &quot;cannot handle overlapping indices;</span>
+                <span class="c1"># use IntervalIndex.get_indexer_non_unique&quot; error</span>
+                <span class="n">result</span><span class="p">[</span><span class="s2">&quot;empty&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">()</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span>
+                <span class="n">keys</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span>
+                <span class="n">names</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">index_levels</span><span class="p">[</span><span class="s2">&quot;indices&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="s2">&quot;interval&quot;</span><span class="p">],</span>
+            <span class="p">)</span>
+            <span class="k">yield</span> <span class="n">group</span><span class="p">,</span> <span class="n">result</span></div>
+
+<div class="viewcode-block" id="GroupedDataset.set_indices"><a class="viewcode-back" href="../../../api/dimcat.data.html#dimcat.data.dcml.GroupedDataset.set_indices">[docs]</a>    <span class="k">def</span> <span class="nf">set_indices</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">new_indices</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">PieceID</span><span class="p">],</span> <span class="n">Dict</span><span class="p">[</span><span class="n">ID</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">PieceID</span><span class="p">]]]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Replace :attr:`indices` with a new list of IDs and update the :attr:`grouped_indices` accordingly.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            new_indices:</span>
+<span class="sd">                The new list of IDs or an {old_id -&gt; [new_id]} dictionary to replace the IDs with a list of new IDs.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">id2group</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="p">())</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">indices</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">id2group</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+                <span class="p">{</span>
+                    <span class="n">ID</span><span class="p">:</span> <span class="n">group</span>
+                    <span class="k">for</span> <span class="n">group</span><span class="p">,</span> <span class="n">group_ids</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">iter_grouped_indices</span><span class="p">()</span>
+                    <span class="k">for</span> <span class="n">ID</span> <span class="ow">in</span> <span class="n">group_ids</span>
+                <span class="p">}</span>
+            <span class="p">)</span>
+        <span class="n">new_grouped_indices</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">new_indices</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">old_id</span><span class="p">,</span> <span class="n">new_ids</span> <span class="ow">in</span> <span class="n">new_indices</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">old_group</span> <span class="o">=</span> <span class="n">id2group</span><span class="p">[</span><span class="n">old_id</span><span class="p">]</span>
+                <span class="n">new_grouped_indices</span><span class="p">[</span><span class="n">old_group</span><span class="p">]</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">new_ids</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">new_id</span> <span class="ow">in</span> <span class="n">new_indices</span><span class="p">:</span>
+                <span class="n">old_group</span> <span class="o">=</span> <span class="n">id2group</span><span class="p">[</span><span class="n">new_id</span><span class="p">]</span>
+                <span class="n">new_grouped_indices</span><span class="p">[</span><span class="n">old_group</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_id</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">grouped_indices</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">k</span><span class="p">:</span> <span class="n">new_grouped_indices</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">new_grouped_indices</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="p">}</span>
+        <span class="n">new_indices</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">new_grouped_indices</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span> <span class="p">[])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">indices</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">new_indices</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="GroupedDataset.set_grouped_indices"><a class="viewcode-back" href="../../../api/dimcat.data.html#dimcat.data.dcml.GroupedDataset.set_grouped_indices">[docs]</a>    <span class="k">def</span> <span class="nf">set_grouped_indices</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">grouped_indices</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="n">GroupID</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">ID</span><span class="p">]]):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">grouped_indices</span> <span class="o">=</span> <span class="n">grouped_indices</span></div></div>
+
+
+<div class="viewcode-block" id="AnalyzedDataset"><a class="viewcode-back" href="../../../api/dimcat.data.html#dimcat.data.dcml.AnalyzedDataset">[docs]</a><span class="k">class</span> <span class="nc">AnalyzedDataset</span><span class="p">(</span><span class="n">AnalyzedData</span><span class="p">,</span> <span class="n">Dataset</span><span class="p">):</span>
+    <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="GroupedSlicedDataset"><a class="viewcode-back" href="../../../api/dimcat.data.html#dimcat.data.dcml.GroupedSlicedDataset">[docs]</a><span class="k">class</span> <span class="nc">GroupedSlicedDataset</span><span class="p">(</span><span class="n">GroupedDataset</span><span class="p">,</span> <span class="n">SlicedDataset</span><span class="p">):</span>
+    <span class="n">assert_types</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;SlicedDataset&quot;</span><span class="p">,</span> <span class="s2">&quot;GroupedDataset&quot;</span><span class="p">]</span>
+    <span class="n">excluded_types</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;AnalyzedData&quot;</span><span class="p">]</span>
+    <span class="n">type_mapping</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="p">(</span>
+            <span class="s2">&quot;SlicedDataset&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;GroupedDataset&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;GroupedSlicedDataset&quot;</span><span class="p">,</span>
+        <span class="p">):</span> <span class="s2">&quot;GroupedSlicedDataset&quot;</span><span class="p">,</span>
+    <span class="p">}</span>
+
+<div class="viewcode-block" id="GroupedSlicedDataset.get_slice_info"><a class="viewcode-back" href="../../../api/dimcat.data.html#dimcat.data.dcml.GroupedSlicedDataset.get_slice_info">[docs]</a>    <span class="k">def</span> <span class="nf">get_slice_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ignore_groups</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Concatenates slice_info Series and returns them as a DataFrame.&quot;&quot;&quot;</span>
+        <span class="n">group_dfs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">group</span><span class="p">,</span> <span class="n">index_group</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">iter_grouped_indices</span><span class="p">():</span>
+            <span class="n">group_info</span> <span class="o">=</span> <span class="p">{</span><span class="n">ix</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_info</span><span class="p">[</span><span class="n">ix</span><span class="p">]</span> <span class="k">for</span> <span class="n">ix</span> <span class="ow">in</span> <span class="n">index_group</span><span class="p">}</span>
+            <span class="n">group_dfs</span><span class="p">[</span><span class="n">group</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span>
+                <span class="n">group_info</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span> <span class="n">keys</span><span class="o">=</span><span class="n">group_info</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">T</span>
+        <span class="n">concatenated_info</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">group_dfs</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span> <span class="n">keys</span><span class="o">=</span><span class="n">group_dfs</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="n">concatenated_info</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rename_multiindex_levels</span><span class="p">(</span>
+            <span class="n">concatenated_info</span><span class="o">.</span><span class="n">index</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">index_levels</span><span class="p">[</span><span class="s2">&quot;groups&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">index_levels</span><span class="p">[</span><span class="s2">&quot;indices&quot;</span><span class="p">],</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">clean_index_levels</span><span class="p">(</span><span class="n">concatenated_info</span><span class="p">)</span></div></div>
+
+    <span class="c1"># def iter_facet(self, what, unfold=False, concatenate=False, ignore_groups=False):</span>
+    <span class="c1">#     &quot;&quot;&quot;Iterate through groups of potentially sliced facet DataFrames.</span>
+    <span class="c1">#</span>
+    <span class="c1">#     Parameters</span>
+    <span class="c1">#     ----------</span>
+    <span class="c1">#     what : {&#39;form_labels&#39;, &#39;events&#39;, &#39;expanded&#39;, &#39;notes_and_rests&#39;, &#39;notes&#39;, &#39;labels&#39;,</span>
+    <span class="c1">#             &#39;cadences&#39;, &#39;chords&#39;, &#39;measures&#39;, &#39;rests&#39;}</span>
+    <span class="c1">#         What facet to retrieve.</span>
+    <span class="c1">#     unfold : :obj:`bool`, optional</span>
+    <span class="c1">#         Pass True if you need repeats to be unfolded.</span>
+    <span class="c1">#     concatenate : :obj:`bool`, optional</span>
+    <span class="c1">#         By default, the returned dict contains one DataFrame per ID in the group.</span>
+    <span class="c1">#         Pass True to instead concatenate the DataFrames. Then, the dict will contain only</span>
+    <span class="c1">#         one entry where the key is a tuple containing all IDs and the value is a DataFrame,</span>
+    <span class="c1">#         the components of which can be distinguished using its MultiIndex.</span>
+    <span class="c1">#     ignore_groups : :obj:`bool`, False</span>
+    <span class="c1">#         If set to True, the iteration loop is flattened and yields (index, facet_df) pairs directly. Clashes</span>
+    <span class="c1">#         with the setting concatenate=True which concatenates facets per group.</span>
+    <span class="c1">#</span>
+    <span class="c1">#     Yields</span>
+    <span class="c1">#     ------</span>
+    <span class="c1">#     :obj:`tuple`</span>
+    <span class="c1">#         Group identifier</span>
+    <span class="c1">#     :obj:`dict` or :obj:`pandas.DataFrame`</span>
+    <span class="c1">#         Default: {ID -&gt; DataFrame}.</span>
+    <span class="c1">#         If concatenate=True: DataFrame with MultiIndex identifying ID, and (eventual) interval.</span>
+    <span class="c1">#     &quot;&quot;&quot;</span>
+    <span class="c1">#     if not self.slice_facet_if_necessary(what, unfold):</span>
+    <span class="c1">#         logger.info(f&quot;No sliced {what} available.&quot;)</span>
+    <span class="c1">#         raise StopIteration</span>
+    <span class="c1">#     if sum((concatenate, ignore_groups)) &gt; 1:</span>
+    <span class="c1">#         raise ValueError(</span>
+    <span class="c1">#             &quot;Arguments &#39;concatenate&#39; and &#39;ignore_groups&#39; are in conflict, choose one &quot;</span>
+    <span class="c1">#             &quot;or use the method get_facet().&quot;</span>
+    <span class="c1">#         )</span>
+    <span class="c1">#     for group, index_group in self.iter_grouped_indices():</span>
+    <span class="c1">#         result = {}</span>
+    <span class="c1">#         missing_id = []</span>
+    <span class="c1">#         for index in index_group:</span>
+    <span class="c1">#             df = self.get_item(index, what=what, unfold=unfold)</span>
+    <span class="c1">#             if df is None:</span>
+    <span class="c1">#                 continue</span>
+    <span class="c1">#             elif ignore_groups:</span>
+    <span class="c1">#                 yield index, df</span>
+    <span class="c1">#             if len(df.index) == 0:</span>
+    <span class="c1">#                 missing_id.append(index)</span>
+    <span class="c1">#             result[index] = df</span>
+    <span class="c1">#         if ignore_groups:</span>
+    <span class="c1">#             continue</span>
+    <span class="c1">#         n_results = len(result)</span>
+    <span class="c1">#         if len(missing_id) &gt; 0:</span>
+    <span class="c1">#             if n_results == 0:</span>
+    <span class="c1">#                 pass</span>
+    <span class="c1">#                 # logger.info(f&quot;No &#39;{what}&#39; available for {group}.&quot;)</span>
+    <span class="c1">#             else:</span>
+    <span class="c1">#                 logger.info(</span>
+    <span class="c1">#                     f&quot;Group {group} is missing &#39;{what}&#39; for the following indices:\n&quot;</span>
+    <span class="c1">#                     f&quot;{missing_id}&quot;</span>
+    <span class="c1">#                 )</span>
+    <span class="c1">#         if n_results == 0:</span>
+    <span class="c1">#             continue</span>
+    <span class="c1">#         if concatenate:</span>
+    <span class="c1">#             if n_results == 1:</span>
+    <span class="c1">#                 # workaround necessary because of nasty &quot;cannot handle overlapping indices;</span>
+    <span class="c1">#                 # use IntervalIndex.get_indexer_non_unique&quot; error</span>
+    <span class="c1">#                 result[&quot;empty&quot;] = pd.DataFrame()</span>
+    <span class="c1">#             result = pd.concat(</span>
+    <span class="c1">#                 result.values(),</span>
+    <span class="c1">#                 keys=result.keys(),</span>
+    <span class="c1">#                 names=self.index_levels[&quot;indices&quot;] + [&quot;interval&quot;],</span>
+    <span class="c1">#             )</span>
+    <span class="c1">#             result = {tuple(index_group): result}</span>
+    <span class="c1">#</span>
+    <span class="c1">#         yield group, result</span>
+
+
+<div class="viewcode-block" id="AnalyzedGroupedDataset"><a class="viewcode-back" href="../../../api/dimcat.data.html#dimcat.data.dcml.AnalyzedGroupedDataset">[docs]</a><span class="k">class</span> <span class="nc">AnalyzedGroupedDataset</span><span class="p">(</span><span class="n">AnalyzedDataset</span><span class="p">,</span> <span class="n">GroupedDataset</span><span class="p">):</span>
+    <span class="n">assert_types</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;GroupedDataset&quot;</span><span class="p">,</span> <span class="s2">&quot;AnalyzedDataset&quot;</span><span class="p">]</span>
+    <span class="n">type_mapping</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="p">(</span>
+            <span class="s2">&quot;AnalyzedGroupedDataset&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;AnalyzedDataset&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;GroupedDataset&quot;</span><span class="p">,</span>
+        <span class="p">):</span> <span class="s2">&quot;AnalyzedGroupedDataset&quot;</span><span class="p">,</span>
+    <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="AnalyzedSlicedDataset"><a class="viewcode-back" href="../../../api/dimcat.data.html#dimcat.data.dcml.AnalyzedSlicedDataset">[docs]</a><span class="k">class</span> <span class="nc">AnalyzedSlicedDataset</span><span class="p">(</span><span class="n">AnalyzedDataset</span><span class="p">,</span> <span class="n">SlicedDataset</span><span class="p">):</span>
+    <span class="n">assert_types</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;SlicedDataset&quot;</span><span class="p">,</span> <span class="s2">&quot;AnalyzedDataset&quot;</span><span class="p">]</span>
+    <span class="n">excluded_types</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">type_mapping</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="p">(</span>
+            <span class="s2">&quot;AnalyzedSlicedDataset&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;AnalyzedDataset&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;SlicedDataset&quot;</span><span class="p">,</span>
+        <span class="p">):</span> <span class="s2">&quot;AnalyzedSlicedDataset&quot;</span><span class="p">,</span>
+    <span class="p">}</span>
+    <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="AnalyzedGroupedSlicedDataset"><a class="viewcode-back" href="../../../api/dimcat.data.html#dimcat.data.dcml.AnalyzedGroupedSlicedDataset">[docs]</a><span class="k">class</span> <span class="nc">AnalyzedGroupedSlicedDataset</span><span class="p">(</span><span class="n">AnalyzedSlicedDataset</span><span class="p">,</span> <span class="n">GroupedSlicedDataset</span><span class="p">):</span>
+    <span class="n">assert_types</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s2">&quot;GroupedSlicedDataset&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;AnalyzedGroupedDataset&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;AnalyzedSlicedDataset&quot;</span><span class="p">,</span>
+    <span class="p">]</span>
+    <span class="n">type_mapping</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="p">(</span>
+            <span class="s2">&quot;GroupedSlicedDataset&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;AnalyzedGroupedDataset&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;AnalyzedSlicedDataset&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;AnalyzedGroupedSlicedDataset&quot;</span><span class="p">,</span>
+        <span class="p">):</span> <span class="s2">&quot;AnalyzedGroupedSlicedDataset&quot;</span><span class="p">,</span>
+    <span class="p">}</span>
+    <span class="k">pass</span></div>
+</pre></div>
+
+          </div>
+
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">dimcat</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../readme.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorial.html">Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../manual.html">Manual</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks/index.html">Example Notebooks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing.html">Contributions &amp; Help</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../authors.html">Authors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/modules.html">Module Reference</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Digital and Cognitive Musicology Lab @ École Polytechnique Fédérale de Lausanne.
+
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
+
+    </div>
+
+
+
+
+  </body>
+</html>

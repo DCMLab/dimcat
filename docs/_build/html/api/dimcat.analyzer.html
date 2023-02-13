@@ -1,0 +1,536 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+    <title>dimcat.analyzer package &#8212; dimcat 0.3.0.post1.dev48+gb31e433.d20230210 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="dimcat.data package" href="dimcat.data.html" />
+    <link rel="prev" title="dimcat package" href="dimcat.html" />
+
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+
+
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+
+
+          <div class="body" role="main">
+
+  <section id="dimcat-analyzer-package">
+<h1>dimcat.analyzer package<a class="headerlink" href="#dimcat-analyzer-package" title="Permalink to this heading">¶</a></h1>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this heading">¶</a></h2>
+</section>
+<section id="module-dimcat.analyzer.base">
+<span id="dimcat-analyzer-base-module"></span><h2>dimcat.analyzer.base module<a class="headerlink" href="#module-dimcat.analyzer.base" title="Permalink to this heading">¶</a></h2>
+<p>Analyzers are PipelineSteps that process data and store the results in Data.processed.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.analyzer.base.Analyzer">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.analyzer.base.</span></span><span class="sig-name descname"><span class="pre">Analyzer</span></span><a class="reference internal" href="../_modules/dimcat/analyzer/base.html#Analyzer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.analyzer.base.Analyzer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="dimcat.html#dimcat.base.PipelineStep" title="dimcat.base.PipelineStep"><code class="xref py py-class docutils literal notranslate"><span class="pre">PipelineStep</span></code></a>, <a class="reference external" href="https://docs.python.org/3.10/library/abc.html#abc.ABC" title="(in Python v3.10)"><code class="xref py py-class docutils literal notranslate"><span class="pre">ABC</span></code></a></p>
+<p>Analyzers are PipelineSteps that process data and store the results in Data.processed.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.analyzer.base.Analyzer.aggregate">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">aggregate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">result_a</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">R</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">result_b</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">R</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">R</span></span></span><a class="reference internal" href="../_modules/dimcat/analyzer/base.html#Analyzer.aggregate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.analyzer.base.Analyzer.aggregate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Static method that combines two results of <a class="reference internal" href="#dimcat.analyzer.base.Analyzer.compute" title="dimcat.analyzer.base.Analyzer.compute"><code class="xref py py-meth docutils literal notranslate"><span class="pre">compute()</span></code></a>.</p>
+<p>This needs to be equivalent to calling self.compute on the concatenation of the respective data resulting
+in the two arguments.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="dimcat.analyzer.base.Analyzer.assert_previous_step">
+<span class="sig-name descname"><span class="pre">assert_previous_step</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Union" title="(in Python v3.10)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Collection" title="(in Python v3.10)"><span class="pre">Collection</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">[]</span></em><a class="headerlink" href="#dimcat.analyzer.base.Analyzer.assert_previous_step" title="Permalink to this definition">¶</a></dt>
+<dd><p>Analyzer.process_data() raises ValueError if last <code class="xref py py-obj docutils literal notranslate"><span class="pre">PipelineStep</span></code> applied to the
+<code class="xref py py-obj docutils literal notranslate"><span class="pre">_Dataset</span></code> does not match any of these types.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="dimcat.analyzer.base.Analyzer.assert_steps">
+<span class="sig-name descname"><span class="pre">assert_steps</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Union" title="(in Python v3.10)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Collection" title="(in Python v3.10)"><span class="pre">Collection</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">[]</span></em><a class="headerlink" href="#dimcat.analyzer.base.Analyzer.assert_steps" title="Permalink to this definition">¶</a></dt>
+<dd><p>Analyzer.process_data() raises ValueError if at least one of the names does not belong to
+a <code class="xref py py-obj docutils literal notranslate"><span class="pre">PipelineStep</span></code> that is among the previous PipelineSteps applied to the <code class="xref py py-obj docutils literal notranslate"><span class="pre">_Dataset</span></code>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.analyzer.base.Analyzer.compute">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">compute</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">R</span></span></span><a class="reference internal" href="../_modules/dimcat/analyzer/base.html#Analyzer.compute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.analyzer.base.Analyzer.compute" title="Permalink to this definition">¶</a></dt>
+<dd><p>Static method that performs the actual computation takes place.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="dimcat.analyzer.base.Analyzer.config">
+<span class="sig-name descname"><span class="pre">config</span></span><a class="headerlink" href="#dimcat.analyzer.base.Analyzer.config" title="Permalink to this definition">¶</a></dt>
+<dd><p><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#dict" title="(in Python v3.10)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">dict</span></code></a>
+This dictionary stores the parameters to be passed to the compute() method.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.analyzer.base.Analyzer.data_iterator">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">data_iterator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="dimcat.data.html#dimcat.data.base.AnalyzedData" title="dimcat.data.base.AnalyzedData"><span class="pre">AnalyzedData</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Iterator" title="(in Python v3.10)"><span class="pre">Iterator</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Tuple" title="(in Python v3.10)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Union" title="(in Python v3.10)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="dimcat.html#dimcat.dtypes.PieceID" title="dimcat.dtypes.PieceID"><span class="pre">PieceID</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Tuple" title="(in Python v3.10)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Interval.html#pandas.Interval" title="(in pandas v1.5.3)"><span class="pre">Interval</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Any" title="(in Python v3.10)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/dimcat/analyzer/base.html#Analyzer.data_iterator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.analyzer.base.Analyzer.data_iterator" title="Permalink to this definition">¶</a></dt>
+<dd><p>How a particular analyzer iterates through a dataset, getting the chunks passed to <a class="reference internal" href="#dimcat.analyzer.base.Analyzer.compute" title="dimcat.analyzer.base.Analyzer.compute"><code class="xref py py-meth docutils literal notranslate"><span class="pre">compute()</span></code></a>.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="dimcat.analyzer.base.Analyzer.excluded_steps">
+<span class="sig-name descname"><span class="pre">excluded_steps</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Union" title="(in Python v3.10)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Collection" title="(in Python v3.10)"><span class="pre">Collection</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">[]</span></em><a class="headerlink" href="#dimcat.analyzer.base.Analyzer.excluded_steps" title="Permalink to this definition">¶</a></dt>
+<dd><p>Analyzer.process_data() raises ValueError if any of the previous <code class="xref py py-obj docutils literal notranslate"><span class="pre">PipelineStep</span></code> applied to the
+<code class="xref py py-obj docutils literal notranslate"><span class="pre">_Dataset</span></code> matches one of these types.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="dimcat.analyzer.base.Analyzer.group2pandas">
+<span class="sig-name descname"><span class="pre">group2pandas</span></span><a class="headerlink" href="#dimcat.analyzer.base.Analyzer.group2pandas" title="Permalink to this definition">¶</a></dt>
+<dd><p><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">str</span></code></a>
+The name of the function that allows displaying one group’s results as a single
+pandas object. See data.Corpus.convert_group2pandas()</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="dimcat.analyzer.base.Analyzer.level_names">
+<span class="sig-name descname"><span class="pre">level_names</span></span><a class="headerlink" href="#dimcat.analyzer.base.Analyzer.level_names" title="Permalink to this definition">¶</a></dt>
+<dd><p><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#dict" title="(in Python v3.10)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">dict</span></code></a>
+Define {“indices”: “index_level_name”} if the analysis is applied once per group,
+because the index of the DataFrame holding the processed data won’t be showing the
+individual indices anymore.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.analyzer.base.Analyzer.post_process">
+<span class="sig-name descname"><span class="pre">post_process</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">processed</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/analyzer/base.html#Analyzer.post_process"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.analyzer.base.Analyzer.post_process" title="Permalink to this definition">¶</a></dt>
+<dd><p>Whatever needs to be done after analyzing the data before passing it to the dataset.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.analyzer.base.Analyzer.process_data">
+<span class="sig-name descname"><span class="pre">process_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="dimcat.data.html#dimcat.data.base.Dataset" title="dimcat.data.base.Dataset"><span class="pre">Dataset</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="dimcat.data.html#dimcat.data.base.AnalyzedData" title="dimcat.data.base.AnalyzedData"><span class="pre">AnalyzedData</span></a></span></span><a class="reference internal" href="../_modules/dimcat/analyzer/base.html#Analyzer.process_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.analyzer.base.Analyzer.process_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns an <code class="xref py py-obj docutils literal notranslate"><span class="pre">AnalyzedData</span></code> copy of the Dataset with the added analysis result.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="dimcat.analyzer.base.Analyzer.result_type">
+<span class="sig-name descname"><span class="pre">result_type</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Result'</span></em><a class="headerlink" href="#dimcat.analyzer.base.Analyzer.result_type" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-dimcat.analyzer.facet">
+<span id="dimcat-analyzer-facet-module"></span><h2>dimcat.analyzer.facet module<a class="headerlink" href="#module-dimcat.analyzer.facet" title="Permalink to this heading">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.analyzer.facet.ChordSymbolAnalyzer">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.analyzer.facet.</span></span><span class="sig-name descname"><span class="pre">ChordSymbolAnalyzer</span></span><a class="reference internal" href="../_modules/dimcat/analyzer/facet.html#ChordSymbolAnalyzer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.analyzer.facet.ChordSymbolAnalyzer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#dimcat.analyzer.facet.FacetAnalyzer" title="dimcat.analyzer.facet.FacetAnalyzer"><code class="xref py py-class docutils literal notranslate"><span class="pre">FacetAnalyzer</span></code></a></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="dimcat.analyzer.facet.ChordSymbolAnalyzer.result_type">
+<span class="sig-name descname"><span class="pre">result_type</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'ChordSymbolResult'</span></em><a class="headerlink" href="#dimcat.analyzer.facet.ChordSymbolAnalyzer.result_type" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.analyzer.facet.ChordSymbolBigrams">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.analyzer.facet.</span></span><span class="sig-name descname"><span class="pre">ChordSymbolBigrams</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dropna</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/analyzer/facet.html#ChordSymbolBigrams"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.analyzer.facet.ChordSymbolBigrams" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#dimcat.analyzer.facet.ChordSymbolAnalyzer" title="dimcat.analyzer.facet.ChordSymbolAnalyzer"><code class="xref py py-class docutils literal notranslate"><span class="pre">ChordSymbolAnalyzer</span></code></a></p>
+<p>Analyzer that returns the bigram counts for all valid chord transitions within a group,
+ordered by descending frequency.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="dimcat.analyzer.facet.ChordSymbolBigrams.assert_steps">
+<span class="sig-name descname"><span class="pre">assert_steps</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Collection</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">['LocalKeySlicer']</span></em><a class="headerlink" href="#dimcat.analyzer.facet.ChordSymbolBigrams.assert_steps" title="Permalink to this definition">¶</a></dt>
+<dd><p>Analyzer.process_data() raises ValueError if at least one of the names does not belong to
+a <code class="xref py py-obj docutils literal notranslate"><span class="pre">PipelineStep</span></code> that is among the previous PipelineSteps applied to the <code class="xref py py-obj docutils literal notranslate"><span class="pre">_Dataset</span></code>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.analyzer.facet.ChordSymbolBigrams.check">
+<span class="sig-name descname"><span class="pre">check</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/analyzer/facet.html#ChordSymbolBigrams.check"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.analyzer.facet.ChordSymbolBigrams.check" title="Permalink to this definition">¶</a></dt>
+<dd><p>Test piece of data for certain properties before computing analysis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3.10/library/functions.html#bool" title="(in Python v3.10)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">bool</span></code></a> – True if the passed data is eligible.</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">str</span></code></a> – Error message in case the passed data is not eligible.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.analyzer.facet.ChordSymbolBigrams.compute">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">compute</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">expanded</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.5.3)"><span class="pre">DataFrame</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">dropna</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3.10/library/functions.html#bool" title="(in Python v3.10)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.html#pandas.Series" title="(in pandas v1.5.3)"><span class="pre">Series</span></a></span></span><a class="reference internal" href="../_modules/dimcat/analyzer/facet.html#ChordSymbolBigrams.compute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.analyzer.facet.ChordSymbolBigrams.compute" title="Permalink to this definition">¶</a></dt>
+<dd><p>Turns the chord column into bigrams and returns their counts in descending order.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>expanded</strong> – Expanded harmony table with the columns <code class="docutils literal notranslate"><span class="pre">localkey</span></code> and <code class="docutils literal notranslate"><span class="pre">chord</span></code>.</p></li>
+<li><p><strong>dropna</strong> – By default, NaN values are dropped before computing bigrams, resulting in transitions
+from a missing value’s preceding to its subsequent value. Pass False to include
+bigrams from and to NaN values.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The last two index level are unique (from, to) bigrams, Series values are their
+corresponding counts.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.analyzer.facet.ChordSymbolUnigrams">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.analyzer.facet.</span></span><span class="sig-name descname"><span class="pre">ChordSymbolUnigrams</span></span><a class="reference internal" href="../_modules/dimcat/analyzer/facet.html#ChordSymbolUnigrams"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.analyzer.facet.ChordSymbolUnigrams" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#dimcat.analyzer.facet.ChordSymbolAnalyzer" title="dimcat.analyzer.facet.ChordSymbolAnalyzer"><code class="xref py py-class docutils literal notranslate"><span class="pre">ChordSymbolAnalyzer</span></code></a></p>
+<p>Analyzer that returns the counts of chord symbols for each group, ordered by descending
+frequency.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.analyzer.facet.ChordSymbolUnigrams.compute">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">compute</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">expanded</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.5.3)"><span class="pre">DataFrame</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.html#pandas.Series" title="(in pandas v1.5.3)"><span class="pre">Series</span></a></span></span><a class="reference internal" href="../_modules/dimcat/analyzer/facet.html#ChordSymbolUnigrams.compute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.analyzer.facet.ChordSymbolUnigrams.compute" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computes the value counts of the chord symbol column.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>expanded</strong> – Expanded harmony labels</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The last index level has unique chord symbols, Series values are their corresponding
+counts.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.analyzer.facet.FacetAnalyzer">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.analyzer.facet.</span></span><span class="sig-name descname"><span class="pre">FacetAnalyzer</span></span><a class="reference internal" href="../_modules/dimcat/analyzer/facet.html#FacetAnalyzer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.analyzer.facet.FacetAnalyzer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#dimcat.analyzer.base.Analyzer" title="dimcat.analyzer.base.Analyzer"><code class="xref py py-class docutils literal notranslate"><span class="pre">Analyzer</span></code></a></p>
+<p>Analyzers that work on one particular type of DataFrames.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.analyzer.facet.FacetAnalyzer.aggregate">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">aggregate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">result_a</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.html#pandas.Series" title="(in pandas v1.5.3)"><span class="pre">Series</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">result_b</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.html#pandas.Series" title="(in pandas v1.5.3)"><span class="pre">Series</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.html#pandas.Series" title="(in pandas v1.5.3)"><span class="pre">Series</span></a></span></span><a class="reference internal" href="../_modules/dimcat/analyzer/facet.html#FacetAnalyzer.aggregate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.analyzer.facet.FacetAnalyzer.aggregate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Static method that combines two results of <code class="xref py py-meth docutils literal notranslate"><span class="pre">compute()</span></code>.</p>
+<p>This needs to be equivalent to calling self.compute on the concatenation of the respective data resulting
+in the two arguments.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.analyzer.facet.FacetAnalyzer.data_iterator">
+<span class="sig-name descname"><span class="pre">data_iterator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="dimcat.data.html#dimcat.data.base.AnalyzedData" title="dimcat.data.base.AnalyzedData"><span class="pre">AnalyzedData</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Iterator" title="(in Python v3.10)"><span class="pre">Iterator</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Tuple" title="(in Python v3.10)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Union" title="(in Python v3.10)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="dimcat.html#dimcat.dtypes.PieceID" title="dimcat.dtypes.PieceID"><span class="pre">PieceID</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Tuple" title="(in Python v3.10)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Interval.html#pandas.Interval" title="(in pandas v1.5.3)"><span class="pre">Interval</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.5.3)"><span class="pre">DataFrame</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/dimcat/analyzer/facet.html#FacetAnalyzer.data_iterator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.analyzer.facet.FacetAnalyzer.data_iterator" title="Permalink to this definition">¶</a></dt>
+<dd><p>How a particular analyzer iterates through a dataset, getting the chunks passed to <code class="xref py py-meth docutils literal notranslate"><span class="pre">compute()</span></code>.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.analyzer.facet.NotesAnalyzer">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.analyzer.facet.</span></span><span class="sig-name descname"><span class="pre">NotesAnalyzer</span></span><a class="reference internal" href="../_modules/dimcat/analyzer/facet.html#NotesAnalyzer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.analyzer.facet.NotesAnalyzer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#dimcat.analyzer.facet.FacetAnalyzer" title="dimcat.analyzer.facet.FacetAnalyzer"><code class="xref py py-class docutils literal notranslate"><span class="pre">FacetAnalyzer</span></code></a></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="dimcat.analyzer.facet.NotesAnalyzer.result_type">
+<span class="sig-name descname"><span class="pre">result_type</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'NotesResult'</span></em><a class="headerlink" href="#dimcat.analyzer.facet.NotesAnalyzer.result_type" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.analyzer.facet.PitchClassVectors">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.analyzer.facet.</span></span><span class="sig-name descname"><span class="pre">PitchClassVectors</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pitch_class_format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'tpc'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight_grace_durations</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3.10/library/functions.html#float" title="(in Python v3.10)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ensure_pitch_classes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_empty</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/analyzer/facet.html#PitchClassVectors"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.analyzer.facet.PitchClassVectors" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#dimcat.analyzer.facet.NotesAnalyzer" title="dimcat.analyzer.facet.NotesAnalyzer"><code class="xref py py-class docutils literal notranslate"><span class="pre">NotesAnalyzer</span></code></a></p>
+<p>Analyzer that groups notes by their pitch class and aggregates their durations.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.analyzer.facet.PitchClassVectors.compute">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">compute</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">notes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.5.3)"><span class="pre">DataFrame</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">pitch_class_format</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Literal" title="(in Python v3.10)"><span class="pre">Literal</span></a><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'tpc'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'name'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'pc'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'midi'</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'tpc'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight_grace_durations</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3.10/library/functions.html#float" title="(in Python v3.10)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalize</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3.10/library/functions.html#bool" title="(in Python v3.10)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ensure_pitch_classes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Optional" title="(in Python v3.10)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Iterable" title="(in Python v3.10)"><span class="pre">Iterable</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.html#pandas.Series" title="(in pandas v1.5.3)"><span class="pre">Series</span></a></span></span><a class="reference internal" href="../_modules/dimcat/analyzer/facet.html#PitchClassVectors.compute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.analyzer.facet.PitchClassVectors.compute" title="Permalink to this definition">¶</a></dt>
+<dd><p>Group notes by their pitch class and aggregate their durations.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>notes</strong> – Note table to be transformed into a Pitch Class Vector. The DataFrame needs to
+contain at least the columns ‘duration_qb’ and ‘tpc’ or ‘midi’, depending
+on <code class="docutils literal notranslate"><span class="pre">pitch_class_format</span></code>.</p></li>
+<li><p><strong>pitch_class_format</strong> – <div class="line-block">
+<div class="line">Defines the type of pitch classes to use for the vectors.</div>
+<div class="line">’tpc’ (default): tonal pitch class, such that -1=F, 0=C, 1=G etc.</div>
+<div class="line">’name’: tonal pitch class as spelled pitch, e.g. ‘C’, ‘F#’, ‘Abb’ etc.</div>
+<div class="line">’pc’: chromatic pitch classes where 0=C, 1=C#/Db, … 11=B/Cb.</div>
+<div class="line">’midi’: original MIDI numbers; the result are pitch vectors, not pitch class vectors.</div>
+</div>
+</p></li>
+<li><p><strong>weight_grace_durations</strong> – By default (0.), grace notes have duration 0. Set this value to include their weighted
+durations in the computation of PCVs, e.g. 0.5.</p></li>
+<li><p><strong>normalize</strong> – By default, the PCVs contain absolute durations in quarter notes. Pass True to normalize
+the PCV for each group.</p></li>
+<li><p><strong>ensure_pitch_classes</strong> – By default, pitch classes that don’t appear don’t appear. Pass a collection of pitch
+classes if you want to ensure their presence even if empty. For example, if
+<code class="docutils literal notranslate"><span class="pre">pitch_class_format='pc'</span></code> you could pass <code class="docutils literal notranslate"><span class="pre">ensure_columns=range(12)</span></code>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A pitch class vector where the aggregated duration of each pitch class is given in quarter notes or,
+if <code class="docutils literal notranslate"><span class="pre">normalize=True</span></code>, as decimal fractions [0.0, 1.0].</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.analyzer.facet.PitchClassVectors.filename_factory">
+<span class="sig-name descname"><span class="pre">filename_factory</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/analyzer/facet.html#PitchClassVectors.filename_factory"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.analyzer.facet.PitchClassVectors.filename_factory" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generate file name component based on the configuration.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.analyzer.facet.PitchClassVectors.post_process">
+<span class="sig-name descname"><span class="pre">post_process</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">processed</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/analyzer/facet.html#PitchClassVectors.post_process"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.analyzer.facet.PitchClassVectors.post_process" title="Permalink to this definition">¶</a></dt>
+<dd><p>Inserts empty pitch class vectors for chunks without pitches, if any.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.analyzer.facet.TPCrange">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.analyzer.facet.</span></span><span class="sig-name descname"><span class="pre">TPCrange</span></span><a class="reference internal" href="../_modules/dimcat/analyzer/facet.html#TPCrange"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.analyzer.facet.TPCrange" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#dimcat.analyzer.facet.NotesAnalyzer" title="dimcat.analyzer.facet.NotesAnalyzer"><code class="xref py py-class docutils literal notranslate"><span class="pre">NotesAnalyzer</span></code></a></p>
+<p>Computes the range from the minimum to the maximum Tonal Pitch Class (TPC).</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.analyzer.facet.TPCrange.aggregate">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">aggregate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">result_a</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.html#pandas.Series" title="(in pandas v1.5.3)"><span class="pre">Series</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">result_b</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.html#pandas.Series" title="(in pandas v1.5.3)"><span class="pre">Series</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.html#pandas.Series" title="(in pandas v1.5.3)"><span class="pre">Series</span></a></span></span><a class="reference internal" href="../_modules/dimcat/analyzer/facet.html#TPCrange.aggregate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.analyzer.facet.TPCrange.aggregate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Static method that combines two results of <a class="reference internal" href="#dimcat.analyzer.facet.TPCrange.compute" title="dimcat.analyzer.facet.TPCrange.compute"><code class="xref py py-meth docutils literal notranslate"><span class="pre">compute()</span></code></a>.</p>
+<p>This needs to be equivalent to calling self.compute on the concatenation of the respective data resulting
+in the two arguments.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.analyzer.facet.TPCrange.compute">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">compute</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">notes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.5.3)"><span class="pre">DataFrame</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.html#pandas.Series" title="(in pandas v1.5.3)"><span class="pre">Series</span></a></span></span><a class="reference internal" href="../_modules/dimcat/analyzer/facet.html#TPCrange.compute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.analyzer.facet.TPCrange.compute" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computes the range from the minimum to the maximum Tonal Pitch Class (TPC).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>notes</strong> – Notes table with the column <code class="docutils literal notranslate"><span class="pre">tpc</span></code></p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The difference between the minimal and the maximal tonal pitch class, measured in perfect fifths.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-dimcat.analyzer.slices">
+<span id="dimcat-analyzer-slices-module"></span><h2>dimcat.analyzer.slices module<a class="headerlink" href="#module-dimcat.analyzer.slices" title="Permalink to this heading">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.analyzer.slices.GroupedSliceInfoAnalyzer">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.analyzer.slices.</span></span><span class="sig-name descname"><span class="pre">GroupedSliceInfoAnalyzer</span></span><a class="reference internal" href="../_modules/dimcat/analyzer/slices.html#GroupedSliceInfoAnalyzer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.analyzer.slices.GroupedSliceInfoAnalyzer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#dimcat.analyzer.slices.SliceInfoAnalyzer" title="dimcat.analyzer.slices.SliceInfoAnalyzer"><code class="xref py py-class docutils literal notranslate"><span class="pre">SliceInfoAnalyzer</span></code></a></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="dimcat.analyzer.slices.GroupedSliceInfoAnalyzer.assert_steps">
+<span class="sig-name descname"><span class="pre">assert_steps</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Collection</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">['Slicer',</span> <span class="pre">'Grouper']</span></em><a class="headerlink" href="#dimcat.analyzer.slices.GroupedSliceInfoAnalyzer.assert_steps" title="Permalink to this definition">¶</a></dt>
+<dd><p>Analyzer.process_data() raises ValueError if at least one of the names does not belong to
+a <code class="xref py py-obj docutils literal notranslate"><span class="pre">PipelineStep</span></code> that is among the previous PipelineSteps applied to the <code class="xref py py-obj docutils literal notranslate"><span class="pre">_Dataset</span></code>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.analyzer.slices.GroupedSliceInfoAnalyzer.data_iterator">
+<span class="sig-name descname"><span class="pre">data_iterator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="dimcat.data.html#dimcat.data.dcml.AnalyzedGroupedDataset" title="dimcat.data.dcml.AnalyzedGroupedDataset"><span class="pre">AnalyzedGroupedDataset</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Iterator" title="(in Python v3.10)"><span class="pre">Iterator</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Tuple" title="(in Python v3.10)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Union" title="(in Python v3.10)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="dimcat.html#dimcat.dtypes.PieceID" title="dimcat.dtypes.PieceID"><span class="pre">PieceID</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Tuple" title="(in Python v3.10)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Interval.html#pandas.Interval" title="(in pandas v1.5.3)"><span class="pre">Interval</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.5.3)"><span class="pre">DataFrame</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/dimcat/analyzer/slices.html#GroupedSliceInfoAnalyzer.data_iterator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.analyzer.slices.GroupedSliceInfoAnalyzer.data_iterator" title="Permalink to this definition">¶</a></dt>
+<dd><p>How a particular analyzer iterates through a dataset, getting the chunks passed to <code class="xref py py-meth docutils literal notranslate"><span class="pre">compute()</span></code>.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.analyzer.slices.LocalKeySequence">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.analyzer.slices.</span></span><span class="sig-name descname"><span class="pre">LocalKeySequence</span></span><a class="reference internal" href="../_modules/dimcat/analyzer/slices.html#LocalKeySequence"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.analyzer.slices.LocalKeySequence" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#dimcat.analyzer.slices.GroupedSliceInfoAnalyzer" title="dimcat.analyzer.slices.GroupedSliceInfoAnalyzer"><code class="xref py py-class docutils literal notranslate"><span class="pre">GroupedSliceInfoAnalyzer</span></code></a></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.analyzer.slices.LocalKeySequence.aggregate">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">aggregate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">result_a</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.html#pandas.Series" title="(in pandas v1.5.3)"><span class="pre">Series</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">result_b</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.html#pandas.Series" title="(in pandas v1.5.3)"><span class="pre">Series</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.html#pandas.Series" title="(in pandas v1.5.3)"><span class="pre">Series</span></a></span></span><a class="reference internal" href="../_modules/dimcat/analyzer/slices.html#LocalKeySequence.aggregate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.analyzer.slices.LocalKeySequence.aggregate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Static method that combines two results of <a class="reference internal" href="#dimcat.analyzer.slices.LocalKeySequence.compute" title="dimcat.analyzer.slices.LocalKeySequence.compute"><code class="xref py py-meth docutils literal notranslate"><span class="pre">compute()</span></code></a>.</p>
+<p>This needs to be equivalent to calling self.compute on the concatenation of the respective data resulting
+in the two arguments.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="dimcat.analyzer.slices.LocalKeySequence.assert_steps">
+<span class="sig-name descname"><span class="pre">assert_steps</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Collection</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">['LocalKeySlicer',</span> <span class="pre">'PieceGrouper']</span></em><a class="headerlink" href="#dimcat.analyzer.slices.LocalKeySequence.assert_steps" title="Permalink to this definition">¶</a></dt>
+<dd><p>Analyzer.process_data() raises ValueError if at least one of the names does not belong to
+a <code class="xref py py-obj docutils literal notranslate"><span class="pre">PipelineStep</span></code> that is among the previous PipelineSteps applied to the <code class="xref py py-obj docutils literal notranslate"><span class="pre">_Dataset</span></code>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.analyzer.slices.LocalKeySequence.compute">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">compute</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">slice_info</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.5.3)"><span class="pre">DataFrame</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.html#pandas.Series" title="(in pandas v1.5.3)"><span class="pre">Series</span></a></span></span><a class="reference internal" href="../_modules/dimcat/analyzer/slices.html#LocalKeySequence.compute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.analyzer.slices.LocalKeySequence.compute" title="Permalink to this definition">¶</a></dt>
+<dd><p>Static method that performs the actual computation takes place.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.analyzer.slices.LocalKeyUnique">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.analyzer.slices.</span></span><span class="sig-name descname"><span class="pre">LocalKeyUnique</span></span><a class="reference internal" href="../_modules/dimcat/analyzer/slices.html#LocalKeyUnique"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.analyzer.slices.LocalKeyUnique" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#dimcat.analyzer.slices.SliceInfoAnalyzer" title="dimcat.analyzer.slices.SliceInfoAnalyzer"><code class="xref py py-class docutils literal notranslate"><span class="pre">SliceInfoAnalyzer</span></code></a></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.analyzer.slices.LocalKeyUnique.aggregate">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">aggregate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">result_a</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.List" title="(in Python v3.10)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">result_b</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.List" title="(in Python v3.10)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.List" title="(in Python v3.10)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/dimcat/analyzer/slices.html#LocalKeyUnique.aggregate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.analyzer.slices.LocalKeyUnique.aggregate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Static method that combines two results of <a class="reference internal" href="#dimcat.analyzer.slices.LocalKeyUnique.compute" title="dimcat.analyzer.slices.LocalKeyUnique.compute"><code class="xref py py-meth docutils literal notranslate"><span class="pre">compute()</span></code></a>.</p>
+<p>This needs to be equivalent to calling self.compute on the concatenation of the respective data resulting
+in the two arguments.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="dimcat.analyzer.slices.LocalKeyUnique.assert_steps">
+<span class="sig-name descname"><span class="pre">assert_steps</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Collection</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">['LocalKeySlicer']</span></em><a class="headerlink" href="#dimcat.analyzer.slices.LocalKeyUnique.assert_steps" title="Permalink to this definition">¶</a></dt>
+<dd><p>Analyzer.process_data() raises ValueError if at least one of the names does not belong to
+a <code class="xref py py-obj docutils literal notranslate"><span class="pre">PipelineStep</span></code> that is among the previous PipelineSteps applied to the <code class="xref py py-obj docutils literal notranslate"><span class="pre">_Dataset</span></code>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.analyzer.slices.LocalKeyUnique.compute">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">compute</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">slice_info</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.5.3)"><span class="pre">DataFrame</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.List" title="(in Python v3.10)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/dimcat/analyzer/slices.html#LocalKeyUnique.compute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.analyzer.slices.LocalKeyUnique.compute" title="Permalink to this definition">¶</a></dt>
+<dd><p>Static method that performs the actual computation takes place.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="dimcat.analyzer.slices.SliceInfoAnalyzer">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">dimcat.analyzer.slices.</span></span><span class="sig-name descname"><span class="pre">SliceInfoAnalyzer</span></span><a class="reference internal" href="../_modules/dimcat/analyzer/slices.html#SliceInfoAnalyzer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.analyzer.slices.SliceInfoAnalyzer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#dimcat.analyzer.base.Analyzer" title="dimcat.analyzer.base.Analyzer"><code class="xref py py-class docutils literal notranslate"><span class="pre">Analyzer</span></code></a></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="dimcat.analyzer.slices.SliceInfoAnalyzer.assert_steps">
+<span class="sig-name descname"><span class="pre">assert_steps</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Collection</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">['Slicer']</span></em><a class="headerlink" href="#dimcat.analyzer.slices.SliceInfoAnalyzer.assert_steps" title="Permalink to this definition">¶</a></dt>
+<dd><p>Analyzer.process_data() raises ValueError if at least one of the names does not belong to
+a <code class="xref py py-obj docutils literal notranslate"><span class="pre">PipelineStep</span></code> that is among the previous PipelineSteps applied to the <code class="xref py py-obj docutils literal notranslate"><span class="pre">_Dataset</span></code>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.analyzer.slices.SliceInfoAnalyzer.check">
+<span class="sig-name descname"><span class="pre">check</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/dimcat/analyzer/slices.html#SliceInfoAnalyzer.check"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.analyzer.slices.SliceInfoAnalyzer.check" title="Permalink to this definition">¶</a></dt>
+<dd><p>Test piece of data for certain properties before computing analysis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3.10/library/functions.html#bool" title="(in Python v3.10)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">bool</span></code></a> – True if the passed data is eligible.</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3.10/library/stdtypes.html#str" title="(in Python v3.10)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">str</span></code></a> – Error message in case the passed data is not eligible.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="dimcat.analyzer.slices.SliceInfoAnalyzer.data_iterator">
+<span class="sig-name descname"><span class="pre">data_iterator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="dimcat.data.html#dimcat.data.dcml.AnalyzedSlicedDataset" title="dimcat.data.dcml.AnalyzedSlicedDataset"><span class="pre">AnalyzedSlicedDataset</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Iterator" title="(in Python v3.10)"><span class="pre">Iterator</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Tuple" title="(in Python v3.10)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3.10/library/typing.html#typing.Literal" title="(in Python v3.10)"><span class="pre">Literal</span></a><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'all_slices'</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.5.3)"><span class="pre">DataFrame</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/dimcat/analyzer/slices.html#SliceInfoAnalyzer.data_iterator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#dimcat.analyzer.slices.SliceInfoAnalyzer.data_iterator" title="Permalink to this definition">¶</a></dt>
+<dd><p>How a particular analyzer iterates through a dataset, getting the chunks passed to <code class="xref py py-meth docutils literal notranslate"><span class="pre">compute()</span></code>.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-dimcat.analyzer">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-dimcat.analyzer" title="Permalink to this heading">¶</a></h2>
+</section>
+</section>
+
+
+          </div>
+
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">dimcat</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../readme.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorial.html">Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../manual.html">Manual</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notebooks/index.html">Example Notebooks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributions &amp; Help</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../authors.html">Authors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../changelog.html">Changelog</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">Module Reference</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="dimcat.html">dimcat package</a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="modules.html">dimcat</a><ul>
+  <li><a href="dimcat.html">dimcat package</a><ul>
+      <li>Previous: <a href="dimcat.html" title="previous chapter">dimcat package</a></li>
+      <li>Next: <a href="dimcat.data.html" title="next chapter">dimcat.data package</a></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Digital and Cognitive Musicology Lab @ École Polytechnique Fédérale de Lausanne.
+
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
+
+      |
+      <a href="../_sources/api/dimcat.analyzer.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+
+
+
+  </body>
+</html>
