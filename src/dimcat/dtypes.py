@@ -132,7 +132,15 @@ class TypedSequence(Sequence[T_co]):
     ) -> Iterator[T_co]:
         yield from (x for x in self.values if condition(x))
 
+    @overload
+    def get_n_grams(self, n: Literal[2]) -> Bigrams[T_co]:
+        ...
+
+    @overload
     def get_n_grams(self, n: int) -> Ngrams[T_co]:
+        ...
+
+    def get_n_grams(self, n: int) -> Union[Ngrams[T_co], Bigrams[T_co]]:
         """
         Returns n-gram tuples of the sequence, i.e. all N-(n-1) possible direct successions of n elements.
         """
