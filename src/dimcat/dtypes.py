@@ -549,8 +549,12 @@ class FacetName(Enum):
     CHORDS = ("chords",)
 
 
+@runtime_checkable
 class PFacet(Protocol):
-    pass
+    """Protocol for all objects representing one data facet of one or several pieces."""
+
+    def get_aspect(self, key: [str, Enum]) -> [TypedSequence, TabularData]:
+        ...
 
 
 @runtime_checkable
@@ -590,8 +594,7 @@ class Facet(TabularData):
     pass
 
 
-@dataclass(frozen=True)
-class HarmonyInfo(TabularData):
+class Harmonies(Facet):
     def modulation_bigrams_list(self) -> List[str]:
         """Returns a list of str representing the modulation bigram. e.g., "f#_IV/V_bIII/V" """
         globalkey = self.df["globalkey"][0]
@@ -606,21 +609,22 @@ class HarmonyInfo(TabularData):
         return chords.get_n_grams(2)
 
 
-@dataclass(frozen=True)
-class MeasureInfo(TabularData):
+class Measures(Facet):
     pass
 
 
-@dataclass(frozen=True)
-class NoteInfo(TabularData):
+class Notes(Facet):
     @cached_property
     def tpc(self) -> TypedSequence:
         series = self.df["tpc"]
-        sequential = TypedSequence.from_series(series=series)
+        sequential = TypedSequence(series)
         return sequential
 
 
 if __name__ == "__main__":
     df = ms3.load_tsv("~/corelli/metadata.tsv")
     t = Facet(df)
-    print(t.df)
+    print(t)
+    notes = Notes(ms3.load_tsv("~/corelli/notes/op01n01a.tsv"))
+    assert isinstance(notes, PFacet)
+    print(notes)

@@ -8,41 +8,11 @@ from typing import Callable, List, Literal
 
 import ms3
 import pandas as pd
-from dimcat.dtypes import Bigrams, TabularData, TypedSequence
+from dimcat.dtypes import Harmonies, Measures, Notes, TabularData, TypedSequence
 from dimcat.musana.harmony_types import Key, TonalHarmony
 from dimcat.musana.util import determine_era_based_on_year
 
 # _____________________________ AspectInfo ______________________________________
-
-
-@dataclass(frozen=True)
-class HarmonyInfo(TabularData):
-    def modulation_bigrams_list(self) -> List[str]:
-        """Returns a list of str representing the modulation bigram. e.g., "f#_IV/V_bIII/V" """
-        globalkey = self.df["globalkey"][0]
-        localkey_list = self.get_aspect(key="localkey").get_changes()
-        mod_bigrams = localkey_list.get_n_grams(n=2)
-        mod_bigrams = ["_".join([item[0], item[1]]) for item in mod_bigrams]
-        bigrams = [globalkey + "_" + item for item in mod_bigrams]
-        return bigrams
-
-    def get_chord_bigrams(self) -> Bigrams:
-        chords = self.get_aspect("chord")
-        return chords.get_n_grams(2)
-
-
-@dataclass(frozen=True)
-class MeasureInfo(TabularData):
-    pass
-
-
-@dataclass(frozen=True)
-class NoteInfo(TabularData):
-    @cached_property
-    def tpc(self) -> TypedSequence:
-        series = self.df["tpc"]
-        sequential = TypedSequence.from_series(series=series)
-        return sequential
 
 
 @dataclass(frozen=True)
@@ -110,9 +80,9 @@ class MetaCorporaMetaData:
 class PieceInfo:
     # containing the data for a single piece
     meta_info: PieceMetaData
-    harmony_info: HarmonyInfo
-    measure_info: MeasureInfo
-    note_info: NoteInfo
+    harmony_info: Harmonies
+    measure_info: Measures
+    note_info: Notes
     key_info: KeyInfo
 
     @classmethod
@@ -146,9 +116,9 @@ class PieceInfo:
                 "piece does not have all the required .tsv files in this corpus"
             )
 
-        harmony_info = HarmonyInfo.from_df(df=harmonies_df)
-        measure_info = MeasureInfo.from_df(df=measure_df)
-        note_info = NoteInfo.from_df(df=note_df)
+        harmony_info = Harmonies.from_df(df=harmonies_df)
+        measure_info = Measures.from_df(df=measure_df)
+        note_info = Notes.from_df(df=note_df)
 
         key_df: pd.DataFrame = harmony_info.df[["globalkey", "localkey"]]
         key_info = KeyInfo.from_df(df=key_df)
@@ -250,9 +220,9 @@ class BaseCorpusInfo(ABC):
 class CorpusInfo(BaseCorpusInfo):
     # containing data for a single corpus
     meta_info: CorpusMetaData
-    harmony_info: HarmonyInfo
-    measure_info: MeasureInfo
-    note_info: NoteInfo
+    harmony_info: Harmonies
+    measure_info: Measures
+    note_info: Notes
     key_info: KeyInfo
 
     def filter_pieces_by_condition(
@@ -305,9 +275,9 @@ class CorpusInfo(BaseCorpusInfo):
                 "piece does not have all the required .tsv files in this corpus"
             )
 
-        harmony_info = HarmonyInfo.from_df(df=harmonies_df)
-        measure_info = MeasureInfo.from_df(df=measure_df)
-        note_info = NoteInfo.from_df(df=note_df)
+        harmony_info = Harmonies.from_df(df=harmonies_df)
+        measure_info = Measures.from_df(df=measure_df)
+        note_info = Notes.from_df(df=note_df)
 
         key_df: pd.DataFrame = harmony_info.df[["globalkey", "localkey"]]
         key_info = KeyInfo.from_df(df=key_df)
@@ -361,9 +331,9 @@ class CorpusInfo(BaseCorpusInfo):
 class MetaCorporaInfo(BaseCorpusInfo):
     # containing data for a collection corpora
     meta_info: MetaCorporaMetaData
-    harmony_info: HarmonyInfo
-    measure_info: MeasureInfo
-    note_info: NoteInfo
+    harmony_info: Harmonies
+    measure_info: Measures
+    note_info: Notes
     key_info: KeyInfo
 
     def filter_pieces_by_condition(
@@ -424,9 +394,9 @@ class MetaCorporaInfo(BaseCorpusInfo):
                 "Corpus does not have all the required .tsv files in this corpus"
             )
 
-        harmony_info = HarmonyInfo.from_df(df=harmonies_df)
-        measure_info = MeasureInfo.from_df(df=measure_df)
-        note_info = NoteInfo.from_df(df=note_df)
+        harmony_info = Harmonies.from_df(df=harmonies_df)
+        measure_info = Measures.from_df(df=measure_df)
+        note_info = Notes.from_df(df=note_df)
 
         key_df: pd.DataFrame = harmony_info.df[["globalkey", "localkey"]]
         key_info = KeyInfo.from_df(df=key_df)
