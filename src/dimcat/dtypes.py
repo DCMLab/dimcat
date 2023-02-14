@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+from abc import ABC
+from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import (
@@ -550,3 +552,20 @@ class PFacet(Protocol):
 class PPiece(Protocol):
     def get_facet(self, facet=PieceFacet) -> PFacet:
         ...
+
+
+@dataclass(frozen=True)
+class TabularData(ABC):
+    """Wrapper around a :obj:`pandas.DataFrame`."""
+
+    _df: pd.DataFrame
+
+    @classmethod
+    def from_df(cls, df: pd.DataFrame):
+        instance = cls(_df=df)
+        return instance
+
+    def get_aspect(self, key: str) -> TypedSequence:
+        series: pd.Series = self._df[key]
+        sequential_data = TypedSequence(series)
+        return sequential_data

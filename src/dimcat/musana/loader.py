@@ -8,25 +8,9 @@ from typing import Callable, List, Literal
 
 import ms3
 import pandas as pd
-from dimcat.dtypes import Bigrams, TypedSequence
+from dimcat.dtypes import Bigrams, TabularData, TypedSequence
 from dimcat.musana.harmony_types import Key, TonalHarmony
 from dimcat.musana.util import determine_era_based_on_year
-
-
-@dataclass(frozen=True)
-class TabularData(ABC):
-    _df: pd.DataFrame
-
-    @classmethod
-    def from_df(cls, df: pd.DataFrame):
-        instance = cls(_df=df)
-        return instance
-
-    def get_aspect(self, key: str) -> TypedSequence:
-        series: pd.Series = self._df[key]
-        sequential_data = TypedSequence(series)
-        return sequential_data
-
 
 # _____________________________ AspectInfo ______________________________________
 
