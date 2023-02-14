@@ -4,6 +4,7 @@ import logging
 from abc import ABC
 from dataclasses import dataclass
 from enum import Enum
+from functools import cached_property
 from pathlib import Path
 from typing import (
     Any,
@@ -584,6 +585,36 @@ class Facet(TabularData):
     """Classes implementing the PFacet protocol."""
 
     pass
+
+
+@dataclass(frozen=True)
+class HarmonyInfo(TabularData):
+    def modulation_bigrams_list(self) -> List[str]:
+        """Returns a list of str representing the modulation bigram. e.g., "f#_IV/V_bIII/V" """
+        globalkey = self.df["globalkey"][0]
+        localkey_list = self.get_aspect(key="localkey").get_changes()
+        mod_bigrams = localkey_list.get_n_grams(n=2)
+        mod_bigrams = ["_".join([item[0], item[1]]) for item in mod_bigrams]
+        bigrams = [globalkey + "_" + item for item in mod_bigrams]
+        return bigrams
+
+    def get_chord_bigrams(self) -> Bigrams:
+        chords = self.get_aspect("chord")
+        return chords.get_n_grams(2)
+
+
+@dataclass(frozen=True)
+class MeasureInfo(TabularData):
+    pass
+
+
+@dataclass(frozen=True)
+class NoteInfo(TabularData):
+    @cached_property
+    def tpc(self) -> TypedSequence:
+        series = self.df["tpc"]
+        sequential = TypedSequence.from_series(series=series)
+        return sequential
 
 
 if __name__ == "__main__":
