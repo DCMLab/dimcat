@@ -19,7 +19,7 @@ from dimcat.musana.util import determine_era_based_on_year
 class HarmonyInfo(TabularData):
     def modulation_bigrams_list(self) -> List[str]:
         """Returns a list of str representing the modulation bigram. e.g., "f#_IV/V_bIII/V" """
-        globalkey = self._df["globalkey"][0]
+        globalkey = self.df["globalkey"][0]
         localkey_list = self.get_aspect(key="localkey").get_changes()
         mod_bigrams = localkey_list.get_n_grams(n=2)
         mod_bigrams = ["_".join([item[0], item[1]]) for item in mod_bigrams]
@@ -40,7 +40,7 @@ class MeasureInfo(TabularData):
 class NoteInfo(TabularData):
     @cached_property
     def tpc(self) -> TypedSequence:
-        series = self._df["tpc"]
+        series = self.df["tpc"]
         sequential = TypedSequence.from_series(series=series)
         return sequential
 
@@ -49,7 +49,7 @@ class NoteInfo(TabularData):
 class KeyInfo(TabularData):
     @cached_property
     def global_key(self) -> Key:
-        key_str = self._df["globalkey"][0]
+        key_str = self.df["globalkey"][0]
         if not isinstance(key_str, str):
             key = "NA"
         else:
@@ -58,7 +58,7 @@ class KeyInfo(TabularData):
 
     @cached_property
     def local_key(self) -> TypedSequence:
-        local_key_series = self._df["localkey"]
+        local_key_series = self.df["localkey"]
         sequential_data = TypedSequence.from_series(series=local_key_series)
         return sequential_data
 
@@ -150,7 +150,7 @@ class PieceInfo:
         measure_info = MeasureInfo.from_df(df=measure_df)
         note_info = NoteInfo.from_df(df=note_df)
 
-        key_df: pd.DataFrame = harmony_info._df[["globalkey", "localkey"]]
+        key_df: pd.DataFrame = harmony_info.df[["globalkey", "localkey"]]
         key_info = KeyInfo.from_df(df=key_df)
 
         piece_length = harmonies_df.shape[0]
@@ -210,7 +210,7 @@ class PieceInfo:
     @cached_property
     def get_tonal_harmony_sequential(self) -> TypedSequence:
         """Essentially get the "chord" column from the dataframe and transform each chord to a TonalHarmony object."""
-        dropped_nan_df = self.harmony_info._df.dropna(
+        dropped_nan_df = self.harmony_info.df.dropna(
             how="any", subset=["chord", "globalkey", "localkey"]
         )
         dropped_nan_df = dropped_nan_df.reset_index(drop=True)
@@ -292,13 +292,13 @@ class CorpusInfo(BaseCorpusInfo):
 
         try:
             harmonies_df: pd.DataFrame = pd.concat(
-                [item.harmony_info._df for item in pieceinfo_list]
+                [item.harmony_info.df for item in pieceinfo_list]
             )
             measure_df: pd.DataFrame = pd.concat(
-                [item.measure_info._df for item in pieceinfo_list]
+                [item.measure_info.df for item in pieceinfo_list]
             )
             note_df: pd.DataFrame = pd.concat(
-                [item.note_info._df for item in pieceinfo_list]
+                [item.note_info.df for item in pieceinfo_list]
             )
         except Exception:
             raise Warning(
@@ -309,7 +309,7 @@ class CorpusInfo(BaseCorpusInfo):
         measure_info = MeasureInfo.from_df(df=measure_df)
         note_info = NoteInfo.from_df(df=note_df)
 
-        key_df: pd.DataFrame = harmony_info._df[["globalkey", "localkey"]]
+        key_df: pd.DataFrame = harmony_info.df[["globalkey", "localkey"]]
         key_info = KeyInfo.from_df(df=key_df)
 
         concat_composed_start_series = sum(
@@ -411,13 +411,13 @@ class MetaCorporaInfo(BaseCorpusInfo):
 
         try:
             harmonies_df: pd.DataFrame = pd.concat(
-                [item.harmony_info._df for item in corpusinfo_list]
+                [item.harmony_info.df for item in corpusinfo_list]
             )
             measure_df: pd.DataFrame = pd.concat(
-                [item.measure_info._df for item in corpusinfo_list]
+                [item.measure_info.df for item in corpusinfo_list]
             )
             note_df: pd.DataFrame = pd.concat(
-                [item.note_info._df for item in corpusinfo_list]
+                [item.note_info.df for item in corpusinfo_list]
             )
         except Exception:
             raise Warning(
@@ -428,7 +428,7 @@ class MetaCorporaInfo(BaseCorpusInfo):
         measure_info = MeasureInfo.from_df(df=measure_df)
         note_info = NoteInfo.from_df(df=note_df)
 
-        key_df: pd.DataFrame = harmony_info._df[["globalkey", "localkey"]]
+        key_df: pd.DataFrame = harmony_info.df[["globalkey", "localkey"]]
         key_info = KeyInfo.from_df(df=key_df)
 
         concat_composed_start_series = sum(
@@ -505,5 +505,5 @@ if __name__ == "__main__":
         parent_corpus_path="~/corelli//", piece_name="op01n01a"
     )
 
-    result = piece.harmony_info._df[["globalkey", "localkey", "chord"]].to_numpy()
+    result = piece.harmony_info.df[["globalkey", "localkey", "chord"]].to_numpy()
     print(result)

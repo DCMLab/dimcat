@@ -558,14 +558,15 @@ class PPiece(Protocol):
 class TabularData(ABC):
     """Wrapper around a :obj:`pandas.DataFrame`."""
 
-    _df: pd.DataFrame
+    df: pd.DataFrame
 
     @classmethod
     def from_df(cls, df: pd.DataFrame):
-        instance = cls(_df=df)
+        """Subclasses can implement transformational logic."""
+        instance = cls(df=df)
         return instance
 
     def get_aspect(self, key: str) -> TypedSequence:
-        series: pd.Series = self._df[key]
+        series: pd.Series = self.df[key]
         sequential_data = TypedSequence(series)
         return sequential_data
