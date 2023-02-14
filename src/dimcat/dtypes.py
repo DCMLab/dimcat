@@ -137,7 +137,10 @@ class TypedSequence(Sequence[T_co]):
         Returns n-gram tuples of the sequence, i.e. all N-(n-1) possible direct successions of n elements.
         """
         n_grams = grams(self.values, n=n)
-        return Ngrams(values=n_grams)
+        if n == 2:
+            return Bigrams(values=n_grams)
+        else:
+            return Ngrams(values=n_grams)
 
     def get_transition_matrix(
         self,
