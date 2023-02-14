@@ -30,6 +30,7 @@ from typing import (
     runtime_checkable,
 )
 
+import ms3
 import numpy as np
 import pandas as pd
 from dimcat.utils import grams, transition_matrix
@@ -83,7 +84,7 @@ class TypedSequence(Sequence[T_co]):
     This is useful for downcasting to a subclass that has the fitting converter pre-defined.
     For example, ``PieceIndex`` is defined as
 
-        >>> class PieceIndex(TypedSequence[PieceID], register_for=[PieceID]):
+        class PieceIndex(TypedSequence[PieceID], register_for=[PieceID]):
 
     where ``register_for=List[Type]`` makes sure any TypedSequence instantiated
     **without a custom converter** and with a first element of type ``Type`` will be
@@ -531,7 +532,7 @@ class PLoader(Protocol):
         ...
 
 
-class PieceFacet(Enum):
+class FacetName(Enum):
     MEASURES = ("measures",)
     NOTES = ("notes",)
     RESTS = ("rests",)
@@ -550,7 +551,7 @@ class PFacet(Protocol):
 
 @runtime_checkable
 class PPiece(Protocol):
-    def get_facet(self, facet=PieceFacet) -> PFacet:
+    def get_facet(self, facet=FacetName) -> PFacet:
         ...
 
 
@@ -567,6 +568,25 @@ class TabularData(ABC):
         return instance
 
     def get_aspect(self, key: str) -> TypedSequence:
+        """In its basic form, get one of the columns as a :obj:`TypedSequence`.
+        Subclasses may offer additional aspects, such as transformed columns or subsets of the table.
+        """
         series: pd.Series = self.df[key]
         sequential_data = TypedSequence(series)
         return sequential_data
+
+    def __getattr__(self, item):
+        """Enable using TabularData like a DataFrame."""
+        return getattr(self.df, item)
+
+
+class Facet(TabularData):
+    """Classes implementing the PFacet protocol."""
+
+    pass
+
+
+if __name__ == "__main__":
+    df = ms3.load_tsv("~/corelli/metadata.tsv")
+    t = Facet(df)
+    print(t.df)
