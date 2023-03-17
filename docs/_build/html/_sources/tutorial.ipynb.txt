@@ -1,0 +1,532 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Tutorial\n",
+    "\n",
+    "In order to run this notebook:\n",
+    "* create new environment, make it visible to your Jupyter\n",
+    "  * for conda do `conda create --name {name} python=3.10`\n",
+    "  * activate it and install `pip install ipykernel`\n",
+    "  * `ipython kernel install --user --name={name}`\n",
+    "* within the new environment, install requirements, e.g. `pip install -r requirements.txt`\n",
+    "  * this currently involves installing the current development versions of ms3 and dimcat\n",
+    "* clone the corpus: `git clone --recurse-submodules -j8 git@github.com:DCMLab/unittest_metacorpus.git`\n",
+    "* Set the `meta_repo` in the second cell to your local clone.\n",
+    "\n",
+    "If the plots are not displayed and you are in JupyterLab, use [this guide](https://plotly.com/python/getting-started/#jupyterlab-support)."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "pycharm": {
+     "name": "#%%\n"
+    }
+   },
+   "outputs": [],
+   "source": [
+    "import os\n",
+    "from git import Repo\n",
+    "import dimcat as dc"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "meta_repo = \"~/unittest_metacorpus\"\n",
+    "repo = Repo(meta_repo)\n",
+    "print(f\"{os.path.basename(meta_repo)} @ {repo.commit().hexsha[:7]}\")\n",
+    "print(f\"dimcat version {dc.__version__}\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## The Dataset object\n",
+    "### Initializing a Dataset\n",
+    "\n",
+    "Pass a directory to `dimcat.Dataset.load()` to discover and parse all TSV files. The property `data` simply returns an `ms3.Parse` object."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "pycharm": {
+     "name": "#%%\n"
+    }
+   },
+   "outputs": [],
+   "source": [
+    "dataset = dc.Dataset()\n",
+    "dataset.load(directory=meta_repo)\n",
+    "dataset.data"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Accessing pieces using IDs\n",
+    "\n",
+    "* The field `Dataset.pieces` holds references to `ms3.Piece` objects which reunite data facets such as note tables, (harmony) annotation tables for all the loaded pieces.\n",
+    "* Pieces are addressed by means of an index/ID of the form `('corpus_name', 'fname')`."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "list(dataset.pieces.keys())"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "dataset.pieces[('ravel_piano', 'Ravel_-_Jeux_dEau')]"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Groups of IDs\n",
+    "\n",
+    "* Accessing any kind of information from the Dataset relies on the current grouping of IDs.\n",
+    "* Although the `ms3.Parse` object groups data into various corpora, DiMCAT assumes no grouping before any Grouper has been applied (see below).\n",
+    "* Instead, after initialization, all indices are grouped into one list, accessible through the key `()` (empty tuple)."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "dataset.indices"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Accessing data facets\n",
+    "\n",
+    "Currently, the following facets may be available, depending on the state of annotations:\n",
+    "\n",
+    "* `'measures'`\n",
+    "* `'notes'`\n",
+    "* `'rests'`\n",
+    "* `'notes_and_rests'`\n",
+    "* `'labels'`\n",
+    "* `'expanded'`\n",
+    "* `'form_labels'`\n",
+    "* `'cadences'`\n",
+    "* `'events'`\n",
+    "* `'chords'`\n",
+    "\n",
+    "There are two ways of accessing facets of a Dataset:\n",
+    "\n",
+    "#### Iterating\n",
+    "\n",
+    "For example, to iterate through note lists:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "scrolled": true,
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "for group_id, id2dataframe in dataset.iter_facet('notes'):\n",
+    "    for ID, df in id2dataframe.items():\n",
+    "        print(f\"First note of {ID}:\")\n",
+    "        display(df.head(1))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "or, since no Groupers have been applied, we can also skip the first loop:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "for ID, df in dataset.iter_facet('notes', ignore_groups=True):\n",
+    "    print(f\"Time signatures in {ID}: {list(df.timesig.unique())}\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "#### Getting\n",
+    "\n",
+    "Or we simply retrieve a concatenated DataFrame with a MultiIndex (i.e. an index with several hierarchical levels):"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "dataset.get_facet('notes')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Applying PipelineSteps to a Dataset\n",
+    "\n",
+    "Everything else in DiMCAT is a PipelineStep which are distributed over several modules:\n",
+    "\n",
+    "* `dimcat.filter`: Filters return a new Dataset where certain IDs have been removed.\n",
+    "* `dimcat.grouper`: Groupers subdivide each of the current ID groups based on a given criterion and return a new Dataset with an altered `.indices` field.\n",
+    "* `dimcat.slicer`: Slicers create for each ID (read: piece) a set of chunks identified by non-overlapping intervals. Any facet retrieved from such a sliced Dataset will be sliced, cutting and duplicating any event that overlaps the interval boundaries.\n",
+    "* `dimcat.analyzer`: Analyzers perform an analysis on a given Dataset and return a new Dataset with the results stored in the `.processed` field. \n",
+    "* `dimcat.plotter`: Plotters plot analysis ('processed') data and potentially output plots as files.\n",
+    "* `dimcat.writer`: Writers output analyzed data to disk.\n",
+    "\n",
+    "All these PipelineSteps come with the method `process_data()` and return a copy of the given Dataset.\n",
+    "\n",
+    "### Applying a filter\n",
+    "\n",
+    "Let's see this principle at work by applying the `IsAnnotatedFilter` which returns a new Dataset where all pieces contain harmony annotations:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "annotated = dc.IsAnnotatedFilter().process_data(dataset)\n",
+    "print(f\"Before: {dataset.n_indices} IDs, after filtering: {annotated.n_indices} IDs\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Applying a slicer\n",
+    "\n",
+    "Now we apply the `LocalKeySlicer`, slicing the annotation tables into segments that remain in one local key:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "localkey_slices = dc.LocalKeySlicer().process_data(annotated)\n",
+    "print(f\"Before: {annotated.n_indices} IDs, after slicing: {localkey_slices.n_indices} IDs\")\n",
+    "print(f\"Facets that have been sliced so far: {list(localkey_slices.sliced.keys())}.\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "The IDs of the sliced Dataset have multiplied and received a third element, which is the interval specifying the extent of one slice. Let's have a look at the first 10 IDs:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "localkey_slices.indices[()][:10]"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "The IDs make sure that all facets retrieved from this Dataset will be sliced.\n",
+    "\n",
+    "This is True not only for the facet that has been used for slicing (annotation tables in the present case):"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "localkey_slices.get_facet('expanded').head(30)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "But also for any other facet requested:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "localkey_slices.get_facet('notes')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "In both cases we see an additional index level `localkey_slice` containing the intervals of the localkey segments. Notes that originally overlapped a localkey boundary are now split in two with `duration_qb` values adapted (but not `duration` which keeps the original value). \n",
+    "\n",
+    "However, we might be interested only in the slices themselves, so we can get the information stored in the field `slice_info` by calling:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "localkey_slices.get_slice_info()[['duration_qb', 'globalkey', 'localkey']]"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Applying a Grouper\n",
+    "\n",
+    "If, for example, we want to analyse localkey segments separately depending on whether they are in major or minor, we could apply a `ModeGrouper`, which can only applied to a Dataset that has already been sliced:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "grouped_localkey_slices = dc.ModeGrouper().process_data(localkey_slices)\n",
+    "grouped_localkey_slices.get_slice_info()[['duration_qb', 'globalkey', 'localkey']]"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "The grouping is displayed as the prepended index level `localkey_is_minor`. In this case the groups are simply called `True` or `False`, as can be seen by inspecting the `.indices` dictionary. The keys are tuples whose lengths match the number of applied Groupers so far."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "list(grouped_localkey_slices.indices.keys())"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Applying an Analyzer\n",
+    "\n",
+    "After having seen the various ways how a Dataset can be reshaped, let us have a look how the various transformations change the result of an analyzer.\n",
+    "To that aim, let's first initialize the `PitchClassVectors` analyzer with the desired configuration:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "pcv_analyzer = dc.PitchClassVectors(pitch_class_format='pc', \n",
+    "                                    weight_grace_durations=0.5, \n",
+    "                                    normalize=True, \n",
+    "                                    include_empty=True)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "We want to \n",
+    "\n",
+    "* see pitch classes 0-12 (as opposed to the defautl `tpc`, i.e. tonal pitch classes on the line of fifth),\n",
+    "* include grace notes, which usually have duration 0, by halving their note values,\n",
+    "* normalize the resulting vectors, and\n",
+    "* include zero vectors where no notes occur (i.e. for completely silent segments).\n",
+    "\n",
+    "We start by applying this analyzer to the filtered dataset, in which all pieces are excluded that do not contain annotations:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "annotated_pieces_pcvs = pcv_analyzer.process_data(annotated)\n",
+    "annotated_pieces_pcvs.get()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Applying the same analyzer to the Dataset sliced by localkey segments yields one vector per segment:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "localkey_segment_pcvs = pcv_analyzer.process_data(localkey_slices)\n",
+    "localkey_segment_pcvs.get()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Applying a `PitchClassVectors` Analyzer to the localkey segments that have been grouped by keys, seems to not make much of a difference\n",
+    "(except that this one here does not normalize):"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "grouped_localkey_pcvs = dc.PitchClassVectors(pitch_class_format='pc').process_data(grouped_localkey_slices)\n",
+    "grouped_localkey_pcvs.get()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "However, the previous grouping allows us to iterate through the grouped pitch class vectors, e.g. for summing them up for all segments in major and minor respectively:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "for (mode,), pcvs in grouped_localkey_pcvs.iter(as_pandas=True):\n",
+    "    print(f\"PITCH CLASS PROFILE FOR ALL {'MINOR' if mode else 'MAJOR'} SEGMENTS:\")\n",
+    "    summed = pcvs.sum()\n",
+    "    display(summed / summed.sum())"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Analyzing slice infos"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "lk_per_piece = dc.PieceGrouper().process_data(localkey_slices)\n",
+    "lokalkeys_per_piece = dc.LocalKeySequence().process_data(lk_per_piece)\n",
+    "lokalkeys_per_piece.get()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "unique_localkeys = dc.LocalKeyUnique().process_data(lk_per_piece)\n",
+    "unique_localkeys.get()"
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "dimcat",
+   "language": "python",
+   "name": "dimcat"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.10.4"
+  },
+  "toc": {
+   "base_numbering": 1,
+   "nav_menu": {},
+   "number_sections": true,
+   "sideBar": true,
+   "skip_h1_title": false,
+   "title_cell": "Table of Contents",
+   "title_sidebar": "Contents",
+   "toc_cell": false,
+   "toc_position": {
+    "height": "calc(100% - 180px)",
+    "left": "10px",
+    "top": "150px",
+    "width": "456.933px"
+   },
+   "toc_section_display": true,
+   "toc_window_display": true
+  },
+  "widgets": {
+   "application/vnd.jupyter.widget-state+json": {
+    "state": {},
+    "version_major": 2,
+    "version_minor": 0
+   }
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 4
+}

@@ -1,141 +1,501 @@
 
 <!DOCTYPE html>
 
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>dimcat.analyzer &#8212; dimcat 0.1.0.post1.dev2+g3b16e52 documentation</title>
+    <title>dimcat.analyzer &#8212; dimcat 0.3.0.post1.dev104+g9c57474 documentation</title>
+
+
+
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "light";
+  </script>
+
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../_static/styles/theme.css?digest=796348d33e8b1d947c94" rel="stylesheet">
+<link href="../../_static/styles/bootstrap.css?digest=796348d33e8b1d947c94" rel="stylesheet">
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=796348d33e8b1d947c94" rel="stylesheet">
+
+
+  <link href="../../_static/vendor/fontawesome/6.1.2/css/all.min.css?digest=796348d33e8b1d947c94" rel="stylesheet">
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.1.2/webfonts/fa-solid-900.woff2">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.1.2/webfonts/fa-brands-400.woff2">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.1.2/webfonts/fa-regular-400.woff2">
+
     <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../../_static/alabaster.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=796348d33e8b1d947c94">
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=796348d33e8b1d947c94">
+
     <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
     <script src="../../_static/jquery.js"></script>
     <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
     <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/sphinx_highlight.js"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = '_modules/dimcat/analyzer';</script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-
-  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
-
-
-  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
-
-  </head><body>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="docsearch:language" content="en">
+  </head>
 
 
-    <div class="document">
-      <div class="documentwrapper">
-        <div class="bodywrapper">
+  <body data-spy="scroll" data-target="#bd-toc-nav" data-offset="180" data-default-mode="">
 
 
-          <div class="body" role="main">
+
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+
+
+  <input type="checkbox" class="sidebar-toggle" name="__primary" id="__primary">
+  <label class="overlay overlay-primary" for="__primary"></label>
+
+
+  <input type="checkbox" class="sidebar-toggle" name="__secondary" id="__secondary">
+  <label class="overlay overlay-secondary" for="__secondary"></label>
+
+
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+
+<form class="bd-search d-flex align-items-center" action="../../search.html" method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search" class="form-control" name="q" id="search-input" placeholder="Search the docs ..." aria-label="Search the docs ..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+    </div>
+  </div>
+
+
+  <nav class="bd-header navbar navbar-expand-lg bd-navbar" id="navbar-main"><div class="bd-header__inner bd-page-width">
+  <label class="sidebar-toggle primary-toggle" for="__primary">
+      <span class="fa-solid fa-bars"></span>
+  </label>
+  <div id="navbar-start">
+
+
+
+
+
+<a class="navbar-brand logo" href="../../index.html">
+
+
+
+
+
+
+
+
+
+
+
+    <p class="title logo__title">dimcat 0.3.0.post1.dev104+g9c57474 documentation</p>
+
+</a>
+
+  </div>
+
+
+  <div class="col-lg-9 navbar-header-items">
+    <div id="navbar-center" class="mr-auto">
+
+      <div class="navbar-center-item">
+        <nav class="navbar-nav">
+    <p class="sidebar-header-items__title" role="heading" aria-level="1" aria-label="Site Navigation">
+        Site Navigation
+    </p>
+    <ul id="navbar-main-elements" class="navbar-nav">
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../readme.html">
+                        Overview
+                      </a>
+                    </li>
+
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../tutorial.html">
+                        Tutorial
+                      </a>
+                    </li>
+
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../manual.html">
+                        Manual
+                      </a>
+                    </li>
+
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../notebooks.html">
+                        Example Notebooks
+                      </a>
+                    </li>
+
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../contributing.html">
+                        Contributions & Help
+                      </a>
+                    </li>
+
+            <div class="nav-item dropdown">
+                <button class="btn dropdown-toggle nav-item" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    More
+                </button>
+                <div class="dropdown-menu">
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../license.html">
+                        License
+                      </a>
+                    </li>
+
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../authors.html">
+                        Authors
+                      </a>
+                    </li>
+
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../changelog.html">
+                        Changelog
+                      </a>
+                    </li>
+
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../api/modules.html">
+                        Module Reference
+                      </a>
+                    </li>
+
+                </div>
+            </div>
+
+    </ul>
+</nav>
+      </div>
+
+    </div>
+
+    <div id="navbar-end">
+
+        <div class="navbar-end-item navbar-persistent--container">
+
+<button class="btn btn-sm navbar-btn search-button search-button__button" title="Search" aria-label="Search" data-toggle="tooltip">
+  <i class="fa-solid fa-magnifying-glass"></i>
+</button>
+        </div>
+
+
+      <div class="navbar-end-item">
+        <button class="theme-switch-button btn btn-sm btn-outline-primary navbar-btn rounded-circle" title="light/dark" aria-label="light/dark" data-toggle="tooltip">
+    <span class="theme-switch" data-mode="light"><i class="fa-solid fa-sun"></i></span>
+    <span class="theme-switch" data-mode="dark"><i class="fa-solid fa-moon"></i></span>
+    <span class="theme-switch" data-mode="auto"><i class="fa-solid fa-circle-half-stroke"></i></span>
+</button>
+      </div>
+
+      <div class="navbar-end-item">
+        <ul id="navbar-icon-links" class="navbar-nav" aria-label="Icon Links">
+      </ul>
+      </div>
+
+    </div>
+  </div>
+
+
+
+
+    <div class="navbar-persistent--mobile">
+<button class="btn btn-sm navbar-btn search-button search-button__button" title="Search" aria-label="Search" data-toggle="tooltip">
+  <i class="fa-solid fa-magnifying-glass"></i>
+</button>
+    </div>
+
+
+
+  <label class="sidebar-toggle secondary-toggle" for="__secondary">
+      <span class="fa-solid fa-outdent"></span>
+  </label>
+
+
+</div>
+  </nav>
+
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+
+      <div class="bd-sidebar-primary bd-sidebar hide-on-wide">
+
+
+  <div class="sidebar-header-items sidebar-primary__section">
+
+
+      <div class="sidebar-header-items__center">
+
+      <div class="navbar-center-item">
+        <nav class="navbar-nav">
+    <p class="sidebar-header-items__title" role="heading" aria-level="1" aria-label="Site Navigation">
+        Site Navigation
+    </p>
+    <ul id="navbar-main-elements" class="navbar-nav">
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../readme.html">
+                        Overview
+                      </a>
+                    </li>
+
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../tutorial.html">
+                        Tutorial
+                      </a>
+                    </li>
+
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../manual.html">
+                        Manual
+                      </a>
+                    </li>
+
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../notebooks.html">
+                        Example Notebooks
+                      </a>
+                    </li>
+
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../contributing.html">
+                        Contributions & Help
+                      </a>
+                    </li>
+
+            <div class="nav-item dropdown">
+                <button class="btn dropdown-toggle nav-item" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    More
+                </button>
+                <div class="dropdown-menu">
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../license.html">
+                        License
+                      </a>
+                    </li>
+
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../authors.html">
+                        Authors
+                      </a>
+                    </li>
+
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../changelog.html">
+                        Changelog
+                      </a>
+                    </li>
+
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../api/modules.html">
+                        Module Reference
+                      </a>
+                    </li>
+
+                </div>
+            </div>
+
+    </ul>
+</nav>
+      </div>
+
+      </div>
+
+
+
+
+    <div class="sidebar-header-items__end">
+
+      <div class="navbar-end-item">
+        <button class="theme-switch-button btn btn-sm btn-outline-primary navbar-btn rounded-circle" title="light/dark" aria-label="light/dark" data-toggle="tooltip">
+    <span class="theme-switch" data-mode="light"><i class="fa-solid fa-sun"></i></span>
+    <span class="theme-switch" data-mode="dark"><i class="fa-solid fa-moon"></i></span>
+    <span class="theme-switch" data-mode="auto"><i class="fa-solid fa-circle-half-stroke"></i></span>
+</button>
+      </div>
+
+      <div class="navbar-end-item">
+        <ul id="navbar-icon-links" class="navbar-nav" aria-label="Icon Links">
+      </ul>
+      </div>
+
+    </div>
+
+  </div>
+
+
+
+
+  <div class="sidebar-end-items sidebar-primary__section">
+    <div class="sidebar-end-items__item">
+    </div>
+  </div>
+
+
+  <div id="rtd-footer-container"></div>
+
+      </div>
+      <main id="main-content" class="bd-main">
+
+
+        <div class="bd-content">
+          <div class="bd-article-container">
+
+            <div class="bd-header-article">
+
+            </div>
+
+
+            <article class="bd-article" role="main">
 
   <h1>Source code for dimcat.analyzer</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;Analyzers are PipelineSteps that process data and store the results in Data.processed.&quot;&quot;&quot;</span>
 <span class="kn">from</span> <span class="nn">abc</span> <span class="kn">import</span> <span class="n">ABC</span><span class="p">,</span> <span class="n">abstractmethod</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span>
 
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
-<span class="kn">from</span> <span class="nn">ms3</span> <span class="kn">import</span> <span class="n">fifths2name</span>
+<span class="kn">from</span> <span class="nn">ms3</span> <span class="kn">import</span> <span class="n">add_weighted_grace_durations</span><span class="p">,</span> <span class="n">fifths2name</span>
 
 <span class="kn">from</span> <span class="nn">.data</span> <span class="kn">import</span> <span class="n">Data</span>
+<span class="kn">from</span> <span class="nn">.grouper</span> <span class="kn">import</span> <span class="n">PieceGrouper</span>
 <span class="kn">from</span> <span class="nn">.pipeline</span> <span class="kn">import</span> <span class="n">PipelineStep</span>
-<span class="kn">from</span> <span class="nn">.utils</span> <span class="kn">import</span> <span class="n">grams</span>
+<span class="kn">from</span> <span class="nn">.slicer</span> <span class="kn">import</span> <span class="n">LocalKeySlicer</span><span class="p">,</span> <span class="n">Slicer</span>
+<span class="kn">from</span> <span class="nn">.utils</span> <span class="kn">import</span> <span class="n">grams</span><span class="p">,</span> <span class="n">make_suffix</span>
 
 
-<div class="viewcode-block" id="dict_of_series_result_to_dataframe"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.analyzer.dict_of_series_result_to_dataframe">[docs]</a><span class="k">def</span> <span class="nf">dict_of_series_result_to_dataframe</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">short_ids</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-    <span class="n">key</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span>
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">result</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">key</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">str</span><span class="p">):</span>
-        <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="n">key</span><span class="p">])</span><span class="o">.</span><span class="n">T</span>
-        <span class="n">df</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="p">[</span><span class="n">key</span><span class="p">]</span>
-        <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;fnames&quot;</span> <span class="k">if</span> <span class="n">short_ids</span> <span class="k">else</span> <span class="s2">&quot;IDs&quot;</span>
-        <span class="n">df</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span> <span class="n">keys</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="o">.</span><span class="n">unstack</span><span class="p">()</span>
-        <span class="n">nlevels</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">nlevels</span>
-        <span class="n">level_names</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="p">[</span><span class="s2">&quot;fname&quot;</span><span class="p">,</span> <span class="s2">&quot;interval&quot;</span><span class="p">]</span> <span class="k">if</span> <span class="n">short_ids</span> <span class="k">else</span> <span class="p">[</span><span class="s2">&quot;corpus&quot;</span><span class="p">,</span> <span class="s2">&quot;fname&quot;</span><span class="p">,</span> <span class="s2">&quot;interval&quot;</span><span class="p">]</span>
-        <span class="p">)</span>
-        <span class="k">if</span> <span class="n">nlevels</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="n">df</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">level_names</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">df</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">level_names</span><span class="p">[:</span><span class="n">nlevels</span><span class="p">],</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">df</span></div>
+<div class="viewcode-block" id="Analyzer"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.analyzer.Analyzer">[docs]</a><span class="k">class</span> <span class="nc">Analyzer</span><span class="p">(</span><span class="n">PipelineStep</span><span class="p">,</span> <span class="n">ABC</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Analyzers are PipelineSteps that process data and store the results in Data.processed.&quot;&quot;&quot;</span></div>
 
 
-<div class="viewcode-block" id="dict_of_series_result_to_series"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.analyzer.dict_of_series_result_to_series">[docs]</a><span class="k">def</span> <span class="nf">dict_of_series_result_to_series</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">short_ids</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-    <span class="n">df</span> <span class="o">=</span> <span class="n">dict_of_series_result_to_dataframe</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">short_ids</span><span class="o">=</span><span class="n">short_ids</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">df</span><span class="o">.</span><span class="n">stack</span><span class="p">()</span></div>
+<div class="viewcode-block" id="FacetAnalyzer"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.analyzer.FacetAnalyzer">[docs]</a><span class="k">class</span> <span class="nc">FacetAnalyzer</span><span class="p">(</span><span class="n">Analyzer</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Analyzers that work on one particular type of DataFrames.&quot;&quot;&quot;</span>
 
-
-<div class="viewcode-block" id="FacetAnalyzer"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.analyzer.FacetAnalyzer">[docs]</a><span class="k">class</span> <span class="nc">FacetAnalyzer</span><span class="p">(</span><span class="n">PipelineStep</span><span class="p">,</span> <span class="n">ABC</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Analyzers that work on one particular type of DataFrames.&quot;&quot;&quot;</span>
-
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">concat_groups</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">once_per_group</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
-<span class="sd">        concat_groups : :obj:`bool`</span>
-<span class="sd">            By default, computes one result per group.</span>
-<span class="sd">            Set to False to instead compute one result per group item.</span>
+<span class="sd">        once_per_group : :obj:`bool`</span>
+<span class="sd">            By default, computes one result per group item.</span>
+<span class="sd">            Set to True to instead compute only one for each group.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">required_facets</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">concat_groups</span> <span class="o">=</span> <span class="n">concat_groups</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">once_per_group</span> <span class="o">=</span> <span class="n">once_per_group</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;:obj:`dict`</span>
+<span class="sd">        This dictionary stores the parameters to be passed to the compute() method.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">group2pandas</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;:obj:`str`</span>
+<span class="sd">        The name of the function that allows displaying one group&#39;s results as a single</span>
+<span class="sd">        pandas object. See data.Corpus.convert_group2pandas()&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">level_names</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;indices&quot;</span><span class="p">:</span> <span class="s2">&quot;IDs&quot;</span><span class="p">}</span> <span class="k">if</span> <span class="n">once_per_group</span> <span class="k">else</span> <span class="p">{}</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;:obj:`dict`</span>
+<span class="sd">        Define {&quot;indices&quot;: &quot;index_level_name&quot;} if the analysis is applied once per group,</span>
+<span class="sd">        because the index of the DataFrame holding the processed data won&#39;t be showing the</span>
+<span class="sd">        individual indices anymore.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
 
 <div class="viewcode-block" id="FacetAnalyzer.compute"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.analyzer.FacetAnalyzer.compute">[docs]</a>    <span class="nd">@abstractmethod</span>
     <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Where the actual computation takes place.&quot;&quot;&quot;</span></div>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Where the actual computation takes place.&quot;&quot;&quot;</span></div>
+
+<div class="viewcode-block" id="FacetAnalyzer.post_process"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.analyzer.FacetAnalyzer.post_process">[docs]</a>    <span class="k">def</span> <span class="nf">post_process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">processed</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">processed</span></div>
 
 <div class="viewcode-block" id="FacetAnalyzer.process_data"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.analyzer.FacetAnalyzer.process_data">[docs]</a>    <span class="k">def</span> <span class="nf">process_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">Data</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Data</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns a copy of the Data object containing processed data.&quot;&quot;&quot;</span>
         <span class="n">processed</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="k">for</span> <span class="n">group</span><span class="p">,</span> <span class="n">dfs</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">iter_facet</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">required_facets</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">concatenate</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">concat_groups</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">required_facets</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">concatenate</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">once_per_group</span>
         <span class="p">):</span>
-            <span class="n">processed</span><span class="p">[</span><span class="n">group</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
-                <span class="n">ID</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">)</span> <span class="k">for</span> <span class="n">ID</span><span class="p">,</span> <span class="n">df</span> <span class="ow">in</span> <span class="n">dfs</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
-            <span class="p">}</span>
+            <span class="n">processed_group</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">ID</span><span class="p">,</span> <span class="n">df</span> <span class="ow">in</span> <span class="n">dfs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">key</span> <span class="o">=</span> <span class="s2">&quot;group_ids&quot;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">once_per_group</span> <span class="k">else</span> <span class="n">ID</span>
+                <span class="n">eligible</span><span class="p">,</span> <span class="n">message</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">check</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">eligible</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">ID</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">message</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="k">continue</span>
+                <span class="n">processed_group</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">processed_group</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Group &#39;</span><span class="si">{</span><span class="n">group</span><span class="si">}</span><span class="s2">&#39; will be missing from the processed data.&quot;</span><span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="n">processed</span><span class="p">[</span><span class="n">group</span><span class="p">]</span> <span class="o">=</span> <span class="n">processed_group</span>
+        <span class="n">processed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">post_process</span><span class="p">(</span><span class="n">processed</span><span class="p">)</span>
         <span class="n">result</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-        <span class="n">result</span><span class="o">.</span><span class="n">load_processed</span><span class="p">(</span><span class="n">processed</span><span class="p">)</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">track_pipeline</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">group2pandas</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">group2pandas</span><span class="p">,</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">level_names</span><span class="p">)</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">processed</span> <span class="o">=</span> <span class="n">processed</span>
         <span class="k">return</span> <span class="n">result</span></div></div>
 
 
 <div class="viewcode-block" id="NotesAnalyzer"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.analyzer.NotesAnalyzer">[docs]</a><span class="k">class</span> <span class="nc">NotesAnalyzer</span><span class="p">(</span><span class="n">FacetAnalyzer</span><span class="p">):</span>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">concat_groups</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Analyzers that work on notes tables.</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">once_per_group</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Analyzers that work on notes tables.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
-<span class="sd">        concat_groups : :obj:`bool`</span>
-<span class="sd">            By default, computes one result per group.</span>
-<span class="sd">            Set to False to instead compute one result per group item.</span>
+<span class="sd">        once_per_group : :obj:`bool`</span>
+<span class="sd">            By default, computes one result per group item.</span>
+<span class="sd">            Set to True to instead compute only one for each group.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">required_facets</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;notes&quot;</span><span class="p">]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">concat_groups</span> <span class="o">=</span> <span class="n">concat_groups</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="p">{}</span></div>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">once_per_group</span><span class="o">=</span><span class="n">once_per_group</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">required_facets</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;notes&quot;</span><span class="p">]</span></div>
 
 
 <div class="viewcode-block" id="ChordSymbolAnalyzer"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.analyzer.ChordSymbolAnalyzer">[docs]</a><span class="k">class</span> <span class="nc">ChordSymbolAnalyzer</span><span class="p">(</span><span class="n">FacetAnalyzer</span><span class="p">):</span>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">concat_groups</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Analyzers that work on expanded annotation tables.</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">once_per_group</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Analyzers that work on expanded annotation tables.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
-<span class="sd">        concat_groups : :obj:`bool`</span>
-<span class="sd">            By default, computes one result per group.</span>
-<span class="sd">            Set to False to instead compute one result per group item.</span>
+<span class="sd">        once_per_group : :obj:`bool`</span>
+<span class="sd">            By default, computes one result per group item.</span>
+<span class="sd">            Set to True to instead compute only one for each group.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">required_facets</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;expanded&quot;</span><span class="p">]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">concat_groups</span> <span class="o">=</span> <span class="n">concat_groups</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="p">{}</span></div>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">once_per_group</span><span class="o">=</span><span class="n">once_per_group</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">required_facets</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;expanded&quot;</span><span class="p">]</span></div>
 
 
 <div class="viewcode-block" id="TPCrange"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.analyzer.TPCrange">[docs]</a><span class="k">class</span> <span class="nc">TPCrange</span><span class="p">(</span><span class="n">NotesAnalyzer</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Computes the range from the minimum to the maximum Tonal Pitch Class (TPC).&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Computes the range from the minimum to the maximum Tonal Pitch Class (TPC).&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">once_per_group</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">once_per_group</span><span class="o">=</span><span class="n">once_per_group</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">level_names</span><span class="p">[</span><span class="s2">&quot;processed&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;tpc_range&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">group2pandas</span> <span class="o">=</span> <span class="s2">&quot;group_of_values2series&quot;</span>
 
 <div class="viewcode-block" id="TPCrange.compute"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.analyzer.TPCrange.compute">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span><span class="n">df</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Computes the range from the minimum to the maximum Tonal Pitch Class (TPC).</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Computes the range from the minimum to the maximum Tonal Pitch Class (TPC).</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -150,39 +510,74 @@
 
 
 <div class="viewcode-block" id="PitchClassVectors"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.analyzer.PitchClassVectors">[docs]</a><span class="k">class</span> <span class="nc">PitchClassVectors</span><span class="p">(</span><span class="n">NotesAnalyzer</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Analyzer that groups notes by their pitch class and aggregates their durations.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Analyzer that groups notes by their pitch class and aggregates their durations.&quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">concat_groups</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">pitch_class_format</span><span class="o">=</span><span class="s2">&quot;tpc&quot;</span><span class="p">,</span> <span class="n">normalize</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Analyzer that groups notes by their pitch class and aggregates their durations.</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">once_per_group</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">pitch_class_format</span><span class="o">=</span><span class="s2">&quot;tpc&quot;</span><span class="p">,</span>
+        <span class="n">weight_grace_durations</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+        <span class="n">normalize</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">ensure_pitch_classes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">include_empty</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Analyzer that groups notes by their pitch class and aggregates their durations.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
-<span class="sd">        concat_groups : :obj:`bool`</span>
-<span class="sd">            By default, computes one result per group.</span>
-<span class="sd">            Set to False to instead compute one result per group item.</span>
+<span class="sd">        once_per_group : :obj:`bool`</span>
+<span class="sd">            By default, computes one pitch class vector per group item.</span>
+<span class="sd">            Set to True to instead compute only one for each group.</span>
 <span class="sd">        pitch_class_format : :obj:`str`, optional</span>
 <span class="sd">            | Defines the type of pitch classes.</span>
 <span class="sd">            | &#39;tpc&#39; (default): tonal pitch class, such that -1=F, 0=C, 1=G etc.</span>
 <span class="sd">            | &#39;name&#39;: tonal pitch class as spelled pitch, e.g. &#39;C&#39;, &#39;F#&#39;, &#39;Abb&#39; etc.</span>
 <span class="sd">            | &#39;pc&#39;: chromatic pitch classes where 0=C, 1=C#/Db, ... 11=B/Cb.</span>
 <span class="sd">            | &#39;midi&#39;: original MIDI numbers; the result are pitch vectors, not pitch class vectors.</span>
+<span class="sd">        weight_grace_durations : :obj:`float`, optional</span>
+<span class="sd">            By default (0.), grace notes have duration 0. Set this value to include their weighted</span>
+<span class="sd">            durations in the computation of PCVs, e.g. 0.5.</span>
 <span class="sd">        normalize : :obj:`bool`, optional</span>
 <span class="sd">            By default, the PCVs contain absolute durations in quarter notes. Pass True to normalize</span>
 <span class="sd">            the PCV for each slice.</span>
+<span class="sd">        ensure_pitch_classes : :obj:`Iterable`, optional</span>
+<span class="sd">            By default, pitch classes that don&#39;t appear don&#39;t appear. Pass a collection of pitch</span>
+<span class="sd">            classes if you want to ensure their presence even if empty. For example, if</span>
+<span class="sd">            ``pitch_class_format=&#39;pc&#39;`` you could pass ``ensure_columns=range(12)``.</span>
+<span class="sd">        include_empty : :obj:`bool`, optional</span>
+<span class="sd">            By default, indices for which no notes occur will have length 0 PCV Series and will</span>
+<span class="sd">            therefore not appear in the concatenated results. Set to True if you want to include</span>
+<span class="sd">            them as empty rows in a post processing step.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">concat_groups</span><span class="o">=</span><span class="n">concat_groups</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">pitch_class_format</span><span class="o">=</span><span class="n">pitch_class_format</span><span class="p">,</span> <span class="n">normalize</span><span class="o">=</span><span class="n">normalize</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">once_per_group</span><span class="o">=</span><span class="n">once_per_group</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="n">pitch_class_format</span><span class="o">=</span><span class="n">pitch_class_format</span><span class="p">,</span>
+            <span class="n">weight_grace_durations</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="n">weight_grace_durations</span><span class="p">),</span>
+            <span class="n">normalize</span><span class="o">=</span><span class="n">normalize</span><span class="p">,</span>
+            <span class="n">ensure_pitch_classes</span><span class="o">=</span><span class="n">ensure_pitch_classes</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">level_names</span><span class="p">[</span><span class="s2">&quot;processed&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pitch_class_format</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">group2pandas</span> <span class="o">=</span> <span class="s2">&quot;group2dataframe_unstacked&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">include_empty</span> <span class="o">=</span> <span class="n">include_empty</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">used_pitch_classes</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+<div class="viewcode-block" id="PitchClassVectors.filename_factory"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.analyzer.PitchClassVectors.filename_factory">[docs]</a>    <span class="k">def</span> <span class="nf">filename_factory</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">make_suffix</span><span class="p">(</span>
+            <span class="p">(</span><span class="s2">&quot;w&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;weight_grace_durations&quot;</span><span class="p">]),</span>
+            <span class="p">(</span><span class="s2">&quot;normalized&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;normalize&quot;</span><span class="p">]),</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;pitch_class_format&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;pcvs&quot;</span><span class="p">,</span>
+        <span class="p">)</span></div>
 
 <div class="viewcode-block" id="PitchClassVectors.compute"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.analyzer.PitchClassVectors.compute">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span>
-        <span class="n">notes</span><span class="p">,</span>
-        <span class="n">index_levels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">notes</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
         <span class="n">pitch_class_format</span><span class="o">=</span><span class="s2">&quot;tpc&quot;</span><span class="p">,</span>
+        <span class="n">weight_grace_durations</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
         <span class="n">normalize</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-        <span class="n">fillna</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="n">ensure_pitch_classes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Group notes by their pitch class and aggregate their durations.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Group notes by their pitch class and aggregate their durations.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -196,6 +591,9 @@
 <span class="sd">            | &#39;name&#39;: tonal pitch class as spelled pitch, e.g. &#39;C&#39;, &#39;F#&#39;, &#39;Abb&#39; etc.</span>
 <span class="sd">            | &#39;pc&#39;: chromatic pitch classes where 0=C, 1=C#/Db, ... 11=B/Cb.</span>
 <span class="sd">            | &#39;midi&#39;: original MIDI numbers; the result are pitch vectors, not pitch class vectors.</span>
+<span class="sd">        weight_grace_durations : :obj:`float`, optional</span>
+<span class="sd">            By default (0.), grace notes have duration 0. Set this value to include their weighted</span>
+<span class="sd">            durations in the computation of PCVs, e.g. 0.5.</span>
 <span class="sd">        normalize : :obj:`bool`, optional</span>
 <span class="sd">            By default, the PCVs contain absolute durations in quarter notes. Pass True to normalize</span>
 <span class="sd">            the PCV for each group.</span>
@@ -209,6 +607,7 @@
 <span class="sd">        -------</span>
 <span class="sd">        :obj:`pandas.Series`</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">notes</span> <span class="o">=</span> <span class="n">notes</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">pitch_class_format</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;tpc&quot;</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">):</span>
             <span class="n">pitch_class_grouper</span> <span class="o">=</span> <span class="n">notes</span><span class="o">.</span><span class="n">tpc</span>
         <span class="k">elif</span> <span class="n">pitch_class_format</span> <span class="o">==</span> <span class="s2">&quot;pc&quot;</span><span class="p">:</span>
@@ -221,7 +620,13 @@
                 <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">pitch_class_format</span><span class="p">)</span>
             <span class="p">)</span>
             <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">()</span>
-        <span class="n">pcvs</span> <span class="o">=</span> <span class="n">notes</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">pitch_class_grouper</span><span class="p">,</span> <span class="n">dropna</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">duration_qb</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">weight_grace_durations</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">notes</span> <span class="o">=</span> <span class="n">add_weighted_grace_durations</span><span class="p">(</span><span class="n">notes</span><span class="p">,</span> <span class="n">weight</span><span class="o">=</span><span class="n">weight_grace_durations</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">pcvs</span> <span class="o">=</span> <span class="n">notes</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">pitch_class_grouper</span><span class="p">,</span> <span class="n">dropna</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">duration_qb</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">notes</span><span class="p">)</span>
+            <span class="k">raise</span>
         <span class="k">if</span> <span class="n">pitch_class_format</span> <span class="o">==</span> <span class="s2">&quot;name&quot;</span><span class="p">:</span>
             <span class="n">pcvs</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">fifths2name</span><span class="p">(</span><span class="n">pcvs</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">normalize</span><span class="p">:</span>
@@ -233,108 +638,315 @@
                 <span class="n">pcvs</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">pcvs</span><span class="p">,</span> <span class="n">new_values</span><span class="p">])</span><span class="o">.</span><span class="n">sort_index</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">pcvs</span></div>
 
-<div class="viewcode-block" id="PitchClassVectors.process_data"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.analyzer.PitchClassVectors.process_data">[docs]</a>    <span class="k">def</span> <span class="nf">process_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">Data</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Data</span><span class="p">:</span>
-        <span class="n">result</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">process_data</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
-        <span class="n">result</span><span class="o">.</span><span class="n">_result_to_pandas</span> <span class="o">=</span> <span class="n">dict_of_series_result_to_dataframe</span>
-        <span class="k">return</span> <span class="n">result</span></div></div>
+<div class="viewcode-block" id="PitchClassVectors.post_process"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.analyzer.PitchClassVectors.post_process">[docs]</a>    <span class="k">def</span> <span class="nf">post_process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">processed</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">include_empty</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">processed</span>
+        <span class="n">empty_pcv_ixs</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">group</span><span class="p">,</span> <span class="n">index_group</span> <span class="ow">in</span> <span class="n">processed</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">ix</span><span class="p">,</span> <span class="n">pcv</span> <span class="ow">in</span> <span class="n">index_group</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">pcv</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">empty_pcv_ixs</span><span class="p">[</span><span class="n">group</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ix</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">used_pitch_classes</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">pcv</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">empty_pcv_ixs</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">empty_pcv</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">NA</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">used_pitch_classes</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">group</span><span class="p">,</span> <span class="n">ixs</span> <span class="ow">in</span> <span class="n">empty_pcv_ixs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">for</span> <span class="n">ix</span> <span class="ow">in</span> <span class="n">ixs</span><span class="p">:</span>
+                    <span class="n">processed</span><span class="p">[</span><span class="n">group</span><span class="p">][</span><span class="n">ix</span><span class="p">]</span> <span class="o">=</span> <span class="n">empty_pcv</span>
+        <span class="k">return</span> <span class="n">processed</span></div></div>
 
 
 <div class="viewcode-block" id="ChordSymbolUnigrams"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.analyzer.ChordSymbolUnigrams">[docs]</a><span class="k">class</span> <span class="nc">ChordSymbolUnigrams</span><span class="p">(</span><span class="n">ChordSymbolAnalyzer</span><span class="p">):</span>
-<div class="viewcode-block" id="ChordSymbolUnigrams.compute"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.analyzer.ChordSymbolUnigrams.compute">[docs]</a>    <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span><span class="n">df</span><span class="p">):</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">df</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">()</span>
-        <span class="k">return</span> <span class="n">df</span><span class="o">.</span><span class="n">chord</span><span class="o">.</span><span class="n">value_counts</span><span class="p">()</span></div>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Analyzer that returns the counts of chord symbols for each group, ordered by descending</span>
+<span class="sd">    frequency.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
 
-<div class="viewcode-block" id="ChordSymbolUnigrams.process_data"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.analyzer.ChordSymbolUnigrams.process_data">[docs]</a>    <span class="k">def</span> <span class="nf">process_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">Data</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Data</span><span class="p">:</span>
-        <span class="n">result</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">process_data</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
-        <span class="n">result</span><span class="o">.</span><span class="n">_result_to_pandas</span> <span class="o">=</span> <span class="n">dict_of_series_result_to_series</span>
-        <span class="k">return</span> <span class="n">result</span></div></div>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">once_per_group</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Analyzer that returns the counts of chord symbols for each group, ordered by descending</span>
+<span class="sd">            frequency.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        once_per_group : :obj:`bool`</span>
+<span class="sd">            By default, computes one unigram ranking per group item.</span>
+<span class="sd">            Set to True to instead compute only one for each group.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">once_per_group</span><span class="o">=</span><span class="n">once_per_group</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">level_names</span><span class="p">[</span><span class="s2">&quot;processed&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;chord&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">group2pandas</span> <span class="o">=</span> <span class="s2">&quot;group_of_series2series&quot;</span>
+
+<div class="viewcode-block" id="ChordSymbolUnigrams.compute"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.analyzer.ChordSymbolUnigrams.compute">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span><span class="n">expanded</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Computes the value counts of the chord symbol column.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        expanded : :obj:`pandas.DataFrame`</span>
+<span class="sd">            Expanded harmony labels.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :obj:`pandas.Series`</span>
+<span class="sd">            The last index level has unique chord symbols, Series values are their corresponding</span>
+<span class="sd">            counts.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">expanded</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">expanded</span><span class="o">.</span><span class="n">chord</span><span class="o">.</span><span class="n">value_counts</span><span class="p">()</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="s2">&quot;count&quot;</span><span class="p">)</span></div></div>
 
 
 <div class="viewcode-block" id="ChordSymbolBigrams"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.analyzer.ChordSymbolBigrams">[docs]</a><span class="k">class</span> <span class="nc">ChordSymbolBigrams</span><span class="p">(</span><span class="n">ChordSymbolAnalyzer</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Analyzer that returns the bigram counts for all valid chord transitions within a group,</span>
+<span class="sd">    ordered by descending frequency.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">once_per_group</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">dropna</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Analyzer that returns the bigram counts for all valid chord transitions within a group,</span>
+<span class="sd">            ordered by descending frequency.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        once_per_group : :obj:`bool`</span>
+<span class="sd">            By default, computes one bigram ranking per group item.</span>
+<span class="sd">            Set to True to instead compute only one for each group.</span>
+<span class="sd">        dropna : :obj:`bool`, optional</span>
+<span class="sd">            By default, NaN values are dropped before computing bigrams, resulting in transitions</span>
+<span class="sd">            from a missing value&#39;s preceding to its subsequent value. Pass False to include</span>
+<span class="sd">            bigrams from and to NaN values.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">once_per_group</span><span class="o">=</span><span class="n">once_per_group</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">level_names</span><span class="p">[</span><span class="s2">&quot;processed&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;from&quot;</span><span class="p">,</span> <span class="s2">&quot;to&quot;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">group2pandas</span> <span class="o">=</span> <span class="s2">&quot;group_of_series2series&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;dropna&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">dropna</span>
+
+<div class="viewcode-block" id="ChordSymbolBigrams.check"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.analyzer.ChordSymbolBigrams.check">[docs]</a>    <span class="k">def</span> <span class="nf">check</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">index</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;DataFrame has only one row, cannot compute bigram.&quot;</span>
+        <span class="k">if</span> <span class="n">df</span><span class="o">.</span><span class="n">localkey</span><span class="o">.</span><span class="n">nunique</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">df</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">nlevels</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">(</span>
+                <span class="kc">False</span><span class="p">,</span>
+                <span class="s2">&quot;DataFrame contains labels from several local keys but no MultiIndex.&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">&quot;&quot;</span></div>
+
 <div class="viewcode-block" id="ChordSymbolBigrams.compute"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.analyzer.ChordSymbolBigrams.compute">[docs]</a>    <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span><span class="n">df</span><span class="p">):</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">df</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span><span class="n">expanded</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">dropna</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Turns the chord column into bigrams and returns their counts in descending order.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            expanded: Expanded harmony labels.</span>
+<span class="sd">            dropna: By default, NaN values are dropped before computing bigrams, resulting in transitions</span>
+<span class="sd">            from a missing value&#39;s preceding to its subsequent value. Pass False to include</span>
+<span class="sd">            bigrams from and to NaN values.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The last two index level are unique (from, to) bigrams, Series values are their</span>
+<span class="sd">            corresponding counts.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">expanded</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">()</span>
-        <span class="n">bigrams</span> <span class="o">=</span> <span class="n">grams</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">chord</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
-        <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">bigrams</span><span class="p">)</span>
-        <span class="n">counts</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">size</span><span class="p">()</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">n_index_levels</span> <span class="o">=</span> <span class="n">expanded</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">nlevels</span>
+        <span class="k">if</span> <span class="n">n_index_levels</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="c1"># create a nested list to exclude transitions between groups</span>
+            <span class="n">index_levels_but_last</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">n_index_levels</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span>
+            <span class="n">gpb</span> <span class="o">=</span> <span class="n">expanded</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">index_levels_but_last</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span><span class="n">gpb</span><span class="o">.</span><span class="n">localkey</span><span class="o">.</span><span class="n">nunique</span><span class="p">()</span> <span class="o">==</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Grouping by the first </span><span class="si">{</span><span class="n">n_index_levels</span><span class="o">-</span><span class="mi">1</span><span class="si">}</span><span class="s2"> &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;index levels does not result in localkey segments. Has &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;the LocalKeySlicer been applied?</span><span class="se">\n</span><span class="si">{</span><span class="n">gpb</span><span class="o">.</span><span class="n">localkey</span><span class="o">.</span><span class="n">nunique</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">dropna</span><span class="p">:</span>
+                <span class="n">chords</span> <span class="o">=</span> <span class="n">gpb</span><span class="o">.</span><span class="n">chord</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">S</span><span class="p">:</span> <span class="n">S</span><span class="o">.</span><span class="n">dropna</span><span class="p">()</span><span class="o">.</span><span class="n">to_list</span><span class="p">())</span><span class="o">.</span><span class="n">to_list</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">chords</span> <span class="o">=</span> <span class="n">gpb</span><span class="o">.</span><span class="n">chord</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span><span class="o">.</span><span class="n">to_list</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">dropna</span><span class="p">:</span>
+                <span class="n">chords</span> <span class="o">=</span> <span class="n">expanded</span><span class="o">.</span><span class="n">chord</span><span class="o">.</span><span class="n">dropna</span><span class="p">()</span><span class="o">.</span><span class="n">to_list</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">chords</span> <span class="o">=</span> <span class="n">expanded</span><span class="o">.</span><span class="n">chord</span><span class="o">.</span><span class="n">to_list</span><span class="p">()</span>
+        <span class="n">bigrams</span> <span class="o">=</span> <span class="n">grams</span><span class="p">(</span><span class="n">chords</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">expanded</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">bigrams</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;from&quot;</span><span class="p">,</span> <span class="s2">&quot;to&quot;</span><span class="p">])</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">counts</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">expanded</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s2">&quot;from&quot;</span><span class="p">,</span> <span class="s2">&quot;to&quot;</span><span class="p">])</span>
+                <span class="o">.</span><span class="n">size</span><span class="p">()</span>
+                <span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                <span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="s2">&quot;count&quot;</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">expanded</span><span class="p">)</span>
+            <span class="k">raise</span>
         <span class="k">return</span> <span class="n">counts</span></div>
 
 <div class="viewcode-block" id="ChordSymbolBigrams.process_data"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.analyzer.ChordSymbolBigrams.process_data">[docs]</a>    <span class="k">def</span> <span class="nf">process_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">Data</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Data</span><span class="p">:</span>
-        <span class="n">result</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">process_data</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
-        <span class="n">result</span><span class="o">.</span><span class="n">_result_to_pandas</span> <span class="o">=</span> <span class="n">dict_of_series_result_to_series</span>
-        <span class="k">return</span> <span class="n">result</span></div></div>
+        <span class="k">assert</span> <span class="nb">any</span><span class="p">(</span>
+            <span class="nb">isinstance</span><span class="p">(</span><span class="n">step</span><span class="p">,</span> <span class="n">LocalKeySlicer</span><span class="p">)</span> <span class="k">for</span> <span class="n">step</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">pipeline_steps</span>
+        <span class="p">),</span> <span class="s2">&quot;ChordSymbolBigrams requires previous application of LocalKeySlicer().&quot;</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">process_data</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="SliceInfoAnalyzer"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.analyzer.SliceInfoAnalyzer">[docs]</a><span class="k">class</span> <span class="nc">SliceInfoAnalyzer</span><span class="p">(</span><span class="n">Analyzer</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;:obj:`dict`</span>
+<span class="sd">        This dictionary stores the parameters to be passed to the compute() method.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">group2pandas</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;:obj:`str`</span>
+<span class="sd">        The name of the function that allows displaying one group&#39;s results as a single</span>
+<span class="sd">        pandas object. See data.Corpus.convert_group2pandas()&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">level_names</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;:obj:`dict`</span>
+<span class="sd">        Define {&quot;processed&quot;: &quot;index_level_name(s)&quot;}.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="SliceInfoAnalyzer.check"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.analyzer.SliceInfoAnalyzer.check">[docs]</a>    <span class="k">def</span> <span class="nf">check</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">df</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;DataFrame is empty.&quot;</span>
+        <span class="k">return</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">&quot;&quot;</span></div>
+
+<div class="viewcode-block" id="SliceInfoAnalyzer.compute"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.analyzer.SliceInfoAnalyzer.compute">[docs]</a>    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Where the actual computation takes place.&quot;&quot;&quot;</span></div>
+
+<div class="viewcode-block" id="SliceInfoAnalyzer.process_data"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.analyzer.SliceInfoAnalyzer.process_data">[docs]</a>    <span class="k">def</span> <span class="nf">process_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">Data</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Data</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="nb">any</span><span class="p">(</span>
+            <span class="nb">isinstance</span><span class="p">(</span><span class="n">step</span><span class="p">,</span> <span class="n">Slicer</span><span class="p">)</span> <span class="k">for</span> <span class="n">step</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">pipeline_steps</span>
+        <span class="p">),</span> <span class="s2">&quot;At least one Slicer needs to be applied before using a SliceInfoAnalyzer.&quot;</span>
+        <span class="n">processed</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">group</span><span class="p">,</span> <span class="n">info_df</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">iter_slice_info</span><span class="p">():</span>
+            <span class="n">processed</span><span class="p">[</span><span class="n">group</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute</span><span class="p">(</span><span class="n">info_df</span><span class="p">)</span>
+        <span class="n">processed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">post_process</span><span class="p">(</span><span class="n">processed</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">track_pipeline</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">group2pandas</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">group2pandas</span><span class="p">,</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">level_names</span><span class="p">)</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">processed</span> <span class="o">=</span> <span class="n">processed</span>
+        <span class="k">return</span> <span class="n">result</span></div>
+
+<div class="viewcode-block" id="SliceInfoAnalyzer.post_process"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.analyzer.SliceInfoAnalyzer.post_process">[docs]</a>    <span class="k">def</span> <span class="nf">post_process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">processed</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">processed</span></div></div>
+
+
+<div class="viewcode-block" id="LocalKeySliceInfoAnalyzer"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.analyzer.LocalKeySliceInfoAnalyzer">[docs]</a><span class="k">class</span> <span class="nc">LocalKeySliceInfoAnalyzer</span><span class="p">(</span><span class="n">SliceInfoAnalyzer</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;&quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">level_names</span><span class="p">[</span><span class="s2">&quot;processed&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;localkeys&quot;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">group2pandas</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="LocalKeySliceInfoAnalyzer.process_data"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.analyzer.LocalKeySliceInfoAnalyzer.process_data">[docs]</a>    <span class="k">def</span> <span class="nf">process_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">Data</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Data</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="nb">any</span><span class="p">(</span>
+            <span class="nb">isinstance</span><span class="p">(</span><span class="n">step</span><span class="p">,</span> <span class="n">PieceGrouper</span><span class="p">)</span> <span class="k">for</span> <span class="n">step</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">pipeline_steps</span>
+        <span class="p">),</span> <span class="s2">&quot;LocalKeySequence requires previous application of PieceGrouper().&quot;</span>
+        <span class="k">assert</span> <span class="nb">any</span><span class="p">(</span>
+            <span class="nb">isinstance</span><span class="p">(</span><span class="n">step</span><span class="p">,</span> <span class="n">LocalKeySlicer</span><span class="p">)</span> <span class="k">for</span> <span class="n">step</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">pipeline_steps</span>
+        <span class="p">),</span> <span class="s2">&quot;ChordSymbolBigrams requires previous application of LocalKeySlicer().&quot;</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">process_data</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="LocalKeySequence"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.analyzer.LocalKeySequence">[docs]</a><span class="k">class</span> <span class="nc">LocalKeySequence</span><span class="p">(</span><span class="n">LocalKeySliceInfoAnalyzer</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="LocalKeySequence.compute"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.analyzer.LocalKeySequence.compute">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span><span class="n">slice_info</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="n">slice_info</span><span class="o">.</span><span class="n">localkey</span><span class="o">.</span><span class="n">to_list</span><span class="p">()</span></div></div>
+
+
+<div class="viewcode-block" id="LocalKeyUnique"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.analyzer.LocalKeyUnique">[docs]</a><span class="k">class</span> <span class="nc">LocalKeyUnique</span><span class="p">(</span><span class="n">LocalKeySliceInfoAnalyzer</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="LocalKeyUnique.compute"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.analyzer.LocalKeyUnique.compute">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span><span class="n">slice_info</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">slice_info</span><span class="o">.</span><span class="n">localkey</span><span class="o">.</span><span class="n">unique</span><span class="p">())</span></div></div>
 </pre></div>
+
+            </article>
+
+
+
+            <footer class="bd-footer-article">
+                <!-- Previous / next buttons -->
+<div class='prev-next-area'>
+</div>
+            </footer>
 
           </div>
 
-        </div>
-      </div>
-      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
-        <div class="sphinxsidebarwrapper">
-<h1 class="logo"><a href="../../index.html">dimcat</a></h1>
 
 
+            <div class="bd-sidebar-secondary bd-toc">
 
+<div class="toc-item">
 
-
-
-
-
-<h3>Navigation</h3>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="../../readme.html">Overview</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../contributing.html">Contributions &amp; Help</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../license.html">License</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../authors.html">Authors</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../changelog.html">Changelog</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../api/modules.html">Module Reference</a></li>
-</ul>
-
-<div class="relations">
-<h3>Related Topics</h3>
-<ul>
-  <li><a href="../../index.html">Documentation overview</a><ul>
-  <li><a href="../index.html">Module code</a><ul>
-  </ul></li>
-  </ul></li>
-</ul>
+<div id="searchbox"></div>
 </div>
-<div id="searchbox" style="display: none" role="search">
-  <h3 id="searchlabel">Quick search</h3>
-    <div class="searchformwrapper">
-    <form class="search" action="../../search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
-      <input type="submit" value="Go" />
-    </form>
-    </div>
+
+<div class="toc-item">
+
 </div>
-<script>$('#searchbox').show(0);</script>
 
+<div class="toc-item">
 
+</div>
 
-
-
-
+            </div>
 
 
         </div>
-      </div>
-      <div class="clearer"></div>
+        <footer class="bd-footer-content">
+          <div class="bd-footer-content__inner">
+
+          </div>
+        </footer>
+
+      </main>
     </div>
-    <div class="footer">
-      &copy;2022, Digital and Cognitive Musicology Lab @ École Polytechnique Fédérale de Lausanne.
-
-      |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.5.0</a>
-      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
-
-    </div>
+  </div>
 
 
 
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="../../_static/scripts/bootstrap.js?digest=796348d33e8b1d947c94"></script>
+<script src="../../_static/scripts/pydata-sphinx-theme.js?digest=796348d33e8b1d947c94"></script>
 
+  <footer class="bd-footer"><div class="bd-footer__inner container">
+
+  <div class="footer-item">
+
+<p class="copyright">
+
+    &copy; Copyright 2023, Digital and Cognitive Musicology Lab @ École Polytechnique Fédérale de Lausanne.<br>
+
+</p>
+
+  </div>
+
+  <div class="footer-item">
+    <p class="theme-version">
+    Built with the
+    <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">
+        PyData Sphinx Theme
+    </a>
+    0.12.0.
+</p>
+  </div>
+
+  <div class="footer-item">
+
+<p class="sphinx-version">
+Created using <a href="http://sphinx-doc.org/">Sphinx</a> 5.3.0.<br>
+</p>
+
+  </div>
+
+</div>
+  </footer>
   </body>
 </html>

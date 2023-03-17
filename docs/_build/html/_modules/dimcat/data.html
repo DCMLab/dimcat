@@ -1,45 +1,412 @@
 
 <!DOCTYPE html>
 
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>dimcat.data &#8212; dimcat 0.1.0.post1.dev2+g3b16e52 documentation</title>
+    <title>dimcat.data &#8212; dimcat 0.3.0.post1.dev104+g9c57474 documentation</title>
+
+
+
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "light";
+  </script>
+
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../_static/styles/theme.css?digest=796348d33e8b1d947c94" rel="stylesheet">
+<link href="../../_static/styles/bootstrap.css?digest=796348d33e8b1d947c94" rel="stylesheet">
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=796348d33e8b1d947c94" rel="stylesheet">
+
+
+  <link href="../../_static/vendor/fontawesome/6.1.2/css/all.min.css?digest=796348d33e8b1d947c94" rel="stylesheet">
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.1.2/webfonts/fa-solid-900.woff2">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.1.2/webfonts/fa-brands-400.woff2">
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.1.2/webfonts/fa-regular-400.woff2">
+
     <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../../_static/alabaster.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=796348d33e8b1d947c94">
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=796348d33e8b1d947c94">
+
     <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
     <script src="../../_static/jquery.js"></script>
     <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
     <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/sphinx_highlight.js"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = '_modules/dimcat/data';</script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-
-  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
-
-
-  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
-
-  </head><body>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="docsearch:language" content="en">
+  </head>
 
 
-    <div class="document">
-      <div class="documentwrapper">
-        <div class="bodywrapper">
+  <body data-spy="scroll" data-target="#bd-toc-nav" data-offset="180" data-default-mode="">
 
 
-          <div class="body" role="main">
+
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+
+
+  <input type="checkbox" class="sidebar-toggle" name="__primary" id="__primary">
+  <label class="overlay overlay-primary" for="__primary"></label>
+
+
+  <input type="checkbox" class="sidebar-toggle" name="__secondary" id="__secondary">
+  <label class="overlay overlay-secondary" for="__secondary"></label>
+
+
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+
+<form class="bd-search d-flex align-items-center" action="../../search.html" method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search" class="form-control" name="q" id="search-input" placeholder="Search the docs ..." aria-label="Search the docs ..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+    </div>
+  </div>
+
+
+  <nav class="bd-header navbar navbar-expand-lg bd-navbar" id="navbar-main"><div class="bd-header__inner bd-page-width">
+  <label class="sidebar-toggle primary-toggle" for="__primary">
+      <span class="fa-solid fa-bars"></span>
+  </label>
+  <div id="navbar-start">
+
+
+
+
+
+<a class="navbar-brand logo" href="../../index.html">
+
+
+
+
+
+
+
+
+
+
+
+    <p class="title logo__title">dimcat 0.3.0.post1.dev104+g9c57474 documentation</p>
+
+</a>
+
+  </div>
+
+
+  <div class="col-lg-9 navbar-header-items">
+    <div id="navbar-center" class="mr-auto">
+
+      <div class="navbar-center-item">
+        <nav class="navbar-nav">
+    <p class="sidebar-header-items__title" role="heading" aria-level="1" aria-label="Site Navigation">
+        Site Navigation
+    </p>
+    <ul id="navbar-main-elements" class="navbar-nav">
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../readme.html">
+                        Overview
+                      </a>
+                    </li>
+
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../tutorial.html">
+                        Tutorial
+                      </a>
+                    </li>
+
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../manual.html">
+                        Manual
+                      </a>
+                    </li>
+
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../notebooks.html">
+                        Example Notebooks
+                      </a>
+                    </li>
+
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../contributing.html">
+                        Contributions & Help
+                      </a>
+                    </li>
+
+            <div class="nav-item dropdown">
+                <button class="btn dropdown-toggle nav-item" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    More
+                </button>
+                <div class="dropdown-menu">
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../license.html">
+                        License
+                      </a>
+                    </li>
+
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../authors.html">
+                        Authors
+                      </a>
+                    </li>
+
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../changelog.html">
+                        Changelog
+                      </a>
+                    </li>
+
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../api/modules.html">
+                        Module Reference
+                      </a>
+                    </li>
+
+                </div>
+            </div>
+
+    </ul>
+</nav>
+      </div>
+
+    </div>
+
+    <div id="navbar-end">
+
+        <div class="navbar-end-item navbar-persistent--container">
+
+<button class="btn btn-sm navbar-btn search-button search-button__button" title="Search" aria-label="Search" data-toggle="tooltip">
+  <i class="fa-solid fa-magnifying-glass"></i>
+</button>
+        </div>
+
+
+      <div class="navbar-end-item">
+        <button class="theme-switch-button btn btn-sm btn-outline-primary navbar-btn rounded-circle" title="light/dark" aria-label="light/dark" data-toggle="tooltip">
+    <span class="theme-switch" data-mode="light"><i class="fa-solid fa-sun"></i></span>
+    <span class="theme-switch" data-mode="dark"><i class="fa-solid fa-moon"></i></span>
+    <span class="theme-switch" data-mode="auto"><i class="fa-solid fa-circle-half-stroke"></i></span>
+</button>
+      </div>
+
+      <div class="navbar-end-item">
+        <ul id="navbar-icon-links" class="navbar-nav" aria-label="Icon Links">
+      </ul>
+      </div>
+
+    </div>
+  </div>
+
+
+
+
+    <div class="navbar-persistent--mobile">
+<button class="btn btn-sm navbar-btn search-button search-button__button" title="Search" aria-label="Search" data-toggle="tooltip">
+  <i class="fa-solid fa-magnifying-glass"></i>
+</button>
+    </div>
+
+
+
+  <label class="sidebar-toggle secondary-toggle" for="__secondary">
+      <span class="fa-solid fa-outdent"></span>
+  </label>
+
+
+</div>
+  </nav>
+
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+
+      <div class="bd-sidebar-primary bd-sidebar hide-on-wide">
+
+
+  <div class="sidebar-header-items sidebar-primary__section">
+
+
+      <div class="sidebar-header-items__center">
+
+      <div class="navbar-center-item">
+        <nav class="navbar-nav">
+    <p class="sidebar-header-items__title" role="heading" aria-level="1" aria-label="Site Navigation">
+        Site Navigation
+    </p>
+    <ul id="navbar-main-elements" class="navbar-nav">
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../readme.html">
+                        Overview
+                      </a>
+                    </li>
+
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../tutorial.html">
+                        Tutorial
+                      </a>
+                    </li>
+
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../manual.html">
+                        Manual
+                      </a>
+                    </li>
+
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../notebooks.html">
+                        Example Notebooks
+                      </a>
+                    </li>
+
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../contributing.html">
+                        Contributions & Help
+                      </a>
+                    </li>
+
+            <div class="nav-item dropdown">
+                <button class="btn dropdown-toggle nav-item" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    More
+                </button>
+                <div class="dropdown-menu">
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../license.html">
+                        License
+                      </a>
+                    </li>
+
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../authors.html">
+                        Authors
+                      </a>
+                    </li>
+
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../changelog.html">
+                        Changelog
+                      </a>
+                    </li>
+
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../api/modules.html">
+                        Module Reference
+                      </a>
+                    </li>
+
+                </div>
+            </div>
+
+    </ul>
+</nav>
+      </div>
+
+      </div>
+
+
+
+
+    <div class="sidebar-header-items__end">
+
+      <div class="navbar-end-item">
+        <button class="theme-switch-button btn btn-sm btn-outline-primary navbar-btn rounded-circle" title="light/dark" aria-label="light/dark" data-toggle="tooltip">
+    <span class="theme-switch" data-mode="light"><i class="fa-solid fa-sun"></i></span>
+    <span class="theme-switch" data-mode="dark"><i class="fa-solid fa-moon"></i></span>
+    <span class="theme-switch" data-mode="auto"><i class="fa-solid fa-circle-half-stroke"></i></span>
+</button>
+      </div>
+
+      <div class="navbar-end-item">
+        <ul id="navbar-icon-links" class="navbar-nav" aria-label="Icon Links">
+      </ul>
+      </div>
+
+    </div>
+
+  </div>
+
+
+
+
+  <div class="sidebar-end-items sidebar-primary__section">
+    <div class="sidebar-end-items__item">
+    </div>
+  </div>
+
+
+  <div id="rtd-footer-container"></div>
+
+      </div>
+      <main id="main-content" class="bd-main">
+
+
+        <div class="bd-content">
+          <div class="bd-article-container">
+
+            <div class="bd-header-article">
+
+            </div>
+
+
+            <article class="bd-article" role="main">
 
   <h1>Source code for dimcat.data</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;Class hierarchy for data types.&quot;&quot;&quot;</span>
 <span class="kn">from</span> <span class="nn">abc</span> <span class="kn">import</span> <span class="n">ABC</span><span class="p">,</span> <span class="n">abstractmethod</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span>
+<span class="kn">from</span> <span class="nn">copy</span> <span class="kn">import</span> <span class="n">deepcopy</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">lru_cache</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">Any</span><span class="p">,</span>
+    <span class="n">Dict</span><span class="p">,</span>
+    <span class="n">Iterator</span><span class="p">,</span>
+    <span class="n">List</span><span class="p">,</span>
+    <span class="n">Literal</span><span class="p">,</span>
+    <span class="n">Optional</span><span class="p">,</span>
+    <span class="n">Tuple</span><span class="p">,</span>
+    <span class="n">TypeAlias</span><span class="p">,</span>
+    <span class="n">Union</span><span class="p">,</span>
+    <span class="n">overload</span><span class="p">,</span>
+<span class="p">)</span>
 
+<span class="kn">import</span> <span class="nn">ms3</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
-<span class="kn">from</span> <span class="nn">ms3</span> <span class="kn">import</span> <span class="n">Parse</span>
+
+<span class="kn">from</span> <span class="nn">._typing</span> <span class="kn">import</span> <span class="n">GroupID</span><span class="p">,</span> <span class="n">Index</span><span class="p">,</span> <span class="n">Pandas</span>
+<span class="kn">from</span> <span class="nn">.utils</span> <span class="kn">import</span> <span class="n">clean_index_levels</span>
+
+<span class="n">ID</span><span class="p">:</span> <span class="n">TypeAlias</span> <span class="o">=</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span>
 
 
 <div class="viewcode-block" id="Data"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.data.Data">[docs]</a><span class="k">class</span> <span class="nc">Data</span><span class="p">(</span><span class="n">ABC</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Subclasses are the dtypes that this library uses. Every PipelineStep accepts one or several</span>
 <span class="sd">    dtypes.</span>
 
@@ -48,7 +415,7 @@
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -58,26 +425,35 @@
 <span class="sd">            All keyword arguments are passed to load().</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_data</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="sd">&quot;&quot;&quot;Protected attribute for storing and internally accessing the loaded data.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Protected attribute for storing and internally accessing the loaded data.&quot;&quot;&quot;</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">indices</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="sd">&quot;&quot;&quot;Indices for accessing individual pieces of data and associated metadata.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">indices</span> <span class="o">=</span> <span class="p">{():</span> <span class="p">[]}</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Indices for accessing individual pieces of data and associated metadata.&quot;&quot;&quot;</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">processed</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="sd">&quot;&quot;&quot;Subclasses store processed data here.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">processed</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="n">GroupID</span><span class="p">,</span> <span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="n">Index</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Analyzers store there result here. Those that compute one result per item per group</span>
+<span class="sd">        store {ID -&gt; result} dicts, all others store simply the result for each group. In the first case,</span>
+<span class="sd">        :attr:`group2pandas` needs to be specified for correctly converting the dict to a pandas object.&quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">pipeline_steps</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;The sequence of applied PipelineSteps that has led to the current state in reverse</span>
+<span class="sd">        order (first element was applied last).&quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">index_levels</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;indices&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;corpus&quot;</span><span class="p">,</span> <span class="s2">&quot;fname&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;slicer&quot;</span><span class="p">:</span> <span class="p">[],</span>
+            <span class="s2">&quot;groups&quot;</span><span class="p">:</span> <span class="p">[],</span>
+            <span class="s2">&quot;processed&quot;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="p">}</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Keeps track of index level names. Also used for automatic naming of output files.&quot;&quot;&quot;</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">sliced</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="sd">&quot;&quot;&quot;Dict for sliced data facets.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Dict for sliced data facets.&quot;&quot;&quot;</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">slice_info</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="sd">&quot;&quot;&quot;Dict holding metadata of slices (e.g. the localkey of a segment).&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Dict holding metadata of slices (e.g. the localkey of a segment).&quot;&quot;&quot;</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">applied_groupers</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="sd">&quot;&quot;&quot;List keeping track of the applied groupers. Can be used for naming index levels or</span>
-<span class="sd">        generating file names.&quot;&quot;&quot;</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">applied_slicers</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="sd">&quot;&quot;&quot;List keeping track of the applied slicers. Can be used for generating file names.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">group2pandas</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1">#</span>
 
         <span class="k">if</span> <span class="n">data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">data</span>
@@ -85,41 +461,45 @@
     <span class="nd">@property</span>
     <span class="nd">@abstractmethod</span>
     <span class="k">def</span> <span class="nf">data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Get the data field in its raw form.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the data field in its raw form.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span>
 
     <span class="nd">@data</span><span class="o">.</span><span class="n">setter</span>
     <span class="nd">@abstractmethod</span>
     <span class="k">def</span> <span class="nf">data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_object</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Implement setting the __data field after performing type check.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Implement setting the _data field after performing type check.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">data_object</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">NotImplementedError</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_data</span> <span class="o">=</span> <span class="n">data_object</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">n_indices</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">len</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">indices</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span>
 
 <div class="viewcode-block" id="Data.copy"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.data.Data.copy">[docs]</a>    <span class="k">def</span> <span class="nf">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="Data.get"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.data.Data.get">[docs]</a>    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Get all processed data at once.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get all processed data at once.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">processed</span></div>
 
 <div class="viewcode-block" id="Data.iter"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.data.Data.iter">[docs]</a>    <span class="k">def</span> <span class="nf">iter</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Iterate through processed data.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Iterate through processed data.&quot;&quot;&quot;</span>
         <span class="k">for</span> <span class="n">tup</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">processed</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
             <span class="k">yield</span> <span class="n">tup</span></div>
 
 <div class="viewcode-block" id="Data.iter_facet"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.data.Data.iter_facet">[docs]</a>    <span class="nd">@abstractmethod</span>
     <span class="k">def</span> <span class="nf">iter_facet</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">what</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Iterate through (potentially grouped) pieces of data.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Iterate through (potentially grouped) pieces of data.&quot;&quot;&quot;</span>
         <span class="k">for</span> <span class="n">index_group</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">iter_groups</span><span class="p">():</span>
             <span class="k">yield</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">get_item</span><span class="p">(</span><span class="n">index</span><span class="p">)</span> <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">index_group</span><span class="p">]</span></div>
 
 <div class="viewcode-block" id="Data.get_item"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.data.Data.get_item">[docs]</a>    <span class="nd">@abstractmethod</span>
-    <span class="k">def</span> <span class="nf">get_item</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Get an individual piece of data.&quot;&quot;&quot;</span></div>
+    <span class="k">def</span> <span class="nf">get_item</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">what</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get an individual piece of data.&quot;&quot;&quot;</span></div>
 
 <div class="viewcode-block" id="Data.iter_groups"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.data.Data.iter_groups">[docs]</a>    <span class="k">def</span> <span class="nf">iter_groups</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Iterate through groups of indices.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Iterate through groups of indices as defined by the previously applied Groupers.</span>
 
 <span class="sd">        Yields</span>
 <span class="sd">        -------</span>
@@ -130,20 +510,131 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">indices</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;No data has been loaded.&quot;</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">indices</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-            <span class="k">yield</span> <span class="n">group</span></div>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">index_list</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">index_list</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">indices</span><span class="o">.</span><span class="n">values</span><span class="p">()):</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Data object contains empty groups.&quot;</span><span class="p">)</span>
+        <span class="k">yield from</span> <span class="bp">self</span><span class="o">.</span><span class="n">indices</span><span class="o">.</span><span class="n">items</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="Data.load_processed"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.data.Data.load_processed">[docs]</a>    <span class="k">def</span> <span class="nf">load_processed</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">processed</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Store processed data.&quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">processed</span> <span class="o">=</span> <span class="n">processed</span></div>
+<div class="viewcode-block" id="Data.track_pipeline"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.data.Data.track_pipeline">[docs]</a>    <span class="k">def</span> <span class="nf">track_pipeline</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">pipeline_step</span><span class="p">,</span>
+        <span class="n">group2pandas</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">indices</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">processed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">grouper</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">slicer</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Keep track of the applied pipeline_steps and update index level names and group2pandas</span>
+<span class="sd">        conversion method.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        pipeline_step : :obj:`PipelineStep`</span>
+<span class="sd">        group2pandas : :obj:`str`, optional</span>
+<span class="sd">        indices : :obj:`str`, optional</span>
+<span class="sd">        processed : :obj:`str`, optional</span>
+<span class="sd">        grouper : :obj:`str`, optional</span>
+<span class="sd">        slicer : :obj:`str`, optional</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pipeline_steps</span> <span class="o">=</span> <span class="p">[</span><span class="n">pipeline_step</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">pipeline_steps</span>
+        <span class="k">if</span> <span class="n">processed</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">processed</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">processed</span> <span class="o">=</span> <span class="p">[</span><span class="n">processed</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">index_levels</span><span class="p">[</span><span class="s2">&quot;processed&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">processed</span>
+        <span class="k">if</span> <span class="n">indices</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">indices</span> <span class="o">==</span> <span class="s2">&quot;IDs&quot;</span><span class="p">:</span>
+                <span class="c1"># once_per_group == True</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">index_levels</span><span class="p">[</span><span class="s2">&quot;indices&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;IDs&quot;</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">index_levels</span><span class="p">[</span><span class="s2">&quot;indices&quot;</span><span class="p">])</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">index_levels</span><span class="p">[</span><span class="s2">&quot;indices&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">index_levels</span><span class="p">[</span><span class="s2">&quot;indices&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="n">indices</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">index_levels</span><span class="p">[</span><span class="s2">&quot;indices&quot;</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">indices</span>
+            <span class="k">assert</span> <span class="mi">1</span> <span class="o">&lt;=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">index_levels</span><span class="p">[</span><span class="s2">&quot;indices&quot;</span><span class="p">])</span> <span class="o">&lt;</span> <span class="mi">4</span>
+        <span class="k">if</span> <span class="n">group2pandas</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">group2pandas</span> <span class="o">=</span> <span class="n">group2pandas</span>
+        <span class="k">if</span> <span class="n">grouper</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">index_levels</span><span class="p">[</span><span class="s2">&quot;groups&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">index_levels</span><span class="p">[</span><span class="s2">&quot;groups&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="n">grouper</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">slicer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">index_levels</span><span class="p">[</span><span class="s2">&quot;slicer&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">slicer</span><span class="p">]</span></div>
 
 <div class="viewcode-block" id="Data.load"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.data.Data.load">[docs]</a>    <span class="nd">@abstractmethod</span>
     <span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Load data into memory.&quot;&quot;&quot;</span></div></div>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load data into memory.&quot;&quot;&quot;</span></div>
+
+<div class="viewcode-block" id="Data.group_of_values2series"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.data.Data.group_of_values2series">[docs]</a>    <span class="k">def</span> <span class="nf">group_of_values2series</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">group_dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Converts an {ID -&gt; processing_result} dict into a Series.&quot;&quot;&quot;</span>
+        <span class="n">series</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">group_dict</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">index_levels</span><span class="p">[</span><span class="s2">&quot;processed&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">series</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rename_multiindex_levels</span><span class="p">(</span>
+            <span class="n">series</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">index_levels</span><span class="p">[</span><span class="s2">&quot;indices&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">series</span></div>
+
+<div class="viewcode-block" id="Data.group_of_series2series"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.data.Data.group_of_series2series">[docs]</a>    <span class="k">def</span> <span class="nf">group_of_series2series</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">group_dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Converts an {ID -&gt; processing_result} dict into a Series.&quot;&quot;&quot;</span>
+        <span class="n">lengths</span> <span class="o">=</span> <span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">S</span><span class="p">)</span> <span class="k">for</span> <span class="n">S</span> <span class="ow">in</span> <span class="n">group_dict</span><span class="o">.</span><span class="n">values</span><span class="p">()]</span>
+        <span class="k">if</span> <span class="mi">0</span> <span class="ow">in</span> <span class="n">lengths</span><span class="p">:</span>
+            <span class="n">group_dict</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">group_dict</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">}</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">group_dict</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Group contained only empty Series&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">n_empty</span> <span class="o">=</span> <span class="n">lengths</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Had to remove </span><span class="si">{</span><span class="n">n_empty</span><span class="si">}</span><span class="s2"> empty Series before concatenation.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">group_dict</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="nb">list</span><span class="p">(</span><span class="n">group_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;group_ids&quot;</span><span class="p">:</span>
+            <span class="n">series</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">group_dict</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">series</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rename_multiindex_levels</span><span class="p">(</span>
+                <span class="n">series</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">index_levels</span><span class="p">[</span><span class="s2">&quot;processed&quot;</span><span class="p">]</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">series</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">group_dict</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span> <span class="n">keys</span><span class="o">=</span><span class="n">group_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+            <span class="n">series</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rename_multiindex_levels</span><span class="p">(</span>
+                <span class="n">series</span><span class="o">.</span><span class="n">index</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">index_levels</span><span class="p">[</span><span class="s2">&quot;indices&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">index_levels</span><span class="p">[</span><span class="s2">&quot;processed&quot;</span><span class="p">],</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">series</span></div>
+
+<div class="viewcode-block" id="Data.group2dataframe"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.data.Data.group2dataframe">[docs]</a>    <span class="k">def</span> <span class="nf">group2dataframe</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">group_dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Converts an {ID -&gt; processing_result} dict into a DataFrame.&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">group_dict</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span> <span class="n">keys</span><span class="o">=</span><span class="n">group_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">):</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">group_dict</span><span class="p">)</span>
+            <span class="k">raise</span>
+        <span class="n">df</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rename_multiindex_levels</span><span class="p">(</span>
+            <span class="n">df</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">index_levels</span><span class="p">[</span><span class="s2">&quot;indices&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">index_levels</span><span class="p">[</span><span class="s2">&quot;processed&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">df</span></div>
+
+<div class="viewcode-block" id="Data.group2dataframe_unstacked"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.data.Data.group2dataframe_unstacked">[docs]</a>    <span class="k">def</span> <span class="nf">group2dataframe_unstacked</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">group_dict</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">group2dataframe</span><span class="p">(</span><span class="n">group_dict</span><span class="p">)</span><span class="o">.</span><span class="n">unstack</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">_rename_multiindex_levels</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">multiindex</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">MultiIndex</span><span class="p">,</span> <span class="n">index_level_names</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Renames the index levels based on the _.index_levels dict.&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">n_levels</span> <span class="o">=</span> <span class="n">multiindex</span><span class="o">.</span><span class="n">nlevels</span>
+            <span class="k">if</span> <span class="n">n_levels</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">multiindex</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">index_level_names</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">n_names</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">index_level_names</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">n_names</span> <span class="o">&lt;</span> <span class="n">n_levels</span><span class="p">:</span>
+                <span class="n">levels</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">index_level_names</span><span class="p">)))</span>
+                <span class="c1"># The level parameter makes sure that, when n names are given, only the first n levels are being</span>
+                <span class="c1"># renamed. However, this will lead to unexpected behaviour if index levels are named by an integer</span>
+                <span class="c1"># that does not correspond to the position of another index level, e.g. (&#39;level0_name&#39;, 0, 1)</span>
+                <span class="k">return</span> <span class="n">multiindex</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">index_level_names</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="n">levels</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">n_names</span> <span class="o">&gt;</span> <span class="n">n_levels</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">multiindex</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">index_level_names</span><span class="p">[:</span><span class="n">n_levels</span><span class="p">])</span>
+            <span class="k">return</span> <span class="n">multiindex</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">index_level_names</span><span class="p">)</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Failed to rename MultiIndex levels </span><span class="si">{</span><span class="n">multiindex</span><span class="o">.</span><span class="n">names</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="n">index_level_names</span><span class="si">}</span><span class="s2">: &#39;</span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&#39;&quot;</span>
+            <span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">multiindex</span><span class="p">[:</span><span class="mi">10</span><span class="p">])</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;self.index_levels: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">index_levels</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="c1"># TODO: This method should include a call to clean_multiindex_levels and make use of self.index_levels</span>
+        <span class="k">return</span> <span class="n">multiindex</span></div>
 
 
 <div class="viewcode-block" id="remove_corpus_from_ids"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.data.remove_corpus_from_ids">[docs]</a><span class="k">def</span> <span class="nf">remove_corpus_from_ids</span><span class="p">(</span><span class="n">result</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Called when group contains corpus and removes redundant repetition from indices.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Called when group contains corpus and removes redundant repetition from indices.&quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
         <span class="n">without_corpus</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
@@ -157,11 +648,11 @@
     <span class="k">return</span> <span class="n">result</span><span class="o">.</span><span class="n">droplevel</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="Corpus"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.data.Corpus">[docs]</a><span class="k">class</span> <span class="nc">Corpus</span><span class="p">(</span><span class="n">Data</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Essentially a wrapper for a ms3.Parse object.&quot;&quot;&quot;</span>
+<div class="viewcode-block" id="Dataset"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.data.Dataset">[docs]</a><span class="k">class</span> <span class="nc">Dataset</span><span class="p">(</span><span class="n">Data</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Essentially a wrapper for a ms3.Parse object.&quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -171,101 +662,209 @@
 <span class="sd">            All keyword arguments are passed to load().</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">pieces</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pieces</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="n">ID</span><span class="p">,</span> <span class="n">ms3</span><span class="o">.</span><span class="n">Piece</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        IDs and metadata of those pieces that have not been filtered out.::</span>
 
-<span class="sd">            {(corpus, fname) -&gt;</span>
-<span class="sd">                {</span>
-<span class="sd">                 &#39;metadata&#39; -&gt; {key-&gt;value},</span>
-<span class="sd">                 &#39;matched_files&#39; -&gt; [namedtuple]</span>
-<span class="sd">                }</span>
-<span class="sd">            }</span>
-
+<span class="sd">            {(corpus, fname) -&gt; :obj:`ms3.Piece`</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_data</span> <span class="o">=</span> <span class="n">Parse</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_data</span> <span class="o">=</span> <span class="n">ms3</span><span class="o">.</span><span class="n">Parse</span><span class="p">()</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">data</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Get the data field in its raw form.&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">data</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ms3</span><span class="o">.</span><span class="n">Parse</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the data field in its raw form.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span>
 
     <span class="nd">@data</span><span class="o">.</span><span class="n">setter</span>
-    <span class="k">def</span> <span class="nf">data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_object</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Check if the assigned object is suitable for conversion.&quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data_object</span><span class="p">,</span> <span class="n">Corpus</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">data_object</span><span class="p">)</span><span class="si">}</span><span class="s2"> could not be converted to a Corpus.&quot;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_object</span><span class="p">:</span> <span class="s2">&quot;Dataset&quot;</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if the assigned object is suitable for conversion.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data_object</span><span class="p">,</span> <span class="n">Dataset</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">data_object</span><span class="o">.</span><span class="vm">__class__</span><span class="si">}</span><span class="s2"> could not be converted to a DCML dataset.&quot;</span>
+            <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_data</span> <span class="o">=</span> <span class="n">data_object</span><span class="o">.</span><span class="n">_data</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">pieces</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">data_object</span><span class="o">.</span><span class="n">pieces</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">indices</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">data_object</span><span class="o">.</span><span class="n">indices</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">processed</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">data_object</span><span class="o">.</span><span class="n">processed</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">sliced</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">data_object</span><span class="o">.</span><span class="n">sliced</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">slice_info</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">data_object</span><span class="o">.</span><span class="n">slice_info</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">applied_groupers</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">data_object</span><span class="o">.</span><span class="n">applied_groupers</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">applied_slicers</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">data_object</span><span class="o">.</span><span class="n">applied_slicers</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">indices</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">data_object</span><span class="o">.</span><span class="n">indices</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">processed</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">data_object</span><span class="o">.</span><span class="n">processed</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sliced</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">data_object</span><span class="o">.</span><span class="n">sliced</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">slice_info</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">data_object</span><span class="o">.</span><span class="n">slice_info</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pipeline_steps</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">data_object</span><span class="o">.</span><span class="n">pipeline_steps</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">index_levels</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">data_object</span><span class="o">.</span><span class="n">index_levels</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">group2pandas</span> <span class="o">=</span> <span class="n">data_object</span><span class="o">.</span><span class="n">group2pandas</span>
 
-<div class="viewcode-block" id="Corpus.get"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.data.Corpus.get">[docs]</a>    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">as_pandas</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">is_grouped</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="n">groups</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">indices</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">groups</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">groups</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="p">()</span>
+
+    <span class="nd">@overload</span>
+    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">as_pandas</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="kc">True</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Pandas</span><span class="p">:</span>
+        <span class="o">...</span>
+
+    <span class="nd">@overload</span>
+    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">as_pandas</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="kc">False</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="n">GroupID</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+        <span class="o">...</span>
+
+<div class="viewcode-block" id="Dataset.get"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.data.Dataset.get">[docs]</a>    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">as_pandas</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">Pandas</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="n">GroupID</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Collects the results of :meth:`iter` to retrieve all processed data at once.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            as_pandas:</span>
+<span class="sd">                By default, the result is a pandas DataFrame or Series where the first levels</span>
+<span class="sd">                display group identifiers (if any). Pass False to obtain a nested {group -&gt; group_result}</span>
+<span class="sd">                dictionary instead.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The contents of :attr:`processed` in original or adapted form.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">processed</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;No data has been processed so far.&quot;</span><span class="p">)</span>
             <span class="k">return</span>
         <span class="n">results</span> <span class="o">=</span> <span class="p">{</span><span class="n">group</span><span class="p">:</span> <span class="n">result</span> <span class="k">for</span> <span class="n">group</span><span class="p">,</span> <span class="n">result</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">iter</span><span class="p">(</span><span class="n">as_pandas</span><span class="o">=</span><span class="n">as_pandas</span><span class="p">)}</span>
-        <span class="k">if</span> <span class="n">as_pandas</span><span class="p">:</span>
-            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="p">()</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
-                <span class="n">results</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">results</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">results</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">results</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span> <span class="n">keys</span><span class="o">=</span><span class="n">results</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
-            <span class="n">n_applied_groupers</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">applied_groupers</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">n_applied_groupers</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="n">results</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">set_names</span><span class="p">(</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">applied_groupers</span><span class="p">,</span>
-                    <span class="n">level</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">n_applied_groupers</span><span class="p">)),</span>
-                    <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                <span class="p">)</span>
-        <span class="k">return</span> <span class="n">results</span></div>
-
-    <span class="k">def</span> <span class="nf">_result_to_pandas</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">,</span> <span class="n">short_ids</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Turns an {ix -&gt; result} into a Series or DataFrame.&quot;&quot;&quot;</span>
-        <span class="n">key</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">result</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">key</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">str</span><span class="p">):</span>
-            <span class="n">series</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span> <span class="n">index</span><span class="o">=</span><span class="p">[</span><span class="n">key</span><span class="p">])</span>
-            <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;fnames&quot;</span> <span class="k">if</span> <span class="n">short_ids</span> <span class="k">else</span> <span class="s2">&quot;IDs&quot;</span>
-            <span class="n">series</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">as_pandas</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">results</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">group2pandas</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
+        <span class="c1"># default: concatenate to a single pandas object</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="p">()</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
+            <span class="n">pandas_obj</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">results</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">series</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
-            <span class="n">nlevels</span> <span class="o">=</span> <span class="n">series</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">nlevels</span>
-            <span class="n">level_names</span> <span class="o">=</span> <span class="p">(</span>
-                <span class="p">[</span><span class="s2">&quot;fname&quot;</span><span class="p">,</span> <span class="s2">&quot;interval&quot;</span><span class="p">]</span> <span class="k">if</span> <span class="n">short_ids</span> <span class="k">else</span> <span class="p">[</span><span class="s2">&quot;corpus&quot;</span><span class="p">,</span> <span class="s2">&quot;fname&quot;</span><span class="p">,</span> <span class="s2">&quot;interval&quot;</span><span class="p">]</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">pandas_obj</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span>
+                    <span class="n">results</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span>
+                    <span class="n">keys</span><span class="o">=</span><span class="n">results</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span>
+                    <span class="n">names</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">index_levels</span><span class="p">[</span><span class="s2">&quot;groups&quot;</span><span class="p">],</span>
+                <span class="p">)</span>
+            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">index_levels</span><span class="p">[</span><span class="s2">&quot;groups&quot;</span><span class="p">])</span>
+                <span class="nb">print</span><span class="p">(</span><span class="n">results</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+                <span class="k">raise</span>
+        <span class="k">return</span> <span class="n">clean_index_levels</span><span class="p">(</span><span class="n">pandas_obj</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Dataset.get_facet"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.data.Dataset.get_facet">[docs]</a>    <span class="k">def</span> <span class="nf">get_facet</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">what</span><span class="p">,</span> <span class="n">unfold</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Uses _.iter_facet() to collect and concatenate all DataFrames for a particular facet.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        what : {&#39;form_labels&#39;, &#39;events&#39;, &#39;expanded&#39;, &#39;notes_and_rests&#39;, &#39;notes&#39;, &#39;labels&#39;,</span>
+<span class="sd">                &#39;cadences&#39;, &#39;chords&#39;, &#39;measures&#39;, &#39;rests&#39;}</span>
+<span class="sd">            What facet to retrieve.</span>
+<span class="sd">        unfold : :obj:`bool`, optional</span>
+<span class="sd">            Pass True if you need repeats to be unfolded.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :obj:`pandas.DataFrame`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">group_dfs</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">group</span><span class="p">:</span> <span class="n">df</span>
+            <span class="k">for</span> <span class="n">group</span><span class="p">,</span> <span class="n">dfs</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">iter_facet</span><span class="p">(</span>
+                <span class="n">what</span><span class="o">=</span><span class="n">what</span><span class="p">,</span> <span class="n">unfold</span><span class="o">=</span><span class="n">unfold</span><span class="p">,</span> <span class="n">concatenate</span><span class="o">=</span><span class="kc">True</span>
             <span class="p">)</span>
-            <span class="k">if</span> <span class="n">nlevels</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-                <span class="n">series</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">level_names</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">series</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">level_names</span><span class="p">[:</span><span class="n">nlevels</span><span class="p">],</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">series</span>
+            <span class="k">for</span> <span class="n">df</span> <span class="ow">in</span> <span class="n">dfs</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+        <span class="p">}</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">group_dfs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">group_dfs</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">concatenated_groups</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span>
+            <span class="n">group_dfs</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span> <span class="n">keys</span><span class="o">=</span><span class="n">group_dfs</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="n">names</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">index_levels</span><span class="p">[</span><span class="s2">&quot;groups&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">clean_index_levels</span><span class="p">(</span><span class="n">concatenated_groups</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Corpus.iter"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.data.Corpus.iter">[docs]</a>    <span class="k">def</span> <span class="nf">iter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">as_pandas</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Iterate through processed data.&quot;&quot;&quot;</span>
-        <span class="n">short_ids</span> <span class="o">=</span> <span class="s2">&quot;CorpusGrouper&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">applied_groupers</span>
+<div class="viewcode-block" id="Dataset.convert_group2pandas"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.data.Dataset.convert_group2pandas">[docs]</a>    <span class="k">def</span> <span class="nf">convert_group2pandas</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result_dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Converts the {ID -&gt; processing_result} dict using the method specified in _.group2pandas.&quot;&quot;&quot;</span>
+        <span class="n">converters</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;group_of_values2series&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">group_of_values2series</span><span class="p">,</span>
+            <span class="s2">&quot;group_of_series2series&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">group_of_series2series</span><span class="p">,</span>
+            <span class="s2">&quot;group2dataframe&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">group2dataframe</span><span class="p">,</span>
+            <span class="s2">&quot;group2dataframe_unstacked&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">group2dataframe_unstacked</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="n">converter</span> <span class="o">=</span> <span class="n">converters</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">group2pandas</span><span class="p">]</span>
+        <span class="n">pandas_obj</span> <span class="o">=</span> <span class="n">converter</span><span class="p">(</span><span class="n">result_dict</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">clean_index_levels</span><span class="p">(</span><span class="n">pandas_obj</span><span class="p">)</span></div>
+
+    <span class="nd">@overload</span>
+    <span class="k">def</span> <span class="nf">iter</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">as_pandas</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="kc">False</span><span class="p">],</span> <span class="n">ignore_groups</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="kc">False</span><span class="p">]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">GroupID</span><span class="p">,</span> <span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="n">Index</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="n">Any</span><span class="p">]]]:</span>
+        <span class="o">...</span>
+
+    <span class="nd">@overload</span>
+    <span class="k">def</span> <span class="nf">iter</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">as_pandas</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="kc">True</span><span class="p">],</span> <span class="n">ignore_groups</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="kc">False</span><span class="p">]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">GroupID</span><span class="p">,</span> <span class="n">Union</span><span class="p">[</span><span class="n">Pandas</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]]:</span>
+        <span class="o">...</span>
+
+    <span class="nd">@overload</span>
+    <span class="k">def</span> <span class="nf">iter</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">as_pandas</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="kc">False</span><span class="p">],</span> <span class="n">ignore_groups</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="kc">True</span><span class="p">]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">Index</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="n">Any</span><span class="p">]]:</span>
+        <span class="o">...</span>
+
+    <span class="nd">@overload</span>
+    <span class="k">def</span> <span class="nf">iter</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">as_pandas</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="kc">True</span><span class="p">],</span> <span class="n">ignore_groups</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="kc">True</span><span class="p">]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Pandas</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>
+        <span class="o">...</span>
+
+<div class="viewcode-block" id="Dataset.iter"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.data.Dataset.iter">[docs]</a>    <span class="k">def</span> <span class="nf">iter</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">as_pandas</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">ignore_groups</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span>
+        <span class="n">Union</span><span class="p">[</span>
+            <span class="n">Tuple</span><span class="p">[</span><span class="n">GroupID</span><span class="p">,</span> <span class="n">Union</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="n">Index</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="n">Any</span><span class="p">]],</span>
+            <span class="n">Tuple</span><span class="p">[</span><span class="n">GroupID</span><span class="p">,</span> <span class="n">Union</span><span class="p">[</span><span class="n">Pandas</span><span class="p">,</span> <span class="n">Any</span><span class="p">]],</span>
+            <span class="n">Union</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">Index</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="n">Any</span><span class="p">],</span>
+            <span class="n">Union</span><span class="p">[</span><span class="n">Pandas</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+        <span class="p">]</span>
+    <span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Iterate through :attr:`processed` data.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            as_pandas:</span>
+<span class="sd">                Setting this value to False corresponds to iterating through .processed.items(),</span>
+<span class="sd">                where keys are group IDs and values are results for Analyzers that compute</span>
+<span class="sd">                one result per group, or {ID -&gt; result} dicts for Analyzers that compute</span>
+<span class="sd">                one result per item per group. The default value (True) has no effect in the first case,</span>
+<span class="sd">                but in the second case, the dictionary will be converted to a Series if the conversion method is</span>
+<span class="sd">                set in :attr:`group2pandas`.</span>
+<span class="sd">            ignore_groups:</span>
+<span class="sd">                If set to True, the iteration loop is flattened and does not include group identifiers. If as_pandas</span>
+<span class="sd">                is False (default), and the applied Analyzer computes one {ID -&gt; result} dict per group,</span>
+<span class="sd">                this will correspond to iterating through the (ID, result) tuples for all groups.</span>
+
+<span class="sd">        Yields:</span>
+<span class="sd">            The result of the last applied Analyzer for each group or for each item of each group.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">ignore_groups</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">as_pandas</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;If you set &#39;as_dict&#39; and &#39;ignore_groups&#39; are in conflict, choose one or use _.get().&quot;</span>
+            <span class="p">)</span>
         <span class="k">for</span> <span class="n">group</span><span class="p">,</span> <span class="n">result</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">processed</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-            <span class="k">if</span> <span class="n">short_ids</span><span class="p">:</span>
-                <span class="n">result</span> <span class="o">=</span> <span class="n">remove_corpus_from_ids</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">as_pandas</span><span class="p">:</span>
-                <span class="k">yield</span> <span class="n">group</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_result_to_pandas</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">short_ids</span><span class="o">=</span><span class="n">short_ids</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">ignore_groups</span><span class="p">:</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">group2pandas</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">yield</span> <span class="n">result</span>
+                <span class="k">elif</span> <span class="n">as_pandas</span><span class="p">:</span>
+                    <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">convert_group2pandas</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">yield from</span> <span class="n">result</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="k">yield</span> <span class="n">group</span><span class="p">,</span> <span class="n">result</span></div>
+                <span class="k">if</span> <span class="n">as_pandas</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">group2pandas</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">yield</span> <span class="n">group</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">convert_group2pandas</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">yield</span> <span class="n">group</span><span class="p">,</span> <span class="n">result</span></div>
 
-<div class="viewcode-block" id="Corpus.load"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.data.Corpus.load">[docs]</a>    <span class="k">def</span> <span class="nf">load</span><span class="p">(</span>
+<div class="viewcode-block" id="Dataset.load"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.data.Dataset.load">[docs]</a>    <span class="k">def</span> <span class="nf">load</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">directory</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">directory</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">parse_tsv</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="n">parse_scores</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-        <span class="n">ms</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">ms</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Load and parse all of the desired raw data and metadata.</span>
 
 <span class="sd">        Parameters</span>
@@ -290,41 +889,73 @@
         <span class="k">if</span> <span class="n">ms</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">ms</span> <span class="o">=</span> <span class="n">ms</span>
         <span class="k">if</span> <span class="n">directory</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">add_dir</span><span class="p">(</span>
-                <span class="n">directory</span><span class="o">=</span><span class="n">directory</span><span class="p">,</span>
-            <span class="p">)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">directory</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">directory</span> <span class="o">=</span> <span class="p">[</span><span class="n">directory</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">directory</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">add_dir</span><span class="p">(</span>
+                    <span class="n">directory</span><span class="o">=</span><span class="n">d</span><span class="p">,</span>
+                <span class="p">)</span>
         <span class="k">if</span> <span class="n">parse_tsv</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">parse_tsv</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">parse_scores</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">parse_mscx</span><span class="p">()</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">_parsed_tsv</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">_parsed_mscx</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">parse_scores</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">n_parsed_tsvs</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">n_parsed_scores</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;No files have been parsed for analysis.&quot;</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">get_indices</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="Corpus.get_indices"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.data.Corpus.get_indices">[docs]</a>    <span class="k">def</span> <span class="nf">get_indices</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Fills self.pieces with metadata and IDs for all loaded data.&quot;&quot;&quot;</span>
+<div class="viewcode-block" id="Dataset.get_indices"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.data.Dataset.get_indices">[docs]</a>    <span class="k">def</span> <span class="nf">get_indices</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fills self.pieces with metadata and IDs for all loaded data. This resets previously</span>
+<span class="sd">        applied groupings.&quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">pieces</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">indices</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="c1"># self.group_labels = {}</span>
-        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
-            <span class="n">view</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
-            <span class="k">for</span> <span class="n">metadata</span><span class="p">,</span> <span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">matched_files</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span>
-                <span class="n">view</span><span class="o">.</span><span class="n">metadata</span><span class="p">()</span><span class="o">.</span><span class="n">to_dict</span><span class="p">(</span><span class="n">orient</span><span class="o">=</span><span class="s2">&quot;records&quot;</span><span class="p">),</span>
-                <span class="n">view</span><span class="o">.</span><span class="n">detect_ids_by_fname</span><span class="p">(</span><span class="n">parsed_only</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">(),</span>
-            <span class="p">):</span>
-                <span class="k">assert</span> <span class="p">(</span>
-                    <span class="n">fname</span> <span class="o">==</span> <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;fnames&quot;</span><span class="p">]</span>
-                <span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;metadata() and pieces() do not correspond for key </span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">, fname </span><span class="si">{</span><span class="n">fname</span><span class="si">}</span><span class="s2">.&quot;</span>
-                <span class="n">piece_info</span> <span class="o">=</span> <span class="p">{}</span>
-                <span class="n">piece_info</span><span class="p">[</span><span class="s2">&quot;metadata&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">metadata</span>
-                <span class="n">piece_info</span><span class="p">[</span><span class="s2">&quot;matched_files&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">matched_files</span>
-                <span class="n">ID</span> <span class="o">=</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">fname</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">pieces</span><span class="p">[</span><span class="n">ID</span><span class="p">]</span> <span class="o">=</span> <span class="n">piece_info</span>
+        <span class="k">for</span> <span class="n">corpus_name</span><span class="p">,</span> <span class="n">ms3_corpus</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">iter_corpora</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">fname</span><span class="p">,</span> <span class="n">piece</span> <span class="ow">in</span> <span class="n">ms3_corpus</span><span class="o">.</span><span class="n">iter_pieces</span><span class="p">():</span>
+                <span class="n">ID</span> <span class="o">=</span> <span class="p">(</span><span class="n">corpus_name</span><span class="p">,</span> <span class="n">fname</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">pieces</span><span class="p">[</span><span class="n">ID</span><span class="p">]</span> <span class="o">=</span> <span class="n">piece</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">indices</span><span class="p">[()]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pieces</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span></div>
 
-<div class="viewcode-block" id="Corpus.iter_facet"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.data.Corpus.iter_facet">[docs]</a>    <span class="k">def</span> <span class="nf">iter_facet</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">what</span><span class="p">,</span> <span class="n">unfold</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">concatenate</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Iterate through groups of potentially sliced facet DataFrames.</span>
+<div class="viewcode-block" id="Dataset.slice_facet_if_necessary"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.data.Dataset.slice_facet_if_necessary">[docs]</a>    <span class="k">def</span> <span class="nf">slice_facet_if_necessary</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">what</span><span class="p">,</span> <span class="n">unfold</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        what : :obj:`str`</span>
+<span class="sd">            Facet for which to create slices if necessary</span>
+<span class="sd">        unfold : :obj:`bool`</span>
+<span class="sd">            Whether repeats should be unfolded.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :obj:`bool`</span>
+<span class="sd">            True if slices are available or not needed, False otherwise.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slice_info</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c1"># no slicer applied</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">if</span> <span class="n">what</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sliced</span><span class="p">:</span>
+            <span class="c1"># already sliced</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sliced</span><span class="p">[</span><span class="n">what</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">facet_ids</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">corpus</span><span class="p">,</span> <span class="n">fname</span><span class="p">,</span> <span class="n">interval</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_info</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">facet_ids</span><span class="p">[(</span><span class="n">corpus</span><span class="p">,</span> <span class="n">fname</span><span class="p">)]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">interval</span><span class="p">)</span>
+        <span class="k">for</span> <span class="nb">id</span><span class="p">,</span> <span class="n">intervals</span> <span class="ow">in</span> <span class="n">facet_ids</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">facet_df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_item</span><span class="p">(</span><span class="nb">id</span><span class="p">,</span> <span class="n">what</span><span class="p">,</span> <span class="n">unfold</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">facet_df</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">facet_df</span><span class="o">.</span><span class="n">index</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">sliced</span> <span class="o">=</span> <span class="n">ms3</span><span class="o">.</span><span class="n">overlapping_chunk_per_interval</span><span class="p">(</span><span class="n">facet_df</span><span class="p">,</span> <span class="n">intervals</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sliced</span><span class="p">[</span><span class="n">what</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+                <span class="p">{</span><span class="nb">id</span> <span class="o">+</span> <span class="p">(</span><span class="n">iv</span><span class="p">,):</span> <span class="n">chunk</span> <span class="k">for</span> <span class="n">iv</span><span class="p">,</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">sliced</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sliced</span><span class="p">[</span><span class="n">what</span><span class="p">])</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">sliced</span><span class="p">[</span><span class="n">what</span><span class="p">]</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">return</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="Dataset.iter_facet"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.data.Dataset.iter_facet">[docs]</a>    <span class="k">def</span> <span class="nf">iter_facet</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">what</span><span class="p">,</span> <span class="n">unfold</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">concatenate</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">ignore_groups</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Iterate through groups of potentially sliced facet DataFrames.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -334,9 +965,13 @@
 <span class="sd">        unfold : :obj:`bool`, optional</span>
 <span class="sd">            Pass True if you need repeats to be unfolded.</span>
 <span class="sd">        concatenate : :obj:`bool`, optional</span>
-<span class="sd">            By default, the returned list contains one DataFrame per ID contained in the group.</span>
-<span class="sd">            Pass True to instead concatenate the DataFrames. Then, the list will contain only</span>
-<span class="sd">            one DataFrame the components of which can be distinguished using its MultiIndex.</span>
+<span class="sd">            By default, the returned dict contains one DataFrame per ID in the group.</span>
+<span class="sd">            Pass True to instead concatenate the DataFrames. Then, the dict will contain only</span>
+<span class="sd">            one entry where the key is a tuple containing all IDs and the value is a DataFrame,</span>
+<span class="sd">            the components of which can be distinguished using its MultiIndex.</span>
+<span class="sd">        ignore_groups : :obj:`bool`, False</span>
+<span class="sd">            If set to True, the iteration loop is flattened and yields (index, facet_df) pairs directly. Clashes</span>
+<span class="sd">            with the setting concatenate=True which concatenates facets per group.</span>
 
 <span class="sd">        Yields</span>
 <span class="sd">        ------</span>
@@ -346,22 +981,129 @@
 <span class="sd">            Default: {ID -&gt; DataFrame}.</span>
 <span class="sd">            If concatenate=True: DataFrame with MultiIndex identifying ID, and (eventual) interval.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_facet_if_necessary</span><span class="p">(</span><span class="n">what</span><span class="p">,</span> <span class="n">unfold</span><span class="p">):</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No sliced </span><span class="si">{</span><span class="n">what</span><span class="si">}</span><span class="s2"> available.&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">StopIteration</span>
+        <span class="k">if</span> <span class="nb">sum</span><span class="p">((</span><span class="n">concatenate</span><span class="p">,</span> <span class="n">ignore_groups</span><span class="p">))</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Arguments &#39;concatenate&#39; and &#39;ignore_groups&#39; are in conflict, choose one &quot;</span>
+                <span class="s2">&quot;or use the method get_facet().&quot;</span>
+            <span class="p">)</span>
         <span class="k">for</span> <span class="n">group</span><span class="p">,</span> <span class="n">index_group</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">iter_groups</span><span class="p">():</span>
-            <span class="n">result</span> <span class="o">=</span> <span class="p">{</span>
-                <span class="n">index</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_item</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">what</span><span class="p">,</span> <span class="n">unfold</span><span class="p">)</span> <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">index_group</span>
-            <span class="p">}</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">missing_id</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">index_group</span><span class="p">:</span>
+                <span class="n">df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_item</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">what</span><span class="o">=</span><span class="n">what</span><span class="p">,</span> <span class="n">unfold</span><span class="o">=</span><span class="n">unfold</span><span class="p">)</span>
+                <span class="c1"># try:</span>
+                <span class="c1">#     df = self.get_item(index, what, unfold)</span>
+                <span class="c1"># except Exception as e:</span>
+                <span class="c1">#     print(f&quot;.get_item({index}, {what}, {unfold}) failed with &#39;{e}&#39;.&quot;)</span>
+                <span class="c1">#     raise</span>
+                <span class="k">if</span> <span class="n">df</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="k">elif</span> <span class="n">ignore_groups</span><span class="p">:</span>
+                    <span class="k">yield</span> <span class="n">index</span><span class="p">,</span> <span class="n">df</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">index</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">missing_id</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+                <span class="n">result</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span>
+            <span class="k">if</span> <span class="n">ignore_groups</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">n_results</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">missing_id</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">n_results</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">pass</span>
+                    <span class="c1"># print(f&quot;No &#39;{what}&#39; available for {group}.&quot;)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;Group </span><span class="si">{</span><span class="n">group</span><span class="si">}</span><span class="s2"> is missing &#39;</span><span class="si">{</span><span class="n">what</span><span class="si">}</span><span class="s2">&#39; for the following indices:</span><span class="se">\n</span><span class="s2">&quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">missing_id</span><span class="si">}</span><span class="s2">&quot;</span>
+                    <span class="p">)</span>
+            <span class="k">if</span> <span class="n">n_results</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">continue</span>
             <span class="k">if</span> <span class="n">concatenate</span><span class="p">:</span>
-                <span class="n">index_level_names</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;corpus&quot;</span><span class="p">,</span> <span class="s2">&quot;fname&quot;</span><span class="p">)</span>
-                <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">ix</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span> <span class="k">for</span> <span class="n">ix</span> <span class="ow">in</span> <span class="n">index_group</span><span class="p">):</span>
-                    <span class="n">index_level_names</span> <span class="o">=</span> <span class="n">index_level_names</span> <span class="o">+</span> <span class="p">(</span><span class="s2">&quot;slice&quot;</span><span class="p">,)</span>
+                <span class="k">if</span> <span class="n">n_results</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="c1"># workaround necessary because of nasty &quot;cannot handle overlapping indices;</span>
+                    <span class="c1"># use IntervalIndex.get_indexer_non_unique&quot; error</span>
+                    <span class="n">result</span><span class="p">[</span><span class="s2">&quot;empty&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">()</span>
                 <span class="n">result</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span>
-                    <span class="n">result</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span> <span class="n">keys</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="n">names</span><span class="o">=</span><span class="n">index_level_names</span>
+                    <span class="n">result</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span>
+                    <span class="n">keys</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span>
+                    <span class="n">names</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">index_levels</span><span class="p">[</span><span class="s2">&quot;indices&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="s2">&quot;interval&quot;</span><span class="p">],</span>
                 <span class="p">)</span>
                 <span class="n">result</span> <span class="o">=</span> <span class="p">{</span><span class="nb">tuple</span><span class="p">(</span><span class="n">index_group</span><span class="p">):</span> <span class="n">result</span><span class="p">}</span>
+
             <span class="k">yield</span> <span class="n">group</span><span class="p">,</span> <span class="n">result</span></div>
 
-<div class="viewcode-block" id="Corpus.get_item"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.data.Corpus.get_item">[docs]</a>    <span class="k">def</span> <span class="nf">get_item</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">what</span><span class="p">,</span> <span class="n">unfold</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">multiindex</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Retrieve a DataFrame pertaining to the facet ``what`` of the piece ``index``. If</span>
+<div class="viewcode-block" id="Dataset.get_previous_pipeline_step"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.data.Dataset.get_previous_pipeline_step">[docs]</a>    <span class="k">def</span> <span class="nf">get_previous_pipeline_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">idx</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">of_type</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Retrieve one of the previously applied PipelineSteps, either by index or by type.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        idx : :obj:`int`, optional</span>
+<span class="sd">            List index used if ``of_type`` is None. Defaults to 0, which is the PipeLine step</span>
+<span class="sd">            most recently applied.</span>
+<span class="sd">        of_type : :obj:`PipelineStep`, optional</span>
+<span class="sd">            Return the most recently applied PipelineStep of this type.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        :obj:`PipelineStep`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">of_type</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">n_previous_steps</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pipeline_steps</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">pipeline_steps</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+            <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid index idx=</span><span class="si">{</span><span class="n">idx</span><span class="si">}</span><span class="s2"> for list of length </span><span class="si">{</span><span class="n">n_previous_steps</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">raise</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">next</span><span class="p">(</span>
+                <span class="n">step</span> <span class="k">for</span> <span class="n">step</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">pipeline_steps</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">step</span><span class="p">,</span> <span class="n">of_type</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="ne">StopIteration</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">StopIteration</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Previously applied PipelineSteps do not include any </span><span class="si">{</span><span class="n">of_type</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">pipeline_steps</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span></div>
+
+<div class="viewcode-block" id="Dataset.get_slice"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.data.Dataset.get_slice">[docs]</a>    <span class="k">def</span> <span class="nf">get_slice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">what</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">what</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sliced</span> <span class="ow">and</span> <span class="n">index</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sliced</span><span class="p">[</span><span class="n">what</span><span class="p">]:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">sliced</span><span class="p">[</span><span class="n">what</span><span class="p">][</span><span class="n">index</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="Dataset.get_slice_info"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.data.Dataset.get_slice_info">[docs]</a>    <span class="k">def</span> <span class="nf">get_slice_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ignore_groups</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Concatenates slice_info Series and returns them as a DataFrame.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">ignore_groups</span> <span class="ow">or</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_grouped</span><span class="p">:</span>
+            <span class="n">concatenated_info</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">slice_info</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span> <span class="n">keys</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">slice_info</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">T</span>
+            <span class="n">concatenated_info</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">index_levels</span><span class="p">[</span><span class="s2">&quot;indices&quot;</span><span class="p">],</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">concatenated_info</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">group_dfs</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">group</span><span class="p">,</span> <span class="n">index_group</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">iter_groups</span><span class="p">():</span>
+                <span class="n">group_info</span> <span class="o">=</span> <span class="p">{</span><span class="n">ix</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_info</span><span class="p">[</span><span class="n">ix</span><span class="p">]</span> <span class="k">for</span> <span class="n">ix</span> <span class="ow">in</span> <span class="n">index_group</span><span class="p">}</span>
+                <span class="n">group_dfs</span><span class="p">[</span><span class="n">group</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span>
+                    <span class="n">group_info</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span> <span class="n">keys</span><span class="o">=</span><span class="n">group_info</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">T</span>
+            <span class="n">concatenated_info</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">group_dfs</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span> <span class="n">keys</span><span class="o">=</span><span class="n">group_dfs</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+            <span class="n">concatenated_info</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rename_multiindex_levels</span><span class="p">(</span>
+                <span class="n">concatenated_info</span><span class="o">.</span><span class="n">index</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">index_levels</span><span class="p">[</span><span class="s2">&quot;groups&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">index_levels</span><span class="p">[</span><span class="s2">&quot;indices&quot;</span><span class="p">],</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="n">clean_index_levels</span><span class="p">(</span><span class="n">concatenated_info</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Dataset.iter_slice_info"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.data.Dataset.iter_slice_info">[docs]</a>    <span class="k">def</span> <span class="nf">iter_slice_info</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">tuple</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Iterate through concatenated slice_info Series for each group.&quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">group</span><span class="p">,</span> <span class="n">index_group</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">iter_groups</span><span class="p">():</span>
+            <span class="n">group_info</span> <span class="o">=</span> <span class="p">{</span><span class="n">ix</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">slice_info</span><span class="p">[</span><span class="n">ix</span><span class="p">]</span> <span class="k">for</span> <span class="n">ix</span> <span class="ow">in</span> <span class="n">index_group</span><span class="p">}</span>
+            <span class="n">group_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">group_info</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span> <span class="n">keys</span><span class="o">=</span><span class="n">group_info</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+            <span class="n">group_df</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rename_multiindex_levels</span><span class="p">(</span>
+                <span class="n">group_df</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">index_levels</span><span class="p">[</span><span class="s2">&quot;indices&quot;</span><span class="p">]</span>
+            <span class="p">)</span>
+            <span class="k">yield</span> <span class="n">group</span><span class="p">,</span> <span class="n">group_df</span></div>
+
+<div class="viewcode-block" id="Dataset.get_item"><a class="viewcode-back" href="../../api/dimcat.html#dimcat.data.Dataset.get_item">[docs]</a>    <span class="nd">@lru_cache</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">get_item</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">what</span><span class="p">,</span> <span class="n">unfold</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">multiindex</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Retrieve a DataFrame pertaining to the facet ``what`` of the piece ``index``. If</span>
 <span class="sd">        the facet has been sliced before, the sliced DataFrame is returned.</span>
 
 <span class="sd">        Parameters</span>
@@ -384,96 +1126,116 @@
         <span class="n">n_index_elements</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">n_index_elements</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
             <span class="n">corpus</span><span class="p">,</span> <span class="n">fname</span> <span class="o">=</span> <span class="n">index</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="n">df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">corpus</span><span class="p">][</span><span class="n">fname</span><span class="p">]</span><span class="o">.</span><span class="n">get_dataframe</span><span class="p">(</span>
-                    <span class="n">what</span><span class="p">,</span> <span class="n">unfold</span><span class="p">,</span> <span class="n">interval_index</span><span class="o">=</span><span class="kc">True</span>
-                <span class="p">)</span>
-            <span class="k">except</span> <span class="ne">FileNotFoundError</span><span class="p">:</span>
-                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No </span><span class="si">{</span><span class="n">what</span><span class="si">}</span><span class="s2"> available for </span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">. Returning empty DataFrame.&quot;</span><span class="p">)</span>
-                <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">()</span>
-            <span class="k">return</span> <span class="n">df</span>
+            <span class="c1"># try:</span>
+            <span class="c1">#     file, df = self.data[corpus][fname].get_facet(</span>
+            <span class="c1">#         what, unfold=unfold, interval_index=True</span>
+            <span class="c1">#     )</span>
+            <span class="c1"># except Exception as e:</span>
+            <span class="c1">#     print(f&quot;.data[&#39;{corpus}&#39;][&#39;{fname}&#39;].get_facet(&#39;{what}&#39;, {unfold}, interval_index=True) -&gt; &#39;{e}&#39;.&quot;)</span>
+            <span class="c1">#     raise</span>
+            <span class="n">file</span><span class="p">,</span> <span class="n">df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">corpus</span><span class="p">][</span><span class="n">fname</span><span class="p">]</span><span class="o">.</span><span class="n">get_facet</span><span class="p">(</span>
+                <span class="n">what</span><span class="p">,</span> <span class="n">unfold</span><span class="o">=</span><span class="n">unfold</span><span class="p">,</span> <span class="n">interval_index</span><span class="o">=</span><span class="kc">True</span>
+            <span class="p">)</span>
+            <span class="c1"># TODO: logger.debug(file)</span>
+            <span class="k">if</span> <span class="n">df</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">IntervalIndex</span><span class="p">):</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="n">what</span><span class="si">}</span><span class="s2">&#39; of </span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2"> does not come with an IntervalIndex&quot;</span><span class="p">)</span>
+                <span class="n">df</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">elif</span> <span class="n">n_index_elements</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">what</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sliced</span><span class="p">:</span>
-                <span class="n">df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sliced</span><span class="p">[</span><span class="n">what</span><span class="p">][</span><span class="n">index</span><span class="p">]</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="c1"># corpus, fname, interval = index</span>
-                <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="n">what</span><span class="si">}</span><span class="s2">&#39; would have to be sliced first.&quot;</span><span class="p">)</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_slice</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">what</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">&#39;: Indices can currently include 2 or 3 elements.&quot;</span>
             <span class="p">)</span>
+        <span class="k">if</span> <span class="n">df</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="k">assert</span> <span class="p">(</span>
+            <span class="n">df</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">nlevels</span> <span class="o">==</span> <span class="mi">1</span>
+        <span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;Retrieved DataFrame has </span><span class="si">{</span><span class="n">df</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">nlevels</span><span class="si">}</span><span class="s2">, not 1&quot;</span>
         <span class="k">if</span> <span class="n">multiindex</span><span class="p">:</span>
-            <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">df</span><span class="p">],</span> <span class="n">keys</span><span class="o">=</span><span class="p">[</span><span class="n">index</span><span class="p">],</span> <span class="n">names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;corpus&quot;</span><span class="p">,</span> <span class="s2">&quot;fname&quot;</span><span class="p">])</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">df</span><span class="p">],</span> <span class="n">keys</span><span class="o">=</span><span class="p">[</span><span class="n">index</span><span class="p">[:</span><span class="mi">2</span><span class="p">]],</span> <span class="n">names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;corpus&quot;</span><span class="p">,</span> <span class="s2">&quot;fname&quot;</span><span class="p">])</span>
         <span class="k">return</span> <span class="n">df</span></div></div>
 </pre></div>
 
+            </article>
+
+
+
+            <footer class="bd-footer-article">
+                <!-- Previous / next buttons -->
+<div class='prev-next-area'>
+</div>
+            </footer>
+
           </div>
 
-        </div>
-      </div>
-      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
-        <div class="sphinxsidebarwrapper">
-<h1 class="logo"><a href="../../index.html">dimcat</a></h1>
 
 
+            <div class="bd-sidebar-secondary bd-toc">
 
+<div class="toc-item">
 
-
-
-
-
-<h3>Navigation</h3>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="../../readme.html">Overview</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../contributing.html">Contributions &amp; Help</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../license.html">License</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../authors.html">Authors</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../changelog.html">Changelog</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../api/modules.html">Module Reference</a></li>
-</ul>
-
-<div class="relations">
-<h3>Related Topics</h3>
-<ul>
-  <li><a href="../../index.html">Documentation overview</a><ul>
-  <li><a href="../index.html">Module code</a><ul>
-  </ul></li>
-  </ul></li>
-</ul>
+<div id="searchbox"></div>
 </div>
-<div id="searchbox" style="display: none" role="search">
-  <h3 id="searchlabel">Quick search</h3>
-    <div class="searchformwrapper">
-    <form class="search" action="../../search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
-      <input type="submit" value="Go" />
-    </form>
-    </div>
+
+<div class="toc-item">
+
 </div>
-<script>$('#searchbox').show(0);</script>
 
+<div class="toc-item">
 
+</div>
 
-
-
-
+            </div>
 
 
         </div>
-      </div>
-      <div class="clearer"></div>
+        <footer class="bd-footer-content">
+          <div class="bd-footer-content__inner">
+
+          </div>
+        </footer>
+
+      </main>
     </div>
-    <div class="footer">
-      &copy;2022, Digital and Cognitive Musicology Lab @ École Polytechnique Fédérale de Lausanne.
-
-      |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.5.0</a>
-      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
-
-    </div>
+  </div>
 
 
 
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="../../_static/scripts/bootstrap.js?digest=796348d33e8b1d947c94"></script>
+<script src="../../_static/scripts/pydata-sphinx-theme.js?digest=796348d33e8b1d947c94"></script>
 
+  <footer class="bd-footer"><div class="bd-footer__inner container">
+
+  <div class="footer-item">
+
+<p class="copyright">
+
+    &copy; Copyright 2023, Digital and Cognitive Musicology Lab @ École Polytechnique Fédérale de Lausanne.<br>
+
+</p>
+
+  </div>
+
+  <div class="footer-item">
+    <p class="theme-version">
+    Built with the
+    <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">
+        PyData Sphinx Theme
+    </a>
+    0.12.0.
+</p>
+  </div>
+
+  <div class="footer-item">
+
+<p class="sphinx-version">
+Created using <a href="http://sphinx-doc.org/">Sphinx</a> 5.3.0.<br>
+</p>
+
+  </div>
+
+</div>
+  </footer>
   </body>
 </html>
