@@ -8,12 +8,12 @@ Contents
 ========
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
 
    Overview <readme>
    tutorial
    manual
-   notebooks/index
+   notebooks
    Contributions & Help <contributing>
    License <license>
    Authors <authors>
