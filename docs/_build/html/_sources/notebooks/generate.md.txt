@@ -27,44 +27,56 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
-from utils import CADENCE_COLORS, CORPUS_COLOR_SCALE, STD_LAYOUT, TYPE_COLORS, color_background, value_count_df
+from utils import CADENCE_COLORS, CORPUS_COLOR_SCALE, STD_LAYOUT, TYPE_COLORS, color_background, corpus_mean_composition_years, value_count_df, get_corpus_display_name, get_repo_name, resolve_dir
 ```
 
 ```{code-cell} ipython3
 CORPUS_PATH = os.environ.get('CORPUS_PATH', "~/dcml_corpora")
-CORPUS_PATH
+print(f"CORPUS_PATH: '{CORPUS_PATH}'")
+CORPUS_PATH = resolve_dir(CORPUS_PATH)
 ```
 
 ```{code-cell} ipython3
 repo = Repo(CORPUS_PATH)
 notebook_repo = Repo('.', search_parent_directories=True)
-notebook_repo_path = notebook_repo.git.rev_parse("--show-toplevel")
-print(f"Notebook repository '{os.path.basename(notebook_repo_path)}' @ {notebook_repo.commit().hexsha[:7]}")
-print(f"Data repo '{os.path.basename(CORPUS_PATH)}' @ {repo.commit().hexsha[:7]}")
+print(f"Notebook repository '{get_repo_name(notebook_repo)}' @ {notebook_repo.commit().hexsha[:7]}")
+print(f"Data repo '{get_repo_name(CORPUS_PATH)}' @ {repo.commit().hexsha[:7]}")
 print(f"dimcat version {dc.__version__}")
 print(f"ms3 version {ms3.__version__}")
 ```
 
+## Data loading
+
+### Detected files
+
 ```{code-cell} ipython3
 dataset = dc.Dataset()
-for folder in ['corelli', 'liszt_pelerinage']:
-    print("Loading", folder)
-    path = os.path.join(CORPUS_PATH, folder)
-    dataset.load(directory=path)
+dataset.load(directory=CORPUS_PATH, parse_tsv=False)
 dataset.data
+```
+
+### Filtering
+
+```{code-cell} ipython3
+annotated_view = dataset.data.get_view('annotated')
+annotated_view.include('facets', 'measures', 'notes$', 'expanded')
+annotated_view.fnames_with_incomplete_facets = False
+dataset.data.set_view(annotated_view)
+dataset.data.parse_tsv(choose='auto')
+dataset.get_indices()
+dataset.data
+```
+
+```{code-cell} ipython3
+print(f"N = {dataset.data.count_pieces()} annotated pieces, {dataset.data.count_parsed_tsvs()} parsed dataframes.")
 ```
 
 ## Metadata
 
 ```{code-cell} ipython3
 all_metadata = dataset.data.metadata()
-print(f"Concatenated 'metadata.tsv' files cover {len(all_metadata)} of the {len(dataset.pieces)} scores.")
-all_metadata.groupby(level=0).nth(0)
-```
-
-```{code-cell} ipython3
-print("VALUE COUNTS OF THE COLUMN 'annotators'")
-all_metadata.annotators.value_counts()
+print(f"Concatenated 'metadata.tsv' files cover {len(all_metadata)} of the {dataset.data.count_pieces()} scores.")
+all_metadata.reset_index(level=1).groupby(level=0).nth(0).iloc[:,:20]
 ```
 
 ```{code-cell} ipython3
@@ -72,24 +84,10 @@ print(f"Composition dates range from {all_metadata.composed_start.min()} {all_me
       f"to {all_metadata.composed_end.max()} {all_metadata.composed_end.idxmax()}.")
 ```
 
-```{code-cell} ipython3
-:tags: []
-
-annotated = dc.IsAnnotatedFilter().process_data(dataset)
-print(f"Before: {len(dataset.indices[()])} IDs, after filtering: {len(annotated.indices[()])}")
-```
-
-**Choose here if you want to see stats for all or only for annotated scores.**
-
-```{code-cell} ipython3
-#selected = dataset
-selected = annotated
-```
-
 ## Measures
 
 ```{code-cell} ipython3
-all_measures = selected.get_facet('measures')
+all_measures = dataset.get_facet('measures')
 print(f"{len(all_measures.index)} measures over {len(all_measures.groupby(level=[0,1]))} files.")
 all_measures.head()
 ```
@@ -99,39 +97,12 @@ print("Distribution of time signatures per XML measure (MC):")
 all_measures.timesig.value_counts(dropna=False)
 ```
 
-## Notes
-
-```{code-cell} ipython3
-all_notes = selected.get_facet('notes')
-print(f"{len(all_notes.index)} notes over {len(all_notes.groupby(level=[0,1]))} files.")
-all_notes.head()
-```
-
-### Notes and staves
-
-```{code-cell} ipython3
-print("Distribution of notes over staves:")
-all_notes.staff.value_counts()
-```
-
-```{code-cell} ipython3
-print("Distribution of notes over staves for all pieces with more than two staves\n")
-for group, df in all_notes.groupby(level=[0,1]):
-    if (df.staff > 2).any():
-        print(group)
-        print(df.staff.value_counts().to_dict())
-```
-
-```{code-cell} ipython3
-all_notes[all_notes.staff > 2].groupby(level=[0,1]).staff.value_counts()
-```
-
 ## Harmony labels
 
 All symbols, independent of the local key (the mode of which changes their semantics).
 
 ```{code-cell} ipython3
-all_annotations = annotated.get_facet('expanded')
+all_annotations = dataset.get_facet('expanded')
 all_annotations.head()
 ```
 
@@ -154,9 +125,11 @@ print(f"Corpus contains {all_chords.shape[0]} tokens and {len(all_chords.chord.u
 ## Corpus summary
 
 ```{code-cell} ipython3
-summary = all_metadata
-if selected == annotated:
-    summary = summary[summary.label_count > 0].copy()
+all_notes = dataset.get_facet('notes')
+```
+
+```{code-cell} ipython3
+summary = all_metadata.copy()
 summary.length_qb = all_measures.groupby(level=[0,1]).act_dur.sum() * 4.0
 summary = pd.concat([summary,
                      all_notes.groupby(level=[0,1]).size().rename('notes'),
@@ -165,7 +138,7 @@ summary.groupby(level=0).describe().dropna(axis=1, how='all')
 ```
 
 ```{code-cell} ipython3
-mean_composition_years = summary.groupby(level=0).composed_end.mean().astype(int).sort_values()
+mean_composition_years = corpus_mean_composition_years(summary)
 chronological_order = mean_composition_years.index.to_list()
 corpus_colors = dict(zip(chronological_order, CORPUS_COLOR_SCALE))
 bar_data = pd.concat([mean_composition_years.rename('year'),
@@ -183,21 +156,8 @@ fig.update_traces(width=5)
 ```
 
 ```{code-cell} ipython3
-corpus_names = dict(
-    corelli='Corelli Trio Sonatas',
-    mozart_piano_sonatas='Mozart Piano Sonatas',
-    ABC='Beethoven String Quartets',
-    beethoven_piano_sonatas='Beethoven Sonatas',
-    chopin_mazurkas='Chopin Mazurkas',
-    debussy_suite_bergamasque='Debussy Suite',
-    dvorak_silhouettes="Dvořák Silhouettes",
-    grieg_lyric_pieces="Grieg Lyric Pieces",
-    liszt_pelerinage="Liszt Années",
-    medtner_tales="Medtner Tales",
-    schumann_kinderszenen="Schumann Kinderszenen",
-    tchaikovsky_seasons="Tchaikovsky Seasons"
-)
-chronological_corpus_names = [corpus_names[corp] for corp in chronological_order]
+corpus_names = {corp: get_corpus_display_name(corp) for corp in chronological_order}
+chronological_corpus_names = list(corpus_names.values())
 corpus_name_colors = {corpus_names[corp]: color for corp, color in corpus_colors.items()}
 all_annotations['corpus_name'] = all_annotations.index.get_level_values(0).map(corpus_names)
 all_chords['corpus_name'] = all_chords.index.get_level_values(0).map(corpus_names)
@@ -228,10 +188,6 @@ fig.update_traces(xbins=dict(
 fig.update_layout(**STD_LAYOUT)
 fig.update_yaxes(gridcolor='lightgrey')
 fig.show()
-```
-
-```{code-cell} ipython3
-summary.columns
 ```
 
 ```{code-cell} ipython3
@@ -295,7 +251,7 @@ ambitus.groupby(level=0).high.max() - ambitus.groupby(level=0).low.min()
 ```{code-cell} ipython3
 :tags: []
 
-phrase_segmented = dc.PhraseSlicer().process_data(selected)
+phrase_segmented = dc.PhraseSlicer().process_data(dataset)
 phrases = phrase_segmented.get_slice_info()
 print(f"Overall number of phrases is {len(phrases.index)}")
 phrases.head(20)
@@ -347,7 +303,7 @@ uniform_timesigs[uniform_timesigs.duration_measures > 80]
 
 ```{code-cell} ipython3
 from ms3 import roman_numeral2fifths, transform, resolve_all_relative_numerals, replace_boolean_mode_by_strings
-keys_segmented = dc.LocalKeySlicer().process_data(selected)
+keys_segmented = dc.LocalKeySlicer().process_data(dataset)
 keys = keys_segmented.get_slice_info()
 print(f"Overall number of key segments is {len(keys.index)}")
 keys["localkey_fifths"] = transform(keys, roman_numeral2fifths, ['localkey', 'globalkey_is_minor'])
@@ -644,7 +600,7 @@ transitions_from_shared_types = {
     True: {}
 }
 for (is_minor, corpus_name), bgs in corpus_wise_bigrams.iter():
-    transitions_normalized_per_from = bgs.groupby(level="from").apply(lambda S: (100 * S / S.sum()).round(1))
+    transitions_normalized_per_from = bgs.groupby(level="from", group_keys=False).apply(lambda S: (100 * S / S.sum()).round(1))
     most_frequent_transition_per_from = transitions_normalized_per_from.rename('fraction').reset_index(level=1).groupby(level=0).nth(0)
     most_frequent_transition_per_shared = most_frequent_transition_per_from.loc[types_shared_between_corpora[is_minor]]
     unigram_frequency_of_shared = normalized_corpus_unigrams[(is_minor, corpus_name)].loc[types_shared_between_corpora[is_minor]]
