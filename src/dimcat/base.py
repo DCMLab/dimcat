@@ -1,5 +1,31 @@
 from abc import ABC
-from typing import ClassVar, Dict, Iterable, List, Tuple, Type, Union, overload
+from dataclasses import dataclass
+from typing import (
+    ClassVar,
+    Dict,
+    Generic,
+    Iterable,
+    List,
+    Tuple,
+    Type,
+    TypeAlias,
+    TypeVar,
+    Union,
+    overload,
+)
+
+import pandas as pd
+from typing_extensions import Self
+
+try:
+    import modin.pandas as mpd
+
+    SomeDataframe: TypeAlias = Union[pd.DataFrame, mpd.DataFrame]
+except ImportError:
+    # DiMCAT has not been installed via dimcat[modin], hence the dependency is missing
+    SomeDataframe: TypeAlias = Union[pd.DataFrame]
+
+D = TypeVar("D", bound=SomeDataframe)
 
 
 class Data(ABC):
@@ -92,3 +118,35 @@ class PipelineStep(ABC):
         if isinstance(data, Data):
             return self.process(data)
         return [self.process(d) for d in data]
+
+
+@dataclass(frozen=True)
+class WrappedDataframe(Generic[D]):
+    """Wrapper around a DataFrame.
+    Can be used like the wrapped dataframe but subclasses provide additional functionality.
+    """
+
+    df: D
+    """The wrapped Dataframe object."""
+
+    @classmethod
+    def from_df(cls, df: D, **kwargs) -> Self:
+        """Subclasses can implement transformational logic."""
+        instance = cls(df=df, **kwargs)
+        return instance
+
+    def __getattr__(self, item):
+        """Enables using WrappedDataframe like the wrapped DataFrame."""
+        return getattr(self.df, item)
+
+    def __getitem__(self, item):
+        return self.df[item]
+
+    def __len__(self) -> int:
+        return len(self.df.index)
+
+    def __dir__(self) -> List[str]:
+        """Exposes the wrapped dataframe's properties and methods to the IDE."""
+        elements = super().__dir__()
+        elements.extend(dir(self.df))
+        return sorted(elements)
