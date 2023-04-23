@@ -85,7 +85,7 @@ class DimcatObject(ABC):
 
     _config_type: ClassVar[Type[Configuration]] = Configuration
     _enum_type: ClassVar[Type[Enum]] = None
-    _registry: ClassVar[Dict[str, Type]] = {}
+    _registry: ClassVar[Dict[str, Type[DimcatObject]]] = {}
     """Register of all subclasses."""
 
     def __init_subclass__(cls, **kwargs):
