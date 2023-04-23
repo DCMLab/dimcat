@@ -1,16 +1,26 @@
 from __future__ import annotations
 
 import logging
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 from zipfile import ZipFile
 
 import frictionless as fl
 import ms3
 import pandas as pd
 from dimcat.base import Configuration, Data, WrappedDataframe
+from dimcat.features.base import Feature, FeatureConfig, FeatureName
 from typing_extensions import Self
 
 logger = logging.getLogger(__name__)
+
+
+def feature_argument2config(
+    feature: Union[FeatureName, str, FeatureConfig]
+) -> FeatureConfig:
+    if isinstance(feature, FeatureConfig):
+        return feature
+    feature_name = FeatureName(feature)
+    return feature_name.get_config()
 
 
 class DimcatResource(Data):
@@ -94,6 +104,18 @@ class DimcatPackage(Data):
     def __repr__(self):
         return repr(self.package)
 
+    def get_feature(self, feature: Union[FeatureName, str, FeatureConfig]) -> Feature:
+        feature_config = feature_argument2config(feature)
+        feature_name = feature_config._configured_class
+        name2resource = dict(
+            Notes="notes",
+            Annotations="expanded",
+            KeyAnnotations="expanded",
+        )
+        resource_name = name2resource[feature_name]
+        r = self.get_resource(resource_name)
+        return r.get_pandas()
+
     def get_resource(self, name: str) -> DimcatResource:
         resource = self.package.get_resource(name)
         return DimcatResource(resource)
@@ -129,7 +151,29 @@ class DimcatCatalog(Data):
             raise ValueError(msg)
         self.packages.append(package)
 
-    def get_package(self, name: str) -> DimcatPackage:
+    def get_feature(self, feature: Union[FeatureName, str, FeatureConfig]) -> Feature:
+        p = self.get_package()
+        feature_config = feature_argument2config(feature)
+        return p.get_feature(feature_config)
+
+    def get_package(self, name: Optional[str] = None) -> DimcatPackage:
+        """If a name is given, calls :meth:`get_package_by_name`, otherwise returns the first loaded package.
+
+        Raises:
+            RuntimeError if no package has been loaded.
+        """
+        if name is not None:
+            return self.get_package_by_name(name=name)
+        if len(self.packages) == 0:
+            raise RuntimeError("No data has been loaded.")
+        return self.packages[0]
+
+    def get_package_by_name(self, name: str) -> DimcatPackage:
+        """
+
+        Raises:
+            fl.FrictionlessException if none of the loaded packages has the given name.
+        """
         for package in self.packages:
             if package.name == name:
                 return package
@@ -159,6 +203,7 @@ class Dataset(Data):
         """
         super().__init__(data=data, **kwargs)
         self.catalog = DimcatCatalog()
+        self._feature_cache: Dict[FeatureConfig, Feature] = {}
 
     def load_package(
         self,
@@ -175,6 +220,14 @@ class Dataset(Data):
         else:
             package.name = name
         self.catalog.add_package(package)
+
+    def get_feature(self, feature: Union[FeatureName, str, FeatureConfig]) -> Feature:
+        if feature in self._feature_cache:
+            return self._feature_cache[feature]
+        feature_config = feature_argument2config(feature)
+        feature = self.catalog.get_feature(feature_config)
+        self._feature_cache[feature_config] = feature
+        return feature
 
     def __str__(self):
         return str(self.catalog)
