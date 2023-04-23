@@ -12,6 +12,7 @@ class FeatureName(str, Enum):
     Notes = "Notes"
     Annotations = "Annotations"
     KeyAnnotations = "KeyAnnotations"
+    Metadata = "Metadata"
 
     def get_class(self) -> Type[Feature]:
         return DimcatObject._registry[self.name]
@@ -40,3 +41,12 @@ class FeatureConfig(Configuration):
 class Feature(WrappedDataframe):
     _config_type = FeatureConfig
     _enum_type = FeatureName
+
+
+@dataclass(frozen=True)
+class MetadataConfig(FeatureConfig):
+    _configured_class = "Metadata"
+
+
+class Metadata(Feature):
+    _config_type = MetadataConfig

@@ -111,6 +111,7 @@ class DimcatPackage(Data):
             Notes="notes",
             Annotations="expanded",
             KeyAnnotations="expanded",
+            Metadata="metadata",
         )
         resource_name = name2resource[feature_name]
         r = self.get_resource(resource_name)
