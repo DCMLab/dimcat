@@ -25,11 +25,14 @@ try:
     import modin.pandas as mpd
 
     SomeDataframe: TypeAlias = Union[pd.DataFrame, mpd.DataFrame]
+    SomeSeries: TypeAlias = Union[pd.Series, mpd.Series]
 except ImportError:
     # DiMCAT has not been installed via dimcat[modin], hence the dependency is missing
-    SomeDataframe: TypeAlias = Union[pd.DataFrame]
+    SomeDataframe: TypeAlias = pd.DataFrame
+    SomeSeries: TypeAlias = pd.Series
 
 D = TypeVar("D", bound=SomeDataframe)
+S = TypeVar("S", bound=SomeSeries)
 
 
 @dataclass()
@@ -181,20 +184,76 @@ class PipelineStep(DimcatObject):
         return [self.process(d) for d in data]
 
 
-@dataclass(frozen=True)
-class WrappedDataframe(Generic[D]):
-    """Wrapper around a DataFrame.
-    Can be used like the wrapped dataframe but subclasses provide additional functionality.
+class WrappedSeries(Generic[S], Data):
+    """Wrapper around a Series.
+    Can be used like the wrapped series but subclasses may provide additional functionality.
     """
 
-    df: D
-    """The wrapped Dataframe object."""
+    def __init__(self, series: S, **kwargs):
+        super().__init__(**kwargs)
+        self._series: D = series
+        """The wrapped Series object."""
+
+    @property
+    def series(self):
+        return self._series
+
+    @series.setter
+    def series(self, value):
+        raise RuntimeError(
+            f"Cannot assign to the field series. Use {self.name}.from_series() to create a new object."
+        )
+
+    @classmethod
+    def from_series(cls, series: S, **kwargs):
+        """Subclasses can implement transformational logic."""
+        instance = cls(series=series, **kwargs)
+        return instance
+
+    def __getitem__(self, int_or_slice_or_mask):
+        if isinstance(int_or_slice_or_mask, (int, slice)):
+            return self.series.iloc[int_or_slice_or_mask]
+        if isinstance(int_or_slice_or_mask, pd.Series):
+            return self.series[int_or_slice_or_mask]
+        raise KeyError(f"{self.name} cannot be subscripted with {int_or_slice_or_mask}")
+
+    def __getattr__(self, item):
+        """Enable using IndexSequence like a Series."""
+        return getattr(self.series, item)
+
+    def __len__(self) -> int:
+        return len(self.series.index)
+
+
+class WrappedDataframe(Generic[D], Data):
+    """Wrapper around a DataFrame.
+    Can be used like the wrapped dataframe but subclasses may provide additional functionality.
+    """
+
+    def __init__(self, df: D, **kwargs):
+        super().__init__(**kwargs)
+        self._df: D = df
+        """The wrapped Dataframe object."""
+
+    @property
+    def df(self):
+        return self._df
+
+    @df.setter
+    def df(self, value):
+        raise RuntimeError(
+            f"Cannot assign to the field df. Use {self.name}.from_df() to create a new object."
+        )
 
     @classmethod
     def from_df(cls, df: D, **kwargs) -> Self:
         """Subclasses can implement transformational logic."""
         instance = cls(df=df, **kwargs)
         return instance
+
+    def get_column(self, column_name: str) -> WrappedSeries:
+        column = self.df.loc[:, column_name]
+        return WrappedSeries(column)
 
     def __getattr__(self, item):
         """Enables using WrappedDataframe like the wrapped DataFrame."""
