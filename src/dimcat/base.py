@@ -1,6 +1,10 @@
+from __future__ import annotations
+
 from abc import ABC
-from dataclasses import dataclass
+from dataclasses import astuple, dataclass, fields
+from enum import Enum
 from typing import (
+    Any,
     ClassVar,
     Dict,
     Generic,
@@ -28,12 +32,53 @@ except ImportError:
 D = TypeVar("D", bound=SomeDataframe)
 
 
-class Data(ABC):
-    """
-    This abstract base class unites all classes containing data in some way or another.
-    All subclasses are dynamically collected in the class variable :attr:`_registry`.
-    """
+@dataclass()
+class Configuration(ABC):
+    _configured_class: ClassVar[str]
 
+    @classmethod
+    def from_dataclass(cls, config: Configuration, **kwargs) -> Self:
+        """This class methods copies the fields it needs from another config-like dataclass."""
+        init_args = cls.dict_from_dataclass(config, **kwargs)
+        return cls(**init_args)
+
+    @classmethod
+    def from_dict(cls, config: dict, **kwargs) -> Self:
+        """This class methods copies the fields it needs from another config-like dataclass."""
+        if not isinstance(config, dict):
+            raise TypeError(
+                f"Expected a dictionary, received a {type(config)!r} instead."
+            )
+        config = dict(config)
+        config.update(kwargs)
+        field_names = [field.name for field in fields(cls) if field.init]
+        init_args = {key: value for key, value in config.items() if key in field_names}
+        return cls(**init_args)
+
+    @classmethod
+    def dict_from_dataclass(cls, config: Configuration, **kwargs) -> Dict:
+        """This class methods copies the fields it needs from another config-like dataclass."""
+        init_args: Dict[str, Any] = {}
+        field_names = []
+        for config_field in fields(cls):
+            if not config_field.init:
+                continue
+            field_name = config_field.name
+            field_names.append(config_field.name)
+            if not hasattr(config, field_name):
+                continue
+            init_args[field_name] = getattr(config, field_name)
+        init_args.update(kwargs)
+        return init_args
+
+    def __eq__(self, other):
+        return astuple(self) == astuple(other)
+
+
+class DimcatObject(ABC):
+    """All DiMCAT classes derive from DimcatObject and can be"""
+
+    _config_type: ClassVar[Type[Configuration]] = Configuration
     _registry: ClassVar[Dict[str, Type]] = {}
     """Register of all subclasses."""
 
@@ -43,15 +88,47 @@ class Data(ABC):
         cls._registry[cls.__name__] = cls
 
     def __init__(self, **kwargs):
-        pass
+        config = kwargs.pop("config", None)
+        if config is None:
+            config = self._config_type.from_dict(kwargs)
+        else:
+            config = self._config_type.from_dataclass(config, **kwargs)
+        self._config: Configuration = config
+
+    @property
+    def config(self) -> Configuration:
+        return self._config
+
+    @classmethod
+    @property
+    def dtype(cls) -> Union[Enum, str]:
+        """Name of the class as enum member (if cls._enum_type is define, string otherwise)."""
+        if hasattr(cls, "_enum_type"):
+            return cls._enum_type(cls.name)
+        return cls.name
 
     @classmethod
     @property
     def name(cls) -> str:
         return cls.__name__
 
+    @classmethod
+    def from_config(cls, config: Configuration) -> DimcatObject:
+        type_str = config._configured_class
+        constructor = cls._registry[type_str]
+        return constructor(config)
 
-class PipelineStep(ABC):
+
+class Data(DimcatObject):
+    """
+    This abstract base class unites all classes containing data in some way or another.
+    All subclasses are dynamically collected in the class variable :attr:`_registry`.
+    """
+
+    pass
+
+
+class PipelineStep(DimcatObject):
     """
     This abstract base class unites all classes able to transform some data in a pre-defined way.
     All subclasses are dynamically collected in the class variable :attr:`_registry`.
@@ -61,22 +138,6 @@ class PipelineStep(ABC):
 
 
     """
-
-    _registry: ClassVar[Dict[str, Type]] = {}
-    """Register of all subclasses."""
-
-    def __init_subclass__(cls, **kwargs):
-        """Registers every subclass under the class variable :attr:`_registry`"""
-        super().__init_subclass__(**kwargs)
-        cls._registry[cls.__name__] = cls
-
-    def __init__(self, **kwargs):
-        pass
-
-    @classmethod
-    @property
-    def name(cls) -> str:
-        return cls.__name__
 
     def check(self, _) -> Tuple[bool, str]:
         """Test piece of data for certain properties before computing analysis.

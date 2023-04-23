@@ -7,7 +7,7 @@ from zipfile import ZipFile
 import frictionless as fl
 import ms3
 import pandas as pd
-from dimcat.base import Data, WrappedDataframe
+from dimcat.base import Configuration, Data, WrappedDataframe
 from typing_extensions import Self
 
 logger = logging.getLogger(__name__)
@@ -137,10 +137,14 @@ class DimcatCatalog(Data):
         raise fl.FrictionlessException(error)
 
 
+class DatasetConfig(Configuration):
+    _configured_class = "Dataset"
+
+
 class Dataset(Data):
     """The central type of object that all :obj:`PipelineSteps <.PipelineStep>` process and return a copy of."""
 
-    # region Initialization
+    _config_type = DatasetConfig
 
     def __init__(
         self,
