@@ -82,6 +82,7 @@ class DimcatObject(ABC):
     """All DiMCAT classes derive from DimcatObject and can be"""
 
     _config_type: ClassVar[Type[Configuration]] = Configuration
+    _enum_type: ClassVar[Type[Enum]] = None
     _registry: ClassVar[Dict[str, Type]] = {}
     """Register of all subclasses."""
 
@@ -106,9 +107,9 @@ class DimcatObject(ABC):
     @property
     def dtype(cls) -> Union[Enum, str]:
         """Name of the class as enum member (if cls._enum_type is define, string otherwise)."""
-        if hasattr(cls, "_enum_type"):
-            return cls._enum_type(cls.name)
-        return cls.name
+        if cls._enum_type is None:
+            return cls.name
+        return cls._enum_type(cls.name)
 
     @classmethod
     @property
