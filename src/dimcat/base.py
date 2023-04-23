@@ -35,9 +35,9 @@ D = TypeVar("D", bound=SomeDataframe)
 S = TypeVar("S", bound=SomeSeries)
 
 
-@dataclass()
+@dataclass(frozen=True)
 class Configuration(ABC):
-    _configured_class: ClassVar[str]
+    _configured_class: ClassVar[str] = "DimcatObject"
 
     @classmethod
     def from_dataclass(cls, config: Configuration, **kwargs) -> Self:
@@ -75,6 +75,8 @@ class Configuration(ABC):
         return init_args
 
     def __eq__(self, other):
+        if isinstance(other, str):
+            return self._configured_class.lower() == other.lower()
         return astuple(self) == astuple(other)
 
 
@@ -118,9 +120,12 @@ class DimcatObject(ABC):
 
     @classmethod
     def from_config(cls, config: Configuration) -> DimcatObject:
+        """Creates a new object based on the given :obj:`Configuration` object. The object's type depends on the
+        value :attr:`~Configuration._configured_class` of the config.
+        """
         type_str = config._configured_class
         constructor = cls._registry[type_str]
-        return constructor(config)
+        return constructor(config=config)
 
 
 class Data(DimcatObject):
