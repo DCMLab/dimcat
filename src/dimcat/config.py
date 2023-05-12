@@ -1,42 +1,41 @@
-from typing import TYPE_CHECKING
-
 import marshmallow as mm
-
-# To avoid circular import.
-if TYPE_CHECKING:
-    from dimcat.base import DimcatObject
-
-_CONFIGURED_REGISTRY = {}
+from dimcat.utils import get_class, get_schema
 
 
-class DimCatConfig(mm.Schema):
+class DimcatSchema(mm.Schema):
     """
     The base class of the config system of Dimcat, with which to define custom configs. This class holds the logic for
     serializing/deserializing config objects.
     """
 
-    # Contains the configured class. This class is returned when loading a config object.
-    # This should be overridden by every subclass.
-    configured_object: "DimcatObject" = None
-    # This is used internally by marshmallow to deserialize the configured object.
-    # Note that this field added "manually" by add_class_builder_to_json, for practical reasons.
-    _configured_type = mm.fields.Function(deserialize=lambda v : _CONFIGURED_REGISTRY[v])
-
-    def __new__(cls, *args, **kwargs):
-        # Register a new class builder to the _CLASS_BUILDERS registry. Is used to serialize/deserialize dim cats objects
-        # configured.
-        if cls.configured_object is None:
-            raise ValueError(f"{cls} object does not have configured_object attribute !")
-        _CONFIGURED_REGISTRY[cls.configured_object.__qualname__] = cls.configured_object
-        return object.__new__(cls)
-
-    @mm.post_dump
-    def add_class_builder_to_json(self, data, **kwargs):
-        # Add the field containing the configured object class, that will be used a class builder upon deserializing.
-        data["_configured_type"] = self.configured_object.__qualname__
-        return data
+    dtype = mm.fields.String()
 
     @classmethod
-    def from_json(cls, json) -> dict:
-        # Instantiating cls() everytime is is quite ugly. There is likely a better solution
-        return cls().loads(json)
+    @property
+    def name(cls) -> str:
+        return cls.__qualname__
+
+    @mm.post_load()
+    def init_object(self, data, **kwargs):
+        obj_name = data.pop("dtype")
+        Constructor = get_class(obj_name)
+        return Constructor(**data)
+
+    @mm.post_dump()
+    def validate_dump(self, data, **kwargs) -> None:
+        if "dtype" not in data:
+            raise mm.ValidationError(
+                "The object to be serialized doesn't have a 'dtype' field. May it's not a "
+                "DimcatObject?"
+            )
+        dtype_schema = get_schema(data["dtype"])
+        report = dtype_schema.validate(data)
+        if report:
+            raise mm.ValidationError(
+                f"Dump of {data['dtype']} created with a {self.name} could not be validated by "
+                f"{dtype_schema.name} :\n{report}"
+            )
+        return data
+
+    def __repr__(self):
+        return f"{self.name}(many={self.many})"
