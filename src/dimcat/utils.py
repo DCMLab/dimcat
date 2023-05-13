@@ -6,8 +6,14 @@ import pandas as pd
 from dimcat.base import DimcatObject
 
 
+@cache
 def get_class(name) -> Type[DimcatObject]:
     return DimcatObject._registry[name]
+
+
+@cache
+def is_dimcat_class(name) -> bool:
+    return name in DimcatObject._registry
 
 
 @cache

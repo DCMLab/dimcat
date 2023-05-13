@@ -1,5 +1,9 @@
+from collections.abc import MutableMapping
+from typing import Dict, List, Type
+
 import marshmallow as mm
-from dimcat.utils import get_class, get_schema
+from dimcat.base import DimcatObject
+from dimcat.utils import get_class, get_schema, is_dimcat_class
 
 
 class DimcatSchema(mm.Schema):
@@ -39,3 +43,49 @@ class DimcatSchema(mm.Schema):
 
     def __repr__(self):
         return f"{self.name}(many={self.many})"
+
+
+class DimcatConfig(MutableMapping, DimcatObject):
+    def __init__(self, dtype: str | Type[DimcatObject], data=()):
+        if isinstance(dtype, str):
+            dtype_str = dtype
+        else:
+            dtype_str = dtype.name
+        if not is_dimcat_class(dtype_str):
+            raise ValueError(
+                f"{dtype!r} is not the name of a DimcatObject, needed to instantiate a Config."
+            )
+        self.schema: DimcatSchema = get_schema(dtype_str)
+        self._config = dict(dtype=dtype_str)
+        self.update(data)
+
+    def create(self):
+        return self.schema.load(self._config)
+
+    def validate(self) -> Dict[str, List[str]]:
+        """Validates the current status of the config in terms of ability to create an object. Empty dict == valid."""
+        return self.schema.validate(self._config, many=False, partial=False)
+
+    def __getitem__(self, key):
+        return self._config[key]
+
+    def __delitem__(self, key):
+        del self._config[key]
+
+    def __setitem__(self, key, value):
+        dict_to_validate = {key: value}
+        report = self.schema.validate(dict_to_validate, partial=True)
+        if report:
+            raise ValueError(
+                f"{self.schema.name}: Cannot set {key!r} to {value!r}:\n{report}"
+            )
+        self._config[key] = value
+
+    def __iter__(self):
+        return iter(self._config)
+
+    def __len__(self):
+        return len(self._config)
+
+    def __repr__(self):
+        return f"{self.name}({self._config})"

@@ -6,7 +6,7 @@ from pprint import pprint
 
 import pytest
 from dimcat.base import DimcatObject
-from dimcat.config import DimcatSchema
+from dimcat.config import DimcatConfig, DimcatSchema
 from dimcat.utils import get_class, get_schema
 from marshmallow import ValidationError, fields
 from marshmallow.class_registry import _registry as MM_REGISTRY
@@ -36,10 +36,12 @@ class BaseObject(DimcatObject):
         return schema.loads(config)
 
     class Schema(DimcatSchema):
-        strong = fields.String()
+        strong = fields.String(required=True)
 
     def __init__(self, strong: str):
-        self.schema = get_schema(self.name)
+        self.schema = get_schema(
+            self.name
+        )  # each object gets the same, cached instance
         self.strong = strong
 
     def to_dict(self) -> dict:
@@ -60,6 +62,20 @@ class SubClass(BaseObject):
 
 class SubSubClass(SubClass):
     pass
+
+
+def test_config():
+    conf = DimcatConfig(BaseObject)
+    print(conf)
+    print(conf.validate())
+    try:
+        conf["invalid_key"] = 1
+        raise RuntimeError("Should have raise ValueError")
+    except ValueError:
+        pass
+    conf["strong"] = "test"
+    new_base = conf.create()
+    print(new_base.__dict__)
 
 
 def test_subclass():
