@@ -1,4 +1,5 @@
 """Utility functions that are or might be used by several modules or useful in external contexts."""
+from functools import cache
 from typing import Collection, Type
 
 import pandas as pd
@@ -9,19 +10,13 @@ def get_class(name) -> Type[DimcatObject]:
     return DimcatObject._registry[name]
 
 
-_SCHEMA_CACHE = {}
-
-
+@cache
 def get_schema(name, init=True):
     """Caches the intialized schema for each class. Pass init=False to retrieve the schmema constructor."""
-    if init and name in _SCHEMA_CACHE:
-        return _SCHEMA_CACHE[name]
     dc_class = get_class(name)
     dc_schema = dc_class.Schema
     if init:
-        initialized = dc_schema()
-        _SCHEMA_CACHE[name] = initialized
-        return initialized
+        return dc_schema()
     return dc_schema
 
 
