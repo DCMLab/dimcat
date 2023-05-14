@@ -1,9 +1,9 @@
 from collections.abc import MutableMapping
-from typing import Dict, List, Type
+from typing import Dict, List
 
 import marshmallow as mm
 from dimcat.base import DimcatObject
-from dimcat.utils import get_class, get_schema, is_dimcat_class
+from dimcat.utils import get_class, get_schema
 
 
 class DimcatSchema(mm.Schema):
@@ -46,20 +46,32 @@ class DimcatSchema(mm.Schema):
 
 
 class DimcatConfig(MutableMapping, DimcatObject):
-    def __init__(self, dtype: str | Type[DimcatObject], data=()):
+    def __init__(self, options=(), **kwargs):
+        self._config = dict(options, **kwargs)
+        if "dtype" not in self._config:
+            raise ValueError(
+                "DimcatConfig requires a 'dtype' key that needs to be the name of a DimcatObject."
+            )
+        dtype = self._config["dtype"]
         if isinstance(dtype, str):
             dtype_str = dtype
-        else:
+        elif isinstance(dtype, DimcatObject) or issubclass(dtype, DimcatObject):
             dtype_str = dtype.name
-        if not is_dimcat_class(dtype_str):
+            self._config["dtype"] = dtype_str
+        else:
             raise ValueError(
                 f"{dtype!r} is not the name of a DimcatObject, needed to instantiate a Config."
             )
         self.schema: DimcatSchema = get_schema(dtype_str)
         self._config = dict(dtype=dtype_str)
-        self.update(data)
+        self.update(options)
 
-    def create(self):
+    @classmethod
+    def from_object(cls, obj: DimcatObject):
+        dump = obj.schema.dump(obj)
+        return cls(dump)
+
+    def create(self) -> DimcatObject:
         return self.schema.load(self._config)
 
     def validate(self) -> Dict[str, List[str]]:

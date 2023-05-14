@@ -7,16 +7,14 @@ from pprint import pprint
 import pytest
 from dimcat.base import DimcatObject
 from dimcat.config import DimcatConfig, DimcatSchema
-from dimcat.utils import get_class, get_schema
+from dimcat.utils import get_schema
 from marshmallow import ValidationError, fields
 from marshmallow.class_registry import _registry as MM_REGISTRY
 
 
 def obj_from_dict(obj_data):
-    dtype = obj_data["dtype"]
-    Constructor = get_class(dtype)
-    print(f"dtype: {dtype}, class = {Constructor}")
-    return Constructor.from_dict(obj_data)
+    config = DimcatConfig(obj_data)
+    return config.create()
 
 
 def obj_from_json(json_data):
@@ -26,7 +24,9 @@ def obj_from_json(json_data):
 
 class BaseObject(DimcatObject):
     @classmethod
-    def from_dict(cls, config):
+    def from_dict(cls, config, **kwargs):
+        config = dict(config, **kwargs)
+        config["dtype"] = cls.name
         schema = cls.Schema()
         return schema.load(config)
 
@@ -45,7 +45,7 @@ class BaseObject(DimcatObject):
         self.strong = strong
 
     def to_dict(self) -> dict:
-        return self.schema.dump(self)
+        return DimcatConfig.from_object(self)
 
     def to_json(self) -> dict:
         return self.schema.dumps(self)
@@ -65,7 +65,7 @@ class SubSubClass(SubClass):
 
 
 def test_config():
-    conf = DimcatConfig(BaseObject)
+    conf = DimcatConfig.from_object(BaseObject(strong="FORT"))
     print(conf)
     print(conf.validate())
     try:
@@ -75,7 +75,15 @@ def test_config():
         pass
     conf["strong"] = "test"
     new_base = conf.create()
-    print(new_base.__dict__)
+    base_options = new_base.to_dict()
+    sc = SubClass.from_dict(base_options, weak=True)
+    sc_options = sc.to_dict()
+    sc_options["dtype"] = BaseObject.name
+    try:
+        DimcatConfig(sc_options)
+        raise RuntimeError("Should have raise ValueVError")
+    except ValueError:
+        pass
 
 
 def test_subclass():
