@@ -144,6 +144,10 @@ class DimcatObject(ABC):
 
 
 class DimcatConfig(MutableMapping, DimcatObject):
+    """Behaves like a dictionary but accepts only keys and values that are valid under the Schema of the DimcatObject
+    specified under the key 'dtype'.
+    """
+
     def __init__(self, options=(), **kwargs):
         self._config = dict(options, **kwargs)
         if "dtype" not in self._config:
@@ -160,8 +164,10 @@ class DimcatConfig(MutableMapping, DimcatObject):
             raise ValueError(
                 f"{dtype!r} is not the name of a DimcatObject, needed to instantiate a Config."
             )
-        self._config = dict(dtype=dtype_str)
-        self.update(options)
+
+    @property
+    def dtype(self):
+        return self._config["dtype"]
 
     @classmethod
     def from_object(cls, obj: DimcatObject):

@@ -10,16 +10,28 @@ import frictionless as fl
 import ms3
 import pandas as pd
 import pytest
-from dimcat.base import DimcatConfig, DimcatObject, DimcatSchema, WrappedDataframe
+from dimcat.base import (
+    Data,
+    DimcatConfig,
+    DimcatObject,
+    DimcatSchema,
+    PipelineStep,
+    WrappedDataframe,
+)
 from marshmallow import ValidationError, fields
 from marshmallow.class_registry import _registry as MM_REGISTRY
 from typing_extensions import Self
 
 
-class TestDimcatObject:
+class TestBaseObjects:
+    @pytest.fixture(params=[DimcatObject, Data, PipelineStep])
+    def dimcat_class(self, request):
+        return request.param
+
     @pytest.fixture()
-    def dimcat_object(self) -> DimcatObject:
-        return DimcatObject()
+    def dimcat_object(self, dimcat_class):
+        """Initializes each of the objects to be tested."""
+        return dimcat_class()
 
     @pytest.fixture()
     def as_dict(self, dimcat_object: DimcatObject) -> dict:
@@ -29,23 +41,37 @@ class TestDimcatObject:
     def as_config(self, dimcat_object: DimcatObject) -> DimcatConfig:
         return dimcat_object.to_config()
 
-    def test_init(self, dimcat_object):
+    def test_init(self, dimcat_object, dimcat_class):
         assert isinstance(dimcat_object, DimcatObject)
+        assert isinstance(dimcat_object, dimcat_class)
 
     def test_serialization(self, as_dict, as_config):
         print(as_dict)
         print(as_config)
         assert as_dict == as_config
 
-    def test_deserialization_via_constructor(self, as_dict, as_config):
-        from_dict = DimcatObject.from_dict(as_dict)
-        from_config = DimcatObject.from_config(as_config)
+    def test_deserialization_via_constructor(self, as_dict, as_config, dimcat_class):
+        from_dict = dimcat_class.from_dict(as_dict)
+        assert isinstance(from_dict, dimcat_class)
+        from_config = dimcat_class.from_config(as_config)
+        assert isinstance(from_config, dimcat_class)
         assert from_dict.__dict__ == from_config.__dict__
 
-    def test_deserialization_via_config(self, as_dict, as_config):
+    def test_deserialization_via_config(self, as_dict, as_config, dimcat_class):
         from_dict = DimcatConfig(as_dict).create()
+        assert isinstance(from_dict, dimcat_class)
         from_config = as_config.create()
+        assert isinstance(from_config, dimcat_class)
         assert from_dict.__dict__ == from_config.__dict__
+
+    def test_deserialization_from_scratch(self, dimcat_class):
+        dtype = dimcat_class.dtype
+        config = DimcatConfig(dtype=dtype)
+        obj = config.create()
+        assert isinstance(obj, dimcat_class)
+
+
+# BELOW IS PLAYGROUND CODE WAITING TO BE FACTORED IN
 
 
 def obj_from_dict(obj_data):
