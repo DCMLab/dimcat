@@ -1,15 +1,16 @@
 from __future__ import annotations
 
+import json
 from abc import ABC
-from dataclasses import astuple, dataclass, fields
 from enum import Enum
+from functools import cache
 from typing import (
-    Any,
     ClassVar,
     Dict,
     Generic,
     Iterable,
     List,
+    MutableMapping,
     Tuple,
     Type,
     TypeAlias,
@@ -18,6 +19,7 @@ from typing import (
     overload,
 )
 
+import marshmallow as mm
 import pandas as pd
 from typing_extensions import Self
 
@@ -35,83 +37,67 @@ D = TypeVar("D", bound=SomeDataframe)
 S = TypeVar("S", bound=SomeSeries)
 
 
-@dataclass(frozen=True)
-class Configuration(ABC):
-    _configured_class: ClassVar[str] = "DimcatObject"
+class DimcatSchema(mm.Schema):
+    """
+    The base class of all Schema() classes that are defined or inherited as nested classes
+    for all :class:`DimcatObjects <DimcatObject>`. This class holds the logic for serializing/deserializing DiMCAT
+    objects.
+    """
+
+    dtype = mm.fields.String()
+    """This field specifies the class of the serialized object. Every DimcatObject comes with the corresponding class
+    property that returns its name as a string (or en Enum member that can function as a string)."""
 
     @classmethod
-    def from_dataclass(cls, config: Configuration, **kwargs) -> Self:
-        """This class methods copies the fields it needs from another config-like dataclass."""
-        init_args = cls.dict_from_dataclass(config, **kwargs)
-        return cls(**init_args)
+    @property
+    def name(cls) -> str:
+        """Qualified name of the schema, meaning it includes the name of the class that it is nested in."""
+        return cls.__qualname__
 
-    @classmethod
-    def from_dict(cls, config: dict, **kwargs) -> Self:
-        """This class methods copies the fields it needs from another config-like dataclass."""
-        if not isinstance(config, dict):
-            raise TypeError(
-                f"Expected a dictionary, received a {type(config)!r} instead."
+    @mm.post_load()
+    def init_object(self, data, **kwargs) -> DimcatObject:
+        """Once the data has been loaded, create the corresponding object."""
+        obj_name = data.pop("dtype")
+        Constructor = get_class(obj_name)
+        return Constructor(**data)
+
+    @mm.post_dump()
+    def validate_dump(self, data, **kwargs) -> None:
+        """Make sure to never return invalid serialization data."""
+        if "dtype" not in data:
+            raise mm.ValidationError(
+                "The object to be serialized doesn't have a 'dtype' field. May it's not a "
+                "DimcatObject?"
             )
-        config = dict(config)
-        config.update(kwargs)
-        field_names = [field.name for field in fields(cls) if field.init]
-        init_args = {key: value for key, value in config.items() if key in field_names}
-        return cls(**init_args)
+        dtype_schema = get_schema(data["dtype"])
+        report = dtype_schema.validate(data)
+        if report:
+            raise mm.ValidationError(
+                f"Dump of {data['dtype']} created with a {self.name} could not be validated by "
+                f"{dtype_schema.name} :\n{report}"
+            )
+        return data
 
-    @classmethod
-    def dict_from_dataclass(cls, config: Configuration, **kwargs) -> Dict:
-        """This class methods copies the fields it needs from another config-like dataclass."""
-        init_args: Dict[str, Any] = {}
-        field_names = []
-        for config_field in fields(cls):
-            if not config_field.init:
-                continue
-            field_name = config_field.name
-            field_names.append(config_field.name)
-            if not hasattr(config, field_name):
-                continue
-            init_args[field_name] = getattr(config, field_name)
-        init_args.update(kwargs)
-        return init_args
-
-    def __eq__(self, other):
-        if isinstance(other, str):
-            return self._configured_class.lower() == other.lower()
-        return astuple(self) == astuple(other)
+    def __repr__(self):
+        return f"{self.name}(many={self.many})"
 
 
 class DimcatObject(ABC):
-    """All DiMCAT classes derive from DimcatObject and can be"""
+    """All DiMCAT classes derive from DimcatObject, except for the nested Schema(DimcatSchema) class that they define or
+    inherit."""
 
-    _config_type: ClassVar[Type[Configuration]] = Configuration
     _enum_type: ClassVar[Type[Enum]] = None
+    """If a class specifies an Enum, its 'dtype' property returns the Enum member corresponding to its 'name'."""
     _registry: ClassVar[Dict[str, Type[DimcatObject]]] = {}
-    """Register of all subclasses."""
+    """Registry of all subclasses (but not their corresponding Schema classes)."""
+
+    class Schema(DimcatSchema):
+        pass
 
     def __init_subclass__(cls, **kwargs):
         """Registers every subclass under the class variable :attr:`_registry`"""
         super().__init_subclass__(**kwargs)
         cls._registry[cls.__name__] = cls
-
-    def __init__(self, **kwargs):
-        config = kwargs.pop("config", None)
-        if config is None:
-            config = self._config_type.from_dict(kwargs)
-        else:
-            config = self._config_type.from_dataclass(config, **kwargs)
-        self._config: Configuration = config
-
-    @property
-    def config(self) -> Configuration:
-        return self._config
-
-    @classmethod
-    @property
-    def dtype(cls) -> Union[Enum, str]:
-        """Name of the class as enum member (if cls._enum_type is define, string otherwise)."""
-        if cls._enum_type is None:
-            return cls.name
-        return cls._enum_type(cls.name)
 
     @classmethod
     @property
@@ -119,13 +105,99 @@ class DimcatObject(ABC):
         return cls.__name__
 
     @classmethod
-    def from_config(cls, config: Configuration) -> DimcatObject:
-        """Creates a new object based on the given :obj:`Configuration` object. The object's type depends on the
-        value :attr:`~Configuration._configured_class` of the config.
-        """
-        type_str = config._configured_class
-        constructor = cls._registry[type_str]
-        return constructor(config=config)
+    @property
+    def dtype(cls) -> str | Enum:
+        """Name of the class as enum member (if cls._enum_type is define, string otherwise)."""
+        if cls._enum_type is None:
+            return cls.name
+        return cls._enum_type(cls.name)
+
+    @classmethod
+    @property
+    def schema(cls):
+        """Returns the (instantiated) DimcatSchema singleton object for this class."""
+        return get_schema(cls.name)
+
+    def to_dict(self) -> dict:
+        return self.schema.dump(self)
+
+    def to_config(self) -> DimcatConfig:
+        return DimcatConfig(self.to_dict())
+
+    def to_json(self) -> str:
+        return self.schema.dumps(self)
+
+    @classmethod
+    def from_dict(cls, config, **kwargs) -> Self:
+        config = dict(config, **kwargs)
+        config["dtype"] = cls.name
+        return cls.schema.load(config)
+
+    @classmethod
+    def from_config(cls, config, **kwargs):
+        return cls.from_dict(config, **kwargs)
+
+    @classmethod
+    def from_json(cls, config: str, **kwargs) -> Self:
+        json_dict = json.loads(config)
+        return cls.from_dict(json_dict, **kwargs)
+
+
+class DimcatConfig(MutableMapping, DimcatObject):
+    def __init__(self, options=(), **kwargs):
+        self._config = dict(options, **kwargs)
+        if "dtype" not in self._config:
+            raise ValueError(
+                "DimcatConfig requires a 'dtype' key that needs to be the name of a DimcatObject."
+            )
+        dtype = self._config["dtype"]
+        if isinstance(dtype, str):
+            dtype_str = dtype
+        elif isinstance(dtype, DimcatObject) or issubclass(dtype, DimcatObject):
+            dtype_str = dtype.name
+            self._config["dtype"] = dtype_str
+        else:
+            raise ValueError(
+                f"{dtype!r} is not the name of a DimcatObject, needed to instantiate a Config."
+            )
+        self._config = dict(dtype=dtype_str)
+        self.update(options)
+
+    @classmethod
+    def from_object(cls, obj: DimcatObject):
+        dump = obj.schema.dump(obj)
+        return cls(dump)
+
+    def create(self) -> DimcatObject:
+        return self.schema.load(self._config)
+
+    def validate(self) -> Dict[str, List[str]]:
+        """Validates the current status of the config in terms of ability to create an object. Empty dict == valid."""
+        return self.schema.validate(self._config, many=False, partial=False)
+
+    def __getitem__(self, key):
+        return self._config[key]
+
+    def __delitem__(self, key):
+        del self._config[key]
+
+    def __setitem__(self, key, value):
+        dict_to_validate = {key: value}
+        report = self.schema.validate(dict_to_validate, partial=True)
+        if report:
+            raise ValueError(
+                f"{self.schema.name}: Cannot set {key!r} to {value!r}:\n{report}"
+            )
+        self._config[key] = value
+
+    def __iter__(self):
+        return iter(self._config)
+
+    def __len__(self):
+        return len(self._config)
+
+    def __repr__(self):
+        return f"{self.name}({self._config})"
 
 
 class Data(DimcatObject):
@@ -276,3 +348,26 @@ class WrappedDataframe(Generic[D], Data):
         elements = super().__dir__()
         elements.extend(dir(self.df))
         return sorted(elements)
+
+
+@cache
+def get_class(name) -> Type[DimcatObject]:
+    if name == "DimcatObject":
+        # this is the only object that's not in the registry
+        return DimcatObject
+    return DimcatObject._registry[name]
+
+
+@cache
+def is_dimcat_class(name) -> bool:
+    return name in DimcatObject._registry
+
+
+@cache
+def get_schema(name, init=True):
+    """Caches the intialized schema for each class. Pass init=False to retrieve the schema constructor."""
+    dc_class = get_class(name)
+    dc_schema = dc_class.Schema
+    if init:
+        return dc_schema()
+    return dc_schema

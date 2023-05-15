@@ -1,29 +1,7 @@
 """Utility functions that are or might be used by several modules or useful in external contexts."""
-from functools import cache
-from typing import Collection, Type
+from typing import Collection
 
 import pandas as pd
-from dimcat.base import DimcatObject
-
-
-@cache
-def get_class(name) -> Type[DimcatObject]:
-    return DimcatObject._registry[name]
-
-
-@cache
-def is_dimcat_class(name) -> bool:
-    return name in DimcatObject._registry
-
-
-@cache
-def get_schema(name, init=True):
-    """Caches the intialized schema for each class. Pass init=False to retrieve the schmema constructor."""
-    dc_class = get_class(name)
-    dc_schema = dc_class.Schema
-    if init:
-        return dc_schema()
-    return dc_schema
 
 
 def nest_level(obj, include_tuples=False):

@@ -10,12 +10,42 @@ import frictionless as fl
 import ms3
 import pandas as pd
 import pytest
-from dimcat.base import DimcatObject, WrappedDataframe
-from dimcat.config import DimcatConfig, DimcatSchema
-from dimcat.utils import get_schema
+from dimcat.base import DimcatConfig, DimcatObject, DimcatSchema, WrappedDataframe
 from marshmallow import ValidationError, fields
 from marshmallow.class_registry import _registry as MM_REGISTRY
 from typing_extensions import Self
+
+
+class TestDimcatObject:
+    @pytest.fixture()
+    def dimcat_object(self) -> DimcatObject:
+        return DimcatObject()
+
+    @pytest.fixture()
+    def as_dict(self, dimcat_object: DimcatObject) -> dict:
+        return dimcat_object.to_dict()
+
+    @pytest.fixture()
+    def as_config(self, dimcat_object: DimcatObject) -> DimcatConfig:
+        return dimcat_object.to_config()
+
+    def test_init(self, dimcat_object):
+        assert isinstance(dimcat_object, DimcatObject)
+
+    def test_serialization(self, as_dict, as_config):
+        print(as_dict)
+        print(as_config)
+        assert as_dict == as_config
+
+    def test_deserialization_via_constructor(self, as_dict, as_config):
+        from_dict = DimcatObject.from_dict(as_dict)
+        from_config = DimcatObject.from_config(as_config)
+        assert from_dict.__dict__ == from_config.__dict__
+
+    def test_deserialization_via_config(self, as_dict, as_config):
+        from_dict = DimcatConfig(as_dict).create()
+        from_config = as_config.create()
+        assert from_dict.__dict__ == from_config.__dict__
 
 
 def obj_from_dict(obj_data):
@@ -28,35 +58,7 @@ def obj_from_json(json_data):
     return obj_from_dict(obj_data)
 
 
-class BaseObject(DimcatObject):
-    @classmethod
-    def from_dict(cls, config, **kwargs):
-        config = dict(config, **kwargs)
-        config["dtype"] = cls.name
-        schema = cls.Schema()
-        return schema.load(config)
-
-    @classmethod
-    def from_json(cls, config):
-        schema = cls.Schema()
-        return schema.loads(config)
-
-    class Schema(DimcatSchema):
-        strong = fields.String(required=True)
-
-    def __init__(self, **kwargs):
-        self.schema = get_schema(
-            self.name
-        )  # each object gets the same, cached instance
-
-    def to_dict(self) -> dict:
-        return DimcatConfig.from_object(self)
-
-    def to_json(self) -> dict:
-        return self.schema.dumps(self)
-
-
-class DimcatResource(BaseObject):
+class DimcatResource(DimcatObject):
     class Schema(DimcatSchema):
         resource = fields.Method(
             serialize="get_descriptor", deserialize="load_descriptor"
@@ -145,12 +147,12 @@ def test_dc_resource():
     print(restored_df)
 
 
-class SubClass(BaseObject):
+class SubClass(DimcatObject):
     def __init__(self, strong: str, weak: bool):
         super().__init__(strong=strong)
         self.weak = weak
 
-    class Schema(BaseObject.Schema):
+    class Schema(DimcatObject.Schema):
         weak = fields.Boolean(required=True)
 
 
@@ -159,7 +161,7 @@ class SubSubClass(SubClass):
 
 
 def test_config():
-    conf = DimcatConfig.from_object(BaseObject(strong="FORT"))
+    conf = DimcatConfig.from_object(DimcatObject(strong="FORT"))
     print(conf)
     print(conf.validate())
     try:
@@ -172,7 +174,7 @@ def test_config():
     base_options = new_base.to_dict()
     sc = SubClass.from_dict(base_options, weak=True)
     sc_options = sc.to_dict()
-    sc_options["dtype"] = BaseObject.name
+    sc_options["dtype"] = DimcatObject.name
     try:
         DimcatConfig(sc_options)
         raise RuntimeError("Should have raise ValueVError")
@@ -181,13 +183,13 @@ def test_config():
 
 
 def test_subclass():
-    b_s = BaseObject.Schema()
+    b_s = DimcatObject.Schema()
     sc_s = SubClass.Schema()
     ssc_s = SubSubClass.Schema()
-    print(BaseObject.Schema.__qualname__, b_s.name)
+    print(DimcatObject.Schema.__qualname__, b_s.name)
     print(SubClass.Schema.__qualname__, sc_s.name)
     print(SubSubClass.Schema.__qualname__, ssc_s.name)
-    b_before = BaseObject(strong="Schtrong")
+    b_before = DimcatObject(strong="Schtrong")
     sc_before = SubClass(strong="strung", weak=True)
     ssc_before = SubSubClass(strong="Strunk", weak=False)
     for sch, obj in product((b_s, sc_s, ssc_s), (b_before, sc_before, ssc_before)):
@@ -207,23 +209,23 @@ def test_subclass():
 
 
 def test_base():
-    base = BaseObject(strong="sTrOnG")
+    base = DimcatObject(strong="sTrOnG")
     schema = base.Schema()
     config1 = schema.dump(base)
     config2 = base.to_dict()
     assert config1 == config2
-    new_base = BaseObject.from_dict(config1)
+    new_base = DimcatObject.from_dict(config1)
     print(new_base.__dict__)
 
 
 @pytest.fixture
 def dummy_object():
-    return BaseObject(strong="Dummy")
+    return DimcatObject(strong="Dummy")
 
 
 @pytest.fixture()
 def dummy_config():
-    return BaseObject.Schema()
+    return DimcatObject.Schema()
 
 
 def test_mm_registry():
@@ -231,8 +233,8 @@ def test_mm_registry():
 
 
 def test_config_comparison():
-    full1 = BaseObject.Schema()
-    full2 = BaseObject.Schema()
+    full1 = DimcatObject.Schema()
+    full2 = DimcatObject.Schema()
     assert full1 != full2
 
 
