@@ -1,26 +1,57 @@
 from __future__ import annotations
 
 import json
+import os
 from itertools import product
 from pprint import pprint
-from typing import Optional, Union
-from zipfile import ZipFile
 
 import frictionless as fl
-import ms3
-import pandas as pd
 import pytest
 from dimcat.base import (
     Data,
     DimcatConfig,
     DimcatObject,
+    DimcatResource,
     DimcatSchema,
     PipelineStep,
-    WrappedDataframe,
+    ResourceStatus,
 )
+from git import Repo
 from marshmallow import ValidationError, fields
 from marshmallow.class_registry import _registry as MM_REGISTRY
-from typing_extensions import Self
+
+# Directory holding your clones of DCMLab/unittest_metacorpus
+CORPUS_DIR = "~"
+
+
+def corpus_path():
+    """Compose the paths for the test corpora."""
+    print("Path was requested")
+    repo_name, test_commit = ("unittest_metacorpus", "e6fec84")
+    path = os.path.join(CORPUS_DIR, repo_name)
+    path = os.path.expanduser(path)
+    assert os.path.isdir(path)
+    repo = Repo(path)
+    commit = repo.commit("HEAD")
+    sha = commit.hexsha[: len(test_commit)]
+    assert (
+        sha == test_commit
+    ), f"Your {path} is @ {sha}. Please do\n\tgit checkout {test_commit}."
+    return path
+
+
+CORPUS_PATH = corpus_path()
+
+RESOURCE_PATHS = {
+    file: os.path.join(CORPUS_PATH, file)
+    for file in os.listdir(CORPUS_PATH)
+    if file.endswith(".resource.yaml")
+}
+
+
+@pytest.fixture(params=RESOURCE_PATHS.values(), ids=RESOURCE_PATHS)
+def resource_path(request):
+    return request.param
 
 
 class TestBaseObjects:
@@ -71,7 +102,74 @@ class TestBaseObjects:
         assert isinstance(obj, dimcat_class)
 
 
+class TestResource:
+    @pytest.fixture()
+    def resource_from_descriptor(self, resource_path):
+        resource = DimcatResource(resource=resource_path)
+        return resource
+
+    @pytest.fixture()
+    def resource_schema(self, resource_path):
+        res = fl.Resource(resource_path)
+        return res.schema
+
+    @pytest.fixture()
+    def as_dict(self, resource_from_descriptor):
+        return resource_from_descriptor.to_dict()
+
+    @pytest.fixture()
+    def as_config(self, resource_from_descriptor):
+        return resource_from_descriptor.to_config()
+
+    @pytest.fixture()
+    def resource_dataframe(self, resource_from_descriptor):
+        return resource_from_descriptor.get_dataframe()
+
+    @pytest.fixture()
+    def resource_from_dataframe(self, resource_dataframe, resource_schema):
+        return DimcatResource(df=resource_dataframe, column_schema=resource_schema)
+
+    def test_resource_from_disk(self, resource_from_descriptor):
+        assert resource_from_descriptor.status == ResourceStatus.FROZEN
+        print(resource_from_descriptor.__dict__)
+        with pytest.raises(RuntimeError):
+            resource_from_descriptor.basepath = "~"
+
+    def test_resource_from_df(self, resource_from_dataframe):
+        print(resource_from_dataframe)
+        assert resource_from_dataframe.status in (
+            ResourceStatus.VALIDATED,
+            ResourceStatus.DATAFRAME,
+        )
+        as_config = resource_from_dataframe.to_config()
+        print(as_config)
+        os.remove(resource_from_dataframe.normpath)
+
+    def test_serialization(self, as_dict, as_config):
+        print(as_dict)
+        print(as_config)
+        assert as_dict == as_config
+
+    def test_deserialization_via_config(self, as_dict, as_config):
+        dc_config = DimcatConfig(as_dict)
+        print(dc_config.dtype)
+        print(dc_config.schema)
+        from_dict = dc_config.create()
+        assert isinstance(from_dict, DimcatResource)
+        from_config = as_config.create()
+        assert isinstance(from_config, DimcatResource)
+        assert from_dict.__dict__.keys() == from_config.__dict__.keys()
+
+
 # BELOW IS PLAYGROUND CODE WAITING TO BE FACTORED IN
+
+
+class BaseObject(DimcatObject):
+    class Schema(DimcatSchema):
+        strong = fields.String(required=True)
+
+    def __init__(self, strong: str):
+        self.strong = strong
 
 
 def obj_from_dict(obj_data):
@@ -84,101 +182,12 @@ def obj_from_json(json_data):
     return obj_from_dict(obj_data)
 
 
-class DimcatResource(DimcatObject):
-    class Schema(DimcatSchema):
-        resource = fields.Method(
-            serialize="get_descriptor", deserialize="load_descriptor"
-        )
-
-        def get_descriptor(self, dc_resource: DimcatResource):
-            if dc_resource.path is None:
-                raise ValidationError(
-                    f"Cannot serialize this {dc_resource.name} because it doesn't have a file path."
-                )
-            descriptor = dc_resource.resource.to_descriptor()
-            return descriptor
-
-        def load_descriptor(self, descriptor):
-            return fl.Resource.from_descriptor(descriptor)
-
-    def __init__(self, resource: Optional[fl.Resource] = None) -> None:
-        super().__init__()
-        self.resource: fl.Resource = fl.Resource()
-        if resource is not None:
-            if isinstance(resource, fl.Resource):
-                self.resource = resource
-            else:
-                obj_name = self.__name__
-                r_type = type(resource)
-                msg = f"{obj_name} takes a frictionless.Resource, not {r_type}."
-                if issubclass(r_type, str):
-                    msg += f" Try {obj_name}.from_descriptor()"
-                raise ValueError(msg)
-
-    @property
-    def path(self):
-        return self.resource.path
-
-    @path.setter
-    def path(self, new_path):
-        self.resource.path = new_path
-
-    @classmethod
-    def from_dataframe(cls, df, **kwargs):
-        resource = fl.describe(df, **kwargs)
-        # fl.validate(resource)
-        return cls(resource=resource)
-
-    @classmethod
-    def from_descriptor(
-        cls, descriptor: Union[fl.interfaces.IDescriptor, str], **options
-    ) -> Self:
-        resource = fl.Resource.from_descriptor(descriptor, **options)
-        return cls(resource=resource)
-
-    def __str__(self):
-        return str(self.resource)
-
-    def __repr__(self):
-        return repr(self.resource)
-
-    def get_pandas(
-        self, wrapped=True
-    ) -> Union[WrappedDataframe[pd.DataFrame], pd.DataFrame]:
-        r = self.resource
-        if r.path is None:
-            raise ValidationError(
-                "The resource does not refer to a file path and cannot be restored."
-            )
-        s = r.schema
-        if r.normpath.endswith(".zip") or r.compression == "zip":
-            zip_file_handler = ZipFile(r.normpath)
-            df = ms3.load_tsv(zip_file_handler.open(r.innerpath))
-        else:
-            raise NotImplementedError()
-        if len(s.primary_key) > 0:
-            df = df.set_index(s.primary_key)
-        if wrapped:
-            return WrappedDataframe.from_df(df)
-        return df
-
-
-def test_dc_resource():
-    df = ms3.load_tsv("~/dcml_corpora/tchaikovsky_seasons/harmonies/op37a10.tsv")
-    resource = DimcatResource.from_dataframe(df=df)
-    serialized = resource.to_dict()
-    print(serialized)
-    deserialized = obj_from_dict(serialized)
-    restored_df = deserialized.get_pandas()
-    print(restored_df)
-
-
-class SubClass(DimcatObject):
+class SubClass(BaseObject):
     def __init__(self, strong: str, weak: bool):
         super().__init__(strong=strong)
         self.weak = weak
 
-    class Schema(DimcatObject.Schema):
+    class Schema(BaseObject.Schema):
         weak = fields.Boolean(required=True)
 
 
@@ -187,35 +196,35 @@ class SubSubClass(SubClass):
 
 
 def test_config():
-    conf = DimcatConfig.from_object(DimcatObject(strong="FORT"))
+    conf = DimcatConfig.from_object(BaseObject(strong="FORT"))
     print(conf)
     print(conf.validate())
     try:
         conf["invalid_key"] = 1
-        raise RuntimeError("Should have raise ValueError")
-    except ValueError:
+        raise RuntimeError("Should have raise ValidationError")
+    except ValidationError:
         pass
     conf["strong"] = "test"
     new_base = conf.create()
     base_options = new_base.to_dict()
     sc = SubClass.from_dict(base_options, weak=True)
     sc_options = sc.to_dict()
-    sc_options["dtype"] = DimcatObject.name
+    sc_options["dtype"] = BaseObject.name
     try:
         DimcatConfig(sc_options)
-        raise RuntimeError("Should have raise ValueVError")
-    except ValueError:
+        raise RuntimeError("Should have raise ValidationError")
+    except ValidationError:
         pass
 
 
 def test_subclass():
-    b_s = DimcatObject.Schema()
+    b_s = BaseObject.Schema()
     sc_s = SubClass.Schema()
     ssc_s = SubSubClass.Schema()
-    print(DimcatObject.Schema.__qualname__, b_s.name)
+    print(BaseObject.Schema.__qualname__, b_s.name)
     print(SubClass.Schema.__qualname__, sc_s.name)
     print(SubSubClass.Schema.__qualname__, ssc_s.name)
-    b_before = DimcatObject(strong="Schtrong")
+    b_before = BaseObject(strong="Schtrong")
     sc_before = SubClass(strong="strung", weak=True)
     ssc_before = SubSubClass(strong="Strunk", weak=False)
     for sch, obj in product((b_s, sc_s, ssc_s), (b_before, sc_before, ssc_before)):
@@ -235,23 +244,23 @@ def test_subclass():
 
 
 def test_base():
-    base = DimcatObject(strong="sTrOnG")
+    base = BaseObject(strong="sTrOnG")
     schema = base.Schema()
     config1 = schema.dump(base)
     config2 = base.to_dict()
     assert config1 == config2
-    new_base = DimcatObject.from_dict(config1)
+    new_base = BaseObject.from_dict(config1)
     print(new_base.__dict__)
 
 
 @pytest.fixture
 def dummy_object():
-    return DimcatObject(strong="Dummy")
+    return BaseObject(strong="Dummy")
 
 
 @pytest.fixture()
 def dummy_config():
-    return DimcatObject.Schema()
+    return BaseObject.Schema()
 
 
 def test_mm_registry():
@@ -259,8 +268,8 @@ def test_mm_registry():
 
 
 def test_config_comparison():
-    full1 = DimcatObject.Schema()
-    full2 = DimcatObject.Schema()
+    full1 = BaseObject.Schema()
+    full2 = BaseObject.Schema()
     assert full1 != full2
 
 
