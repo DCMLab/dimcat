@@ -5,6 +5,7 @@ from collections import defaultdict
 from typing import Tuple
 
 import pandas as pd
+from dimcat.base import Data
 from ms3 import (
     overlapping_chunk_per_interval,
     replace_index_by_intervals,
@@ -13,7 +14,6 @@ from ms3 import (
     slice_df,
 )
 
-from .data import Data
 from .pipeline import PipelineStep
 from .utils import interval_index2interval
 

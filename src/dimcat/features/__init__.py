@@ -1,8 +1,3 @@
-from .annotations import (
-    Annotations,
-    AnnotationsConfig,
-    KeyAnnotations,
-    KeyAnnotationsConfig,
-)
+from .annotations import Annotations, KeyAnnotations
 from .base import Feature, FeatureName
-from .notes import Notes, NotesConfig
+from .notes import Notes

@@ -1,7 +1,7 @@
-from dataclasses import dataclass
 from enum import Enum
 
-from dimcat.features.base import Feature, FeatureConfig, FeatureName
+from dimcat.features.base import Feature
+from marshmallow import fields
 
 
 class NotesFormat(str, Enum):
@@ -12,12 +12,7 @@ class NotesFormat(str, Enum):
     INTERVAL = "INTERVAL"
 
 
-@dataclass(frozen=True)
-class NotesConfig(FeatureConfig):
-    _configured_class = FeatureName.Notes
-    format: NotesFormat = NotesFormat.NAME
-    weight_grace_notes: float = 0.0
-
-
 class Notes(Feature):
-    _config_type = NotesConfig
+    class Schema:
+        format = fields.Enum(NotesFormat)
+        weight_grace_notes = fields.Float(default=0.0)

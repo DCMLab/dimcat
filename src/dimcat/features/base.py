@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from enum import Enum
 from typing import Type
 
-from dimcat.base import Configuration, DimcatObject, WrappedDataframe
+from dimcat.base import DimcatObject
+from dimcat.data.base import DimcatResource
 from typing_extensions import Self
 
 
@@ -16,10 +16,6 @@ class FeatureName(str, Enum):
 
     def get_class(self) -> Type[Feature]:
         return DimcatObject._registry[self.name]
-
-    def get_config(self, **kwargs) -> FeatureConfig:
-        config_type = self.get_class()._config_type
-        return config_type.from_dict(kwargs)
 
     @classmethod
     def _missing_(cls, value) -> Self:
@@ -33,20 +29,9 @@ class FeatureName(str, Enum):
         raise ValueError(f"ValueError: {value_lower!r} is not a valid FeatureName.")
 
 
-@dataclass(frozen=True)
-class FeatureConfig(Configuration):
-    _configured_class = "Feature"
-
-
-class Feature(WrappedDataframe):
-    _config_type = FeatureConfig
+class Feature(DimcatResource):
     _enum_type = FeatureName
 
 
-@dataclass(frozen=True)
-class MetadataConfig(FeatureConfig):
-    _configured_class = "Metadata"
-
-
 class Metadata(Feature):
-    _config_type = MetadataConfig
+    pass

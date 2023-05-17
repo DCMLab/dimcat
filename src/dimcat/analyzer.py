@@ -4,9 +4,9 @@ from collections import defaultdict
 from typing import List
 
 import pandas as pd
+from dimcat.base import Data
 from ms3 import add_weighted_grace_durations, fifths2name
 
-from .data import Data
 from .grouper import PieceGrouper
 from .pipeline import PipelineStep
 from .slicer import LocalKeySlicer, Slicer

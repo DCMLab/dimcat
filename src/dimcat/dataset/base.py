@@ -2,69 +2,23 @@ from __future__ import annotations
 
 import logging
 from typing import Dict, List, Optional, Union
-from zipfile import ZipFile
 
 import frictionless as fl
-import ms3
-import pandas as pd
-from dimcat.base import Configuration, Data, WrappedDataframe
-from dimcat.features.base import Feature, FeatureConfig, FeatureName
+from dimcat.base import Data, DimcatConfig
+from dimcat.data.base import DimcatResource
+from dimcat.features.base import Feature, FeatureName
 from typing_extensions import Self
 
 logger = logging.getLogger(__name__)
 
 
 def feature_argument2config(
-    feature: Union[FeatureName, str, FeatureConfig]
-) -> FeatureConfig:
-    if isinstance(feature, FeatureConfig):
+    feature: Union[FeatureName, str, DimcatConfig]
+) -> DimcatConfig:
+    if isinstance(feature, DimcatConfig):
         return feature
     feature_name = FeatureName(feature)
     return feature_name.get_config()
-
-
-class DimcatResource(Data):
-    def __init__(self, resource: Optional[fl.Resource] = None) -> None:
-        if resource is None:
-            self.resource = fl.Resource()
-        elif not isinstance(resource, fl.Resource):
-            obj_name = type(self).__name__
-            r_type = type(resource)
-            msg = f"{obj_name} takes a frictionless.Resource, not {r_type}."
-            if issubclass(r_type, str):
-                msg += f" Try {obj_name}.from_descriptor()"
-            raise ValueError(msg)
-        else:
-            self.resource = resource
-
-    @classmethod
-    def from_descriptor(
-        cls, descriptor: Union[fl.interfaces.IDescriptor, str], **options
-    ) -> Self:
-        resource = fl.Resource.from_descriptor(descriptor, **options)
-        return cls(resource=resource)
-
-    def __str__(self):
-        return str(self.resource)
-
-    def __repr__(self):
-        return repr(self.resource)
-
-    def get_pandas(
-        self, wrapped=True
-    ) -> Union[WrappedDataframe[pd.DataFrame], pd.DataFrame]:
-        r = self.resource
-        s = r.schema
-        if r.normpath.endswith(".zip") or r.compression == "zip":
-            zip_file_handler = ZipFile(r.normpath)
-            df = ms3.load_tsv(zip_file_handler.open(r.innerpath))
-        else:
-            raise NotImplementedError()
-        if len(s.primary_key) > 0:
-            df = df.set_index(s.primary_key)
-        if wrapped:
-            return WrappedDataframe.from_df(df)
-        return df
 
 
 class DimcatPackage(Data):
@@ -104,7 +58,7 @@ class DimcatPackage(Data):
     def __repr__(self):
         return repr(self.package)
 
-    def get_feature(self, feature: Union[FeatureName, str, FeatureConfig]) -> Feature:
+    def get_feature(self, feature: Union[FeatureName, str, DimcatConfig]) -> Feature:
         feature_config = feature_argument2config(feature)
         feature_name = feature_config._configured_class
         name2resource = dict(
@@ -152,7 +106,7 @@ class DimcatCatalog(Data):
             raise ValueError(msg)
         self.packages.append(package)
 
-    def get_feature(self, feature: Union[FeatureName, str, FeatureConfig]) -> Feature:
+    def get_feature(self, feature: Union[FeatureName, str, DimcatConfig]) -> Feature:
         p = self.get_package()
         feature_config = feature_argument2config(feature)
         return p.get_feature(feature_config)
@@ -182,14 +136,8 @@ class DimcatCatalog(Data):
         raise fl.FrictionlessException(error)
 
 
-class DatasetConfig(Configuration):
-    _configured_class = "Dataset"
-
-
 class Dataset(Data):
     """The central type of object that all :obj:`PipelineSteps <.PipelineStep>` process and return a copy of."""
-
-    _config_type = DatasetConfig
 
     def __init__(
         self,
@@ -204,7 +152,7 @@ class Dataset(Data):
         """
         super().__init__(data=data, **kwargs)
         self.catalog = DimcatCatalog()
-        self._feature_cache: Dict[FeatureConfig, Feature] = {}
+        self._feature_cache: Dict[DimcatConfig, Feature] = {}
 
     def load_package(
         self,
@@ -222,7 +170,7 @@ class Dataset(Data):
             package.name = name
         self.catalog.add_package(package)
 
-    def get_feature(self, feature: Union[FeatureName, str, FeatureConfig]) -> Feature:
+    def get_feature(self, feature: Union[FeatureName, str, DimcatConfig]) -> Feature:
         if feature in self._feature_cache:
             return self._feature_cache[feature]
         feature_config = feature_argument2config(feature)

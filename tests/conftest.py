@@ -17,7 +17,7 @@ from dimcat.analyzer import (
     PitchClassVectors,
     TPCrange,
 )
-from dimcat.data import Dataset
+from dimcat.dataset import Dataset
 from dimcat.filter import IsAnnotatedFilter
 from dimcat.grouper import CorpusGrouper, ModeGrouper, PieceGrouper, YearGrouper
 from dimcat.pipeline import Pipeline

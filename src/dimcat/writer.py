@@ -2,9 +2,10 @@
 import os
 
 import pandas as pd
+from dimcat.base import Data
+from dimcat.dataset import Dataset
 from ms3 import resolve_dir, write_tsv
 
-from .data import Data, Dataset
 from .pipeline import PipelineStep
 from .utils import make_suffix
 

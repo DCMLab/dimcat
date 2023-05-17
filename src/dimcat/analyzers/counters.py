@@ -2,7 +2,8 @@ from dataclasses import dataclass
 from typing import ClassVar, Type
 
 from dimcat.analyzers.base import Analyzer, AnalyzerConfig
-from dimcat.base import SomeSeries, WrappedSeries
+from dimcat.base import SomeSeries
+from dimcat.data.base import WrappedSeries
 from dimcat.features import Feature
 
 

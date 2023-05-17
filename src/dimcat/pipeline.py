@@ -2,7 +2,7 @@
 from abc import ABC, abstractmethod
 from typing import List, Tuple
 
-from .data import Data
+from dimcat.base import Data
 
 
 class PipelineStep(ABC):

@@ -7,15 +7,8 @@ from pprint import pprint
 
 import frictionless as fl
 import pytest
-from dimcat.base import (
-    Data,
-    DimcatConfig,
-    DimcatObject,
-    DimcatResource,
-    DimcatSchema,
-    PipelineStep,
-    ResourceStatus,
-)
+from dimcat.base import Data, DimcatConfig, DimcatObject, DimcatSchema, PipelineStep
+from dimcat.data.base import DimcatResource, ResourceStatus
 from git import Repo
 from marshmallow import ValidationError, fields
 from marshmallow.class_registry import _registry as MM_REGISTRY

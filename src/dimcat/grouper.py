@@ -2,7 +2,8 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict
 
-from .data import Data
+from dimcat.base import Data
+
 from .pipeline import PipelineStep
 from .slicer import LocalKeySlicer
 from .utils import get_composition_year

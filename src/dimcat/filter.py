@@ -1,7 +1,8 @@
 """A Filter is a PipelineStep that removes indices from the Data."""
 from abc import ABC, abstractmethod
 
-from .data import Data
+from dimcat.base import Data
+
 from .pipeline import PipelineStep
 
 
