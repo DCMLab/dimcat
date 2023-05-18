@@ -25,6 +25,13 @@ from typing_extensions import Self
 logger = logging.getLogger(__name__)
 
 
+class DtypeField(mm.fields.Field):
+    def _serialize(self, value, attr, obj, **kwargs):
+        if isinstance(value, Enum):
+            return value.name
+        return value
+
+
 class DimcatSchema(mm.Schema):
     """
     The base class of all Schema() classes that are defined or inherited as nested classes
@@ -32,7 +39,7 @@ class DimcatSchema(mm.Schema):
     objects.
     """
 
-    dtype = mm.fields.String()
+    dtype = DtypeField()
     """This field specifies the class of the serialized object. Every DimcatObject comes with the corresponding class
     property that returns its name as a string (or en Enum member that can function as a string)."""
 
@@ -281,6 +288,8 @@ def replace_ext(filepath, new_ext):
 
 @cache
 def get_class(name) -> Type[DimcatObject]:
+    if isinstance(name, Enum):
+        name = name.name
     if name == "DimcatObject":
         # this is the only object that's not in the registry
         return DimcatObject
