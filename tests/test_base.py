@@ -48,13 +48,17 @@ def resource_path(request):
 
 
 class TestBaseObjects:
-    @pytest.fixture(params=[DimcatObject, Data, PipelineStep])
+    @pytest.fixture(params=[DimcatObject, Data, PipelineStep, DimcatConfig])
     def dimcat_class(self, request):
         return request.param
 
     @pytest.fixture()
     def dimcat_object(self, dimcat_class):
         """Initializes each of the objects to be tested."""
+        if dimcat_class == DimcatConfig:
+            config = DimcatConfig(dtype="Data")
+            print(config.dtype)
+            return config
         return dimcat_class()
 
     @pytest.fixture()
@@ -90,7 +94,10 @@ class TestBaseObjects:
 
     def test_deserialization_from_scratch(self, dimcat_class):
         dtype = dimcat_class.dtype
-        config = DimcatConfig(dtype=dtype)
+        if dimcat_class == DimcatConfig:
+            config = DimcatConfig({"options": {"dtype": dtype}}, dtype="DimcatConfig")
+        else:
+            config = DimcatConfig(dtype=dtype)
         obj = config.create()
         assert isinstance(obj, dimcat_class)
 

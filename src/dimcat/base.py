@@ -43,6 +43,9 @@ class DimcatSchema(mm.Schema):
     """This field specifies the class of the serialized object. Every DimcatObject comes with the corresponding class
     property that returns its name as a string (or en Enum member that can function as a string)."""
 
+    class Meta:
+        ordered = True
+
     @classmethod
     @property
     def name(cls) -> str:
@@ -61,8 +64,8 @@ class DimcatSchema(mm.Schema):
         """Make sure to never return invalid serialization data."""
         if "dtype" not in data:
             raise mm.ValidationError(
-                "The object to be serialized doesn't have a 'dtype' field. May it's not a "
-                "DimcatObject?"
+                f"{self.name}: The object to be serialized doesn't have a 'dtype' field. Maybe it's not a "
+                f"DimcatObject?"
             )
         dtype_schema = get_schema(data["dtype"])
         report = dtype_schema.validate(data)
@@ -75,6 +78,11 @@ class DimcatSchema(mm.Schema):
 
     def __repr__(self):
         return f"{self.name}(many={self.many})"
+
+    def __getattr__(self, item):
+        raise AttributeError(
+            f"AttributeError: {self.name!r} object has no attribute {item!r}"
+        )
 
 
 class DimcatObject(ABC):
@@ -149,18 +157,67 @@ class DimcatConfig(MutableMapping, DimcatObject):
     specified under the key 'dtype'.
     """
 
+    class Schema(DimcatObject.Schema):
+        options = mm.fields.Dict()
+
+        @mm.post_load()
+        def init_object(self, data, **kwargs) -> DimcatObject:
+            """Once the data has been loaded, create the corresponding object."""
+            described_dtype = data["options"]["dtype"]
+            dtype_schema = get_schema(described_dtype)
+            # deserializing the options with the described object's Schema, but without initializing the object
+            options = dtype_schema._do_load(
+                data["options"], partial=True, postprocess=False
+            )
+            Constructor = get_class("DimcatConfig")
+            return Constructor(options)
+
+        @mm.post_dump()
+        def validate_dump(self, data, **kwargs):
+            """Make sure to never return invalid serialization data."""
+            if "dtype" not in data:
+                raise mm.ValidationError(
+                    "The object to be serialized doesn't have a 'dtype' field. May it's not a "
+                    "DimcatObject?"
+                )
+            if data["dtype"] != "DimcatConfig":
+                raise mm.ValidationError(
+                    f"The object was serialized as a {data['dtype']} rather than a DimcatConfig: {data}"
+                )
+            described_dtype = data["options"]["dtype"]
+            dtype_schema = get_schema(described_dtype)
+            report = dtype_schema.validate(data["options"])
+            if report:
+                raise mm.ValidationError(
+                    f"Dump of DimcatConfig(dtype={described_dtype}) created with a {self.name} could not be "
+                    f"validated by {dtype_schema.name} :\n{report}"
+                )
+            return data
+
     def __init__(self, options=(), **kwargs):
-        self._config = dict(options, **kwargs)
-        if "dtype" not in self._config:
+        self.options = dict(options, **kwargs)
+        if "dtype" not in self.options:
             raise ValueError(
                 "DimcatConfig requires a 'dtype' key that needs to be the name of a DimcatObject."
             )
-        dtype = self._config["dtype"]
+        if self.options["dtype"] is None:
+            raise ValueError(
+                "'dtype' key cannot be None, it needs to be the name of a DimcatObject."
+            )
+        if self.options["dtype"] is None:
+            raise ValueError(
+                "'dtype' key cannot be None, it needs to be the name of a DimcatObject."
+            )
+        dtype = self.options["dtype"]
         if isinstance(dtype, str):
             pass
-        elif isinstance(dtype, DimcatObject) or issubclass(dtype, DimcatObject):
+        elif (
+            isinstance(dtype, Enum)
+            or isinstance(dtype, DimcatObject)
+            or issubclass(dtype, DimcatObject)
+        ):
             dtype_str = dtype.name
-            self._config["dtype"] = dtype_str
+            self.options["dtype"] = dtype_str
         else:
             raise ValueError(
                 f"{dtype!r} is not the name of a DimcatObject, needed to instantiate a Config."
@@ -173,13 +230,13 @@ class DimcatConfig(MutableMapping, DimcatObject):
             )
 
     @property
-    def dtype(self):
-        return self._config["dtype"]
+    def described_dtype(self):
+        return self.options["dtype"]
 
     @property
-    def schema(self):
-        """Returns the (instantiated) DimcatSchema singleton object for the class this Config describes."""
-        return get_schema(self.dtype)
+    def description_schema(self):
+        """Returns the (instantiated) Dimcat singleton object for the class this Config describes."""
+        return get_schema(self.described_dtype)
 
     @classmethod
     def from_object(cls, obj: DimcatObject):
@@ -187,35 +244,45 @@ class DimcatConfig(MutableMapping, DimcatObject):
         return cls(dump)
 
     def create(self) -> DimcatObject:
-        return self.schema.load(self._config)
+        return self.description_schema.load(self.options)
 
     def validate(self) -> Dict[str, List[str]]:
         """Validates the current status of the config in terms of ability to create an object. Empty dict == valid."""
-        return self.schema.validate(self._config, many=False, partial=False)
+        return self.description_schema.validate(self.options, many=False, partial=False)
 
     def __getitem__(self, key):
-        return self._config[key]
+        if key == "dtype":
+            return self.dtype
+        return self.options[key]
 
     def __delitem__(self, key):
-        del self._config[key]
+        del self.options[key]
 
     def __setitem__(self, key, value):
         dict_to_validate = {key: value}
-        report = self.schema.validate(dict_to_validate, partial=True)
+        report = self.description_schema.validate(dict_to_validate, partial=True)
         if report:
             raise ValidationError(
-                f"{self.schema.name}: Cannot set {key!r} to {value!r}:\n{report}"
+                f"{self.description_schema.name}: Cannot set {key!r} to {value!r}:\n{report}"
             )
-        self._config[key] = value
+        self.options[key] = value
 
     def __iter__(self):
-        return iter(self._config)
+        return iter(self.options)
 
     def __len__(self):
-        return len(self._config)
+        return len(self.options)
 
     def __repr__(self):
-        return f"{self.name}({self._config})"
+        return f"{self.name}({self.options})"
+
+    def __eq__(self, other: MutableMapping) -> bool:
+        if not isinstance(other, MutableMapping):
+            raise TypeError(
+                f"{self.name} can only be compared against dict-like, not {type(other)}."
+            )
+        report = self.description_schema.validate(other)
+        return len(report) == 0
 
 
 class Data(DimcatObject):
