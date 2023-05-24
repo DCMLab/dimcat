@@ -4,17 +4,70 @@ import json
 import os
 from itertools import product
 from pprint import pprint
+from typing import Iterable, List
 
 import frictionless as fl
 import pytest
 from dimcat.base import Data, DimcatConfig, DimcatObject, DimcatSchema, PipelineStep
 from dimcat.data.base import DimcatResource, ResourceStatus
 from git import Repo
-from marshmallow import ValidationError, fields
+from marshmallow import ValidationError, fields, pre_load, validate
 from marshmallow.class_registry import _registry as MM_REGISTRY
 
 # Directory holding your clones of DCMLab/unittest_metacorpus
 CORPUS_DIR = "~"
+
+
+class DummyAnalyzer(PipelineStep):
+    """This class simulates the aspect of embedding a list of configs."""
+
+    class Schema(PipelineStep.Schema):
+        features = fields.List(
+            fields.Nested(DimcatConfig.Schema), validate=validate.Length(min=1)
+        )
+
+        @pre_load()
+        def features_as_list(self, obj, **kwargs):
+            features = self.get_attribute(obj, "features", None)
+            if features is not None and not isinstance(features, list):
+                try:
+                    obj.features = [obj.features]
+                except AttributeError:
+                    obj["features"] = [obj["features"]]
+            return obj
+
+    def __init__(
+        self,
+        features: DimcatConfig | Iterable[DimcatConfig],
+    ):
+        self._features: List[DimcatConfig] = []
+        self.features = features
+
+    @property
+    def features(self) -> List[DimcatConfig]:
+        return self._features
+
+    @features.setter
+    def features(self, features):
+        if isinstance(features, DimcatConfig):
+            features = [features]
+        configs = []
+        for config in features:
+            if isinstance(config, DimcatConfig):
+                configs.append(config)
+            else:
+                raise ValueError(f"Not a DimcatConfig: {config}")
+        if len(configs) == 0:
+            raise ValidationError(
+                f"{self.name} requires at least one feature to analyze."
+            )
+        self._features = configs
+
+
+def test_dummy_analyzer():
+    config = DimcatConfig(dtype="DimcatObject")
+    report = DummyAnalyzer.schema.validate({"features": [config]})
+    assert len(report) == 0
 
 
 def corpus_path():
@@ -48,7 +101,9 @@ def resource_path(request):
 
 
 class TestBaseObjects:
-    @pytest.fixture(params=[DimcatObject, Data, PipelineStep, DimcatConfig])
+    @pytest.fixture(
+        params=[DimcatObject, Data, PipelineStep, DimcatConfig, DummyAnalyzer]
+    )
     def dimcat_class(self, request):
         return request.param
 
@@ -56,9 +111,11 @@ class TestBaseObjects:
     def dimcat_object(self, dimcat_class):
         """Initializes each of the objects to be tested."""
         if dimcat_class == DimcatConfig:
-            config = DimcatConfig(dtype="Data")
-            print(config.dtype)
-            return config
+            feature_config = DimcatConfig(dtype="DimcatObject")
+            return DimcatConfig(dtype="DummyAnalyzer", features=[feature_config])
+        if dimcat_class == DummyAnalyzer:
+            feature_config = DimcatConfig(dtype="DimcatObject")
+            return DummyAnalyzer(features=feature_config)
         return dimcat_class()
 
     @pytest.fixture()
@@ -93,11 +150,12 @@ class TestBaseObjects:
         assert from_dict.__dict__ == from_config.__dict__
 
     def test_deserialization_from_scratch(self, dimcat_class):
-        dtype = dimcat_class.dtype
+        options = dict(dtype=dimcat_class.dtype)
         if dimcat_class == DimcatConfig:
-            config = DimcatConfig({"options": {"dtype": dtype}}, dtype="DimcatConfig")
-        else:
-            config = DimcatConfig(dtype=dtype)
+            options["options"] = dict(dtype="DimcatObject")
+        elif dimcat_class == DummyAnalyzer:
+            options["features"] = [DimcatConfig(dtype="DimcatObject")]
+        config = DimcatConfig(options)
         obj = config.create()
         assert isinstance(obj, dimcat_class)
 
