@@ -155,11 +155,37 @@ class DimcatObject(ABC):
     def to_json(self) -> str:
         return self.schema.dumps(self)
 
+    def to_json_file(self, filepath: str, indent: int = 2, **kwargs):
+        """Serialize object to file.
+
+        Args:
+            filepath: Path to the text file to (over)write.
+            indent: Prettify the JSON layout. Default indentation: 2 spaces
+            **kwargs: Keyword arguments passed to :meth:`json.dumps`.
+
+        Returns:
+
+        """
+        json_str = self.to_json()
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(json_str, f, indent=indent, **kwargs)
+
     @classmethod
-    def from_dict(cls, config, **kwargs) -> Self:
-        config = dict(config, **kwargs)
-        config["dtype"] = cls.name
-        return cls.schema.load(config)
+    def from_dict(cls, options, **kwargs) -> Self:
+        options = dict(options, **kwargs)
+        if "dtype" not in options:
+            logger.debug(f"Added option {{'dtype': {cls.name}}}.")
+            options["dtype"] = cls.name
+        elif options["dtype"] != cls.name:
+            logger.warning(
+                f"Key 'dtype' was updated from {options['dtype']} to {cls.name}."
+            )
+            options["dtype"] = cls.name
+        try:
+            return cls.schema.load(options)
+        except ValidationError as e:
+            msg = f"Could not instantiate {cls.name} because {cls.schema.name}, failed to validate the options:\n{e}"
+            raise ValidationError(msg)
 
     @classmethod
     def from_config(cls, config, **kwargs):
@@ -169,6 +195,12 @@ class DimcatObject(ABC):
     def from_json(cls, config: str, **kwargs) -> Self:
         json_dict = json.loads(config)
         return cls.from_dict(json_dict, **kwargs)
+
+    @classmethod
+    def from_json_file(cls, filepath: str) -> Self:
+        with open(filepath, "r", encoding="utf-8") as f:
+            json_data = f.read()
+        return cls.from_json(json_data)
 
 
 class DimcatConfig(MutableMapping, DimcatObject):
@@ -258,9 +290,13 @@ class DimcatConfig(MutableMapping, DimcatObject):
         return get_schema(self.described_dtype)
 
     @classmethod
+    def from_dict(cls, options, **kwargs) -> Self:
+        return cls(options, **kwargs)
+
+    @classmethod
     def from_object(cls, obj: DimcatObject):
-        dump = obj.schema.dump(obj)
-        return cls(dump)
+        options = obj.to_dict()
+        return cls(options)
 
     def create(self) -> DimcatObject:
         return self.description_schema.load(self.options)
