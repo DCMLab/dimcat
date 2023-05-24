@@ -122,6 +122,10 @@ class DimcatObject(ABC):
     def __init_subclass__(cls, **kwargs):
         """Registers every subclass under the class variable :attr:`_registry`"""
         super().__init_subclass__(**kwargs)
+        if cls.name in cls._registry:
+            raise RuntimeError(
+                f"A class named {cls.name!r} had already been registered. Choose a different name."
+            )
         cls._registry[cls.name] = cls
 
     @classmethod
@@ -413,7 +417,12 @@ def get_class(name) -> Type[DimcatObject]:
     if name == "DimcatObject":
         # this is the only object that's not in the registry
         return DimcatObject
-    return DimcatObject._registry[name]
+    try:
+        return DimcatObject._registry[name]
+    except KeyError:
+        raise KeyError(
+            f"{name!r} is not among the registered DimcatObjects:\n{DimcatObject._registry.keys()}"
+        )
 
 
 @cache
