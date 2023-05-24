@@ -13,6 +13,7 @@ from typing import (
     Iterable,
     List,
     MutableMapping,
+    Optional,
     Tuple,
     Type,
     Union,
@@ -216,16 +217,10 @@ class DimcatConfig(MutableMapping, DimcatObject):
         options = mm.fields.Dict()
 
         @mm.post_load()
-        def init_object(self, data, **kwargs) -> DimcatObject:
+        def init_object(self, data, **kwargs) -> DimcatConfig:
             """Once the data has been loaded, create the corresponding object."""
-            described_dtype = data["options"]["dtype"]
-            dtype_schema = get_schema(described_dtype)
-            # deserializing the options with the described object's Schema, but without initializing the object
-            options = dtype_schema._do_load(
-                data["options"], partial=True, postprocess=False
-            )
             Constructor = get_class("DimcatConfig")
-            return Constructor(options)
+            return Constructor(**data)
 
         @mm.post_dump()
         def validate_dump(self, data, **kwargs):
@@ -247,23 +242,28 @@ class DimcatConfig(MutableMapping, DimcatObject):
                     f"Dump of DimcatConfig(dtype={described_dtype}) created with a {self.name} could not be "
                     f"validated by {dtype_schema.name} :\n{report}"
                 )
-            return data
+            return dict(data)
 
-    def __init__(self, options=(), **kwargs):
-        self.options = dict(options, **kwargs)
-        if "dtype" not in self.options:
-            raise ValueError(
-                "DimcatConfig requires a 'dtype' key that needs to be the name of a DimcatObject."
-            )
-        if self.options["dtype"] is None:
-            raise ValueError(
+    def __init__(
+        self, options: Dict | DimcatConfig = (), dtype: Optional[str] = None, **kwargs
+    ):
+        if isinstance(options, DimcatConfig):
+            options = options.options
+        options = dict(options, **kwargs)
+        if dtype is None:
+            if "dtype" not in options:
+                raise ValidationError(
+                    "DimcatConfig requires a 'dtype' key that needs to be the name of a DimcatObject."
+                )
+            else:
+                dtype = options["dtype"]
+        elif "dtype" not in options:
+            options["dtype"] = dtype
+        if options["dtype"] is None:
+            raise ValidationError(
                 "'dtype' key cannot be None, it needs to be the name of a DimcatObject."
             )
-        if self.options["dtype"] is None:
-            raise ValueError(
-                "'dtype' key cannot be None, it needs to be the name of a DimcatObject."
-            )
-        dtype = self.options["dtype"]
+        self.options = options
         if isinstance(dtype, str):
             pass
         elif (
@@ -277,10 +277,10 @@ class DimcatConfig(MutableMapping, DimcatObject):
             raise ValueError(
                 f"{dtype!r} is not the name of a DimcatObject, needed to instantiate a Config."
             )
-        report = self.validate()
+        report = self.validate(partial=True)
         if report:
             raise ValidationError(
-                f"Cannot instantiate DimcatConfig with dtype={dtype!r} and invalid options:"
+                f"{self.description_schema}: Cannot instantiate DimcatConfig with dtype={dtype!r} and invalid options:"
                 f"\n{report}"
             )
 
@@ -305,23 +305,37 @@ class DimcatConfig(MutableMapping, DimcatObject):
     def create(self) -> DimcatObject:
         return self.description_schema.load(self.options)
 
-    def validate(self) -> Dict[str, List[str]]:
+    def validate(self, partial=False) -> Dict[str, List[str]]:
         """Validates the current status of the config in terms of ability to create an object. Empty dict == valid."""
-        return self.description_schema.validate(self.options, many=False, partial=False)
+        return self.description_schema.validate(
+            self.options, many=False, partial=partial
+        )
 
     def __getitem__(self, key):
         return self.options[key]
 
     def __delitem__(self, key):
+        if key == "dtype":
+            raise ValueError("Cannot remove key 'dtype' from DimcatConfig.")
         del self.options[key]
 
     def __setitem__(self, key, value):
-        dict_to_validate = {key: value}
-        report = self.description_schema.validate(dict_to_validate, partial=True)
-        if report:
-            raise ValidationError(
-                f"{self.description_schema.name}: Cannot set {key!r} to {value!r}:\n{report}"
-            )
+        if key == "dtype" and value != self.options["dtype"]:
+            tmp_schema = get_schema(value)
+            tmp_dict = dict(self.options, dtype=value)
+            report = tmp_schema.validate(tmp_dict)
+            if report:
+                msg = (
+                    f"Cannot change the value for 'dtype' because its {tmp_schema.name} does not "
+                    f"validate the options:\n{report}"
+                )
+                raise ValidationError(msg)
+        else:
+            dict_to_validate = {key: value}
+            report = self.description_schema.validate(dict_to_validate, partial=True)
+            if report:
+                msg = f"{self.description_schema.name}: Cannot set {key!r} to {value!r}:\n{report}"
+                raise ValidationError(msg)
         self.options[key] = value
 
     def __iter__(self):
@@ -338,8 +352,9 @@ class DimcatConfig(MutableMapping, DimcatObject):
             raise TypeError(
                 f"{self.name} can only be compared against dict-like, not {type(other)}."
             )
-        report = self.description_schema.validate(other)
-        return len(report) == 0
+        if "dtype" in other and other["dtype"] == "DimcatConfig":
+            return self.to_dict() == other
+        return self.options == other
 
 
 class Data(DimcatObject):
@@ -347,7 +362,7 @@ class Data(DimcatObject):
     This base class unites all classes containing data in some way or another.
     """
 
-    class Schema(DimcatSchema):
+    class Schema(DimcatObject.Schema):
         # basedir = fields.String(required=True)
         pass
 
