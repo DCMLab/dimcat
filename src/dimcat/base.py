@@ -7,6 +7,7 @@ from abc import ABC
 from enum import Enum
 from functools import cache
 from typing import (
+    Any,
     ClassVar,
     Dict,
     Iterable,
@@ -41,10 +42,19 @@ class DimcatSchema(mm.Schema):
 
     dtype = DtypeField()
     """This field specifies the class of the serialized object. Every DimcatObject comes with the corresponding class
-    property that returns its name as a string (or en Enum member that can function as a string)."""
+    property that returns its name as a string (or en Enum member that can function as a string). It is inherited by
+    all objects' schemas and enables their deserialization from a DimcatConfig."""
 
     class Meta:
         ordered = True
+
+    def get_attribute(self, obj: Any, attr: str, default: Any):
+        if attr == "dtype":
+            # the usual marshmallow.utils.get_value() tries to access attributes by subscripting first
+            # this is a problem for the DimcatConfig which behaves like a dictionary where one of the options has
+            # the key 'dtype' but, when serializing, it is the property 'dtype' that is relevant
+            return obj.dtype
+        return super().get_attribute(obj, attr, default)
 
     @classmethod
     @property
@@ -59,14 +69,23 @@ class DimcatSchema(mm.Schema):
         Constructor = get_class(obj_name)
         return Constructor(**data)
 
+    @mm.pre_dump()
+    def assert_type(self, obj, **kwargs):
+        if not isinstance(obj, DimcatObject):
+            raise mm.ValidationError(
+                f"{self.name}: The object to be serialized needs to be a DimcatObject, not a {type(obj)!r}."
+            )
+        return obj
+
     @mm.post_dump()
     def validate_dump(self, data, **kwargs):
         """Make sure to never return invalid serialization data."""
         if "dtype" not in data:
-            raise mm.ValidationError(
-                f"{self.name}: The object to be serialized doesn't have a 'dtype' field. Maybe it's not a "
-                f"DimcatObject?"
+            msg = (
+                f"{self.name}: The serialized data doesn't have a 'dtype' field, meaning that DiMCAT would "
+                f"not be able to deserialize it."
             )
+            raise mm.ValidationError(msg)
         dtype_schema = get_schema(data["dtype"])
         report = dtype_schema.validate(data)
         if report:
@@ -74,7 +93,7 @@ class DimcatSchema(mm.Schema):
                 f"Dump of {data['dtype']} created with a {self.name} could not be validated by "
                 f"{dtype_schema.name} :\n{report}"
             )
-        return data
+        return dict(data)
 
     def __repr__(self):
         return f"{self.name}(many={self.many})"
@@ -251,8 +270,6 @@ class DimcatConfig(MutableMapping, DimcatObject):
         return self.description_schema.validate(self.options, many=False, partial=False)
 
     def __getitem__(self, key):
-        if key == "dtype":
-            return self.dtype
         return self.options[key]
 
     def __delitem__(self, key):
