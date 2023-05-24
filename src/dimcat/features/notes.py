@@ -13,6 +13,6 @@ class NotesFormat(str, Enum):
 
 
 class Notes(Feature):
-    class Schema:
+    class Schema(Feature.Schema):
         format = fields.Enum(NotesFormat)
         weight_grace_notes = fields.Float(default=0.0)

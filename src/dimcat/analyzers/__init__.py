@@ -1,1 +1,1 @@
-from .counters import Counter, CounterConfig
+from .counters import Counter

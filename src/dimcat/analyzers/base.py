@@ -2,20 +2,26 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import asdict, dataclass
 from enum import Enum
-from typing import Any, ClassVar, Collection, Tuple, Type, TypeVar, Union
-
-import plotly.express as px
-from dimcat.base import (
-    Configuration,
-    DimcatObject,
-    PipelineStep,
-    SomeSeries,
-    WrappedDataframe,
+from typing import (
+    Any,
+    ClassVar,
+    Collection,
+    Iterable,
+    List,
+    MutableMapping,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
 )
+
+import marshmallow as mm
+import plotly.express as px
+from dimcat.base import DimcatConfig, DimcatObject, PipelineStep, get_class
+from dimcat.data.base import DimcatResource, SomeSeries
 from dimcat.dataset import Dataset
-from dimcat.features.base import Feature, FeatureName
+from dimcat.features.base import Feature
 from typing_extensions import Self
 
 logger = logging.getLogger(__name__)
@@ -28,11 +34,7 @@ class AnalyzerName(str, Enum):
     Counter = "Counter"
 
     def get_class(self) -> Type[Analyzer]:
-        return DimcatObject._registry[self.name]
-
-    def get_config(self, **kwargs) -> AnalyzerConfig:
-        config_type = self.get_class()._config_type
-        return config_type.from_dict(kwargs)
+        return get_class(self.name)
 
     @classmethod
     def _missing_(cls, value) -> Self:
@@ -52,12 +54,7 @@ class ResultName(str, Enum):
     Result = "Result"
 
 
-class ResultConfig(Configuration):
-    _configured_class = "Result"
-
-
-class Result(WrappedDataframe):
-    _config_type = ResultConfig
+class Result(DimcatResource):
     _enum_type = ResultName
 
     def plot(self):
@@ -86,23 +83,11 @@ class Orientation(str, Enum):
     LONG = "LONG"
 
 
-@dataclass(frozen=True)
-class AnalyzerConfig(Configuration):
-    _configured_class: ClassVar[str] = "Analyzer"
-
-    feature_config: FeatureName = FeatureName.Notes
-    strategy: DispatchStrategy = DispatchStrategy.GROUPBY_APPLY
-    smallest_unit: UnitOfAnalysis = UnitOfAnalysis.SLICE
-    orientation: Orientation = Orientation.WIDE
-    fill_na: Any = None
-
-
 class Analyzer(PipelineStep):
     """Analyzers are PipelineSteps that process data and store the results in Data.processed.
     The base class performs no analysis, instantiating it serves mere testing purpose.
     """
 
-    _config_type: ClassVar[Type[Configuration]] = AnalyzerConfig
     _enum_type: ClassVar[Type[Enum]] = AnalyzerName
     _result_type: ResultName = ResultName.Result
 
@@ -117,6 +102,95 @@ class Analyzer(PipelineStep):
     excluded_steps: ClassVar[Tuple[str]] = tuple()
     """:meth:`process_data` raises ValueError if any of the previous :obj:`PipelineStep` applied to the
     :obj:`.Dataset` matches one of these types."""
+
+    class Schema(PipelineStep.Schema):
+        features = mm.fields.List(
+            mm.fields.Nested(DimcatConfig.Schema),
+            required=True,
+            validate=mm.validate.Length(min=1),
+        )
+        strategy = mm.fields.Enum(
+            DispatchStrategy, default=DispatchStrategy.GROUPBY_APPLY
+        )
+        smallest_unit = mm.fields.Enum(UnitOfAnalysis, default=UnitOfAnalysis.SLICE)
+        orientation = mm.fields.Enum(Orientation, default=Orientation.WIDE)
+        fill_na: mm.fields.Raw(allow_none=True)
+
+    def __init__(
+        self,
+        features: DimcatConfig | Iterable[DimcatConfig],
+        strategy: DispatchStrategy = DispatchStrategy.GROUPBY_APPLY,
+        smallest_unit: UnitOfAnalysis = UnitOfAnalysis.SLICE,
+        orientation: Orientation = Orientation.WIDE,
+        fill_na: Any = None,
+    ):
+        self._features: List[DimcatConfig] = []
+        self.features = features
+        self._strategy: DispatchStrategy = None
+        self.strategy = strategy
+        self._smallest_unit: UnitOfAnalysis = None
+        self.smallest_unit = smallest_unit
+        self._orientation: Orientation = None
+        self.orientation = orientation
+        self.fill_na: Any = fill_na
+
+    @property
+    def features(self) -> List[DimcatConfig]:
+        return self._features
+
+    @features.setter
+    def features(self, features):
+        if isinstance(features, (MutableMapping, Feature)):
+            features = [features]
+        configs, not_configs = [], []
+        for config in features:
+            if isinstance(config, DimcatConfig):
+                configs.append(config)
+            elif isinstance(config, Feature):
+                cfg = config.to_config()
+                configs.append(cfg)
+            elif isinstance(config, MutableMapping):
+                cfg = DimcatConfig(config)
+                configs.append(cfg)
+            else:
+                not_configs.append(config)
+        if len(not_configs) > 0:
+            logger.warning(f"Not a configuration of a Feature: {not_configs}")
+        if len(configs) == 0:
+            raise ValueError(
+                f"Did not receive any DimcatConfig, not setting {self.name}.features."
+            )
+        self._features = configs
+
+    @property
+    def strategy(self) -> DispatchStrategy:
+        return self._strategy
+
+    @strategy.setter
+    def strategy(self, strategy: DispatchStrategy):
+        if not isinstance(strategy, DispatchStrategy):
+            strategy = DispatchStrategy(strategy)
+        self._strategy = strategy
+
+    @property
+    def smallest_unit(self) -> UnitOfAnalysis:
+        return self._smallest_unit
+
+    @smallest_unit.setter
+    def smallest_unit(self, smallest_unit: UnitOfAnalysis):
+        if not isinstance(smallest_unit, UnitOfAnalysis):
+            smallest_unit = UnitOfAnalysis(smallest_unit)
+        self._smallest_unit = smallest_unit
+
+    @property
+    def orientation(self) -> Orientation:
+        return self._orientation
+
+    @orientation.setter
+    def orientation(self, orientation: Orientation):
+        if not isinstance(orientation, Orientation):
+            orientation = Orientation(orientation)
+        self._orientation = orientation
 
     @staticmethod
     def aggregate(result_a: R, result_b: R) -> R:
@@ -136,19 +210,15 @@ class Analyzer(PipelineStep):
         a Series of the same length as ``feature`` or otherwise work as positional argument to feature.groupby().
         """
         if groupby is None:
-            return feature.groupby(level=[0, 1]).apply(
-                self.compute, **asdict(self.config)
-            )
-        return feature.groupby(groupby).apply(self.compute, **asdict(self.config))
+            return feature.groupby(level=[0, 1]).apply(self.compute, **self.to_dict())
+        return feature.groupby(groupby).apply(self.compute, **self.to_dict())
 
     def dispatch(self, dataset: Dataset) -> Result:
         """The logic how and to what the compute method is applied, based on the config and the Dataset."""
-        if self.config.strategy == DispatchStrategy.ITER_STACK:  # more cases to follow
+        if self.strategy == DispatchStrategy.ITER_STACK:  # more cases to follow
             raise NotImplementedError()
-        if self.config.strategy == DispatchStrategy.GROUPBY_APPLY:
-            stacked_feature = self.pre_process(
-                dataset.get_feature(self.config.feature_config)
-            )
+        if self.strategy == DispatchStrategy.GROUPBY_APPLY:
+            stacked_feature = self.pre_process(dataset.get_feature(self.features[0]))
             results = self.groupby_apply(stacked_feature)
             return Result.from_df(df=results)
         raise ValueError(f"Unknown dispatch strategy '{self.strategy!r}'")

@@ -246,6 +246,7 @@ class DimcatResource(Generic[D], Data):
             return self._df
         if self.is_frozen:
             return self.get_dataframe()
+        raise AttributeError(f"No dataframe accessible:\n{self.to_dict()}")
 
     @df.setter
     def df(self, df: D):
@@ -349,15 +350,15 @@ class DimcatResource(Generic[D], Data):
         self, wrapped=True
     ) -> Union[DimcatResource[pd.DataFrame], pd.DataFrame]:
         r = self._resource
-        if self._resource.path is None:
+        if self.normpath is None:
             raise ValidationError(
                 "The resource does not refer to a file path and cannot be restored."
             )
-        if r.normpath.endswith(".zip") or r.compression == "zip":
-            zip_file_handler = ZipFile(r.normpath)
+        if self.normpath.endswith(".zip") or r.compression == "zip":
+            zip_file_handler = ZipFile(self.normpath)
             df = ms3.load_tsv(zip_file_handler.open(r.innerpath))
         else:
-            df = ms3.load_tsv(r.normpath)
+            df = ms3.load_tsv(self.normpath)
         if len(r.schema.primary_key) > 0:
             df = df.set_index(r.schema.primary_key)
         if wrapped:
@@ -423,10 +424,18 @@ class DimcatResource(Generic[D], Data):
 
     def __getattr__(self, item):
         """Enables using DimcatResource just like the wrapped DataFrame."""
-        return getattr(self.df, item)
+        try:
+            return getattr(self.df, item)
+        except AttributeError:
+            raise AttributeError(
+                f"{self.name!r} object has no attribute {item!r} ({self.status!r})"
+            )
 
     def __getitem__(self, item):
-        return self.df[item]
+        try:
+            return self.df[item]
+        except Exception:
+            raise KeyError(item)
 
     def __len__(self) -> int:
         return len(self.df.index)

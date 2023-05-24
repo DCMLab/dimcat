@@ -17,6 +17,15 @@ from .analyzer import (
     PitchClassVectors,
     TPCrange,
 )
+from .base import (
+    Data,
+    DimcatConfig,
+    DimcatObject,
+    DimcatSchema,
+    PipelineStep,
+    get_class,
+    get_schema,
+)
 from .dataset import Dataset
 from .filter import HasCadenceAnnotationsFilter, IsAnnotatedFilter
 from .grouper import CorpusGrouper, ModeGrouper, PieceGrouper, YearGrouper

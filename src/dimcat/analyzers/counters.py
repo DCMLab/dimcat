@@ -1,22 +1,11 @@
-from dataclasses import dataclass
-from typing import ClassVar, Type
-
-from dimcat.analyzers.base import Analyzer, AnalyzerConfig
-from dimcat.base import SomeSeries
-from dimcat.data.base import WrappedSeries
+from dimcat.analyzers.base import Analyzer
+from dimcat.data.base import DimcatResource, SomeSeries
 from dimcat.features import Feature
 
 
-@dataclass(frozen=True)
-class CounterConfig(AnalyzerConfig):
-    _configured_class: ClassVar[str] = "Counter"
-
-
 class Counter(Analyzer):
-    _config_type: ClassVar[Type[CounterConfig]] = CounterConfig
-
     @staticmethod
-    def compute(feature: WrappedSeries, **kwargs) -> int:
+    def compute(feature: DimcatResource, **kwargs) -> int:
         return len(feature.index)
 
     def groupby_apply(self, feature: Feature, groupby: SomeSeries = None, **kwargs):
@@ -31,5 +20,5 @@ class Counter(Analyzer):
 
     def post_process(self, result):
         """Whatever needs to be done after analyzing the data before passing it to the dataset."""
-        name = f"{self.config.feature_config} counts"
+        name = f"{self.features[0].name} counts"
         return result.from_df(result.rename(name).to_frame())

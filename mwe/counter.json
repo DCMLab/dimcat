@@ -1,10 +1,15 @@
 {
-  "feature_config": {
-    "format": "NAME",
-    "weight_grace_notes": 0.5
-  },
+  "dtype": "Counter",
+  "features": [
+    {
+      "dtype": "DimcatConfig",
+      "options": {
+        "dtype": "Notes",
+        "weight_grace_notes": 0.5
+      }
+    }
+  ],
   "strategy": "GROUPBY_APPLY",
   "smallest_unit": "SLICE",
-  "orientation": "WIDE",
-  "fill_na": null
+  "orientation": "WIDE"
 }

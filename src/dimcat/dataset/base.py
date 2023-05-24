@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Optional, Union
+from typing import List, Optional, Union
 
 import frictionless as fl
 from dimcat.base import Data, DimcatConfig
@@ -18,7 +18,7 @@ def feature_argument2config(
     if isinstance(feature, DimcatConfig):
         return feature
     feature_name = FeatureName(feature)
-    return feature_name.get_config()
+    return DimcatConfig(dtype=feature_name)
 
 
 class DimcatPackage(Data):
@@ -60,7 +60,7 @@ class DimcatPackage(Data):
 
     def get_feature(self, feature: Union[FeatureName, str, DimcatConfig]) -> Feature:
         feature_config = feature_argument2config(feature)
-        feature_name = feature_config._configured_class
+        feature_name = FeatureName(feature_config.options_dtype)
         name2resource = dict(
             Notes="notes",
             Annotations="expanded",
@@ -68,12 +68,13 @@ class DimcatPackage(Data):
             Metadata="metadata",
         )
         resource_name = name2resource[feature_name]
-        r = self.get_resource(resource_name)
-        return r.get_pandas()
+        resource = self.get_resource(resource_name)
+        Constructor = feature_name.get_class()
+        return Constructor(resource=resource.resource)
 
     def get_resource(self, name: str) -> DimcatResource:
         resource = self.package.get_resource(name)
-        return DimcatResource(resource)
+        return DimcatResource(resource=resource)
 
 
 class DimcatCatalog(Data):
@@ -150,9 +151,9 @@ class Dataset(Data):
             data: Instantiate from this Dataset by copying its fields, empty fields otherwise.
             **kwargs: Dataset is cooperative and calls super().__init__(data=dataset, **kwargs)
         """
-        super().__init__(data=data, **kwargs)
+        super().__init__(**kwargs)
         self.catalog = DimcatCatalog()
-        self._feature_cache: Dict[DimcatConfig, Feature] = {}
+        self._feature_cache = DimcatPackage()
 
     def load_package(
         self,
@@ -171,11 +172,11 @@ class Dataset(Data):
         self.catalog.add_package(package)
 
     def get_feature(self, feature: Union[FeatureName, str, DimcatConfig]) -> Feature:
-        if feature in self._feature_cache:
-            return self._feature_cache[feature]
+        # if feature in self._feature_cache:
+        #     return self._feature_cache[feature]
         feature_config = feature_argument2config(feature)
         feature = self.catalog.get_feature(feature_config)
-        self._feature_cache[feature_config] = feature
+        # self._feature_cache[feature_config] = feature
         return feature
 
     def __str__(self):
