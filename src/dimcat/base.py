@@ -234,12 +234,12 @@ class DimcatConfig(MutableMapping, DimcatObject):
                 raise mm.ValidationError(
                     f"The object was serialized as a {data['dtype']} rather than a DimcatConfig: {data}"
                 )
-            described_dtype = data["options"]["dtype"]
-            dtype_schema = get_schema(described_dtype)
+            options_dtype = data["options"]["dtype"]
+            dtype_schema = get_schema(options_dtype)
             report = dtype_schema.validate(data["options"])
             if report:
                 raise mm.ValidationError(
-                    f"Dump of DimcatConfig(dtype={described_dtype}) created with a {self.name} could not be "
+                    f"Dump of DimcatConfig(dtype={options_dtype}) created with a {self.name} could not be "
                     f"validated by {dtype_schema.name} :\n{report}"
                 )
             return dict(data)
@@ -280,18 +280,18 @@ class DimcatConfig(MutableMapping, DimcatObject):
         report = self.validate(partial=True)
         if report:
             raise ValidationError(
-                f"{self.description_schema}: Cannot instantiate DimcatConfig with dtype={dtype!r} and invalid options:"
+                f"{self.options_schema}: Cannot instantiate DimcatConfig with dtype={dtype!r} and invalid options:"
                 f"\n{report}"
             )
 
     @property
-    def described_dtype(self):
+    def options_dtype(self):
         return self.options["dtype"]
 
     @property
-    def description_schema(self):
+    def options_schema(self):
         """Returns the (instantiated) Dimcat singleton object for the class this Config describes."""
-        return get_schema(self.described_dtype)
+        return get_schema(self.options_dtype)
 
     @classmethod
     def from_dict(cls, options, **kwargs) -> Self:
@@ -303,13 +303,11 @@ class DimcatConfig(MutableMapping, DimcatObject):
         return cls(options)
 
     def create(self) -> DimcatObject:
-        return self.description_schema.load(self.options)
+        return self.options_schema.load(self.options)
 
     def validate(self, partial=False) -> Dict[str, List[str]]:
         """Validates the current status of the config in terms of ability to create an object. Empty dict == valid."""
-        return self.description_schema.validate(
-            self.options, many=False, partial=partial
-        )
+        return self.options_schema.validate(self.options, many=False, partial=partial)
 
     def __getitem__(self, key):
         return self.options[key]
@@ -332,9 +330,9 @@ class DimcatConfig(MutableMapping, DimcatObject):
                 raise ValidationError(msg)
         else:
             dict_to_validate = {key: value}
-            report = self.description_schema.validate(dict_to_validate, partial=True)
+            report = self.options_schema.validate(dict_to_validate, partial=True)
             if report:
-                msg = f"{self.description_schema.name}: Cannot set {key!r} to {value!r}:\n{report}"
+                msg = f"{self.options_schema.name}: Cannot set {key!r} to {value!r}:\n{report}"
                 raise ValidationError(msg)
         self.options[key] = value
 
