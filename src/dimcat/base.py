@@ -6,6 +6,8 @@ import os
 from abc import ABC
 from enum import Enum
 from functools import cache
+from inspect import isclass
+from pprint import pformat
 from typing import (
     Any,
     ClassVar,
@@ -171,9 +173,10 @@ class DimcatObject(ABC):
         Returns:
 
         """
-        json_str = self.to_json()
+        as_dict = self.to_dict()
+        as_dict.update(**kwargs)
         with open(filepath, "w", encoding="utf-8") as f:
-            json.dump(json_str, f, indent=indent, **kwargs)
+            json.dump(as_dict, f, indent=indent, **kwargs)
 
     @classmethod
     def from_dict(cls, options, **kwargs) -> Self:
@@ -193,8 +196,8 @@ class DimcatObject(ABC):
             raise ValidationError(msg)
 
     @classmethod
-    def from_config(cls, config, **kwargs):
-        return cls.from_dict(config, **kwargs)
+    def from_config(cls, config: DimcatConfig, **kwargs):
+        return cls.from_dict(config.options, **kwargs)
 
     @classmethod
     def from_json(cls, config: str, **kwargs) -> Self:
@@ -264,15 +267,15 @@ class DimcatConfig(MutableMapping, DimcatObject):
                 "'dtype' key cannot be None, it needs to be the name of a DimcatObject."
             )
         self.options = options
-        if isinstance(dtype, str):
-            pass
-        elif (
+        if (
             isinstance(dtype, Enum)
             or isinstance(dtype, DimcatObject)
-            or issubclass(dtype, DimcatObject)
+            or (isclass(dtype) and issubclass(dtype, DimcatObject))
         ):
             dtype_str = dtype.name
             self.options["dtype"] = dtype_str
+        elif isinstance(dtype, str):
+            pass
         else:
             raise ValueError(
                 f"{dtype!r} is not the name of a DimcatObject, needed to instantiate a Config."
@@ -343,7 +346,7 @@ class DimcatConfig(MutableMapping, DimcatObject):
         return len(self.options)
 
     def __repr__(self):
-        return f"{self.name}({self.options})"
+        return f"{self.name}({pformat(self.options)})"
 
     def __eq__(self, other: MutableMapping) -> bool:
         if not isinstance(other, MutableMapping):
