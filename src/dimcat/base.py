@@ -362,6 +362,9 @@ class PipelineStep(DimcatObject):
 
     """
 
+    class Schema(DimcatObject.Schema):
+        pass
+
     def check(self, _) -> Tuple[bool, str]:
         """Test piece of data for certain properties before computing analysis.
 
