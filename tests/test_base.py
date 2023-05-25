@@ -264,6 +264,11 @@ class TestSerialization:
         new_object = config.create()
         assert new_object == self.dimcat_object
 
+    def test_creation_from_manual_config(self):
+        config = DimcatConfig(dtype=self.dtype.name, options=self.options)
+        new_object = config.create()
+        assert new_object == self.dimcat_object
+
 
 class TestResource:
     @pytest.fixture()

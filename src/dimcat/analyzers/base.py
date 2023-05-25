@@ -127,6 +127,17 @@ class Analyzer(PipelineStep):
         orientation = mm.fields.Enum(Orientation)
         fill_na: mm.fields.Raw(allow_none=True)
 
+        @mm.pre_load()
+        def features_as_list(self, obj, **kwargs):
+            """Ensure that features is a list."""
+            features = self.get_attribute(obj, "features", None)
+            if features is not None and not isinstance(features, list):
+                try:
+                    obj.features = [obj.features]
+                except AttributeError:
+                    obj["features"] = [obj["features"]]
+            return obj
+
     def __init__(
         self,
         features: DimcatConfig | Iterable[DimcatConfig],

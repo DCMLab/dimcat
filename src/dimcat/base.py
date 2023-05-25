@@ -301,9 +301,13 @@ class DimcatConfig(MutableMapping, DimcatObject):
                 )
             else:
                 dtype = options["dtype"]
-        elif "dtype" not in options:
-            options["dtype"] = dtype
-        if options["dtype"] is None:
+        else:
+            if dtype == "DimcatConfig":
+                if "options" not in options:
+                    options = dict(dtype="DimcatConfig", options=options)
+            elif "dtype" not in options:
+                options["dtype"] = dtype
+        if dtype is None:
             raise ValidationError(
                 "'dtype' key cannot be None, it needs to be the name of a DimcatObject."
             )
