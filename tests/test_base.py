@@ -7,6 +7,8 @@ from typing import Iterable, List, Tuple, Type
 
 import frictionless as fl
 import pytest
+from dimcat.analyzers import Counter
+from dimcat.analyzers.base import Analyzer
 from dimcat.base import (
     Data,
     DimcatConfig,
@@ -17,6 +19,7 @@ from dimcat.base import (
     deserialize_json_str,
 )
 from dimcat.data.base import DimcatResource, ResourceStatus
+from dimcat.features import Notes
 from git import Repo
 from marshmallow import ValidationError, fields, pre_load, validate
 from marshmallow.class_registry import _registry as MM_REGISTRY
@@ -167,7 +170,7 @@ class TestBaseObjects:
         assert isinstance(obj, dimcat_class)
 
 
-DUMMY_CONFIG_OPTIONS = dict(dtype="DimcatObject")
+DUMMY_CONFIG_OPTIONS = dict(dtype="Notes")
 
 
 def dummy_config() -> DimcatConfig:
@@ -177,7 +180,7 @@ def dummy_config() -> DimcatConfig:
 
 def single_resource_path() -> str:
     """Returns the path to a single resource."""
-    return list(RESOURCE_PATHS.values())[0]
+    return RESOURCE_PATHS["unittest_notes.resource.yaml"]
 
 
 DIMCAT_OBJECT_TEST_CASES: List[Tuple[Type[DimcatObject], dict]] = [
@@ -187,6 +190,9 @@ DIMCAT_OBJECT_TEST_CASES: List[Tuple[Type[DimcatObject], dict]] = [
     (DimcatConfig, dummy_config()),
     (DimcatResource, dict(resource=single_resource_path())),
     (DummyAnalyzer, dict(features=dummy_config())),
+    (Notes, dict(resource=single_resource_path())),
+    (Analyzer, dict(features=dummy_config())),
+    (Counter, dict(features=dummy_config())),
 ]
 
 
@@ -196,10 +202,25 @@ def unpack_dimcat_object_params(params: tuple) -> Tuple[Type[DimcatObject], dict
     return constructor, options
 
 
+def arg_val2str(val) -> str:
+    """Converts a value to a string for use in test ids."""
+    if isinstance(val, str) and os.path.isfile(val):
+        return os.path.basename(val)
+    if isinstance(val, dict):
+        return kwargs2str(val)
+    return str(val)
+
+
+def kwargs2str(options):
+    """Converts a dictionary of keyword arguments to a string for use in test ids."""
+    arg_str = ", ".join(f"{k}={arg_val2str(v)}" for k, v in options.items())
+    return arg_str
+
+
 def make_test_id(params: tuple) -> str:
     """Makes a test id from the parameters of DIMCAT_OBJECT_TEST_CASES."""
     constructor, options = unpack_dimcat_object_params(params)
-    arg_str = ", ".join(f"{k}={str(v)}" for k, v in options.items())
+    arg_str = kwargs2str(options)
     return f"{constructor.name}({arg_str})"
 
 
@@ -260,12 +281,6 @@ class TestResource:
     @pytest.fixture()
     def resource_from_dataframe(self, resource_dataframe, resource_schema):
         return DimcatResource(df=resource_dataframe, column_schema=resource_schema)
-
-    def test_resource_from_fix(self, res):
-        assert res.status == ResourceStatus.FROZEN
-        print(res.__dict__)
-        with pytest.raises(RuntimeError):
-            res.basepath = "~"
 
     def test_resource_from_disk(self, resource_from_descriptor):
         assert resource_from_descriptor.status == ResourceStatus.FROZEN
