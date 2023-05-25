@@ -260,6 +260,12 @@ class DimcatConfig(MutableMapping, DimcatObject):
     class Schema(DimcatObject.Schema):
         options = mm.fields.Dict()
 
+        @mm.pre_load()
+        def serialize_if_necessary(self, data, **kwargs):
+            if isinstance(data, DimcatObject):
+                return dict(options=data.options)
+            return data
+
         @mm.post_load()
         def init_object(self, data, **kwargs) -> DimcatConfig:
             """Once the data has been loaded, create the corresponding object."""
@@ -559,3 +565,10 @@ def deserialize_json_str(json_data) -> DimcatObject:
     """Deserialize a JSON string into a DimcatObject."""
     obj_data = json.loads(json_data)
     return deserialize_dict(obj_data)
+
+
+def deserialize_json_file(json_file) -> DimcatObject:
+    """Deserialize a JSON file into a DimcatObject."""
+    with open(json_file, "r") as f:
+        json_data = f.read()
+    return deserialize_json_str(json_data)

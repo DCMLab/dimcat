@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import os
+import tempfile
 from itertools import product
 from pprint import pprint
 from typing import Iterable, List, Tuple, Type
@@ -16,6 +18,7 @@ from dimcat.base import (
     DimcatSchema,
     PipelineStep,
     deserialize_dict,
+    deserialize_json_file,
     deserialize_json_str,
 )
 from dimcat.data.base import DimcatResource, ResourceStatus
@@ -267,6 +270,25 @@ class TestSerialization:
     def test_creation_from_manual_config(self):
         config = DimcatConfig(dtype=self.dtype.name, options=self.options)
         new_object = config.create()
+        assert new_object == self.dimcat_object
+
+    def test_creation_from_dict(self):
+        new_object = deserialize_dict(self.dimcat_object.to_dict())
+        assert new_object == self.dimcat_object
+
+    def test_serialization_to_json(self):
+        json_str = self.dimcat_object.to_json()
+        assert isinstance(json_str, str)
+        assert json_str == json.dumps(self.dimcat_object.to_dict())
+        new_object = deserialize_json_str(json_str)
+        assert new_object == self.dimcat_object
+
+    def test_serialization_to_json_file(self):
+        with tempfile.NamedTemporaryFile(
+            mode="r+", suffix=".json", encoding="utf-8"
+        ) as tmp_file:
+            self.dimcat_object.to_json_file(tmp_file.name)
+            new_object = deserialize_json_file(tmp_file.name)
         assert new_object == self.dimcat_object
 
 
