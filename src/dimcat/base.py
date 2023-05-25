@@ -209,7 +209,7 @@ class DimcatObject(ABC):
 
     @classmethod
     def from_config(cls, config: DimcatConfig, **kwargs):
-        return cls.from_dict(config.options, **kwargs)
+        return cls.from_dict(config._options, **kwargs)
 
     @classmethod
     def from_json(cls, config: str, **kwargs) -> Self:
@@ -225,7 +225,36 @@ class DimcatObject(ABC):
 
 class DimcatConfig(MutableMapping, DimcatObject):
     """Behaves like a dictionary but accepts only keys and values that are valid under the Schema of the DimcatObject
-    specified under the key 'dtype'.
+    specified under the key 'dtype'. Every DimcatConfig needs to have a 'dtype' key that is the name of a DimcatObject
+    and can specify zero or more additional key-value pairs that can be used to instantiate the described object.
+
+    When dealing with a DimcatConfig you need to be aware that the 'dtype' and 'options' can been different things
+    when used as keys as opposed to attributes (``DC`` represents a DimcatConfig):
+
+    - ``DC['dtype']`` is the name of the described DimcatObject (equivalent to ``DC.options_dtype``)
+    - ``DC.dtype`` returns the class name "DimcatConfig", according to all DimcatObjects' default behaviour
+    - ``DC.options`` returns the key-value pairs wrapped by this config, which includes at least the 'dtype' key
+    - ``DC['options']`` is the value of the 'options' option, which exists only if it is part of the described
+      object's schema, for example if the described object is a :class:`DimcatConfig` itself.
+
+    Examples:
+
+        >>> from dimcat import DimcatConfig, DimcatObject
+        >>> DC = DimcatConfig(dtype="DimcatObject")
+        >>> DC.dtype
+        'DimcatConfig'
+        >>> DC['dtype']
+        'DimcatObject'
+        >>> DC.options
+        {'dtype': 'DimcatObject'}
+        >>> DC['options']
+        KeyError: 'options'
+        config_config = DC.to_config()
+        >>> config_config.options
+        {'dtype': 'DimcatConfig', 'options': {'dtype': 'DimcatObject'}}
+        >>> config_config['options']
+        {'dtype': 'DimcatObject'}
+
     """
 
     class Schema(DimcatObject.Schema):
@@ -278,14 +307,20 @@ class DimcatConfig(MutableMapping, DimcatObject):
             raise ValidationError(
                 "'dtype' key cannot be None, it needs to be the name of a DimcatObject."
             )
-        self.options = options
+        if not is_name_of_dimcat_class(dtype):
+            raise ValidationError(
+                f"'dtype' key needs to be the name of a DimcatObject, not {dtype!r}."
+            )
+        self._options: dict = options
+        """The options dictionary wrapped and controlled by this DimcatConfig. Whenever a new value is set, it is
+        validated against the Schema of the DimcatObject specified under the key 'dtype'."""
         if (
             isinstance(dtype, Enum)
             or isinstance(dtype, DimcatObject)
             or (isclass(dtype) and issubclass(dtype, DimcatObject))
         ):
             dtype_str = dtype.name
-            self.options["dtype"] = dtype_str
+            self._options["dtype"] = dtype_str
         elif isinstance(dtype, str):
             pass
         else:
@@ -301,7 +336,7 @@ class DimcatConfig(MutableMapping, DimcatObject):
 
     @property
     def options_dtype(self):
-        return self.options["dtype"]
+        return self._options["dtype"]
 
     @property
     def options_schema(self):
@@ -317,25 +352,33 @@ class DimcatConfig(MutableMapping, DimcatObject):
         options = obj.to_dict()
         return cls(options)
 
+    @property
+    def options(self):
+        """Returns the options dictionary wrapped and controlled by this DimcatConfig. Whenever a new value is set,
+        it is validated against the Schema of the DimcatObject specified under the key 'dtype'. Note that this property
+        returns a copy of the dictionary including the 'dtype' key and modifying it will not affect the DimcatConfig.
+        Also note that the returned value is different from DimcatConfig["options"]"""
+        return dict(self._options)
+
     def create(self) -> DimcatObject:
-        return self.options_schema.load(self.options)
+        return self.options_schema.load(self._options)
 
     def validate(self, partial=False) -> Dict[str, List[str]]:
         """Validates the current status of the config in terms of ability to create an object. Empty dict == valid."""
-        return self.options_schema.validate(self.options, many=False, partial=partial)
+        return self.options_schema.validate(self._options, many=False, partial=partial)
 
     def __getitem__(self, key):
-        return self.options[key]
+        return self._options[key]
 
     def __delitem__(self, key):
         if key == "dtype":
             raise ValueError("Cannot remove key 'dtype' from DimcatConfig.")
-        del self.options[key]
+        del self._options[key]
 
     def __setitem__(self, key, value):
-        if key == "dtype" and value != self.options["dtype"]:
+        if key == "dtype" and value != self._options["dtype"]:
             tmp_schema = get_schema(value)
-            tmp_dict = dict(self.options, dtype=value)
+            tmp_dict = dict(self._options, dtype=value)
             report = tmp_schema.validate(tmp_dict)
             if report:
                 msg = (
@@ -349,45 +392,46 @@ class DimcatConfig(MutableMapping, DimcatObject):
             if report:
                 msg = f"{self.options_schema.name}: Cannot set {key!r} to {value!r}:\n{report}"
                 raise ValidationError(msg)
-        self.options[key] = value
+        self._options[key] = value
 
     def __iter__(self):
-        return iter(self.options)
+        return iter(self._options)
 
     def __len__(self):
-        return len(self.options)
+        return len(self._options)
 
     def __repr__(self):
-        return f"{self.name}({pformat(self.options)})"
+        return f"{self.name}({pformat(self._options)})"
 
     def __eq__(self, other: DimcatObject | MutableMapping) -> bool:
+        """The comparison with another DimcatConfig or dict-like returns True if both describe the same object or if
+        one describes the other. That is,
+        - both describe the same object, i.e. key 'dtype' is the same and any other options are identical, or
+        - this DimcatConfig describes the other object, or
+        - the other object describes this DimcatConfig.
+        """
         if isinstance(other, DimcatConfig):
-            self_describes_config, other_describes_config = (
-                self.options_dtype == "DimcatConfig",
-                other.options_dtype == "DimcatConfig",
-            )
-            if self_describes_config == other_describes_config:
-                return self.options == other.options
-            # otherwise, one A(dtype='DimcatConfig') could be the serialized B
-            a, b = (self, other) if self_describes_config else (other, self)
-            return a.options == b
-
-        if isinstance(other, DimcatObject):
+            other = other.options
+        elif isinstance(other, DimcatObject):
             if other.name != self.options_dtype:
                 return False
-            return other.to_dict() == self.options
+            return other.to_dict() == self._options
 
         if not isinstance(other, MutableMapping):
             raise TypeError(
                 f"{self.name} can only be compared against dict-like, not {type(other)}."
             )
-        if "dtype" in other:
-            if other["dtype"] == "DimcatConfig":
-                # other seems to be a serialized config
-                other_options = other.get("options", {})
-                return self.options == other_options
+        if "dtype" not in other:
+            return False
+        self_describes_config, other_describes_config = (
+            self["dtype"] == "DimcatConfig",
+            other["dtype"] == "DimcatConfig",
+        )
+        if self_describes_config == other_describes_config:
             return self.options == other
-        return False
+        # exactly one of the two described a DimcatConfig, hance we check if one is a serialized version of the other
+        a, b = (self, other) if self_describes_config else (other, self)
+        return self["options"] == other
 
 
 class Data(DimcatObject):
@@ -477,6 +521,16 @@ def get_class(name) -> Type[DimcatObject]:
 
 
 @cache
+def is_name_of_dimcat_class(name) -> bool:
+    """"""
+    try:
+        get_class(name)
+        return True
+    except KeyError:
+        return False
+
+
+@cache
 def get_schema(name, init=True):
     """Caches the intialized schema for each class. Pass init=False to retrieve the schema constructor."""
     dc_class = get_class(name)
@@ -486,15 +540,18 @@ def get_schema(name, init=True):
     return dc_schema
 
 
-def deserialize_config(config):
+def deserialize_config(config) -> DimcatObject:
+    """Deserialize a config object into a DimcatObject."""
     return config.create()
 
 
-def deserialize_dict(obj_data):
+def deserialize_dict(obj_data) -> DimcatObject:
+    """Deserialize a dict into a DimcatObject."""
     config = DimcatConfig(obj_data)
     return deserialize_config(config)
 
 
-def deserialize_json_str(json_data):
+def deserialize_json_str(json_data) -> DimcatObject:
+    """Deserialize a JSON string into a DimcatObject."""
     obj_data = json.loads(json_data)
     return deserialize_dict(obj_data)
