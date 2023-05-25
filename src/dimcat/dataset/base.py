@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import logging
-from typing import List, Optional, Union
+import os
+from typing import List, MutableMapping, Optional, Union, re
 
 import frictionless as fl
+import marshmallow as mm
 from dimcat.base import Data, DimcatConfig
-from dimcat.resources.base import DimcatResource
+from dimcat.resources.base import DimcatResource, get_default_basepath
 from dimcat.resources.features import Feature, FeatureName
-from typing_extensions import Self
+from frictionless.settings import NAME_PATTERN as FRICTIONLESS_NAME_PATTERN
+from ms3 import resolve_dir
 
 logger = logging.getLogger(__name__)
 
@@ -22,28 +25,116 @@ def feature_argument2config(
 
 
 class DimcatPackage(Data):
-    """Wrapper for a :obj:`frictionless.Package`."""
+    """Wrapper for a :obj:`frictionless.Package`. The purpose of a Package is to create, load, and store a collection
+    of :obj:`DimcatResource` objects. The preferred way of storing a package is a ``[name.]datapackage.json``
+    descriptor and a .zip file containing one .tsv file per DimcatResource contained in the package.
+    """
 
-    def __init__(self, package: Optional[fl.Package] = None) -> None:
-        self.package: fl.Package
-        if package is None:
-            self.package = fl.Package()
-        elif not isinstance(package, fl.Package):
-            obj_name = type(self).__name__
-            p_type = type(package)
-            msg = f"{obj_name} takes a frictionless.Package, not {p_type}."
-            if issubclass(p_type, str):
-                msg += f" Try {obj_name}.from_descriptor()"
-            raise ValueError(msg)
-        else:
-            self.package = package
+    class Schema(Data.Schema):
+        package = mm.fields.Method(
+            serialize="get_package_descriptor", deserialize="load_descriptor"
+        )
 
-    @classmethod
-    def from_descriptor(
-        cls, descriptor: Union[fl.interfaces.IDescriptor, str], **options
-    ) -> Self:
-        package = fl.Package.from_descriptor(descriptor, **options)
-        return cls(package=package)
+        def get_package_descriptor(self, obj: DimcatResource):
+            descriptor = obj._package.to_descriptor()
+            return descriptor
+
+        def load_descriptor(self, data):
+            if "resources" not in data:
+                return fl.Package(**data)
+            return fl.Package.from_descriptor(data)
+
+    def __init__(
+        self,
+        package_name: Optional[str] = None,
+        package: Optional[Union[fl.Package, str]] = None,
+        basepath: Optional[str] = None,
+        validate: bool = True,
+    ) -> None:
+        """
+
+        Args:
+            package_name:
+                Name of the package that can be used to retrieve it. Can be None only if ``package`` is not None.
+            package:
+                A frictionless package descriptor or path to a package descriptor. If not specified, a new package
+                is created and ``package_name`` needs to be specified.
+            basepath:
+                The absolute path on the local file system where the package descriptor and all contained resources
+                 are stored. If not specified, it will default to
+
+                 * the directory where the package descriptor is located if ``package`` is a path to a package
+                 * the current working directory otherwise
+
+            validate:
+                By default, the package is validated everytime a resource is added. Set to False to disable this.
+        """
+        if sum(arg is None for arg in (package_name, package)) == 2:
+            raise ValueError(
+                "At least one of package_name and package needs to be specified."
+            )
+        self._package = fl.Package()
+        self.descriptor_path: Optional[str] = None
+        if package is not None:
+            if isinstance(package, str):
+                self.descriptor_path = resolve_dir(package)
+                if not os.path.isdir(self.descriptor_path):
+                    raise FileNotFoundError(f"{self.descriptor_path} is not a file.")
+                if not self.descriptor_path.endswith(".datapackage.json"):
+                    logging.warning(
+                        f"{self.descriptor_path} does not end with .datapackage.json. Trying to load it anyway."
+                    )
+                self._package = fl.Package(self.descriptor_path)
+                self.basepath = os.path.dirname(self.descriptor_path)
+            elif isinstance(package, fl.Package):
+                self._package = package
+            elif isinstance(package, MutableMapping):
+                self._package = fl.Package(**package)
+            else:
+                raise ValueError(
+                    f"Expected a path or a frictionless.Package, not {type(package)}"
+                )
+        if package_name is not None:
+            self.package_name = package_name
+        if basepath is not None:
+            self.basepath = basepath
+        self.validate = validate
+        if validate:
+            self.validate_package()
+
+    @property
+    def basepath(self) -> str:
+        if self._package.basepath is None:
+            if self.descriptor_path is not None:
+                self._package.basepath = os.path.dirname(self.descriptor_path)
+            else:
+                self._package.basepath = get_default_basepath()
+        return self._package.basepath
+
+    @basepath.setter
+    def basepath(self, basepath: str) -> None:
+        self._package.basepath = basepath
+
+    @property
+    def package(self) -> fl.Package:
+        return self._package
+
+    @property
+    def package_name(self) -> str:
+        return self._package.name
+
+    @package_name.setter
+    def package_name(self, package_name: str) -> None:
+        name_lower = package_name.lower()
+        if not re.match(FRICTIONLESS_NAME_PATTERN, name_lower):
+            raise ValueError(
+                f"Name must be lowercase and work as filename: {name_lower!r}"
+            )
+        self._package.name = name_lower
+        if self.descriptor_path is not None:
+            self.descriptor_path = os.path.join(
+                self.basepath, name_lower + ".datapackage.json"
+            )
 
     # def __getattr__(self, key):
     #     """Enables using DimcatPackage like the wrapped :obj:`frictionless.Package`."""
@@ -53,10 +144,10 @@ class DimcatPackage(Data):
     #     return setattr(self.package, key, value)
 
     def __str__(self):
-        return str(self.package)
+        return str(self._package)
 
     def __repr__(self):
-        return repr(self.package)
+        return repr(self._package)
 
     def get_feature(self, feature: Union[FeatureName, str, DimcatConfig]) -> Feature:
         feature_config = feature_argument2config(feature)
@@ -72,9 +163,19 @@ class DimcatPackage(Data):
         Constructor = feature_name.get_class()
         return Constructor(resource=resource.resource)
 
+    def _get_fl_resource(self, name: str) -> fl.Resource:
+        return self._package.get_resource(name)
+
     def get_resource(self, name: str) -> DimcatResource:
-        fl_resource = self.package.get_resource(name)
+        fl_resource = self._get_fl_resource(name)
         return DimcatResource(resource=fl_resource)
+
+    def validate_package(self, raise_exception: bool = False) -> fl.Report:
+        report = self._package.validate()
+        if not report.valid and raise_exception:
+            errors = [err.message for task in report.tasks for err in task.errors]
+            raise fl.FrictionlessException("\n".join(errors))
+        return report
 
 
 class DimcatCatalog(Data):

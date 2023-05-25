@@ -156,8 +156,8 @@ class DimcatResource(Generic[D], Data):
                 If you don't pass a schema or a path or URL to one, frictionless will try to infer it. However,
                 this often leads to validation errors.
             basepath:
-                The absolute path on the local machine, relative to which the resource will be described when written
-                to disk. If not specified, it will default to
+                The absolute path on the local file system, relative to which the resource will be described when
+                written to disk. If not specified, it will default to
 
                 * the current working directory if no ``filepath`` is given or the given filepath is relative
                 * the ``filepath``'s directory if the filepath is absolute
@@ -178,11 +178,14 @@ class DimcatResource(Generic[D], Data):
         self._status = ResourceStatus.EMPTY
         self._df: D = None
         self.descriptor_path: Optional[str] = None
-        if resource_name is None:
-            self.resource_name = self.filename_factory()
-        else:
-            self.resource_name = resource_name
+
         if resource is not None:
+            if resource_name is None:
+                self.resource_name = self.filename_factory()
+            else:
+                # this purposefully happens twice, the first time to allow for computing paths when setting a resource
+                # and the second time to overwrite the name of the given resource
+                self.resource_name = resource_name
             if isinstance(resource, str):
                 self._resource = fl.Resource(resource)
                 self.basepath = os.path.dirname(resource)
@@ -192,10 +195,14 @@ class DimcatResource(Generic[D], Data):
                 )
                 self.descriptor_path = self.normpath
                 self._status = ResourceStatus.ON_DISK_NOT_LOADED
-            else:
+            elif isinstance(resource, fl.Resource):
                 self._resource = resource
                 if resource.scheme == "file":
                     self._status = ResourceStatus.ON_DISK_NOT_LOADED
+            else:
+                raise TypeError(
+                    f"Expected a path or a frictionless resource, got {type(resource)}"
+                )
 
         if resource_name is not None:
             self._resource.name = resource_name
@@ -210,7 +217,7 @@ class DimcatResource(Generic[D], Data):
         if not self.is_frozen and self.is_serialized:
             self._status = ResourceStatus.SERIALIZED
         if validate and self.status == ResourceStatus.DATAFRAME:
-            _ = self.validate_data(interrupt=NEVER_STORE_UNVALIDATED_DATA)
+            _ = self.validate_data(raise_exception=NEVER_STORE_UNVALIDATED_DATA)
 
     @property
     def basepath(self):
@@ -344,7 +351,7 @@ class DimcatResource(Generic[D], Data):
             return os.path.normpath(os.path.join(self.basepath, self.filepath))
 
     @property
-    def resource(self):
+    def resource(self) -> fl.Resource:
         return self._resource
 
     @property
@@ -415,7 +422,7 @@ class DimcatResource(Generic[D], Data):
         if self.status < ResourceStatus.DATAFRAME:
             raise RuntimeError(f"This {self.name} does not contain a dataframe.")
         if validate and self.status < ResourceStatus.VALIDATED:
-            _ = self.validate_data(interrupt=NEVER_STORE_UNVALIDATED_DATA)
+            _ = self.validate_data(raise_exception=NEVER_STORE_UNVALIDATED_DATA)
 
         if name is not None:
             filepath = name
@@ -436,7 +443,7 @@ class DimcatResource(Generic[D], Data):
         ms3.write_tsv(self.df, full_path)
         self._status = ResourceStatus.SERIALIZED
 
-    def validate_data(self, interrupt: bool = False) -> Optional[fl.Report]:
+    def validate_data(self, raise_exception: bool = False) -> Optional[fl.Report]:
         if self.status < ResourceStatus.DATAFRAME:
             logger.info("Nothing to validate.")
             return
@@ -449,9 +456,9 @@ class DimcatResource(Generic[D], Data):
         if report.valid:
             if self.status < ResourceStatus.VALIDATED:
                 self._status = ResourceStatus.VALIDATED
-        elif interrupt:
+        elif raise_exception:
             errors = [err.message for task in report.tasks for err in task.errors]
-            raise ValidationError("\n".join(errors))
+            raise fl.FrictionlessException("\n".join(errors))
         return report
 
     def __dir__(self) -> List[str]:

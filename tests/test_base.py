@@ -21,6 +21,7 @@ from dimcat.base import (
     deserialize_json_file,
     deserialize_json_str,
 )
+from dimcat.dataset.base import DimcatPackage
 from dimcat.resources.base import DimcatResource, ResourceStatus
 from dimcat.resources.features import Notes
 from git import Repo
@@ -196,6 +197,7 @@ DIMCAT_OBJECT_TEST_CASES: List[Tuple[Type[DimcatObject], dict]] = [
     (Notes, dict(resource=single_resource_path())),
     (Analyzer, dict(features=dummy_config())),
     (Counter, dict(features=dummy_config())),
+    (DimcatPackage, dict(package=dict(name="fun_package"))),
 ]
 
 
@@ -210,7 +212,7 @@ def arg_val2str(val) -> str:
     if isinstance(val, str) and os.path.isfile(val):
         return os.path.basename(val)
     if isinstance(val, dict):
-        return kwargs2str(val)
+        return f"{{{kwargs2str(val)}}}"
     return str(val)
 
 
