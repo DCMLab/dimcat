@@ -31,9 +31,12 @@ R = TypeVar("R")
 
 
 class AnalyzerName(str, Enum):
+    """Identifies the available analyzers."""
+
+    Analyzer = "Analyzer"
     Counter = "Counter"
 
-    def get_class(self) -> Type[Analyzer]:
+    def get_class(self) -> Type[Feature]:
         return get_class(self.name)
 
     @classmethod
@@ -45,7 +48,17 @@ class AnalyzerName(str, Enum):
         for lc_value, member in lc_values.items():
             if lc_value.startswith(value_lower):
                 return member
-        raise ValueError(f"ValueError: {value_lower!r} is not a valid FeatureName.")
+        raise ValueError(f"ValueError: {value!r} is not a valid AnalyzerName.")
+
+    def __eq__(self, other) -> bool:
+        if self.value == other:
+            return True
+        if isinstance(other, str):
+            return other.lower() == self.value.lower()
+        return False
+
+    def __hash__(self):
+        return hash(self.value)
 
 
 class ResultName(str, Enum):
@@ -109,11 +122,9 @@ class Analyzer(PipelineStep):
             required=True,
             validate=mm.validate.Length(min=1),
         )
-        strategy = mm.fields.Enum(
-            DispatchStrategy, default=DispatchStrategy.GROUPBY_APPLY
-        )
-        smallest_unit = mm.fields.Enum(UnitOfAnalysis, default=UnitOfAnalysis.SLICE)
-        orientation = mm.fields.Enum(Orientation, default=Orientation.WIDE)
+        strategy = mm.fields.Enum(DispatchStrategy)
+        smallest_unit = mm.fields.Enum(UnitOfAnalysis)
+        orientation = mm.fields.Enum(Orientation)
         fill_na: mm.fields.Raw(allow_none=True)
 
     def __init__(
