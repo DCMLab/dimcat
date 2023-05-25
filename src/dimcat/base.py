@@ -131,6 +131,13 @@ class DimcatObject(ABC):
             )
         cls._registry[cls.name] = cls
 
+    def __eq__(self, other):
+        if not isinstance(other, DimcatObject):
+            return False
+        if other.name != self.name:
+            return False
+        return other.to_dict() == self.to_dict()
+
     @classmethod
     @property
     def name(cls) -> str:
@@ -158,6 +165,11 @@ class DimcatObject(ABC):
 
     def to_config(self) -> DimcatConfig:
         return DimcatConfig(self.to_dict())
+
+    def to_options(self):
+        D = self.to_dict()
+        del D["dtype"]
+        return D
 
     def to_json(self) -> str:
         return self.schema.dumps(self)
@@ -348,14 +360,34 @@ class DimcatConfig(MutableMapping, DimcatObject):
     def __repr__(self):
         return f"{self.name}({pformat(self.options)})"
 
-    def __eq__(self, other: MutableMapping) -> bool:
+    def __eq__(self, other: DimcatObject | MutableMapping) -> bool:
+        if isinstance(other, DimcatConfig):
+            self_describes_config, other_describes_config = (
+                self.options_dtype == "DimcatConfig",
+                other.options_dtype == "DimcatConfig",
+            )
+            if self_describes_config == other_describes_config:
+                return self.options == other.options
+            # otherwise, one A(dtype='DimcatConfig') could be the serialized B
+            a, b = (self, other) if self_describes_config else (other, self)
+            return a.options == b
+
+        if isinstance(other, DimcatObject):
+            if other.name != self.options_dtype:
+                return False
+            return other.to_dict() == self.options
+
         if not isinstance(other, MutableMapping):
             raise TypeError(
                 f"{self.name} can only be compared against dict-like, not {type(other)}."
             )
-        if "dtype" in other and other["dtype"] == "DimcatConfig":
-            return self.to_dict() == other
-        return self.options == other
+        if "dtype" in other:
+            if other["dtype"] == "DimcatConfig":
+                # other seems to be a serialized config
+                other_options = other.get("options", {})
+                return self.options == other_options
+            return self.options == other
+        return False
 
 
 class Data(DimcatObject):
@@ -452,3 +484,17 @@ def get_schema(name, init=True):
     if init:
         return dc_schema()
     return dc_schema
+
+
+def deserialize_config(config):
+    return config.create()
+
+
+def deserialize_dict(obj_data):
+    config = DimcatConfig(obj_data)
+    return deserialize_config(config)
+
+
+def deserialize_json_str(json_data):
+    obj_data = json.loads(json_data)
+    return deserialize_dict(obj_data)

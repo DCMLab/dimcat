@@ -1,14 +1,21 @@
 from __future__ import annotations
 
-import json
 import os
 from itertools import product
 from pprint import pprint
-from typing import Iterable, List
+from typing import Iterable, List, Tuple, Type
 
 import frictionless as fl
 import pytest
-from dimcat.base import Data, DimcatConfig, DimcatObject, DimcatSchema, PipelineStep
+from dimcat.base import (
+    Data,
+    DimcatConfig,
+    DimcatObject,
+    DimcatSchema,
+    PipelineStep,
+    deserialize_dict,
+    deserialize_json_str,
+)
 from dimcat.data.base import DimcatResource, ResourceStatus
 from git import Repo
 from marshmallow import ValidationError, fields, pre_load, validate
@@ -160,6 +167,73 @@ class TestBaseObjects:
         assert isinstance(obj, dimcat_class)
 
 
+DUMMY_CONFIG_OPTIONS = dict(dtype="DimcatObject")
+
+
+def dummy_config() -> DimcatConfig:
+    """Returns a dummy config for use in the test cases."""
+    return DimcatConfig(**DUMMY_CONFIG_OPTIONS)
+
+
+def single_resource_path() -> str:
+    """Returns the path to a single resource."""
+    return list(RESOURCE_PATHS.values())[0]
+
+
+DIMCAT_OBJECT_TEST_CASES: List[Tuple[Type[DimcatObject], dict]] = [
+    (DimcatObject, {}),
+    (Data, {}),
+    (PipelineStep, {}),
+    (DimcatConfig, dummy_config()),
+    (DimcatResource, dict(resource=single_resource_path())),
+    (DummyAnalyzer, dict(features=dummy_config())),
+]
+
+
+def unpack_dimcat_object_params(params: tuple) -> Tuple[Type[DimcatObject], dict]:
+    """Takes a tuple from DIMCAT_OBJECT_TEST_CASES and returns its components."""
+    constructor, options = params
+    return constructor, options
+
+
+def make_test_id(params: tuple) -> str:
+    """Makes a test id from the parameters of DIMCAT_OBJECT_TEST_CASES."""
+    constructor, options = unpack_dimcat_object_params(params)
+    arg_str = ", ".join(f"{k}={str(v)}" for k, v in options.items())
+    return f"{constructor.name}({arg_str})"
+
+
+@pytest.fixture(
+    scope="class",
+    params=DIMCAT_OBJECT_TEST_CASES,
+    ids=make_test_id,
+)
+def dimcat_object(request):
+    """Initializes each of the objects to be tested and injects them into the test class."""
+    Constructor, options = unpack_dimcat_object_params(request.param)
+    request.cls.dtype = Constructor
+    request.cls.options = options
+    request.cls.dimcat_object = Constructor(**options)
+
+
+@pytest.mark.usefixtures("dimcat_object")
+class TestSerialization:
+    dtype: Type[DimcatObject]
+    """The class of the tested object."""
+    options: dict
+    """The arguments for the tested object."""
+    dimcat_object: DimcatObject
+    """The initialized object."""
+
+    def test_equality_with_other(self):
+        new_object = self.dtype(**self.options)
+        assert new_object == self.dimcat_object
+
+    def test_equality_with_config(self):
+        config = self.dimcat_object.to_config()
+        assert config == self.dimcat_object
+
+
 class TestResource:
     @pytest.fixture()
     def resource_from_descriptor(self, resource_path):
@@ -186,6 +260,12 @@ class TestResource:
     @pytest.fixture()
     def resource_from_dataframe(self, resource_dataframe, resource_schema):
         return DimcatResource(df=resource_dataframe, column_schema=resource_schema)
+
+    def test_resource_from_fix(self, res):
+        assert res.status == ResourceStatus.FROZEN
+        print(res.__dict__)
+        with pytest.raises(RuntimeError):
+            res.basepath = "~"
 
     def test_resource_from_disk(self, resource_from_descriptor):
         assert resource_from_descriptor.status == ResourceStatus.FROZEN
@@ -228,16 +308,6 @@ class BaseObject(DimcatObject):
 
     def __init__(self, strong: str):
         self.strong = strong
-
-
-def obj_from_dict(obj_data):
-    config = DimcatConfig(obj_data)
-    return config.create()
-
-
-def obj_from_json(json_data):
-    obj_data = json.loads(json_data)
-    return obj_from_dict(obj_data)
 
 
 class SubClass(BaseObject):
@@ -293,11 +363,11 @@ def test_subclass():
         except ValidationError as e:
             print(e)
             continue
-        new_obj = obj_from_dict(dump)
+        new_obj = deserialize_dict(dump)
         assert obj.__dict__ == new_obj.__dict__
         json = obj.to_json()
         print(json)
-        new_obj = obj_from_json(json)
+        new_obj = deserialize_json_str(json)
         assert obj.__dict__ == new_obj.__dict__
 
 
