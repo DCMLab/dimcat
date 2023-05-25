@@ -129,6 +129,7 @@ class DimcatResource(Generic[D], Data):
                 if obj.status <= ResourceStatus.VALIDATED:
                     obj.store_dataframe()
             descriptor = obj._resource.to_descriptor()
+            # ToDo: store the descriptor to disk and return the path
             return descriptor
 
         def load_descriptor(self, data):
@@ -217,7 +218,7 @@ class DimcatResource(Generic[D], Data):
         if not self.is_frozen and self.is_serialized:
             self._status = ResourceStatus.SERIALIZED
         if validate and self.status == ResourceStatus.DATAFRAME:
-            _ = self.validate_data(raise_exception=NEVER_STORE_UNVALIDATED_DATA)
+            _ = self.validate(raise_exception=NEVER_STORE_UNVALIDATED_DATA)
 
     @property
     def basepath(self):
@@ -330,7 +331,7 @@ class DimcatResource(Generic[D], Data):
             return False
         if self.status >= ResourceStatus.VALIDATED:
             return True
-        report = self.validate_data()
+        report = self.validate()
         if report is not None:
             return report.valid
 
@@ -422,7 +423,7 @@ class DimcatResource(Generic[D], Data):
         if self.status < ResourceStatus.DATAFRAME:
             raise RuntimeError(f"This {self.name} does not contain a dataframe.")
         if validate and self.status < ResourceStatus.VALIDATED:
-            _ = self.validate_data(raise_exception=NEVER_STORE_UNVALIDATED_DATA)
+            _ = self.validate(raise_exception=NEVER_STORE_UNVALIDATED_DATA)
 
         if name is not None:
             filepath = name
@@ -443,7 +444,7 @@ class DimcatResource(Generic[D], Data):
         ms3.write_tsv(self.df, full_path)
         self._status = ResourceStatus.SERIALIZED
 
-    def validate_data(self, raise_exception: bool = False) -> Optional[fl.Report]:
+    def validate(self, raise_exception: bool = False) -> Optional[fl.Report]:
         if self.status < ResourceStatus.DATAFRAME:
             logger.info("Nothing to validate.")
             return

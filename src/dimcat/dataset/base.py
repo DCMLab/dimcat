@@ -7,7 +7,11 @@ from typing import List, MutableMapping, Optional, Union, re
 import frictionless as fl
 import marshmallow as mm
 from dimcat.base import Data, DimcatConfig
-from dimcat.resources.base import DimcatResource, get_default_basepath
+from dimcat.resources.base import (
+    NEVER_STORE_UNVALIDATED_DATA,
+    DimcatResource,
+    get_default_basepath,
+)
 from dimcat.resources.features import Feature, FeatureName
 from frictionless.settings import NAME_PATTERN as FRICTIONLESS_NAME_PATTERN
 from ms3 import resolve_dir
@@ -40,6 +44,8 @@ class DimcatPackage(Data):
             return descriptor
 
         def load_descriptor(self, data):
+            if isinstance(data, str):
+                return fl.Package(data)
             if "resources" not in data:
                 return fl.Package(**data)
             return fl.Package.from_descriptor(data)
@@ -78,7 +84,7 @@ class DimcatPackage(Data):
         if package is not None:
             if isinstance(package, str):
                 self.descriptor_path = resolve_dir(package)
-                if not os.path.isdir(self.descriptor_path):
+                if not os.path.isfile(self.descriptor_path):
                     raise FileNotFoundError(f"{self.descriptor_path} is not a file.")
                 if not self.descriptor_path.endswith(".datapackage.json"):
                     logging.warning(
@@ -98,9 +104,9 @@ class DimcatPackage(Data):
             self.package_name = package_name
         if basepath is not None:
             self.basepath = basepath
-        self.validate = validate
+        self._validate = validate
         if validate:
-            self.validate_package()
+            self.validate(raise_exception=NEVER_STORE_UNVALIDATED_DATA)
 
     @property
     def basepath(self) -> str:
@@ -170,7 +176,7 @@ class DimcatPackage(Data):
         fl_resource = self._get_fl_resource(name)
         return DimcatResource(resource=fl_resource)
 
-    def validate_package(self, raise_exception: bool = False) -> fl.Report:
+    def validate(self, raise_exception: bool = False) -> fl.Report:
         report = self._package.validate()
         if not report.valid and raise_exception:
             errors = [err.message for task in report.tasks for err in task.errors]

@@ -187,6 +187,11 @@ def single_resource_path() -> str:
     return RESOURCE_PATHS["unittest_notes.resource.yaml"]
 
 
+def datapackage_json_path() -> str:
+    """Returns the path to a single resource."""
+    return os.path.join(CORPUS_PATH, "datapackage.json")
+
+
 DIMCAT_OBJECT_TEST_CASES: List[Tuple[Type[DimcatObject], dict]] = [
     (DimcatObject, {}),
     (Data, {}),
@@ -198,6 +203,7 @@ DIMCAT_OBJECT_TEST_CASES: List[Tuple[Type[DimcatObject], dict]] = [
     (Analyzer, dict(features=dummy_config())),
     (Counter, dict(features=dummy_config())),
     (DimcatPackage, dict(package=dict(name="fun_package"))),
+    (DimcatPackage, dict(package=datapackage_json_path())),
 ]
 
 
