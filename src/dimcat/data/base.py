@@ -445,3 +445,6 @@ class DimcatResource(Generic[D], Data):
 
     def __str__(self):
         return str(self._resource)
+
+    def __hash__(self):
+        return id(self)
