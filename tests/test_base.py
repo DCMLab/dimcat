@@ -254,6 +254,16 @@ class TestSerialization:
         config = self.dimcat_object.to_config()
         assert config == self.dimcat_object
 
+    def test_dict_config_equal(self):
+        config = self.dimcat_object.to_config()
+        as_dict = self.dimcat_object.to_dict()
+        assert config == as_dict
+
+    def test_creation_from_config(self):
+        config = self.dimcat_object.to_config()
+        new_object = config.create()
+        assert new_object == self.dimcat_object
+
 
 class TestResource:
     @pytest.fixture()
@@ -283,7 +293,7 @@ class TestResource:
         return DimcatResource(df=resource_dataframe, column_schema=resource_schema)
 
     def test_resource_from_disk(self, resource_from_descriptor):
-        assert resource_from_descriptor.status == ResourceStatus.FROZEN
+        assert resource_from_descriptor.status == ResourceStatus.ON_DISK_NOT_LOADED
         print(resource_from_descriptor.__dict__)
         with pytest.raises(RuntimeError):
             resource_from_descriptor.basepath = "~"

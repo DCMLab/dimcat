@@ -42,6 +42,11 @@ def get_default_basepath():
     return os.getcwd()
 
 
+def infer_schema_from_df(df: SomeDataframe) -> fl.Schema:
+    """Infer a frictionless.Schema from a dataframe."""
+    return fl.Schema.describe(df)
+
+
 def check_rel_path(rel_path, basepath):
     if rel_path.startswith(".."):
         raise ValueError(
@@ -98,9 +103,12 @@ class ResourceStatus(IntEnum):
     SERIALIZED = (
         auto()
     )  # dataframe serialized to disk but not its descriptor -> can be changed or overwritten
-    FROZEN = (
+    ON_DISK_AND_LOADED = (
         auto()
     )  # descriptor pointing to the serialized dataframe has been written -> must be altered together
+    ON_DISK_NOT_LOADED = (
+        auto()
+    )  # like ON_DISK_AND_LOADED but the dataframe has not been loaded into memory
 
 
 class DimcatResource(Generic[D], Data):
@@ -169,6 +177,7 @@ class DimcatResource(Generic[D], Data):
         self._resource: fl.Resource = make_tsv_resource()
         self._status = ResourceStatus.EMPTY
         self._df: D = None
+        self.descriptor_path: Optional[str] = None
         if resource_name is None:
             self.resource_name = self.filename_factory()
         else:
@@ -181,7 +190,8 @@ class DimcatResource(Generic[D], Data):
                     f"Resource does not point to an existing file "
                     f"(basepath: {self.basepath}):\n{self._resource}"
                 )
-                self._status = ResourceStatus.FROZEN
+                self.descriptor_path = self.normpath
+                self._status = ResourceStatus.ON_DISK_NOT_LOADED
             else:
                 self._resource = resource
         if resource_name is not None:
@@ -246,7 +256,7 @@ class DimcatResource(Generic[D], Data):
             return self._df
         if self.is_frozen:
             return self.get_dataframe()
-        raise AttributeError(f"No dataframe accessible:\n{self.to_dict()}")
+        raise AttributeError(f"No dataframe accessible for this {self.name}:\n{self}")
 
     @df.setter
     def df(self, df: D):
@@ -254,11 +264,11 @@ class DimcatResource(Generic[D], Data):
             raise RuntimeError(
                 "Cannot set dataframe on a resource whose valid descriptor has been written to disk."
             )
-        if self._df is not None:
+        if self.is_loaded:
             raise RuntimeError("This resource already includes a dataframe.")
         self._df = df
         if not self.column_schema.fields:
-            self.column_schema = fl.Schema.describe(df)
+            self.column_schema = infer_schema_from_df(df)
         self._status = ResourceStatus.DATAFRAME
 
     @property
@@ -291,8 +301,14 @@ class DimcatResource(Generic[D], Data):
 
     @property
     def is_frozen(self) -> bool:
-        """Whether or not this resource can be modified."""
-        return self.status >= ResourceStatus.FROZEN
+        """Whether the resource is frozen (i.e. its valid descriptor has been written to disk) or not."""
+        return self.status >= ResourceStatus.ON_DISK_AND_LOADED
+
+    @property
+    def is_loaded(self) -> bool:
+        return (
+            ResourceStatus.DATAFRAME <= self.status < ResourceStatus.ON_DISK_NOT_LOADED
+        )
 
     @property
     def is_serialized(self) -> bool:
@@ -309,8 +325,10 @@ class DimcatResource(Generic[D], Data):
             return report.valid
 
     @property
-    def normpath(self):
+    def normpath(self) -> Optional[str]:
         """Absolute path to the serialized or future tabular file."""
+        if self.descriptor_path is not None:
+            return self.descriptor_path
         n_specified = sum(path is not None for path in (self.basepath, self.filepath))
         if n_specified == 0:
             return
@@ -346,9 +364,16 @@ class DimcatResource(Generic[D], Data):
         return self._status
 
     @cache
-    def get_dataframe(
-        self, wrapped=True
-    ) -> Union[DimcatResource[pd.DataFrame], pd.DataFrame]:
+    def get_dataframe(self, wrapped=False) -> Union[DimcatResource[D], D]:
+        """
+        Load the dataframe from disk based on the descriptor's normpath.
+
+        Args:
+            wrapped: By default only the underlying dataframe. Set to True if you want a DimcatResource wrapper.
+
+        Returns:
+            The dataframe or DimcatResource.
+        """
         r = self._resource
         if self.normpath is None:
             raise ValidationError(
@@ -370,7 +395,7 @@ class DimcatResource(Generic[D], Data):
         name: Optional[str] = None,
         validate: bool = True,
     ):
-        if name is None and self.is_frozen:
+        if self.is_frozen:
             raise RuntimeError(
                 f"This {self.name} was originally read from disk and therefore is not being stored."
             )
@@ -424,12 +449,14 @@ class DimcatResource(Generic[D], Data):
 
     def __getattr__(self, item):
         """Enables using DimcatResource just like the wrapped DataFrame."""
+        msg = f"{self.name!r} object ({self.status!r}) has no attribute {item!r}."
+        if not self.is_loaded:
+            msg += " Try again after loading the dataframe into memory."
+            raise AttributeError(msg)
         try:
             return getattr(self.df, item)
         except AttributeError:
-            raise AttributeError(
-                f"{self.name!r} object has no attribute {item!r} ({self.status!r})"
-            )
+            raise AttributeError(msg)
 
     def __getitem__(self, item):
         try:
