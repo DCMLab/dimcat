@@ -10,7 +10,7 @@ import sys
 from ms3.cli import check_and_create, check_dir
 
 from .analyzer import ChordSymbolBigrams, ChordSymbolUnigrams, PitchClassVectors
-from .data import Dataset
+from .dataset import Dataset
 from .grouper import CorpusGrouper, ModeGrouper, PieceGrouper, YearGrouper
 from .pipeline import Pipeline
 from .slicer import LocalKeySlicer, NoteSlicer

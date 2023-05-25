@@ -1,7 +1,7 @@
 import os
 
-from dimcat import Dataset
 from dimcat.cli import get_arg_parser, pcvs
+from dimcat.dataset import Dataset
 
 
 def test_pcvs():
