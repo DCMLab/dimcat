@@ -1,6 +1,6 @@
 from dimcat.analyzers.base import Analyzer
-from dimcat.data.base import DimcatResource, SomeSeries
-from dimcat.features import Feature
+from dimcat.resources.base import DimcatResource, SomeSeries
+from dimcat.resources.features import Feature
 
 
 class Counter(Analyzer):

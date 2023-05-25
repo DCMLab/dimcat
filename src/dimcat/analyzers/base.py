@@ -19,9 +19,9 @@ from typing import (
 import marshmallow as mm
 import plotly.express as px
 from dimcat.base import DimcatConfig, DimcatObject, PipelineStep, get_class
-from dimcat.data.base import DimcatResource, SomeSeries
 from dimcat.dataset import Dataset
-from dimcat.features.base import Feature
+from dimcat.resources.base import DimcatResource, SomeSeries
+from dimcat.resources.features import Feature
 from typing_extensions import Self
 
 logger = logging.getLogger(__name__)
@@ -240,7 +240,7 @@ class Analyzer(PipelineStep):
         if self.strategy == DispatchStrategy.ITER_STACK:  # more cases to follow
             raise NotImplementedError()
         if self.strategy == DispatchStrategy.GROUPBY_APPLY:
-            stacked_feature = self.pre_process(dataset.get_feature(self.features[0]))
+            stacked_feature = self.pre_process(dataset.load_feature(self.features[0]))
             results = self.groupby_apply(stacked_feature)
             return Result.from_df(df=results)
         raise ValueError(f"Unknown dispatch strategy '{self.strategy!r}'")

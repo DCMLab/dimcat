@@ -32,7 +32,7 @@ S = TypeVar("S", bound=SomeSeries)
 
 
 NEVER_STORE_UNVALIDATED_DATA = (
-    False  # allows for skipping mandatory validations during development
+    False  # allows for skipping mandatory validations; set to True for production
 )
 
 # region helper functions
@@ -194,6 +194,9 @@ class DimcatResource(Generic[D], Data):
                 self._status = ResourceStatus.ON_DISK_NOT_LOADED
             else:
                 self._resource = resource
+                if resource.scheme == "file":
+                    self._status = ResourceStatus.ON_DISK_NOT_LOADED
+
         if resource_name is not None:
             self._resource.name = resource_name
         if column_schema is not None:
@@ -256,7 +259,7 @@ class DimcatResource(Generic[D], Data):
             return self._df
         if self.is_frozen:
             return self.get_dataframe()
-        raise AttributeError(f"No dataframe accessible for this {self.name}:\n{self}")
+        raise RuntimeError(f"No dataframe accessible for this {self.name}:\n{self}")
 
     @df.setter
     def df(self, df: D):
@@ -361,10 +364,12 @@ class DimcatResource(Generic[D], Data):
 
     @property
     def status(self) -> ResourceStatus:
+        if self._status == ResourceStatus.EMPTY and self._resource.schema.fields:
+            self._status = ResourceStatus.SCHEMA
         return self._status
 
     @cache
-    def get_dataframe(self, wrapped=False) -> Union[DimcatResource[D], D]:
+    def get_dataframe(self, wrapped=True) -> Union[DimcatResource[D], D]:
         """
         Load the dataframe from disk based on the descriptor's normpath.
 
@@ -377,7 +382,8 @@ class DimcatResource(Generic[D], Data):
         r = self._resource
         if self.normpath is None:
             raise ValidationError(
-                "The resource does not refer to a file path and cannot be restored."
+                f"The resource does not refer to a file path and cannot be loaded.\n"
+                f"basepath: {self.basepath}, filepath: {self.filepath}"
             )
         if self.normpath.endswith(".zip") or r.compression == "zip":
             zip_file_handler = ZipFile(self.normpath)
@@ -386,9 +392,16 @@ class DimcatResource(Generic[D], Data):
             df = ms3.load_tsv(self.normpath)
         if len(r.schema.primary_key) > 0:
             df = df.set_index(r.schema.primary_key)
+        if self.status == ResourceStatus.ON_DISK_NOT_LOADED:
+            self._status = ResourceStatus.ON_DISK_AND_LOADED
         if wrapped:
             return DimcatResource(df=df)
         return df
+
+    def load(self, force_reload: bool = False):
+        """Tries to load the data from disk into RAM. If successful, the .is_loaded property will be True."""
+        if not self.is_loaded or force_reload:
+            _ = self.df
 
     def store_dataframe(
         self,

@@ -249,7 +249,7 @@ class DimcatConfig(MutableMapping, DimcatObject):
         {'dtype': 'DimcatObject'}
         >>> DC['options']
         KeyError: 'options'
-        config_config = DC.to_config()
+        >>> config_config = DC.to_config()
         >>> config_config.options
         {'dtype': 'DimcatConfig', 'options': {'dtype': 'DimcatObject'}}
         >>> config_config['options']
@@ -319,7 +319,8 @@ class DimcatConfig(MutableMapping, DimcatObject):
             )
         if not is_name_of_dimcat_class(dtype):
             raise ValidationError(
-                f"'dtype' key needs to be the name of a DimcatObject, not {dtype!r}."
+                f"'dtype' key needs to be the name of a DimcatObject, not {dtype!r}. Registry:\n"
+                f"{DimcatObject._registry}"
             )
         self._options: dict = options
         """The options dictionary wrapped and controlled by this DimcatConfig. Whenever a new value is set, it is

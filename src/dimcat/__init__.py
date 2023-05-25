@@ -30,6 +30,7 @@ from .dataset import Dataset
 from .filter import HasCadenceAnnotationsFilter, IsAnnotatedFilter
 from .grouper import CorpusGrouper, ModeGrouper, PieceGrouper, YearGrouper
 from .pipeline import Pipeline
+from .resources import FeatureName
 from .slicer import (
     ChordCriterionSlicer,
     ChordFeatureSlicer,

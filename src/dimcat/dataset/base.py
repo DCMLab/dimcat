@@ -5,8 +5,8 @@ from typing import List, Optional, Union
 
 import frictionless as fl
 from dimcat.base import Data, DimcatConfig
-from dimcat.data.base import DimcatResource
-from dimcat.features.base import Feature, FeatureName
+from dimcat.resources.base import DimcatResource
+from dimcat.resources.features import Feature, FeatureName
 from typing_extensions import Self
 
 logger = logging.getLogger(__name__)
@@ -73,8 +73,8 @@ class DimcatPackage(Data):
         return Constructor(resource=resource.resource)
 
     def get_resource(self, name: str) -> DimcatResource:
-        resource = self.package.get_resource(name)
-        return DimcatResource(resource=resource)
+        fl_resource = self.package.get_resource(name)
+        return DimcatResource(resource=fl_resource)
 
 
 class DimcatCatalog(Data):
@@ -177,6 +177,11 @@ class Dataset(Data):
         feature_config = feature_argument2config(feature)
         feature = self.catalog.get_feature(feature_config)
         # self._feature_cache[feature_config] = feature
+        return feature
+
+    def load_feature(self, feature: Union[FeatureName, str, DimcatConfig]) -> Feature:
+        feature = self.get_feature(feature)
+        feature.load()
         return feature
 
     def __str__(self):

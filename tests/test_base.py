@@ -21,8 +21,8 @@ from dimcat.base import (
     deserialize_json_file,
     deserialize_json_str,
 )
-from dimcat.data.base import DimcatResource, ResourceStatus
-from dimcat.features import Notes
+from dimcat.resources.base import DimcatResource, ResourceStatus
+from dimcat.resources.features import Notes
 from git import Repo
 from marshmallow import ValidationError, fields, pre_load, validate
 from marshmallow.class_registry import _registry as MM_REGISTRY
