@@ -7,7 +7,6 @@ from itertools import product
 from pprint import pprint
 from typing import Iterable, List, Tuple, Type
 
-import frictionless as fl
 import pytest
 from dimcat.analyzers import Counter
 from dimcat.analyzers.base import Analyzer
@@ -22,14 +21,12 @@ from dimcat.base import (
     deserialize_json_str,
 )
 from dimcat.dataset.base import DimcatPackage
-from dimcat.resources.base import DimcatResource, ResourceStatus
+from dimcat.resources.base import DimcatResource
 from dimcat.resources.features import Notes
-from git import Repo
 from marshmallow import ValidationError, fields, pre_load, validate
 from marshmallow.class_registry import _registry as MM_REGISTRY
 
-# Directory holding your clones of DCMLab/unittest_metacorpus
-CORPUS_DIR = "~"
+from tests.conftest import datapackage_json_path, single_resource_path
 
 
 class DummyAnalyzer(PipelineStep):
@@ -82,36 +79,6 @@ def test_dummy_analyzer():
     config = DimcatConfig(dtype="DimcatObject")
     report = DummyAnalyzer.schema.validate({"features": [config]})
     assert len(report) == 0
-
-
-def corpus_path():
-    """Compose the paths for the test corpora."""
-    print("Path was requested")
-    repo_name, test_commit = ("unittest_metacorpus", "e6fec84")
-    path = os.path.join(CORPUS_DIR, repo_name)
-    path = os.path.expanduser(path)
-    assert os.path.isdir(path)
-    repo = Repo(path)
-    commit = repo.commit("HEAD")
-    sha = commit.hexsha[: len(test_commit)]
-    assert (
-        sha == test_commit
-    ), f"Your {path} is @ {sha}. Please do\n\tgit checkout {test_commit}."
-    return path
-
-
-CORPUS_PATH = corpus_path()
-
-RESOURCE_PATHS = {
-    file: os.path.join(CORPUS_PATH, file)
-    for file in os.listdir(CORPUS_PATH)
-    if file.endswith(".resource.yaml")
-}
-
-
-@pytest.fixture(params=RESOURCE_PATHS.values(), ids=RESOURCE_PATHS)
-def resource_path(request):
-    return request.param
 
 
 class TestBaseObjects:
@@ -180,16 +147,6 @@ DUMMY_CONFIG_OPTIONS = dict(dtype="Notes")
 def dummy_config() -> DimcatConfig:
     """Returns a dummy config for use in the test cases."""
     return DimcatConfig(**DUMMY_CONFIG_OPTIONS)
-
-
-def single_resource_path() -> str:
-    """Returns the path to a single resource."""
-    return RESOURCE_PATHS["unittest_notes.resource.yaml"]
-
-
-def datapackage_json_path() -> str:
-    """Returns the path to a single resource."""
-    return os.path.join(CORPUS_PATH, "datapackage.json")
 
 
 DIMCAT_OBJECT_TEST_CASES: List[Tuple[Type[DimcatObject], dict]] = [
@@ -298,65 +255,6 @@ class TestSerialization:
             self.dimcat_object.to_json_file(tmp_file.name)
             new_object = deserialize_json_file(tmp_file.name)
         assert new_object == self.dimcat_object
-
-
-class TestResource:
-    @pytest.fixture()
-    def resource_from_descriptor(self, resource_path):
-        resource = DimcatResource(resource=resource_path)
-        return resource
-
-    @pytest.fixture()
-    def resource_schema(self, resource_path):
-        res = fl.Resource(resource_path)
-        return res.schema
-
-    @pytest.fixture()
-    def as_dict(self, resource_from_descriptor):
-        return resource_from_descriptor.to_dict()
-
-    @pytest.fixture()
-    def as_config(self, resource_from_descriptor):
-        return resource_from_descriptor.to_config()
-
-    @pytest.fixture()
-    def resource_dataframe(self, resource_from_descriptor):
-        return resource_from_descriptor.get_dataframe()
-
-    @pytest.fixture()
-    def resource_from_dataframe(self, resource_dataframe, resource_schema):
-        return DimcatResource(df=resource_dataframe, column_schema=resource_schema)
-
-    def test_resource_from_disk(self, resource_from_descriptor):
-        assert resource_from_descriptor.status == ResourceStatus.ON_DISK_NOT_LOADED
-        print(resource_from_descriptor.__dict__)
-        with pytest.raises(RuntimeError):
-            resource_from_descriptor.basepath = "~"
-
-    def test_resource_from_df(self, resource_from_dataframe):
-        print(resource_from_dataframe)
-        assert resource_from_dataframe.status in (
-            ResourceStatus.VALIDATED,
-            ResourceStatus.DATAFRAME,
-        )
-        as_config = resource_from_dataframe.to_config()
-        print(as_config)
-        os.remove(resource_from_dataframe.normpath)
-
-    def test_serialization(self, as_dict, as_config):
-        print(as_dict)
-        print(as_config)
-        assert as_dict == as_config
-
-    def test_deserialization_via_config(self, as_dict, as_config):
-        dc_config = DimcatConfig(as_dict)
-        print(dc_config.dtype)
-        print(dc_config.schema)
-        from_dict = dc_config.create()
-        assert isinstance(from_dict, DimcatResource)
-        from_config = as_config.create()
-        assert isinstance(from_config, DimcatResource)
-        assert from_dict.__dict__.keys() == from_config.__dict__.keys()
 
 
 # BELOW IS PLAYGROUND CODE WAITING TO BE FACTORED IN
