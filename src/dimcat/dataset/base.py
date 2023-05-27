@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import List, MutableMapping, Optional, Union, re
+import re
+from typing import List, MutableMapping, Optional, Union
 
 import frictionless as fl
 import marshmallow as mm
@@ -52,19 +53,19 @@ class DimcatPackage(Data):
 
     def __init__(
         self,
-        package_name: Optional[str] = None,
         package: Optional[Union[fl.Package, str]] = None,
+        package_name: Optional[str] = None,
         basepath: Optional[str] = None,
         validate: bool = True,
     ) -> None:
         """
 
         Args:
-            package_name:
-                Name of the package that can be used to retrieve it. Can be None only if ``package`` is not None.
             package:
                 A frictionless package descriptor or path to a package descriptor. If not specified, a new package
                 is created and ``package_name`` needs to be specified.
+            package_name:
+                Name of the package that can be used to retrieve it. Can be None only if ``package`` is not None.
             basepath:
                 The absolute path on the local file system where the package descriptor and all contained resources
                  are stored. If not specified, it will default to
@@ -86,9 +87,9 @@ class DimcatPackage(Data):
                 self.descriptor_path = resolve_dir(package)
                 if not os.path.isfile(self.descriptor_path):
                     raise FileNotFoundError(f"{self.descriptor_path} is not a file.")
-                if not self.descriptor_path.endswith(".datapackage.json"):
+                if not self.descriptor_path.endswith("datapackage.json"):
                     logging.warning(
-                        f"{self.descriptor_path} does not end with .datapackage.json. Trying to load it anyway."
+                        f"{self.descriptor_path} does not end with datapackage.json. Trying to load it anyway."
                     )
                 self._package = fl.Package(self.descriptor_path)
                 self.basepath = os.path.dirname(self.descriptor_path)
@@ -142,6 +143,10 @@ class DimcatPackage(Data):
                 self.basepath, name_lower + ".datapackage.json"
             )
 
+    @property
+    def resource_names(self) -> List[str]:
+        return self._package.resource_names
+
     # def __getattr__(self, key):
     #     """Enables using DimcatPackage like the wrapped :obj:`frictionless.Package`."""
     #     return getattr(self.df, key)
@@ -170,7 +175,14 @@ class DimcatPackage(Data):
         return Constructor(resource=resource.resource)
 
     def _get_fl_resource(self, name: str) -> fl.Resource:
-        return self._package.get_resource(name)
+        try:
+            return self._package.get_resource(name)
+        except fl.FrictionlessException:
+            msg = (
+                f"Resource {name!r} not found in package {self.package_name!r}. "
+                f"Available resources: {self.resource_names!r}."
+            )
+            raise fl.FrictionlessException(msg)
 
     def get_resource(self, name: str) -> DimcatResource:
         fl_resource = self._get_fl_resource(name)
@@ -206,7 +218,7 @@ class DimcatCatalog(Data):
 
     def add_package(self, package: Union[DimcatPackage, fl.Package]):
         if isinstance(package, fl.Package):
-            package = DimcatPackage(package)
+            package = DimcatPackage(package_name=package)
         elif not isinstance(package, DimcatPackage):
             obj_name = type(self).__name__
             p_type = type(package)
@@ -259,16 +271,16 @@ class Dataset(Data):
             **kwargs: Dataset is cooperative and calls super().__init__(data=dataset, **kwargs)
         """
         super().__init__(**kwargs)
-        self.catalog = DimcatCatalog()
-        self._feature_cache = DimcatPackage()
+        self.inputs = DimcatCatalog()
+        self.outputs = DimcatCatalog()
 
     def load_package(
         self,
-        descriptor: Union[fl.interfaces.IDescriptor, str],
+        package: Union[fl.Package, str],
         name: Optional[str] = None,
         **options,
     ):
-        package = DimcatPackage.from_descriptor(descriptor, **options)
+        package = DimcatPackage(package=package, **options)
         if name is None:
             name = package.name
             assert (
@@ -276,13 +288,13 @@ class Dataset(Data):
             ), "Descriptor did not contain package name and no name was given."
         else:
             package.name = name
-        self.catalog.add_package(package)
+        self.inputs.add_package(package)
 
     def get_feature(self, feature: Union[FeatureName, str, DimcatConfig]) -> Feature:
         # if feature in self._feature_cache:
         #     return self._feature_cache[feature]
         feature_config = feature_argument2config(feature)
-        feature = self.catalog.get_feature(feature_config)
+        feature = self.inputs.get_feature(feature_config)
         # self._feature_cache[feature_config] = feature
         return feature
 
@@ -292,7 +304,7 @@ class Dataset(Data):
         return feature
 
     def __str__(self):
-        return str(self.catalog)
+        return str(self.inputs)
 
     def __repr__(self):
-        return repr(self.catalog)
+        return repr(self.inputs)

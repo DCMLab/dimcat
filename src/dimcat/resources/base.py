@@ -128,18 +128,26 @@ class DimcatResource(Generic[D], Data):
                 )
                 if obj.status <= ResourceStatus.VALIDATED:
                     obj.store_dataframe()
-            descriptor = obj._resource.to_descriptor()
+            if obj.status < ResourceStatus.DATAFRAME:
+                descriptor = {}
+            else:
+                descriptor = obj._resource.to_descriptor()
+                if "path" not in descriptor:
+                    logger.warning(
+                        f"Resource descriptor of {self.name} does not contain a path. It will be restored as an "
+                        f"empty resource."
+                    )
             # ToDo: store the descriptor to disk and return the path
             return descriptor
 
         def load_descriptor(self, data):
-            return fl.Resource.from_descriptor(data)
+            return fl.Resource(data)
 
     def __init__(
         self,
-        df: Optional[D] = None,
-        resource_name: Optional[str] = None,
         resource: Optional[fl.Resource | str] = None,
+        resource_name: Optional[str] = None,
+        df: Optional[D] = None,
         column_schema: Optional[fl.Schema | str] = None,
         basepath: Optional[str] = None,
         filepath: Optional[str] = None,
@@ -148,11 +156,11 @@ class DimcatResource(Generic[D], Data):
         """
 
         Args:
-            df: DataFrame that this object wraps.
+            resource: An existing :obj:`frictionless.Resource` or a file path resolving to a resource descriptor.
             resource_name:
                 Name of the resource. Used as filename if the resource is stored to a ZIP file. Defaults to
                 :meth:`filename_factory`.
-            resource: An existing :obj:`frictionless.Resource` or a file path resolving to a resource descriptor.
+            df: DataFrame that this object wraps.
             column_schema:
                 If you don't pass a schema or a path or URL to one, frictionless will try to infer it. However,
                 this often leads to validation errors.
@@ -266,7 +274,7 @@ class DimcatResource(Generic[D], Data):
         if self._df is not None:
             return self._df
         if self.is_frozen:
-            return self.get_dataframe()
+            return self.get_dataframe(wrapped=False)
         raise RuntimeError(f"No dataframe accessible for this {self.name}:\n{self}")
 
     @df.setter
