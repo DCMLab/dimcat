@@ -77,9 +77,9 @@ class Notes(Feature):
         self._format: NotesFormat = format
         self._weight_grace_notes: float = weight_grace_notes
         super().__init__(
-            df=df,
-            resource_name=resource_name,
             resource=resource,
+            resource_name=resource_name,
+            df=df,
             column_schema=column_schema,
             basepath=basepath,
             filepath=filepath,

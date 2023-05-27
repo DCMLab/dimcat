@@ -242,7 +242,7 @@ class Analyzer(PipelineStep):
         if self.strategy == DispatchStrategy.GROUPBY_APPLY:
             stacked_feature = self.pre_process(dataset.load_feature(self.features[0]))
             results = self.groupby_apply(stacked_feature)
-            return Result.from_df(df=results)
+            return Result(df=results)
         raise ValueError(f"Unknown dispatch strategy '{self.strategy!r}'")
 
     @classmethod

@@ -1,11 +1,11 @@
 from dimcat.analyzers.base import Analyzer
-from dimcat.resources.base import DimcatResource, SomeSeries
+from dimcat.resources.base import DimcatResource, SomeDataframe, SomeSeries
 from dimcat.resources.features import Feature
 
 
 class Counter(Analyzer):
     @staticmethod
-    def compute(feature: DimcatResource, **kwargs) -> int:
+    def compute(feature: DimcatResource | SomeDataframe, **kwargs) -> int:
         return len(feature.index)
 
     def groupby_apply(self, feature: Feature, groupby: SomeSeries = None, **kwargs):
@@ -16,9 +16,4 @@ class Counter(Analyzer):
             gpb = feature.groupby(level=[0, 1])
         else:
             gpb = feature.groupby(groupby)
-        return gpb.size()
-
-    def post_process(self, result):
-        """Whatever needs to be done after analyzing the data before passing it to the dataset."""
-        name = f"{self.features[0].name} counts"
-        return result.from_df(result.rename(name).to_frame())
+        return gpb.size().to_frame(f"{self.features[0].name} counts")

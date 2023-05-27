@@ -1,1 +1,1 @@
-from .features import FeatureName
+from .features import DimcatResource, FeatureName
