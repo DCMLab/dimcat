@@ -16,4 +16,4 @@ class Counter(Analyzer):
             gpb = feature.groupby(level=[0, 1])
         else:
             gpb = feature.groupby(groupby)
-        return gpb.size().to_frame(f"{self.features[0].name} counts")
+        return gpb.size().to_frame(f"{self.features[0].options_dtype} counts")

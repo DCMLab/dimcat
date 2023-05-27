@@ -10,24 +10,28 @@ from typing import (
     Iterable,
     List,
     MutableMapping,
+    Optional,
     Tuple,
     Type,
+    TypeAlias,
     TypeVar,
     Union,
 )
 
 import marshmallow as mm
 import plotly.express as px
+import plotly.graph_objs as go
 from dimcat.base import DimcatConfig, DimcatObject, PipelineStep, get_class
 from dimcat.dataset import Dataset
 from dimcat.resources.base import DimcatResource, SomeSeries
-from dimcat.resources.features import Feature
+from dimcat.resources.features import Feature, FeatureName
 from typing_extensions import Self
 
 logger = logging.getLogger(__name__)
 
 
 R = TypeVar("R")
+FeatureSpecs: TypeAlias = Union[MutableMapping, Feature, FeatureName, str]
 
 
 class AnalyzerName(str, Enum):
@@ -70,14 +74,32 @@ class ResultName(str, Enum):
 class Result(DimcatResource):
     _enum_type = ResultName
 
-    def plot(self):
+    def plot(self, layout: Optional[dict] = None, **kwargs) -> go.Figure:
+        """
+
+        Args:
+            layout: Keyword arguments passed to fig.update_layout()
+            **kwargs: Keyword arguments passed to the Plotly plotting function.
+
+        Returns:
+            A Plotly Figure object.
+        """
         df = self.df.reset_index()
-        return px.bar(
+        fig = px.bar(
             df,
+            x=df.columns[-2],
             y=df.columns[-1],
             hover_data=["corpus", "fname"],
             labels=dict(index="piece"),
+            **kwargs,
         )
+        figure_layout = dict(
+            xaxis_type="category",  # prevent Plotly from interpreting values as dates
+        )
+        if layout is not None:
+            figure_layout.update(layout)
+        fig.update_layout(figure_layout)
+        return fig
 
 
 class DispatchStrategy(str, Enum):
@@ -140,7 +162,7 @@ class Analyzer(PipelineStep):
 
     def __init__(
         self,
-        features: DimcatConfig | Iterable[DimcatConfig],
+        features: FeatureSpecs | Iterable[FeatureSpecs],
         strategy: DispatchStrategy = DispatchStrategy.GROUPBY_APPLY,
         smallest_unit: UnitOfAnalysis = UnitOfAnalysis.SLICE,
         orientation: Orientation = Orientation.WIDE,
@@ -162,7 +184,7 @@ class Analyzer(PipelineStep):
 
     @features.setter
     def features(self, features):
-        if isinstance(features, (MutableMapping, Feature)):
+        if isinstance(features, (MutableMapping, Feature, FeatureName, str)):
             features = [features]
         configs, not_configs = [], []
         for config in features:
@@ -173,6 +195,10 @@ class Analyzer(PipelineStep):
                 configs.append(cfg)
             elif isinstance(config, MutableMapping):
                 cfg = DimcatConfig(config)
+                configs.append(cfg)
+            elif isinstance(config, str):
+                feature_name = FeatureName(config)
+                cfg = DimcatConfig(dtype=feature_name)
                 configs.append(cfg)
             else:
                 not_configs.append(config)
@@ -242,7 +268,7 @@ class Analyzer(PipelineStep):
         if self.strategy == DispatchStrategy.GROUPBY_APPLY:
             stacked_feature = self.pre_process(dataset.load_feature(self.features[0]))
             results = self.groupby_apply(stacked_feature)
-            return Result(df=results)
+            return Result(df=results, resource_name=f"{self.name.lower()}_result")
         raise ValueError(f"Unknown dispatch strategy '{self.strategy!r}'")
 
     @classmethod
@@ -294,9 +320,9 @@ class Analyzer(PipelineStep):
         self._check_asserted_pipeline_steps(dataset)
         self._check_excluded_pipeline_steps(dataset)
         new_dataset = Dataset(dataset)
-        stacked_result = self.dispatch(dataset)
-        stacked_result = self.post_process(stacked_result)
-        new_dataset.result = stacked_result
+        result = self.dispatch(dataset)
+        result = self.post_process(result)
+        new_dataset.add_result(result)
         return new_dataset
 
     def pre_process(self, feature: Feature) -> Feature:
