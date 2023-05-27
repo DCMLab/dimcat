@@ -1,1 +1,1 @@
-from .base import Dataset, DimcatPackage
+from .base import Dataset, DimcatCatalog, DimcatPackage

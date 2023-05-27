@@ -3,19 +3,24 @@ from __future__ import annotations
 import logging
 import os
 import re
-from typing import List, MutableMapping, Optional, Union
+from typing import TYPE_CHECKING, List, MutableMapping, Optional, Union
 
 import frictionless as fl
 import marshmallow as mm
+import ms3
 from dimcat.base import Data, DimcatConfig
 from dimcat.resources.base import (
     NEVER_STORE_UNVALIDATED_DATA,
+    D,
     DimcatResource,
     get_default_basepath,
 )
 from dimcat.resources.features import Feature, FeatureName
 from frictionless.settings import NAME_PATTERN as FRICTIONLESS_NAME_PATTERN
 from ms3 import resolve_dir
+
+if TYPE_CHECKING:
+    from dimcat.analyzers.base import Result
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +86,7 @@ class DimcatPackage(Data):
                 "At least one of package_name and package needs to be specified."
             )
         self._package = fl.Package()
+        self.resources: List[DimcatResource] = []
         self.descriptor_path: Optional[str] = None
         if package is not None:
             if isinstance(package, str):
@@ -108,6 +114,8 @@ class DimcatPackage(Data):
         self._validate = validate
         if validate:
             self.validate(raise_exception=NEVER_STORE_UNVALIDATED_DATA)
+        for resource in self._package.resources:
+            self.resources.append(DimcatResource(resource=resource))
 
     @property
     def basepath(self) -> str:
@@ -160,6 +168,37 @@ class DimcatPackage(Data):
     def __repr__(self):
         return repr(self._package)
 
+    def add_resource(
+        self,
+        resource: Optional[DimcatResource | fl.Resource | str] = None,
+        resource_name: Optional[str] = None,
+        df: Optional[D] = None,
+        column_schema: Optional[fl.Schema | str] = None,
+        basepath: Optional[str] = None,
+        filepath: Optional[str] = None,
+        validate: bool = True,
+    ) -> None:
+        """Adds a resource to the package. Parameters are the same as for :class:`DimcatResource`."""
+        if resource is None or isinstance(resource, (fl.Resource, str)):
+            resource = DimcatResource(
+                resource=resource,
+                resource_name=resource_name,
+                df=df,
+                column_schema=column_schema,
+                basepath=basepath,
+                filepath=filepath,
+                validate=validate,
+            )
+        elif not isinstance(resource, DimcatResource):
+            msg = f"{self.name} takes a DimcatResource, not {type(resource)}"
+            raise ValueError(msg)
+        if resource.resource_name in self.resource_names:
+            raise ValueError(
+                f"Resource {resource.resource_name} already exists in package {self.package_name}."
+            )
+        self._package.add_resource(resource.resource)
+        self.resources.append(resource)
+
     def get_feature(self, feature: Union[FeatureName, str, DimcatConfig]) -> Feature:
         feature_config = feature_argument2config(feature)
         feature_name = FeatureName(feature_config.options_dtype)
@@ -175,6 +214,7 @@ class DimcatPackage(Data):
         return Constructor(resource=resource.resource)
 
     def _get_fl_resource(self, name: str) -> fl.Resource:
+        """Returns the frictionless resource with the given name."""
         try:
             return self._package.get_resource(name)
         except fl.FrictionlessException:
@@ -184,9 +224,16 @@ class DimcatPackage(Data):
             )
             raise fl.FrictionlessException(msg)
 
-    def get_resource(self, name: str) -> DimcatResource:
-        fl_resource = self._get_fl_resource(name)
-        return DimcatResource(resource=fl_resource)
+    def get_resource(self, name: Optional[str] = None) -> DimcatResource:
+        """Returns the DimcatResource with the given name. If no name is given, returns the last resource."""
+        if len(self.resources) == 0:
+            raise ValueError(f"Package {self.package_name} is empty.")
+        if name is None:
+            return self.resources[-1]
+        for resource in self.resources:
+            if resource.resource_name == name:
+                return resource
+        raise ValueError(f"Resource {name} not found in package {self.package_name}.")
 
     def validate(self, raise_exception: bool = False) -> fl.Report:
         report = self._package.validate()
@@ -203,8 +250,45 @@ class DimcatCatalog(Data):
     Nevertheless, a DimcatCatalog can be stored as and created from a Catalog descriptor (ToDo).
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        basepath: Optional[str] = None,
+    ) -> None:
+        """Creates a DimcatCatalog which is essentially a list of :obj:`DimcatPackage` objects.
+
+        Args:
+            basepath: The basepath for all packages in the catalog.
+        """
         self.packages: List[DimcatPackage] = []
+        self._basepath: Optional[str] = None
+        if basepath is not None:
+            self.basepath = basepath
+
+    @property
+    def basepath(self) -> Optional[str]:
+        """If specified, the basepath for all packages added to the catalog."""
+        if self._basepath is None:
+            self._basepath = get_default_basepath()
+        return self._basepath
+
+    @basepath.setter
+    def basepath(self, basepath: str) -> None:
+        self.set_basepath(basepath, set_packages=False)
+
+    def set_basepath(
+        self,
+        basepath: str,
+        set_packages: bool = True,
+    ) -> None:
+        """Sets the basepath for all packages in the catalog (if set_packages=True)."""
+        basepath_arg = ms3.resolve_dir(basepath)
+        if not os.path.isdir(basepath_arg):
+            raise ValueError(f"basepath {basepath_arg!r} is not an existing directory.")
+        self._basepath = basepath_arg
+        if not set_packages:
+            return
+        for package in self.packages:
+            package.basepath = basepath_arg
 
     def __str__(self):
         return str(self.packages)
@@ -214,17 +298,38 @@ class DimcatCatalog(Data):
 
     @property
     def package_names(self):
-        return [p.name for p in self.packages]
+        return [p.package_name for p in self.packages]
 
-    def add_package(self, package: Union[DimcatPackage, fl.Package]):
-        if isinstance(package, fl.Package):
-            package = DimcatPackage(package_name=package)
+    def add_package(
+        self,
+        package: Optional[DimcatPackage | fl.Package | str] = None,
+        package_name: Optional[str] = None,
+        basepath: Optional[str] = None,
+        validate: bool = True,
+    ):
+        """Adds a package to the catalog. Parameters are the same as for :class:`DimcatPackage`."""
+        if package is None or isinstance(package, (fl.Package, str)):
+            package = DimcatPackage(
+                package_name=package_name, basepath=basepath, validate=validate
+            )
         elif not isinstance(package, DimcatPackage):
-            obj_name = type(self).__name__
-            p_type = type(package)
-            msg = f"{obj_name} takes a Package, not {p_type}."
+            msg = f"{self.name} takes a Package, not {type(package)!r}."
             raise ValueError(msg)
+        if package.package_name in self.package_names:
+            msg = f"Package name {package.package_name!r} already exists in DimcatCatalog."
+            raise ValueError(msg)
+        if basepath is not None:
+            package.basepath = basepath
         self.packages.append(package)
+
+    def add_resource(
+        self,
+        resource: DimcatResource,
+        package_name: Optional[str] = None,
+    ):
+        """Adds a resource to the catalog. If package_name is given, adds the resource to the package with that name."""
+        package = self.get_package_by_name(package_name, create=True)
+        package.add_resource(resource=resource)
 
     def get_feature(self, feature: Union[FeatureName, str, DimcatConfig]) -> Feature:
         p = self.get_package()
@@ -240,18 +345,22 @@ class DimcatCatalog(Data):
         if name is not None:
             return self.get_package_by_name(name=name)
         if len(self.packages) == 0:
-            raise RuntimeError("No data has been loaded.")
-        return self.packages[0]
+            raise ValueError("Catalog is Empty.")
+        return self.packages[-1]
 
-    def get_package_by_name(self, name: str) -> DimcatPackage:
+    def get_package_by_name(self, name: str, create: bool = False) -> DimcatPackage:
         """
 
         Raises:
             fl.FrictionlessException if none of the loaded packages has the given name.
         """
         for package in self.packages:
-            if package.name == name:
+            if package.package_name == name:
                 return package
+        if create:
+            self.add_package(package_name=name)
+            logger.info(f"Automatically added new empty package {name!r}")
+            return self.get_package()
         error = fl.errors.CatalogError(note=f'package "{name}" does not exist')
         raise fl.FrictionlessException(error)
 
@@ -273,6 +382,44 @@ class Dataset(Data):
         super().__init__(**kwargs)
         self.inputs = DimcatCatalog()
         self.outputs = DimcatCatalog()
+
+    def add_result(self, result: Result):
+        """Adds a result to the outputs catalog."""
+        self.add_output(resource=result, package_name="results")
+
+    def add_output(
+        self,
+        resource: DimcatResource,
+        package_name: Optional[str] = None,
+    ) -> None:
+        """Adds a resource to the outputs catalog.
+
+        Args:
+            resource: Resource to be added.
+            package_name:
+                Name of the package to add the resource to.
+                If unspecified, the package is inferred from the resource type.
+        """
+        if package_name is None:
+            if resource.name == "DimcatResource":
+                raise ValueError(
+                    "Cannot infer package name from resource type 'DimcatResource'. "
+                    "Please specify package_name."
+                )
+            if isinstance(resource, Result):
+                package_name = "results"
+            else:
+                raise NotImplementedError(
+                    f"Cannot infer package name from resource type {type(resource)}."
+                )
+        self.outputs.add_resource(resource=resource, package_name=package_name)
+
+    def get_result(self, analyzer_name: Optional[str] = None) -> Result:
+        """Returns the result of the previously applied analyzer with the given name."""
+        results = self.outputs.get_package("results")
+        if analyzer_name is None:
+            return results.get_resource()
+        raise NotImplementedError("get_result with analyzer_name not implemented yet.")
 
     def load_package(
         self,
