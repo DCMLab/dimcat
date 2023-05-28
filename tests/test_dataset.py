@@ -68,6 +68,11 @@ class TestVanillaResource:
     def test_frozen(self, dc_resource):
         assert dc_resource.is_frozen == self.should_be_frozen
 
+    def test_valid(self, dc_resource):
+        report = dc_resource.validate()
+        assert report is None or report.valid
+        assert dc_resource.is_valid
+
 
 @pytest.fixture(scope="session")
 def resource_from_descriptor(resource_path):
@@ -106,6 +111,12 @@ class TestMemoryResource(TestVanillaResource):
     @pytest.fixture()
     def dc_resource(self, empty_resource_with_paths):
         return empty_resource_with_paths
+
+    @pytest.mark.skip(
+        reason="column_schema currently expresses types for reading from disk, not for loaded daata."
+    )
+    def test_valid(self, dc_resource):
+        pass
 
 
 @pytest.fixture(scope="session")
@@ -306,12 +317,6 @@ class TestFromDcPackage(TestDiskResource):
 #     def test_equivalence(self):
 #         assert self.resource_from_descriptor == self.resource_from_fl_resource
 #         assert self.resource_from_descriptor == self.resource_from_dataframe
-#
-#
-#     def test_is_valid(self):
-#         assert self.resource_from_descriptor.is_valid
-#         assert self.resource_from_fl_resource.is_valid
-#         assert not self.resource_from_dataframe.is_valid # currently, schema corresponds to types in TSV not loaded df
 #
 #     def test_is_serialized(self):
 #         assert self.resource_from_descriptor.is_serialized

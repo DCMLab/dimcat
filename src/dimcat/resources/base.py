@@ -581,7 +581,7 @@ class DimcatResource(Generic[D], Data):
     @property
     def is_valid(self) -> bool:
         if self.status < ResourceStatus.DATAFRAME:
-            return False
+            return True
         if self.status >= ResourceStatus.VALIDATED:
             return True
         report = self.validate()
