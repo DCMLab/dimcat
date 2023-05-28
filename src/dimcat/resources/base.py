@@ -638,6 +638,13 @@ class DimcatResource(Generic[D], Data):
             self._status = ResourceStatus.SCHEMA
         return self._status
 
+    def get_descriptor_path(self, only_if_exists=True) -> Optional[str]:
+        """Returns the path to the descriptor file."""
+        descriptor_path = os.path.join(self.basepath, self.descriptor_filepath)
+        if only_if_exists and not os.path.isfile(descriptor_path):
+            return
+        return descriptor_path
+
     @cache
     def get_dataframe(self, wrapped=True) -> Union[DimcatResource[D], D]:
         """

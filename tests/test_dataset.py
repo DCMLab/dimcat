@@ -56,6 +56,8 @@ class TestVanillaResource:
     """Whether the resource should figure as serialized after initialization."""
     should_be_loaded: bool = False
     """Whether or not we expect the resource to have a dataframe loaded into memory."""
+    should_have_descriptor: bool = False
+    """Whether or not we expect the resource to have a descriptor file on disk."""
 
     @pytest.fixture()
     def expected_basepath(self):
@@ -88,6 +90,13 @@ class TestVanillaResource:
     def test_loaded(self, dc_resource):
         assert dc_resource.is_loaded == self.should_be_loaded
 
+    def test_descriptor_path(self, dc_resource):
+        descriptor_path = dc_resource.get_descriptor_path(only_if_exists=True)
+        if self.should_have_descriptor:
+            assert descriptor_path is not None
+        else:
+            assert descriptor_path is None
+
 
 @pytest.fixture(scope="session")
 def resource_from_descriptor(resource_path):
@@ -99,6 +108,7 @@ class TestDiskResource(TestVanillaResource):
     expected_resource_status = ResourceStatus.ON_DISK_NOT_LOADED
     should_be_frozen: bool = True
     should_be_serialized = True
+    should_have_descriptor = True
 
     @pytest.fixture()
     def expected_basepath(self):
@@ -205,6 +215,7 @@ class TestSerializedResource(TestMemoryResource):
     should_be_frozen: bool = True
     should_be_serialized = True
     should_be_loaded = True
+    should_have_descriptor = True
 
     @pytest.fixture()
     def dc_resource(self, serialized_resource):
@@ -219,6 +230,7 @@ def resource_from_fl_resource(fl_resource) -> DimcatResource:
 
 class TestFromFrictionless(TestDiskResource):
     expected_resource_status = ResourceStatus.ON_DISK_NOT_LOADED
+    should_have_descriptor = False
 
     @pytest.fixture()
     def dc_resource(self, resource_from_fl_resource):
@@ -264,6 +276,7 @@ def zipped_resource_from_fl_package(fl_package) -> DimcatResource:
 
 class TestFromFlPackage(TestDiskResource):
     expected_resource_status = ResourceStatus.ON_DISK_NOT_LOADED
+    should_have_descriptor = False
 
     @pytest.fixture()
     def dc_resource(self, zipped_resource_from_fl_package):
@@ -278,6 +291,7 @@ def zipped_resource_from_dc_package(dc_package) -> DimcatResource:
 
 class TestFromDcPackage(TestDiskResource):
     expected_resource_status = ResourceStatus.ON_DISK_NOT_LOADED
+    should_have_descriptor = False
 
     @pytest.fixture()
     def dc_resource(self, zipped_resource_from_dc_package):
@@ -339,12 +353,6 @@ class TestFromDcPackage(TestDiskResource):
 #     def test_equivalence(self):
 #         assert self.resource_from_descriptor == self.resource_from_fl_resource
 #         assert self.resource_from_descriptor == self.resource_from_dataframe
-#
-#
-#     def test_descriptor_path(self):
-#         assert self.resource_from_descriptor.descriptor_path == self.descriptor_path
-#         assert self.resource_from_fl_resource.descriptor_path is None
-#         assert self.resource_from_dataframe.descriptor_path is None
 #
 #     def test_basepath(self):
 #         assert self.resource_from_descriptor.basepath == os.path.dirname(self.descriptor_path)
