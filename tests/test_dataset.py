@@ -6,6 +6,8 @@ from dimcat.resources.base import DimcatResource, ResourceStatus, get_default_ba
 
 from tests.conftest import CORPUS_PATH
 
+# region helper fixtures
+
 
 @pytest.fixture(scope="session")
 def fl_resource(resource_path):
@@ -42,11 +44,15 @@ def empty_resource():
     return DimcatResource(resource_name="empty_resource")
 
 
+# endregion helper fixtures
+
+
 class TestVanillaResource:
     expected_resource_status: ResourceStatus = ResourceStatus.EMPTY
     """The expected status of the resource after initialization."""
     should_be_frozen: bool = False
     """Whether the resource should be frozen, i.e., immutable after initialization."""
+    should_be_serialized: bool = False
 
     @pytest.fixture()
     def expected_basepath(self):
@@ -73,6 +79,9 @@ class TestVanillaResource:
         assert report is None or report.valid
         assert dc_resource.is_valid
 
+    def test_serialized(self, dc_resource):
+        assert dc_resource.is_serialized == self.should_be_serialized
+
 
 @pytest.fixture(scope="session")
 def resource_from_descriptor(resource_path):
@@ -83,6 +92,7 @@ def resource_from_descriptor(resource_path):
 class TestDiskResource(TestVanillaResource):
     expected_resource_status = ResourceStatus.ON_DISK_NOT_LOADED
     should_be_frozen: bool = True
+    should_be_serialized = True
 
     @pytest.fixture()
     def expected_basepath(self):
@@ -183,6 +193,7 @@ def serialized_resource(resource_from_dataframe) -> DimcatResource:
 class TestSerializedResource(TestMemoryResource):
     expected_resource_status = ResourceStatus.ON_DISK_AND_LOADED
     should_be_frozen: bool = True
+    should_be_serialized = True
 
     @pytest.fixture()
     def dc_resource(self, serialized_resource):
@@ -318,10 +329,6 @@ class TestFromDcPackage(TestDiskResource):
 #         assert self.resource_from_descriptor == self.resource_from_fl_resource
 #         assert self.resource_from_descriptor == self.resource_from_dataframe
 #
-#     def test_is_serialized(self):
-#         assert self.resource_from_descriptor.is_serialized
-#         assert self.resource_from_fl_resource.is_serialized
-#         assert not self.resource_from_dataframe.is_serialized
 #
 #     def test_is_loaded(self):
 #         assert not self.resource_from_descriptor.is_loaded
