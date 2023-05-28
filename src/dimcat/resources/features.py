@@ -79,10 +79,9 @@ class Notes(Feature):
         super().__init__(
             resource=resource,
             resource_name=resource_name,
-            df=df,
-            column_schema=column_schema,
             basepath=basepath,
             filepath=filepath,
+            column_schema=column_schema,
             validate=validate,
         )
 

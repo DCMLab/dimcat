@@ -1,9 +1,23 @@
+"""
+The principal Data object is called Dataset and is the one that users will interact with the most.
+The Dataset provides convenience methods that are equivalent to applying the corresponding PipelineStep.
+Every PipelineStep applied to it will return a new Dataset that can be serialized and deserialized to re-start the
+pipeline from that point. To that aim, every Dataset stores a serialization of the applied PipelineSteps and of the
+original Dataset that served as initial input. This initial input is specified as a DimcatCatalog which is a
+collection of DimcatPackages, each of which is a collection of DimcatResources, as defined by the Frictionless
+Data specifications. The preferred structure of a DimcatPackage is a .zip and a datapackage.json file,
+where the former contains one or several .tsv files (resources) described in the latter. Since the data that DiMCAT
+transforms and analyzes comes from very heterogeneous sources, each original corpus is pre-processed and stored as a
+frictionless data package together with the metadata relevant for reproducing the pre-processing.
+It follows that the Dataset is mainly a container for DimcatResources.
+"""
+
 from __future__ import annotations
 
 import logging
 import os
 import re
-from typing import TYPE_CHECKING, List, MutableMapping, Optional, Union
+from typing import TYPE_CHECKING, List, MutableMapping, Optional, TypeAlias, Union
 
 import frictionless as fl
 import marshmallow as mm
@@ -58,7 +72,7 @@ class DimcatPackage(Data):
 
     def __init__(
         self,
-        package: Optional[Union[fl.Package, str]] = None,
+        package: Optional[DimcatPackage | fl.Package | MutableMapping | str] = None,
         package_name: Optional[str] = None,
         basepath: Optional[str] = None,
         validate: bool = True,
@@ -67,8 +81,8 @@ class DimcatPackage(Data):
 
         Args:
             package:
-                A frictionless package descriptor or path to a package descriptor. If not specified, a new package
-                is created and ``package_name`` needs to be specified.
+                Can be another DimcatPackage, a frictionless.Package (descriptor), or path to a package descriptor.
+                If not specified, a new package is created and ``package_name`` needs to be specified.
             package_name:
                 Name of the package that can be used to retrieve it. Can be None only if ``package`` is not None.
             basepath:
@@ -115,7 +129,9 @@ class DimcatPackage(Data):
         if validate:
             self.validate(raise_exception=NEVER_STORE_UNVALIDATED_DATA)
         for resource in self._package.resources:
-            self.resources.append(DimcatResource(resource=resource))
+            self.resources.append(
+                DimcatResource(resource=resource, basepath=self.basepath)
+            )
 
     @property
     def basepath(self) -> str:
@@ -183,10 +199,9 @@ class DimcatPackage(Data):
             resource = DimcatResource(
                 resource=resource,
                 resource_name=resource_name,
-                df=df,
-                column_schema=column_schema,
                 basepath=basepath,
                 filepath=filepath,
+                column_schema=column_schema,
                 validate=validate,
             )
         elif not isinstance(resource, DimcatResource):
@@ -243,6 +258,9 @@ class DimcatPackage(Data):
         return report
 
 
+PackageSpecs: TypeAlias = Union[DimcatPackage, fl.Package, str]
+
+
 class DimcatCatalog(Data):
     """Has the purpose of collecting and managing a set of :obj:`DimcatPackage` objects.
 
@@ -250,19 +268,35 @@ class DimcatCatalog(Data):
     Nevertheless, a DimcatCatalog can be stored as and created from a Catalog descriptor (ToDo).
     """
 
+    class Schema(Data.Schema):
+        basepath = mm.fields.Str(
+            required=False,
+            allow_none=True,
+            description="The basepath for all packages in the catalog.",
+        )
+        packages = mm.fields.List(
+            mm.fields.Nested(DimcatPackage.Schema),
+            required=False,
+            allow_none=True,
+            description="The packages in the catalog.",
+        )
+
     def __init__(
         self,
         basepath: Optional[str] = None,
+        packages: Optional[PackageSpecs | List[PackageSpecs]] = None,
     ) -> None:
         """Creates a DimcatCatalog which is essentially a list of :obj:`DimcatPackage` objects.
 
         Args:
             basepath: The basepath for all packages in the catalog.
         """
-        self.packages: List[DimcatPackage] = []
+        self._packages: List[DimcatPackage] = []
         self._basepath: Optional[str] = None
         if basepath is not None:
             self.basepath = basepath
+        if packages is not None:
+            self.packages = packages
 
     @property
     def basepath(self) -> Optional[str]:
@@ -274,6 +308,17 @@ class DimcatCatalog(Data):
     @basepath.setter
     def basepath(self, basepath: str) -> None:
         self.set_basepath(basepath, set_packages=False)
+
+    @property
+    def packages(self) -> List[DimcatPackage]:
+        return self._packages
+
+    @packages.setter
+    def packages(self, packages: PackageSpecs | List[PackageSpecs]) -> None:
+        if len(self._packages) > 0:
+            raise ValueError("Cannot set packages if packages are already present.")
+        if isinstance(packages, (DimcatPackage, fl.Package, str)):
+            packages = [packages]
 
     def set_basepath(
         self,
@@ -287,22 +332,22 @@ class DimcatCatalog(Data):
         self._basepath = basepath_arg
         if not set_packages:
             return
-        for package in self.packages:
+        for package in self._packages:
             package.basepath = basepath_arg
 
     def __str__(self):
-        return str(self.packages)
+        return str(self._packages)
 
     def __repr__(self):
-        return repr(self.packages)
+        return repr(self._packages)
 
     @property
     def package_names(self):
-        return [p.package_name for p in self.packages]
+        return [p.package_name for p in self._packages]
 
     def add_package(
         self,
-        package: Optional[DimcatPackage | fl.Package | str] = None,
+        package: Optional[PackageSpecs] = None,
         package_name: Optional[str] = None,
         basepath: Optional[str] = None,
         validate: bool = True,
@@ -320,7 +365,7 @@ class DimcatCatalog(Data):
             raise ValueError(msg)
         if basepath is not None:
             package.basepath = basepath
-        self.packages.append(package)
+        self._packages.append(package)
 
     def add_resource(
         self,
@@ -344,9 +389,9 @@ class DimcatCatalog(Data):
         """
         if name is not None:
             return self.get_package_by_name(name=name)
-        if len(self.packages) == 0:
+        if len(self._packages) == 0:
             raise ValueError("Catalog is Empty.")
-        return self.packages[-1]
+        return self._packages[-1]
 
     def get_package_by_name(self, name: str, create: bool = False) -> DimcatPackage:
         """
@@ -354,7 +399,7 @@ class DimcatCatalog(Data):
         Raises:
             fl.FrictionlessException if none of the loaded packages has the given name.
         """
-        for package in self.packages:
+        for package in self._packages:
             if package.package_name == name:
                 return package
         if create:

@@ -7,6 +7,7 @@ from itertools import product
 from pprint import pprint
 from typing import Iterable, List, Tuple, Type
 
+import pandas as pd
 import pytest
 from dimcat.analyzers import Counter
 from dimcat.analyzers.base import Analyzer
@@ -20,13 +21,13 @@ from dimcat.base import (
     deserialize_json_file,
     deserialize_json_str,
 )
-from dimcat.dataset.base import DimcatPackage
+from dimcat.dataset.base import DimcatCatalog
 from dimcat.resources.base import DimcatResource
 from dimcat.resources.features import Notes
 from marshmallow import ValidationError, fields, pre_load, validate
 from marshmallow.class_registry import _registry as MM_REGISTRY
 
-from tests.conftest import datapackage_json_path, single_resource_path
+from tests.conftest import single_resource_path
 
 
 class DummyAnalyzer(PipelineStep):
@@ -159,8 +160,7 @@ DIMCAT_OBJECT_TEST_CASES: List[Tuple[Type[DimcatObject], dict]] = [
     (Notes, dict(resource=single_resource_path())),
     (Analyzer, dict(features=dummy_config())),
     (Counter, dict(features=dummy_config())),
-    (DimcatPackage, dict(package=dict(name="fun_package"))),
-    (DimcatPackage, dict(package=datapackage_json_path())),
+    (DimcatCatalog, {}),
 ]
 
 
@@ -176,7 +176,9 @@ def arg_val2str(val) -> str:
         return os.path.basename(val)
     if isinstance(val, dict):
         return f"{{{kwargs2str(val)}}}"
-    return str(val)
+    if isinstance(val, pd.DataFrame):
+        return "[DataFrame]"
+    return f"{val!r}"
 
 
 def kwargs2str(options):
@@ -197,12 +199,17 @@ def make_test_id(params: tuple) -> str:
     params=DIMCAT_OBJECT_TEST_CASES,
     ids=make_test_id,
 )
-def dimcat_object(request):
+def dimcat_object(request, tmp_path_factory):
     """Initializes each of the objects to be tested and injects them into the test class."""
     Constructor, options = unpack_dimcat_object_params(request.param)
     request.cls.dtype = Constructor
+    dimcat_object = Constructor(**options)
+    if isinstance(dimcat_object, DimcatResource) and not dimcat_object.is_frozen:
+        tmp_path = tmp_path_factory.mktemp("dimcat_resource")
+        dimcat_object.basepath = tmp_path
+        options["basepath"] = tmp_path
+    request.cls.dimcat_object = dimcat_object
     request.cls.options = options
-    request.cls.dimcat_object = Constructor(**options)
 
 
 @pytest.mark.usefixtures("dimcat_object")
@@ -230,10 +237,18 @@ class TestSerialization:
     def test_creation_from_config(self):
         config = self.dimcat_object.to_config()
         new_object = config.create()
+        a = new_object.to_dict()
+        b = self.dimcat_object.to_dict()
+        print(a, type(a))
+        print(b, type(b))
         assert new_object == self.dimcat_object
 
     def test_creation_from_manual_config(self):
-        config = DimcatConfig(dtype=self.dtype.name, options=self.options)
+        options = dict(self.options)
+        if "basepath" in options:
+            tmp_path = options.pop("basepath")
+            os.chdir(tmp_path)
+        config = DimcatConfig(dtype=self.dtype.name, options=options)
         new_object = config.create()
         assert new_object == self.dimcat_object
 

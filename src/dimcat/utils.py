@@ -1,4 +1,7 @@
 """Utility functions that are or might be used by several modules or useful in external contexts."""
+from __future__ import annotations
+
+import os
 from typing import Collection
 
 import pandas as pd
@@ -129,3 +132,24 @@ def interval_index2interval(ix):
     left = ix.left.min()
     right = ix.right.max()
     return pd.Interval(left, right, closed="left")
+
+
+def replace_ext(filepath, new_ext):
+    """Replace the extension of any given file path with a new one which can be given with or without a leading dot."""
+    file, _ = os.path.splitext(filepath)
+    if file.split(".")[-1] in ("resource", "datapackage", "package"):
+        file = ".".join(file.split(".")[:-1])
+    if new_ext[0] != ".":
+        new_ext = "." + new_ext
+    return file + new_ext
+
+
+def get_object_value(obj, key, default):
+    """Return obj[key] if possible, obj.key otherwise. Code copied from marshmallow.utils._get_value_for_key()"""
+    if not hasattr(obj, "__getitem__"):
+        return getattr(obj, key, default)
+
+    try:
+        return obj[key]
+    except (KeyError, IndexError, TypeError, AttributeError):
+        return getattr(obj, key, default)

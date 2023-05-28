@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 from abc import ABC
 from enum import Enum
 from functools import cache
@@ -27,6 +26,15 @@ from marshmallow import ValidationError
 from typing_extensions import Self
 
 logger = logging.getLogger(__name__)
+
+# ----------------------------- GLOBAL SETTINGS -----------------------------
+
+NEVER_STORE_UNVALIDATED_DATA = (
+    False  # allows for skipping mandatory validations; set to True for production
+)
+CONTROL_REGISTRY = (
+    False  # raise an error if a subclass has the same name as another subclass
+)
 
 
 class DtypeField(mm.fields.Field):
@@ -125,7 +133,7 @@ class DimcatObject(ABC):
     def __init_subclass__(cls, **kwargs):
         """Registers every subclass under the class variable :attr:`_registry`"""
         super().__init_subclass__(**kwargs)
-        if cls.name in cls._registry:
+        if CONTROL_REGISTRY and cls.name in cls._registry:
             raise RuntimeError(
                 f"A class named {cls.name!r} had already been registered. Choose a different name."
             )
@@ -505,15 +513,6 @@ class PipelineStep(DimcatObject):
         if isinstance(data, Data):
             return self.process(data)
         return [self.process(d) for d in data]
-
-
-def replace_ext(filepath, new_ext):
-    file, _ = os.path.splitext(filepath)
-    if file.split(".")[-1] in ("resource", "datapackage"):
-        file = ".".join(file.split(".")[:-1])
-    if new_ext[0] != ".":
-        new_ext = "." + new_ext
-    return file + new_ext
 
 
 @cache

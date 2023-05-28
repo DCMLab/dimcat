@@ -37,9 +37,14 @@ RESOURCE_PATHS = {
 }
 
 
-@pytest.fixture(params=RESOURCE_PATHS.values(), ids=RESOURCE_PATHS)
+@pytest.fixture(scope="session", params=RESOURCE_PATHS.values(), ids=RESOURCE_PATHS)
 def resource_path(request):
     return request.param
+
+
+@pytest.fixture(scope="session")
+def package_path():
+    return os.path.join(CORPUS_PATH, "datapackage.json")
 
 
 def single_resource_path() -> str:
