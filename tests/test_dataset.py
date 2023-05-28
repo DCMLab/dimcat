@@ -45,6 +45,8 @@ def empty_resource():
 class TestVanillaResource:
     expected_resource_status: ResourceStatus = ResourceStatus.EMPTY
     """The expected status of the resource after initialization."""
+    should_be_frozen: bool = False
+    """Whether the resource should be frozen, i.e., immutable after initialization."""
 
     @pytest.fixture()
     def expected_basepath(self):
@@ -63,6 +65,9 @@ class TestVanillaResource:
     def test_status_after_init(self, dc_resource):
         assert dc_resource.status == self.expected_resource_status
 
+    def test_frozen(self, dc_resource):
+        assert dc_resource.is_frozen == self.should_be_frozen
+
 
 @pytest.fixture(scope="session")
 def resource_from_descriptor(resource_path):
@@ -72,6 +77,7 @@ def resource_from_descriptor(resource_path):
 
 class TestDiskResource(TestVanillaResource):
     expected_resource_status = ResourceStatus.ON_DISK_NOT_LOADED
+    should_be_frozen: bool = True
 
     @pytest.fixture()
     def expected_basepath(self):
@@ -90,6 +96,9 @@ def empty_resource_with_paths(tmp_serialization_path):
 
 
 class TestMemoryResource(TestVanillaResource):
+    """MemoryResources are those instantiated from a dataframe. They have in common that, in this
+    test suite, their basepath is a temporary path where they can be serialized."""
+
     @pytest.fixture()
     def expected_basepath(self, tmp_serialization_path):
         return tmp_serialization_path
@@ -162,6 +171,7 @@ def serialized_resource(resource_from_dataframe) -> DimcatResource:
 
 class TestSerializedResource(TestMemoryResource):
     expected_resource_status = ResourceStatus.ON_DISK_AND_LOADED
+    should_be_frozen: bool = True
 
     @pytest.fixture()
     def dc_resource(self, serialized_resource):
@@ -297,11 +307,6 @@ class TestFromDcPackage(TestDiskResource):
 #         assert self.resource_from_descriptor == self.resource_from_fl_resource
 #         assert self.resource_from_descriptor == self.resource_from_dataframe
 #
-
-#     def test_is_frozen(self):
-#         assert self.resource_from_descriptor.is_frozen
-#         assert self.resource_from_fl_resource.is_frozen
-#         assert not self.resource_from_dataframe.is_frozen
 #
 #     def test_is_valid(self):
 #         assert self.resource_from_descriptor.is_valid
