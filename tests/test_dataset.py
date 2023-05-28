@@ -53,6 +53,9 @@ class TestVanillaResource:
     should_be_frozen: bool = False
     """Whether the resource should be frozen, i.e., immutable after initialization."""
     should_be_serialized: bool = False
+    """Whether the resource should figure as serialized after initialization."""
+    should_be_loaded: bool = False
+    """Whether or not we expect the resource to have a dataframe loaded into memory."""
 
     @pytest.fixture()
     def expected_basepath(self):
@@ -81,6 +84,9 @@ class TestVanillaResource:
 
     def test_serialized(self, dc_resource):
         assert dc_resource.is_serialized == self.should_be_serialized
+
+    def test_loaded(self, dc_resource):
+        assert dc_resource.is_loaded == self.should_be_loaded
 
 
 @pytest.fixture(scope="session")
@@ -113,6 +119,8 @@ def empty_resource_with_paths(tmp_serialization_path):
 class TestMemoryResource(TestVanillaResource):
     """MemoryResources are those instantiated from a dataframe. They have in common that, in this
     test suite, their basepath is a temporary path where they can be serialized."""
+
+    should_be_loaded = False  # because this one is empty
 
     @pytest.fixture()
     def expected_basepath(self, tmp_serialization_path):
@@ -158,6 +166,7 @@ def resource_from_dataframe(
 
 class TestFromDataFrame(TestMemoryResource):
     expected_resource_status = ResourceStatus.DATAFRAME
+    should_be_loaded = True
 
     @pytest.fixture()
     def dc_resource(self, resource_from_dataframe) -> DimcatResource:
@@ -178,6 +187,7 @@ def assembled_resource(
 
 class TestAssembledResource(TestMemoryResource):
     expected_resource_status = ResourceStatus.DATAFRAME
+    should_be_loaded = True
 
     @pytest.fixture()
     def dc_resource(self, assembled_resource):
@@ -194,6 +204,7 @@ class TestSerializedResource(TestMemoryResource):
     expected_resource_status = ResourceStatus.ON_DISK_AND_LOADED
     should_be_frozen: bool = True
     should_be_serialized = True
+    should_be_loaded = True
 
     @pytest.fixture()
     def dc_resource(self, serialized_resource):
@@ -329,11 +340,6 @@ class TestFromDcPackage(TestDiskResource):
 #         assert self.resource_from_descriptor == self.resource_from_fl_resource
 #         assert self.resource_from_descriptor == self.resource_from_dataframe
 #
-#
-#     def test_is_loaded(self):
-#         assert not self.resource_from_descriptor.is_loaded
-#         assert not self.resource_from_fl_resource.is_loaded
-#         assert self.resource_from_dataframe.is_loaded
 #
 #     def test_descriptor_path(self):
 #         assert self.resource_from_descriptor.descriptor_path == self.descriptor_path
