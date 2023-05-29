@@ -72,7 +72,7 @@ class Notes(Feature):
         column_schema: Optional[fl.Schema | str] = None,
         basepath: Optional[str] = None,
         filepath: Optional[str] = None,
-        validate: bool = True,
+        auto_validate: bool = True,
     ) -> None:
         self._format: NotesFormat = format
         self._weight_grace_notes: float = weight_grace_notes
@@ -82,7 +82,7 @@ class Notes(Feature):
             basepath=basepath,
             filepath=filepath,
             column_schema=column_schema,
-            validate=validate,
+            auto_validate=auto_validate,
         )
 
     @property

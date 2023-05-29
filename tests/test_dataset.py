@@ -171,6 +171,7 @@ def resource_from_dataframe(
         resource_name=fl_resource.name,
         basepath=tmp_serialization_path,
         column_schema=fl_resource.schema,
+        auto_validate=False,
     )
 
 
@@ -188,7 +189,9 @@ def assembled_resource(
     dataframe_from_tsv, fl_resource, tmp_serialization_path
 ) -> DimcatResource:
     resource = DimcatResource(
-        resource_name=fl_resource.name, column_schema=fl_resource.schema
+        resource_name=fl_resource.name,
+        column_schema=fl_resource.schema,
+        auto_validate=False,
     )
     resource.df = dataframe_from_tsv
     resource.basepath = tmp_serialization_path

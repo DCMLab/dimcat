@@ -236,7 +236,7 @@ class DimcatResource(Generic[D], Data):
         basepath: Optional[str] = None,
         filepath: Optional[str] = None,
         column_schema: Optional[fl.Schema | str] = None,
-        validate: bool = True,
+        auto_validate: bool = True,
     ) -> None:
         """
 
@@ -264,19 +264,20 @@ class DimcatResource(Generic[D], Data):
             column_schema:
                 If you don't pass a schema or a path or URL to one, frictionless will try to infer it. However,
                 this often leads to validation errors.
-            validate:
-                By default, the DimcatResource will not be instantiated if the schema validation fails. Set to
-                False if you want to skip the validation.
+            auto_validate:
+                By default, the DimcatResource will not be instantiated if the schema validation fails and the resource
+                is re-validated if, for example, the :attr:`column_schema` changes. Set False to prevent validation.
         """
         print(
             f"DimcatResource.__init__(resource={resource!r}, resource_name={resource_name!r}, basepath={basepath!r}, "
-            f"filepath={filepath!r}, column_schema={column_schema!r}, validate={validate!r})"
+            f"filepath={filepath!r}, column_schema={column_schema!r}, validate={auto_validate!r})"
         )
         super().__init__()
         self._resource: fl.Resource = make_tsv_resource()
         self._status = ResourceStatus.EMPTY
         self._df: D = None
         self._descriptor_filepath: Optional[str] = None
+        self.auto_validate: bool = auto_validate
 
         if basepath is not None:
             basepath = ms3.resolve_dir(basepath)
@@ -299,9 +300,9 @@ class DimcatResource(Generic[D], Data):
                 fl_resource = resource
             else:
                 raise TypeError(
-                    f"Expected a path or a frictionless resource, got {type(resource)}"
+                    f"Expected a path or a frictionless resource, got {type(resource)!r}"
                 )
-            if not os.path.isfile(fl_resource.normpath):
+            if auto_validate and not os.path.isfile(fl_resource.normpath):
                 raise FileNotFoundError(
                     f"Described resource {descriptor_path} does not exist."
                 )
@@ -330,30 +331,14 @@ class DimcatResource(Generic[D], Data):
                     self._status = ResourceStatus.ON_DISK_AND_LOADED
             else:
                 self._status = ResourceStatus.SERIALIZED
-        if validate and self.status == ResourceStatus.DATAFRAME:
-            _ = self.validate(raise_exception=NEVER_STORE_UNVALIDATED_DATA)
-
-    # @classmethod
-    # def from_dict(cls, options, **kwargs) -> Self:
-    #     options = dict(options, **kwargs)
-    #     if sum(arg in options for arg in ("resource", "resource_name", "df")) == 0:
-    #         raise ValueError(f"Expected at least one of 'resource', 'resource_name', 'df', got {options}.")
-    #     if "dtype" in options:
-    #         source_dtype = options.pop("dtype")
-    #         if source_dtype != cls.name:
-    #             logger.warning(f"The given dict specified dtype={source_dtype!r}, but we're creating a {cls.name}.")
-    #     return cls(**options)
-    #
-    # @classmethod
-    # def from_config(cls, config: DimcatConfig, **kwargs) -> Self:
-    #     """Create a DimcatResource from a DimcatConfig describing a resource."""
-    #     return cls.from_dict(config.options, **kwargs)
+        if self.auto_validate and self.status == ResourceStatus.DATAFRAME:
+            _ = self.validate(raise_exception=True)
 
     @classmethod
     def from_descriptor(
         cls,
         descriptor_path: str,
-        validate: bool = True,
+        auto_validate: bool = True,
     ) -> Self:
         """Create a DimcatResource by loading its frictionless descriptor is loaded from disk.
         The descriptor's directory is used as ``basepath``. ``descriptor_path`` is expected to end in
@@ -361,11 +346,11 @@ class DimcatResource(Generic[D], Data):
 
         Args:
             descriptor_path: Needs to be an absolute path and is expected to end in ``.resource.json``.
-            validate:
-                By default, the DimcatResource will not be instantiated if the schema validation fails. Set to
-                False if you want to skip the validation.
+            auto_validate:
+                By default, the DimcatResource will not be instantiated if the schema validation fails and the resource
+                is re-validated if, for example, the :attr:`column_schema` changes. Set False to prevent validation.
         """
-        return cls(resource=descriptor_path, validate=validate)
+        return cls(resource=descriptor_path, auto_validate=auto_validate)
 
     @classmethod
     def from_dataframe(
@@ -375,7 +360,7 @@ class DimcatResource(Generic[D], Data):
         basepath: Optional[str] = None,
         filepath: Optional[str] = None,
         column_schema: Optional[fl.Schema | str] = None,
-        validate: bool = True,
+        auto_validate: bool = True,
     ) -> Self:
         """Create a DimcatResource from a dataframe, specifying its name and, optionally, at what path it is to be
         serialized.
@@ -404,13 +389,16 @@ class DimcatResource(Generic[D], Data):
             column_schema:
                 If you don't pass a schema or a path or URL to one, frictionless will try to infer it. However,
                 this often leads to validation errors.
+            auto_validate:
+                By default, the DimcatResource will not be instantiated if the schema validation fails and the resource
+                is re-validated if, for example, the :attr:`column_schema` changes. Set False to prevent validation.
         """
         new_resource = cls(
             resource_name=resource_name,
             basepath=basepath,
             filepath=filepath,
             column_schema=column_schema,
-            validate=validate,
+            auto_validate=auto_validate,
         )
         new_resource.df = df
         return new_resource
@@ -423,7 +411,7 @@ class DimcatResource(Generic[D], Data):
         basepath: Optional[str] = None,
         filepath: Optional[str] = None,
         column_schema: Optional[fl.Schema | str] = None,
-        validate: bool = True,
+        auto_validate: bool = True,
     ) -> Self:
         """Create a DimcatResource from an existing DimcatResource, specifying its name and, optionally, at what path
         it is to be serialized.
@@ -434,7 +422,9 @@ class DimcatResource(Generic[D], Data):
             basepath:
             filepath:
             column_schema:
-            validate:
+            auto_validate:
+                By default, the DimcatResource will not be instantiated if the schema validation fails and the resource
+                is re-validated if, for example, the :attr:`column_schema` changes. Set False to prevent validation.
         """
         if not isinstance(resource, DimcatResource):
             raise TypeError(f"Expected a DimcatResource, got {type(resource)!r}.")
@@ -449,7 +439,7 @@ class DimcatResource(Generic[D], Data):
             fl_resource.schema = column_schema
         return cls(
             resource=resource.resource,
-            validate=validate,
+            auto_validate=auto_validate,
         )
 
     @property
@@ -469,13 +459,9 @@ class DimcatResource(Generic[D], Data):
         assert os.path.isdir(
             basepath
         ), f"Basepath {basepath!r} is not an existing directory."
-        if self.filepath is not None and os.path.isabs(self.filepath):
-            rel_path = make_rel_path(self.filepath, basepath)
-            self.filepath = rel_path
-            logger.info(
-                f"Absolute filepath became {rel_path} when setting basepath {basepath}"
-            )
         self._resource.basepath = basepath
+        if self.auto_validate:
+            _ = self.validate(raise_exception=True)
 
     @property
     def column_schema(self):
@@ -496,6 +482,8 @@ class DimcatResource(Generic[D], Data):
             self._status = ResourceStatus.SCHEMA
         elif self.status >= ResourceStatus.VALIDATED:
             self._status = ResourceStatus.DATAFRAME
+        if self.auto_validate:
+            _ = self.validate(raise_exception=True)
 
     @property
     def descriptor_filepath(self) -> str:
@@ -527,9 +515,11 @@ class DimcatResource(Generic[D], Data):
         if not self.column_schema.fields:
             self.column_schema = infer_schema_from_df(df)
         self._status = ResourceStatus.DATAFRAME
+        if self.auto_validate:
+            _ = self.validate(raise_exception=True)
 
     @property
-    def filepath(self):
+    def filepath(self) -> str:
         if self._resource.path is None:
             return self.innerpath
         return self._resource.path
@@ -592,13 +582,10 @@ class DimcatResource(Generic[D], Data):
 
     @property
     def is_valid(self) -> bool:
-        if self.status < ResourceStatus.DATAFRAME:
+        report = self.validate(raise_exception=False, only_if_necessary=True)
+        if report is None:
             return True
-        if self.status >= ResourceStatus.VALIDATED:
-            return True
-        report = self.validate()
-        if report is not None:
-            return report.valid
+        return report.valid
 
     @property
     def is_zipped_resource(self) -> bool:
@@ -740,11 +727,18 @@ class DimcatResource(Generic[D], Data):
             )
         return descriptor_path
 
-    def validate(self, raise_exception: bool = False) -> Optional[fl.Report]:
+    def validate(
+        self,
+        raise_exception: bool = False,
+        only_if_necessary: bool = False,
+    ) -> Optional[fl.Report]:
         if self.status < ResourceStatus.DATAFRAME:
             logger.info("Nothing to validate.")
             return
-        if self.is_frozen:
+        if only_if_necessary and self.status >= ResourceStatus.VALIDATED:
+            logger.info("Already validated.")
+            return
+        if self.status >= ResourceStatus.SERIALIZED:
             report = self._resource.validate()
         else:
             tmp_resource = fl.Resource(self.df)
