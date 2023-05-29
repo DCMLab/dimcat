@@ -444,10 +444,16 @@ class DimcatResource(Generic[D], Data):
             fl_resource.path = filepath
         if column_schema is not None:
             fl_resource.schema = column_schema
-        return cls(
+        new_object = cls(
             resource=resource.resource,
             auto_validate=auto_validate,
         )
+        if resource._df is not None:
+            new_object._df = resource._df.copy()
+        if resource._descriptor_filepath is not None:
+            new_object._descriptor_filepath = resource._descriptor_filepath
+        new_object._status = resource._status
+        return new_object
 
     @property
     def basepath(self):

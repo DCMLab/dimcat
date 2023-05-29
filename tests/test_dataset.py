@@ -111,6 +111,18 @@ class TestDiskResource(TestVanillaResource):
 
 
 @pytest.fixture(scope="session")
+def resource_from_frozen_resource(resource_from_descriptor):
+    """Returns a DimcatResource object created from a frozen resource."""
+    return DimcatResource.from_resource(resource_from_descriptor)
+
+
+class TestResourceFromFrozen(TestDiskResource):
+    @pytest.fixture()
+    def dc_resource(self, resource_from_frozen_resource):
+        return resource_from_frozen_resource
+
+
+@pytest.fixture(scope="session")
 def empty_resource_with_paths(tmp_serialization_path):
     return DimcatResource(
         basepath=tmp_serialization_path, filepath="empty_resource.tsv"
@@ -173,6 +185,18 @@ class TestFromDataFrame(TestMemoryResource):
     @pytest.fixture()
     def dc_resource(self, resource_from_dataframe) -> DimcatResource:
         return resource_from_dataframe
+
+
+@pytest.fixture(scope="session")
+def resource_from_memory_resource(resource_from_dataframe):
+    """Returns a DimcatResource object created from a frozen resource."""
+    return DimcatResource.from_resource(resource_from_dataframe)
+
+
+class TestResourceFromMemoryResource(TestFromDataFrame):
+    @pytest.fixture()
+    def dc_resource(self, resource_from_memory_resource):
+        return resource_from_memory_resource
 
 
 @pytest.fixture(scope="session")
