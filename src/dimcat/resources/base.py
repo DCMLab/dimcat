@@ -187,25 +187,37 @@ class DimcatResource(Generic[D], Data):
         basepath = mm.fields.String(allow_none=True)
 
         def get_resource_descriptor(self, obj: DimcatResource) -> str | dict:
-            if ResourceStatus.DATAFRAME <= obj.status < ResourceStatus.SERIALIZED:
-                logger.info(
+            if obj.is_zipped_resource:
+                raise NotImplementedError(
+                    f"This {self.name} is part of a package which currently prevents "
+                    f"serializing it as a standalone resource."
+                )
+            if obj.status < ResourceStatus.DATAFRAME:
+                logger.debug(
+                    f"This {obj.name} is not linked to any data and serialized normally."
+                )
+                descriptor = {}
+                if self.resource_name:
+                    descriptor["name"] = self.resource_name
+                if self.basepath:
+                    descriptor["basepath"] = self.basepath
+                if self.resource.path:
+                    descriptor["filepath"] = self.resource.path
+                return descriptor
+            if obj.status < ResourceStatus.SERIALIZED:
+                logger.debug(
                     f"This {self.name} needs to be stored to disk to be expressed as restorable config."
                 )
-                if obj.status <= ResourceStatus.VALIDATED:
-                    obj.store_dataframe()
-            if not obj.is_zipped_resource:
-                return obj.descriptor_filepath
-            if obj.status < ResourceStatus.DATAFRAME:
-                descriptor = {}
+                obj.store_dataframe()
+            descriptor_path = obj.get_descriptor_path(only_if_exists=False)
+            if not os.path.isfile(descriptor_path):
+                logger.warning(
+                    f"The descriptor for the {obj.name} (status {obj.status!r}) had not yet been "
+                    f"written to {descriptor_path}"
+                )
             else:
-                descriptor = obj._resource.to_descriptor()
-                if "path" not in descriptor:
-                    logger.warning(
-                        f"Resource descriptor of {self.name} does not contain a path. It will be restored as an "
-                        f"empty resource."
-                    )
-            # ToDo: store the descriptor to disk and return the path
-            return descriptor
+                descriptor_path = obj._store_descriptor()
+            return descriptor_path
 
         def raw(self, data):
             return data
@@ -682,9 +694,13 @@ class DimcatResource(Generic[D], Data):
 
     def store_dataframe(
         self,
-        name: Optional[str] = None,
         validate: bool = True,
     ):
+        """Stores the dataframe and its descriptor to disk based on the resource's configuration.
+
+        Raises:
+            RuntimeError: If the resource is frozen or does not contain a dataframe or if the file exists already.
+        """
         if self.is_frozen:
             raise RuntimeError(
                 f"This {self.name} was originally read from disk and therefore is not being stored."
@@ -701,9 +717,28 @@ class DimcatResource(Generic[D], Data):
             )
         ms3.write_tsv(self.df, full_path)
         self._status = ResourceStatus.SERIALIZED
-        descriptor_path = os.path.join(self.basepath, self.descriptor_filepath)
-        self.resource.to_json(descriptor_path)
+        self._store_descriptor()
         self._status = ResourceStatus.ON_DISK_AND_LOADED
+
+    def _store_descriptor(self, overwrite=True) -> str:
+        """Stores the descriptor to disk based on the resource's configuration and returns its path.
+        Does not modify the resource's :attr:`status`.
+        """
+        descriptor_path = self.get_descriptor_path(only_if_exists=False)
+        if not overwrite and os.path.isfile(descriptor_path):
+            logger.debug(
+                f"Descriptor exists already and will not be overwritten: {descriptor_path}"
+            )
+            return
+        if descriptor_path.endswith(".resource.yaml"):
+            self._resource.to_yaml(descriptor_path)
+        elif descriptor_path.endswith(".resource.json"):
+            self._resource.to_json(descriptor_path)
+        else:
+            raise ValueError(
+                f"Descriptor path must end with .resource.yaml or .resource.json: {descriptor_path}"
+            )
+        return descriptor_path
 
     def validate(self, raise_exception: bool = False) -> Optional[fl.Report]:
         if self.status < ResourceStatus.DATAFRAME:
