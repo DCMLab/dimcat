@@ -231,10 +231,12 @@ class DimcatObject(ABC):
         return cls.from_json(json_data)
 
     def __repr__(self):
-        return self.name
+        from pprint import pformat
+
+        return f"{pformat(self.to_dict())}"
 
     def __str__(self):
-        return pformat(self.to_dict(), sort_dicts=False)
+        return f"{__name__}.{self.name}"
 
 
 class DimcatConfig(MutableMapping, DimcatObject):

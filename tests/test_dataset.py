@@ -1,3 +1,5 @@
+import os.path
+
 import frictionless as fl
 import ms3
 import pytest
@@ -10,22 +12,22 @@ from tests.conftest import CORPUS_PATH
 # region helper fixtures
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def fl_resource(resource_path):
     """Returns a frictionless resource object."""
     return fl.Resource(resource_path)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def dataframe_from_tsv(fl_resource):
     """Returns a dataframe read directly from the normpath of the fl_resource."""
     return ms3.load_tsv(fl_resource.normpath)
 
 
-@pytest.fixture(scope="session")
-def tmp_serialization_path(tmp_path_factory, fl_resource):
+@pytest.fixture()
+def tmp_serialization_path(request, tmp_path_factory):
     """Returns the path to the directory where serialized resources are stored."""
-    return str(tmp_path_factory.mktemp(fl_resource.name))
+    return str(tmp_path_factory.mktemp(request.cls.__name__))
 
 
 # endregion helper fixtures
@@ -33,7 +35,7 @@ def tmp_serialization_path(tmp_path_factory, fl_resource):
 # region test DimcatResource objects
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def empty_resource():
     return DimcatResource(resource_name="empty_resource")
 
@@ -82,14 +84,20 @@ class TestVanillaResource:
         assert dc_resource.is_loaded == self.should_be_loaded
 
     def test_descriptor_path(self, dc_resource):
-        descriptor_path = dc_resource.get_descriptor_path(only_if_exists=True)
+        descriptor_path = dc_resource.descriptor_filepath
         if self.should_have_descriptor:
             assert descriptor_path is not None
         else:
             assert descriptor_path is None
 
+    def test_copy(self, dc_resource):
+        copy = dc_resource.copy()
+        assert copy == dc_resource
+        assert copy is not dc_resource
+        assert copy.status == dc_resource.status
 
-@pytest.fixture(scope="session")
+
+@pytest.fixture()
 def resource_from_descriptor(resource_path):
     """Returns a DimcatResource object created from the descriptor on disk."""
     return DimcatResource.from_descriptor(descriptor_path=resource_path)
@@ -110,7 +118,7 @@ class TestDiskResource(TestVanillaResource):
         return resource_from_descriptor
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def resource_from_frozen_resource(resource_from_descriptor):
     """Returns a DimcatResource object created from a frozen resource."""
     return DimcatResource.from_resource(resource_from_descriptor)
@@ -122,7 +130,7 @@ class TestResourceFromFrozen(TestDiskResource):
         return resource_from_frozen_resource
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def empty_resource_with_paths(tmp_serialization_path):
     return DimcatResource(
         basepath=tmp_serialization_path, filepath="empty_resource.tsv"
@@ -150,7 +158,7 @@ class TestMemoryResource(TestVanillaResource):
         pass
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def schema_resource(fl_resource):
     """Returns a DimcatResource with a pre-set frictionless.Schema object."""
     return DimcatResource(column_schema=fl_resource.schema)
@@ -164,9 +172,12 @@ class TestSchemaResource(TestVanillaResource):
         return schema_resource
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def resource_from_dataframe(
-    dataframe_from_tsv, fl_resource, tmp_serialization_path
+    dataframe_from_tsv,
+    fl_resource,
+    tmp_serialization_path,
+    resource_descriptor_filepath,
 ) -> DimcatResource:
     """Returns a DimcatResource object created from the dataframe."""
     return DimcatResource.from_dataframe(
@@ -187,7 +198,7 @@ class TestFromDataFrame(TestMemoryResource):
         return resource_from_dataframe
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def resource_from_memory_resource(resource_from_dataframe):
     """Returns a DimcatResource object created from a frozen resource."""
     return DimcatResource.from_resource(resource_from_dataframe)
@@ -199,17 +210,16 @@ class TestResourceFromMemoryResource(TestFromDataFrame):
         return resource_from_memory_resource
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def assembled_resource(
     dataframe_from_tsv, fl_resource, tmp_serialization_path
 ) -> DimcatResource:
     resource = DimcatResource(
+        basepath=tmp_serialization_path,
         resource_name=fl_resource.name,
-        column_schema=fl_resource.schema,
         auto_validate=False,
     )
     resource.df = dataframe_from_tsv
-    resource.basepath = tmp_serialization_path
     return resource
 
 
@@ -222,7 +232,7 @@ class TestAssembledResource(TestMemoryResource):
         return assembled_resource
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def serialized_resource(resource_from_dataframe) -> DimcatResource:
     resource_from_dataframe.store_dataframe()
     return resource_from_dataframe
@@ -240,22 +250,25 @@ class TestSerializedResource(TestMemoryResource):
         return serialized_resource
 
 
-@pytest.fixture(scope="session")
-def resource_from_fl_resource(fl_resource) -> DimcatResource:
+@pytest.fixture()
+def resource_from_fl_resource(
+    fl_resource, resource_descriptor_filepath
+) -> DimcatResource:
     """Returns a Dimcat resource object created from the frictionless.Resource object."""
-    return DimcatResource(resource=fl_resource)
+    return DimcatResource(
+        resource=fl_resource, descriptor_filepath=resource_descriptor_filepath
+    )
 
 
 class TestFromFrictionless(TestDiskResource):
     expected_resource_status = ResourceStatus.ON_DISK_NOT_LOADED
-    should_have_descriptor = False
 
     @pytest.fixture()
     def dc_resource(self, resource_from_fl_resource):
         return resource_from_fl_resource
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def resource_from_dict(resource_from_descriptor):
     """Returns a DimcatResource object created from the descriptor source."""
     as_dict = resource_from_descriptor.to_dict()
@@ -270,7 +283,7 @@ class TestFromDict(TestDiskResource):
         return resource_from_dict
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def resource_from_config(resource_from_descriptor):
     """Returns a DimcatResource object created from the descriptor on disk."""
     config = resource_from_descriptor.to_config()
@@ -286,30 +299,51 @@ class TestFromConfig(TestDiskResource):
 
 
 @pytest.fixture(scope="session")
-def zipped_resource_from_fl_package(fl_package) -> DimcatResource:
+def resource_descriptor_filepath(resource_path) -> str:
+    """Returns the path to the descriptor file."""
+    return os.path.relpath(resource_path, CORPUS_PATH)
+
+
+@pytest.fixture(scope="session")
+def package_descriptor_filepath(package_path) -> str:
+    """Returns the path to the descriptor file."""
+    return os.path.relpath(package_path, CORPUS_PATH)
+
+
+@pytest.fixture()
+def zipped_resource_from_fl_package(
+    fl_package,
+    package_descriptor_filepath,
+) -> DimcatResource:
     """Returns a DimcatResource object created from the dataframe."""
     fl_resource = fl_package.get_resource("notes")
-    return DimcatResource(resource=fl_resource)
+    return DimcatResource(
+        resource=fl_resource, descriptor_filepath=package_descriptor_filepath
+    )
 
 
 class TestFromFlPackage(TestDiskResource):
-    expected_resource_status = ResourceStatus.ON_DISK_NOT_LOADED
-    should_have_descriptor = False
+    expected_resource_status = ResourceStatus.PACKAGED
+    should_have_descriptor = True
 
     @pytest.fixture()
     def dc_resource(self, zipped_resource_from_fl_package):
         return zipped_resource_from_fl_package
 
 
-@pytest.fixture(scope="session")
-def zipped_resource_from_dc_package(package_from_fl_package) -> DimcatResource:
+@pytest.fixture()
+def zipped_resource_from_dc_package(
+    package_from_fl_package, package_descriptor_filepath
+) -> DimcatResource:
     dc_resource = package_from_fl_package.get_resource("notes")
-    return DimcatResource.from_resource(dc_resource)
+    return DimcatResource.from_resource(
+        dc_resource, descriptor_filepath=package_descriptor_filepath
+    )
 
 
 class TestFromDcPackage(TestDiskResource):
-    expected_resource_status = ResourceStatus.ON_DISK_NOT_LOADED
-    should_have_descriptor = False
+    expected_resource_status = ResourceStatus.PACKAGED
+    should_have_descriptor = True
 
     @pytest.fixture()
     def dc_resource(self, zipped_resource_from_dc_package):
@@ -432,12 +466,12 @@ class TestFromDcPackage(TestDiskResource):
 # region test DimcatPackage objects
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def empty_package():
     return DimcatPackage(package_name="empty_package")
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def package_from_fl_package(fl_package) -> DimcatPackage:
     """Returns a DimcatPackage object."""
     return DimcatPackage(fl_package)
@@ -470,7 +504,7 @@ class TestDimcatPackage:
         assert new_object == package_obj
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def package_from_descriptor(package_path):
     return DimcatPackage(package_path)
 
@@ -488,7 +522,7 @@ class TestPackageFromDescriptor(TestDimcatPackage):
         return package_from_descriptor
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def fl_package(package_path) -> fl.Package:
     """Returns a frictionless package object."""
     return fl.Package(package_path)

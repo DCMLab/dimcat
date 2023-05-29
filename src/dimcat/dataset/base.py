@@ -33,6 +33,7 @@ from dimcat.resources.base import (
 )
 from dimcat.resources.features import Feature, FeatureName
 from frictionless.settings import NAME_PATTERN as FRICTIONLESS_NAME_PATTERN
+from typing_extensions import Self
 
 if TYPE_CHECKING:
     from dimcat.analyzers.base import Result
@@ -170,13 +171,56 @@ class DimcatPackage(Data):
             self.basepath = get_default_basepath()
             logger.info(f"Using default basepath: {self.basepath}")
         for resource in self._package.resources:
+            if not resource.path.endswith(".zip"):
+                raise NotImplementedError(
+                    "Currently, the resources in a DimcatPackage need to be zipped."
+                )
             self._resources.append(
-                DimcatResource(resource=resource, basepath=self.basepath)
+                DimcatResource(
+                    resource=resource,
+                    basepath=self.basepath,
+                    descriptor_filepath=self._descriptor_filepath,
+                )
             )
         if len(self._resources) > 0:
             self._status = PackageStatus.FULLY_SERIALIZED
         if auto_validate:
             self.validate(raise_exception=True)
+
+    @classmethod
+    def from_package(
+        cls,
+        package: DimcatPackage,
+        package_name: Optional[str] = None,
+        basepath: Optional[str] = None,
+        auto_validate: bool = True,
+    ) -> Self:
+        """Create a new DimcatPackage from an existing DimcatPackage.
+
+        Args:
+            package:
+            package_name:
+            basepath:
+            auto_validate:
+
+        """
+        if not isinstance(package, DimcatPackage):
+            raise TypeError(f"Expected a DimcatPackage, got {type(package)!r}")
+        fl_package = package._package
+        if package_name is None:
+            package_name = fl_package.name
+        else:
+            fl_package.name = package_name
+        if basepath is not None:
+            fl_package.basepath = basepath
+        new_package = cls(package_name=package_name, auto_validate=auto_validate)
+        new_package._package = fl_package
+        if package._descriptor_filepath is not None:
+            new_package._descriptor_filepath = package._descriptor_filepath
+        for resource in package._resources:
+            new_package._resources.append(resource.copy())
+        new_package._status = package._status
+        return new_package
 
     @property
     def basepath(self) -> str:
@@ -276,6 +320,10 @@ class DimcatPackage(Data):
                 self._status = PackageStatus.PARTIALLY_SERIALIZED
             else:
                 raise NotImplementedError(f"Unexpected status {self.status!r}")
+
+    def copy(self) -> Self:
+        """Returns a copy of the package."""
+        return self.from_package(self)
 
     def get_descriptor_path(self, only_if_exists=True) -> Optional[str]:
         """Returns the path to the descriptor file."""

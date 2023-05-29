@@ -156,7 +156,10 @@ DIMCAT_OBJECT_TEST_CASES: List[Tuple[Type[DimcatObject], dict]] = [
     (Data, {}),
     (PipelineStep, {}),
     (DimcatConfig, dummy_config()),
-    (DimcatResource, dict(resource=fl.Resource(name="empty_resource"))),
+    (
+        DimcatResource,
+        dict(resource=fl.Resource(name="empty_resource", path="empty_resource.tsv")),
+    ),
     (DummyAnalyzer, dict(features=dummy_config())),
     (Notes, dict(resource=single_resource_path())),
     (Analyzer, dict(features=dummy_config())),

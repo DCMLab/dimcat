@@ -5,7 +5,7 @@ from typing import Optional, Type
 
 import frictionless as fl
 from dimcat import get_class
-from dimcat.resources.base import D, DimcatResource
+from dimcat.resources.base import DimcatResource
 from marshmallow import fields
 from typing_extensions import Self
 
@@ -66,12 +66,12 @@ class Notes(Feature):
         self,
         format: NotesFormat = NotesFormat.FIFTHS,
         weight_grace_notes: float = 0.0,
-        df: Optional[D] = None,
         resource_name: Optional[str] = None,
         resource: Optional[fl.Resource | str] = None,
         column_schema: Optional[fl.Schema | str] = None,
         basepath: Optional[str] = None,
         filepath: Optional[str] = None,
+        descriptor_filepath: Optional[str] = None,
         auto_validate: bool = True,
     ) -> None:
         self._format: NotesFormat = format
@@ -82,6 +82,7 @@ class Notes(Feature):
             basepath=basepath,
             filepath=filepath,
             column_schema=column_schema,
+            descriptor_filepath=descriptor_filepath,
             auto_validate=auto_validate,
         )
 
