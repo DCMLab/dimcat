@@ -2,6 +2,7 @@ import frictionless as fl
 import ms3
 import pytest
 from dimcat.dataset import DimcatPackage
+from dimcat.dataset.base import PackageStatus
 from dimcat.resources.base import DimcatResource, ResourceStatus, get_default_basepath
 
 from tests.conftest import CORPUS_PATH
@@ -16,18 +17,6 @@ def fl_resource(resource_path):
 
 
 @pytest.fixture(scope="session")
-def fl_package(package_path) -> fl.Package:
-    """Returns a frictionless package object."""
-    return fl.Package(package_path)
-
-
-@pytest.fixture(scope="session")
-def dc_package(fl_package) -> DimcatPackage:
-    """Returns a DimcatPackage object."""
-    return DimcatPackage(fl_package)
-
-
-@pytest.fixture(scope="session")
 def dataframe_from_tsv(fl_resource):
     """Returns a dataframe read directly from the normpath of the fl_resource."""
     return ms3.load_tsv(fl_resource.normpath)
@@ -39,12 +28,14 @@ def tmp_serialization_path(tmp_path_factory, fl_resource):
     return str(tmp_path_factory.mktemp(fl_resource.name))
 
 
+# endregion helper fixtures
+
+# region test DimcatResource objects
+
+
 @pytest.fixture(scope="session")
 def empty_resource():
     return DimcatResource(resource_name="empty_resource")
-
-
-# endregion helper fixtures
 
 
 class TestVanillaResource:
@@ -287,8 +278,8 @@ class TestFromFlPackage(TestDiskResource):
 
 
 @pytest.fixture(scope="session")
-def zipped_resource_from_dc_package(dc_package) -> DimcatResource:
-    dc_resource = dc_package.get_resource("notes")
+def zipped_resource_from_dc_package(package_from_fl_package) -> DimcatResource:
+    dc_resource = package_from_fl_package.get_resource("notes")
     return DimcatResource.from_resource(dc_resource)
 
 
@@ -411,3 +402,78 @@ class TestFromDcPackage(TestDiskResource):
 #         assert isinstance(from_config, DimcatResource)
 #         assert from_dict.__dict__.keys() == from_config.__dict__.keys()
 #
+
+# endregion test DimcatResource objects
+
+# region test DimcatPackage objects
+
+
+@pytest.fixture(scope="session")
+def empty_package():
+    return DimcatPackage(package_name="empty_package")
+
+
+@pytest.fixture(scope="session")
+def package_from_fl_package(fl_package) -> DimcatPackage:
+    """Returns a DimcatPackage object."""
+    return DimcatPackage(fl_package)
+
+
+class TestDimcatPackage:
+    expected_package_status: ResourceStatus = PackageStatus.EMPTY
+    """The expected status of the package after initialization."""
+
+    @pytest.fixture()
+    def expected_basepath(self):
+        """The expected basepath of the resource after initialization."""
+        return get_default_basepath()
+
+    @pytest.fixture()
+    def package_obj(self, empty_package):
+        """For each subclass of TestDimcatPackage, this fixture should be overridden and yield the
+        tested DimcatPackage object."""
+        return empty_package
+
+    def test_basepath_after_init(self, package_obj, expected_basepath):
+        assert package_obj.basepath == expected_basepath
+
+    def test_status_after_init(self, package_obj):
+        assert package_obj.status == self.expected_package_status
+
+    def test_serialization(self, package_obj):
+        as_config = package_obj.to_config()
+        new_object = as_config.create()
+        assert new_object == package_obj
+
+
+@pytest.fixture(scope="session")
+def package_from_descriptor(package_path):
+    return DimcatPackage(package_path)
+
+
+class TestPackageFromDescriptor(TestDimcatPackage):
+    expected_package_status = PackageStatus.FULLY_SERIALIZED
+
+    @pytest.fixture()
+    def expected_basepath(self):
+        """The expected basepath of the resource after initialization."""
+        return CORPUS_PATH
+
+    @pytest.fixture()
+    def package_obj(self, package_from_descriptor):
+        return package_from_descriptor
+
+
+@pytest.fixture(scope="session")
+def fl_package(package_path) -> fl.Package:
+    """Returns a frictionless package object."""
+    return fl.Package(package_path)
+
+
+class TestPackageFromFL(TestPackageFromDescriptor):
+    @pytest.fixture()
+    def package_obj(self, package_from_fl_package):
+        return package_from_fl_package
+
+
+# endregion test DimcatPackage objects

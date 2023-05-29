@@ -230,6 +230,12 @@ class DimcatObject(ABC):
             json_data = f.read()
         return cls.from_json(json_data)
 
+    def __repr__(self):
+        return self.name
+
+    def __str__(self):
+        return pformat(self.to_dict(), sort_dicts=False)
+
 
 class DimcatConfig(MutableMapping, DimcatObject):
     """Behaves like a dictionary but accepts only keys and values that are valid under the Schema of the DimcatObject
@@ -420,7 +426,7 @@ class DimcatConfig(MutableMapping, DimcatObject):
         return len(self._options)
 
     def __repr__(self):
-        return f"{self.name}({pformat(self._options)})"
+        return f"{self.name}({pformat(self._options, sort_dicts=False)})"
 
     def __eq__(self, other: DimcatObject | MutableMapping) -> bool:
         """The comparison with another DimcatConfig or dict-like returns True if both describe the same object or if
