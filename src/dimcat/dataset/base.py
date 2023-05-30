@@ -533,6 +533,13 @@ class DimcatCatalog(Data):
             raise ValueError("Cannot set packages if packages are already present.")
         if isinstance(packages, (DimcatPackage, fl.Package, str)):
             packages = [packages]
+        for package in packages:
+            self.add_package(package.copy())
+
+    def copy(self) -> Self:
+        new_object = self.__class__()
+        new_object.packages = self.packages
+        return new_object
 
     def set_basepath(
         self,
@@ -629,6 +636,14 @@ class DimcatCatalog(Data):
 class Dataset(Data):
     """The central type of object that all :obj:`PipelineSteps <.PipelineStep>` process and return a copy of."""
 
+    class Schema(Data.Schema):
+        """Dataset serialization schema."""
+
+        inputs = mm.fields.Nested(DimcatCatalog.Schema, required=True)
+        outputs = mm.fields.Nested(
+            DimcatCatalog.Schema, required=False, load_default=[]
+        )
+
     def __init__(
         self,
         data: Optional[Dataset] = None,
@@ -643,6 +658,14 @@ class Dataset(Data):
         super().__init__(**kwargs)
         self.inputs = DimcatCatalog()
         self.outputs = DimcatCatalog()
+
+    @classmethod
+    def from_dataset(cls, dataset: Dataset, **kwargs):
+        """Instantiate from this Dataset by copying its fields, empty fields otherwise."""
+        new_dataset = cls(**kwargs)
+        new_dataset.inputs = dataset.inputs.copy()
+        new_dataset.outputs = dataset.outputs.copy()
+        return new_dataset
 
     def add_result(self, result: Result):
         """Adds a result to the outputs catalog."""
@@ -674,6 +697,10 @@ class Dataset(Data):
                     f"Cannot infer package name from resource type {type(resource)}."
                 )
         self.outputs.add_resource(resource=resource, package_name=package_name)
+
+    def copy(self) -> Dataset:
+        """Returns a copy of this Dataset."""
+        return Dataset.from_dataset(self)
 
     def get_result(self, analyzer_name: Optional[str] = None) -> Result:
         """Returns the result of the previously applied analyzer with the given name."""

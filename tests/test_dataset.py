@@ -4,7 +4,7 @@ import frictionless as fl
 import ms3
 import pytest
 from dimcat.dataset import DimcatPackage
-from dimcat.dataset.base import PackageStatus
+from dimcat.dataset.base import Dataset, PackageStatus
 from dimcat.resources.base import DimcatResource, ResourceStatus, get_default_basepath
 
 from tests.conftest import CORPUS_PATH
@@ -501,6 +501,11 @@ class TestDimcatPackage:
         new_object = as_config.create()
         assert new_object == package_obj
 
+    def test_copy(self, package_obj):
+        copy = package_obj.copy()
+        assert copy == package_obj
+        assert copy is not package_obj
+
 
 @pytest.fixture()
 def package_from_descriptor(package_path):
@@ -533,3 +538,11 @@ class TestPackageFromFL(TestPackageFromDescriptor):
 
 
 # endregion test DimcatPackage objects
+
+
+def test_dataset(package_path):
+    dataset = Dataset()
+    dataset.load_package(package_path)
+    new_dataset = Dataset.from_dataset(dataset)
+    assert new_dataset == dataset
+    assert new_dataset is not dataset
