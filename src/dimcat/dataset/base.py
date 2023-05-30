@@ -28,6 +28,7 @@ from dimcat.base import Data, DimcatConfig
 from dimcat.resources.base import (
     D,
     DimcatResource,
+    SomeDataframe,
     check_file_path,
     get_default_basepath,
 )
@@ -701,6 +702,10 @@ class Dataset(Data):
     def copy(self) -> Dataset:
         """Returns a copy of this Dataset."""
         return Dataset.from_dataset(self)
+
+    def get_metadata(self) -> SomeDataframe:
+        metadata = self.get_feature("metadata")
+        return metadata.df
 
     def get_result(self, analyzer_name: Optional[str] = None) -> Result:
         """Returns the result of the previously applied analyzer with the given name."""
