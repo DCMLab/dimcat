@@ -221,7 +221,9 @@ class DimcatResource(Generic[D], Data):
 
     class PickleSchema(Data.Schema):
         resource = mm.fields.Method(
-            serialize="get_descriptor_filepath", deserialize="raw", allow_none=True
+            serialize="get_descriptor_filepath",
+            deserialize="raw",
+            allow_none=True,
         )
         basepath = mm.fields.String(allow_none=True)
 
@@ -259,11 +261,15 @@ class DimcatResource(Generic[D], Data):
 
     class Schema(Data.Schema):
         resource = mm.fields.Method(
-            serialize="get_resource_descriptor", deserialize="raw"
+            serialize="get_resource_descriptor",
+            deserialize="raw",
+            metadata={"expose": False},
         )
-        basepath = mm.fields.String(allow_none=True)
-        descriptor_filepath = mm.fields.String(allow_none=True)
-        auto_validate = mm.fields.Boolean()
+        basepath = mm.fields.String(allow_none=True, metadata={"expose": False})
+        descriptor_filepath = mm.fields.String(
+            allow_none=True, metadata={"expose": False}
+        )
+        auto_validate = mm.fields.Boolean(metadata={"expose": False})
 
         def get_resource_descriptor(self, obj: DimcatResource) -> str | dict:
             return obj._resource.to_descriptor()

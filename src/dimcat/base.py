@@ -49,9 +49,14 @@ class DimcatSchema(mm.Schema):
     The base class of all Schema() classes that are defined or inherited as nested classes
     for all :class:`DimcatObjects <DimcatObject>`. This class holds the logic for serializing/deserializing DiMCAT
     objects.
+
+    The arbitrary metadata of the fields currently use the keys:
+
+    - ``expose``: Set False to mark fields that would normally not be exposed to the users in the context of an app
+                  Defaults to True if missing.
     """
 
-    dtype = DtypeField()
+    dtype = DtypeField(metadata={"expose": False})
     """This field specifies the class of the serialized object. Every DimcatObject comes with the corresponding class
     property that returns its name as a string (or en Enum member that can function as a string). It is inherited by
     all objects' schemas and enables their deserialization from a DimcatConfig."""

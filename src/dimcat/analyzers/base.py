@@ -144,9 +144,9 @@ class Analyzer(PipelineStep):
             required=True,
             validate=mm.validate.Length(min=1),
         )
-        strategy = mm.fields.Enum(DispatchStrategy)
-        smallest_unit = mm.fields.Enum(UnitOfAnalysis)
-        orientation = mm.fields.Enum(Orientation)
+        strategy = mm.fields.Enum(DispatchStrategy, metadata={"expose": False})
+        smallest_unit = mm.fields.Enum(UnitOfAnalysis, metadata={"expose": False})
+        orientation = mm.fields.Enum(Orientation, metadata={"expose": False})
         fill_na: mm.fields.Raw(allow_none=True)
 
         @mm.pre_load()
