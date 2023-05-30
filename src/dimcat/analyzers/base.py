@@ -203,7 +203,7 @@ class Analyzer(PipelineStep):
             else:
                 not_configs.append(config)
         if len(not_configs) > 0:
-            logger.warning(f"Not a configuration of a Feature: {not_configs}")
+            self.logger.warning(f"Not a configuration of a Feature: {not_configs}")
         if len(configs) == 0:
             raise ValueError(
                 f"Did not receive any DimcatConfig, not setting {self.name}.features."

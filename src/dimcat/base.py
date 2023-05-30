@@ -160,6 +160,11 @@ class DimcatObject(ABC):
 
     @classmethod
     @property
+    def logger(cls) -> logging.Logger:
+        return logging.getLogger(f"{cls.__module__}.{cls.__qualname__}")
+
+    @classmethod
+    @property
     def dtype(cls) -> str | Enum:
         """Name of the class as enum member (if cls._enum_type is define, string otherwise)."""
         if cls._enum_type is None:
@@ -209,10 +214,10 @@ class DimcatObject(ABC):
     def from_dict(cls, options, **kwargs) -> Self:
         options = dict(options, **kwargs)
         if "dtype" not in options:
-            logger.debug(f"Added option {{'dtype': {cls.name}}}.")
+            cls.logger.debug(f"Added option {{'dtype': {cls.name}}}.")
             options["dtype"] = cls.name
         elif options["dtype"] != cls.name:
-            logger.warning(
+            cls.logger.warning(
                 f"Key 'dtype' was updated from {options['dtype']} to {cls.name}."
             )
             options["dtype"] = cls.name

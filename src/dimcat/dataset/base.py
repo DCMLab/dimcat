@@ -170,7 +170,7 @@ class DimcatPackage(Data):
             self.basepath = basepath
         elif self.basepath is None:
             self.basepath = get_default_basepath()
-            logger.info(f"Using default basepath: {self.basepath}")
+            self.logger.info(f"Using default basepath: {self.basepath}")
         for resource in self._package.resources:
             if not resource.path.endswith(".zip"):
                 raise NotImplementedError(
@@ -431,7 +431,7 @@ class DimcatPackage(Data):
         """Stores the descriptor to disk based on the package's configuration and returns its path."""
         descriptor_path = self.get_descriptor_path(only_if_exists=False)
         if not overwrite and os.path.isfile(descriptor_path):
-            logger.debug(
+            self.logger.debug(
                 f"Descriptor exists already and will not be overwritten: {descriptor_path}"
             )
             return descriptor_path
@@ -628,7 +628,7 @@ class DimcatCatalog(Data):
                 return package
         if create:
             self.add_package(package_name=name)
-            logger.info(f"Automatically added new empty package {name!r}")
+            self.logger.info(f"Automatically added new empty package {name!r}")
             return self.get_package()
         error = fl.errors.CatalogError(note=f'package "{name}" does not exist')
         raise fl.FrictionlessException(error)

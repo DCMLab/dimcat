@@ -2,13 +2,14 @@
 # Commandline interface
 # """
 # import argparse
-# import logging
+import logging
+
 # import os
 # import sys
 #
 # from ms3.cli import check_and_create, check_dir
 #
-# logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 #
 # __author__ = "Digital and Cognitive Musicology Lab"
 # __copyright__ = "École Polytechnique Fédérale de Lausanne"

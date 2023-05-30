@@ -1,3 +1,4 @@
+import inspect
 import pkgutil
 
 import dimcat
@@ -21,3 +22,14 @@ def test_module_loggers(dimcat_module):
     assert hasattr(mod, "logger")
     assert hasattr(mod.logger, "name")
     assert mod.logger.name == modname
+
+
+def test_class_loggers(dimcat_module):
+    modname, mod = dimcat_module
+    for name, cls in inspect.getmembers(mod, inspect.isclass):
+        if hasattr(cls, "logger"):
+            if cls.__module__ != modname:
+                continue
+            assert hasattr(cls.logger, "name")
+            assert cls.logger.name == f"{modname}.{name}"
+            print(f"The logger of {cls.name} is {cls.logger.name}")

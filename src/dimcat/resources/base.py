@@ -234,12 +234,12 @@ class DimcatResource(Generic[D], Data):
                     f"serializing it as a standalone resource."
                 )
             if obj.status < ResourceStatus.DATAFRAME:
-                logger.debug(
+                self.logger.debug(
                     f"This {obj.name} is empty and serialized to a dictionary."
                 )
                 return obj._resource.to_descriptor()
             if obj.status < ResourceStatus.SERIALIZED:
-                logger.debug(
+                self.logger.debug(
                     f"This {obj.name} needs to be stored to disk to be expressed as restorable config."
                 )
                 obj.store_dataframe()
@@ -336,7 +336,7 @@ class DimcatResource(Generic[D], Data):
                 writing to disk). Set True to raise an exception during creation or modification of the resource,
                 e.g. replacing the the :attr:`column_schema`.
         """
-        logger.debug(
+        self.logger.debug(
             f"DimcatResource.__init__(resource={resource}, resource_name={resource_name}, basepath={basepath}, "
             f"filepath={filepath}, column_schema={column_schema}, validate={auto_validate})"
         )
@@ -377,7 +377,7 @@ class DimcatResource(Generic[D], Data):
         elif not self.basepath:
             if filepath is None or not os.path.isabs(filepath):
                 self.basepath = get_default_basepath()
-                logger.info(f"Using default basepath: {self.basepath}")
+                self.logger.info(f"Using default basepath: {self.basepath}")
 
         if resource_name is not None:
             self.resource_name = resource_name
@@ -408,7 +408,7 @@ class DimcatResource(Generic[D], Data):
                     return ResourceStatus.STANDALONE_LOADED
             else:
                 if self._df is None:
-                    logger.warning(
+                    self.logger.warning(
                         f"The serialized data exists at {self.normpath} but no descriptor was found at "
                         f"{self.get_descriptor_path(only_if_exists=False)}. Consider passing the "
                         f"descriptor_filepath argument upon initialization."
@@ -668,7 +668,7 @@ class DimcatResource(Generic[D], Data):
             if self.basepath is None:
                 basepath, filepath = os.path.split(filepath)
                 self.basepath = basepath
-                logger.info(
+                self.logger.info(
                     f"Filepath split into basepath {self.basepath} and filepath {filepath}"
                 )
             else:
@@ -676,7 +676,7 @@ class DimcatResource(Generic[D], Data):
         else:
             if self.basepath is None:
                 self.basepath = get_default_basepath()
-                logger.info(
+                self.logger.info(
                     f"Basepath set to current working directory {self.basepath}"
                 )
             filepath = check_rel_path(filepath, self.basepath)
@@ -883,7 +883,7 @@ class DimcatResource(Generic[D], Data):
             )
         descriptor_path = self.get_descriptor_path(only_if_exists=False)
         if not overwrite and os.path.isfile(descriptor_path):
-            logger.debug(
+            self.logger.debug(
                 f"Descriptor exists already and will not be overwritten: {descriptor_path}"
             )
             return descriptor_path
@@ -903,10 +903,10 @@ class DimcatResource(Generic[D], Data):
         only_if_necessary: bool = False,
     ) -> Optional[fl.Report]:
         if self.status < ResourceStatus.DATAFRAME:
-            logger.info("Nothing to validate.")
+            self.logger.info("Nothing to validate.")
             return
         if only_if_necessary and self.status >= ResourceStatus.VALIDATED:
-            logger.info("Already validated.")
+            self.logger.info("Already validated.")
             return
         if self.is_serialized:
             report = self._resource.validate()
