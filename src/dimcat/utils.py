@@ -1,10 +1,13 @@
 """Utility functions that are or might be used by several modules or useful in external contexts."""
 from __future__ import annotations
 
+import logging
 import os
 from typing import Collection
 
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 
 def nest_level(obj, include_tuples=False):

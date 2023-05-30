@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from enum import Enum
 from typing import Optional, Type
 
@@ -8,6 +9,8 @@ import marshmallow as mm
 from dimcat import get_class
 from dimcat.resources.base import DimcatResource
 from typing_extensions import Self
+
+logger = logging.getLogger(__name__)
 
 
 class FeatureName(str, Enum):

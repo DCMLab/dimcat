@@ -1,6 +1,10 @@
+import logging
+
 from dimcat.analyzers.base import Analyzer
 from dimcat.resources.base import DimcatResource, SomeDataframe, SomeSeries
 from dimcat.resources.features import Feature
+
+logger = logging.getLogger(__name__)
 
 
 class Counter(Analyzer):

@@ -1,3 +1,5 @@
+import logging
+
 from importlib_metadata import PackageNotFoundError, version  # pragma: no cover
 
 try:
@@ -9,14 +11,6 @@ except PackageNotFoundError:  # pragma: no cover
 finally:
     del version, PackageNotFoundError
 
-from .analyzer import (
-    ChordSymbolBigrams,
-    ChordSymbolUnigrams,
-    LocalKeySequence,
-    LocalKeyUnique,
-    PitchClassVectors,
-    TPCrange,
-)
 from .base import (
     Data,
     DimcatConfig,
@@ -27,16 +21,6 @@ from .base import (
     get_schema,
 )
 from .dataset import Dataset
-from .filter import HasCadenceAnnotationsFilter, IsAnnotatedFilter
-from .grouper import CorpusGrouper, ModeGrouper, PieceGrouper, YearGrouper
-from .pipeline import Pipeline
 from .resources import FeatureName
-from .slicer import (
-    ChordCriterionSlicer,
-    ChordFeatureSlicer,
-    LocalKeySlicer,
-    MeasureSlicer,
-    NoteSlicer,
-    PhraseSlicer,
-)
-from .writer import TSVWriter
+
+logger = logging.getLogger(__name__)
