@@ -147,7 +147,7 @@ class Analyzer(PipelineStep):
         strategy = mm.fields.Enum(DispatchStrategy, metadata={"expose": False})
         smallest_unit = mm.fields.Enum(UnitOfAnalysis, metadata={"expose": False})
         orientation = mm.fields.Enum(Orientation, metadata={"expose": False})
-        fill_na: mm.fields.Raw(allow_none=True)
+        fill_na = mm.fields.Raw(allow_none=True, metadata={"expose": False})
 
         @mm.pre_load()
         def features_as_list(self, obj, **kwargs):
@@ -268,7 +268,9 @@ class Analyzer(PipelineStep):
         if self.strategy == DispatchStrategy.GROUPBY_APPLY:
             stacked_feature = self.pre_process(dataset.load_feature(self.features[0]))
             results = self.groupby_apply(stacked_feature)
-            return Result(df=results, resource_name=f"{self.name.lower()}_result")
+            return Result.from_dataframe(
+                df=results, resource_name=f"{self.name.lower()}_result"
+            )
         raise ValueError(f"Unknown dispatch strategy '{self.strategy!r}'")
 
     @classmethod

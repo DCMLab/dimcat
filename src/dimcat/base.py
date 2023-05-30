@@ -52,8 +52,10 @@ class DimcatSchema(mm.Schema):
 
     The arbitrary metadata of the fields currently use the keys:
 
-    - ``expose``: Set False to mark fields that would normally not be exposed to the users in the context of an app
+    - ``expose``: Set False to mark fields that would normally not be exposed to the users in the context of a GUI.
                   Defaults to True if missing.
+    - ``title``: A human-readable title for the field.
+    - ``description``: A human-readable description for the field.
     """
 
     dtype = DtypeField(metadata={"expose": False})

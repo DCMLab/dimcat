@@ -4,9 +4,9 @@ from enum import Enum
 from typing import Optional, Type
 
 import frictionless as fl
+import marshmallow as mm
 from dimcat import get_class
 from dimcat.resources.base import DimcatResource
-from marshmallow import fields
 from typing_extensions import Self
 
 
@@ -59,12 +59,29 @@ class NotesFormat(str, Enum):
 
 class Notes(Feature):
     class Schema(Feature.Schema):
-        format = fields.Enum(NotesFormat)
-        weight_grace_notes = fields.Float()
+        format = mm.fields.Enum(NotesFormat)
+        merge_ties = mm.fields.Boolean(
+            load_default=True,
+            metadata=dict(
+                title="Merge tied notes",
+                description="If set, notes that are tied together in the score are merged together, counting them "
+                "as a single event of the corresponding length. Otherwise, every note head is counted.",
+            ),
+        )
+        weight_grace_notes = mm.fields.Float(
+            load_default=0.0,
+            validate=mm.validate.Range(min=0.0, max=1.0),
+            metadata=dict(
+                title="Weight grace notes",
+                description="Set a factor > 0.0 to multiply the nominal duration of grace notes which, otherwise, have "
+                "duration 0 and are therefore excluded from many statistics.",
+            ),
+        )
 
     def __init__(
         self,
-        format: NotesFormat = NotesFormat.FIFTHS,
+        format: NotesFormat = NotesFormat.NAME,
+        merge_ties: bool = True,
         weight_grace_notes: float = 0.0,
         resource_name: Optional[str] = None,
         resource: Optional[fl.Resource | str] = None,
