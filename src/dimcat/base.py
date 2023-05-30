@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 from abc import ABC
 from enum import Enum
 from functools import cache
@@ -28,6 +27,15 @@ from typing_extensions import Self
 
 logger = logging.getLogger(__name__)
 
+# ----------------------------- GLOBAL SETTINGS -----------------------------
+
+NEVER_STORE_UNVALIDATED_DATA = (
+    False  # allows for skipping mandatory validations; set to True for production
+)
+CONTROL_REGISTRY = (
+    False  # raise an error if a subclass has the same name as another subclass
+)
+
 
 class DtypeField(mm.fields.Field):
     def _serialize(self, value, attr, obj, **kwargs):
@@ -41,9 +49,16 @@ class DimcatSchema(mm.Schema):
     The base class of all Schema() classes that are defined or inherited as nested classes
     for all :class:`DimcatObjects <DimcatObject>`. This class holds the logic for serializing/deserializing DiMCAT
     objects.
+
+    The arbitrary metadata of the fields currently use the keys:
+
+    - ``expose``: Set False to mark fields that would normally not be exposed to the users in the context of a GUI.
+                  Defaults to True if missing.
+    - ``title``: A human-readable title for the field.
+    - ``description``: A human-readable description for the field.
     """
 
-    dtype = DtypeField()
+    dtype = DtypeField(metadata={"expose": False})
     """This field specifies the class of the serialized object. Every DimcatObject comes with the corresponding class
     property that returns its name as a string (or en Enum member that can function as a string). It is inherited by
     all objects' schemas and enables their deserialization from a DimcatConfig."""
@@ -125,7 +140,7 @@ class DimcatObject(ABC):
     def __init_subclass__(cls, **kwargs):
         """Registers every subclass under the class variable :attr:`_registry`"""
         super().__init_subclass__(**kwargs)
-        if cls.name in cls._registry:
+        if CONTROL_REGISTRY and cls.name in cls._registry:
             raise RuntimeError(
                 f"A class named {cls.name!r} had already been registered. Choose a different name."
             )
@@ -158,7 +173,7 @@ class DimcatObject(ABC):
     @property
     def schema(cls):
         """Returns the (instantiated) DimcatSchema singleton object for this class."""
-        return get_schema(cls.dtype)
+        return get_schema(cls.name)
 
     def to_dict(self) -> dict:
         return self.schema.dump(self)
@@ -221,6 +236,12 @@ class DimcatObject(ABC):
         with open(filepath, "r", encoding="utf-8") as f:
             json_data = f.read()
         return cls.from_json(json_data)
+
+    def __repr__(self):
+        return f"{pformat(self.to_dict(), sort_dicts=False)}"
+
+    def __str__(self):
+        return f"{__name__}.{self.name}"
 
 
 class DimcatConfig(MutableMapping, DimcatObject):
@@ -412,7 +433,7 @@ class DimcatConfig(MutableMapping, DimcatObject):
         return len(self._options)
 
     def __repr__(self):
-        return f"{self.name}({pformat(self._options)})"
+        return f"{self.name}({pformat(self._options, sort_dicts=False)})"
 
     def __eq__(self, other: DimcatObject | MutableMapping) -> bool:
         """The comparison with another DimcatConfig or dict-like returns True if both describe the same object or if
@@ -505,15 +526,6 @@ class PipelineStep(DimcatObject):
         if isinstance(data, Data):
             return self.process(data)
         return [self.process(d) for d in data]
-
-
-def replace_ext(filepath, new_ext):
-    file, _ = os.path.splitext(filepath)
-    if file.split(".")[-1] in ("resource", "datapackage"):
-        file = ".".join(file.split(".")[:-1])
-    if new_ext[0] != ".":
-        new_ext = "." + new_ext
-    return file + new_ext
 
 
 @cache
