@@ -12,13 +12,13 @@ from tests.conftest import CORPUS_PATH
 # region helper fixtures
 
 
-@pytest.fixture()
+@pytest.fixture(scope="session")
 def fl_resource(resource_path):
     """Returns a frictionless resource object."""
     return fl.Resource(resource_path)
 
 
-@pytest.fixture()
+@pytest.fixture(scope="session")
 def dataframe_from_tsv(fl_resource):
     """Returns a dataframe read directly from the normpath of the fl_resource."""
     return ms3.load_tsv(fl_resource.normpath)
@@ -104,7 +104,7 @@ def resource_from_descriptor(resource_path):
 
 
 class TestDiskResource(TestVanillaResource):
-    expected_resource_status = ResourceStatus.ON_DISK_NOT_LOADED
+    expected_resource_status = ResourceStatus.STANDALONE_NOT_LOADED
     should_be_frozen: bool = True
     should_be_serialized = True
     should_have_descriptor = True
@@ -185,7 +185,6 @@ def resource_from_dataframe(
         resource_name=fl_resource.name,
         basepath=tmp_serialization_path,
         column_schema=fl_resource.schema,
-        auto_validate=False,
     )
 
 
@@ -217,7 +216,6 @@ def assembled_resource(
     resource = DimcatResource(
         basepath=tmp_serialization_path,
         resource_name=fl_resource.name,
-        auto_validate=False,
     )
     resource.df = dataframe_from_tsv
     return resource
@@ -239,7 +237,7 @@ def serialized_resource(resource_from_dataframe) -> DimcatResource:
 
 
 class TestSerializedResource(TestMemoryResource):
-    expected_resource_status = ResourceStatus.ON_DISK_AND_LOADED
+    expected_resource_status = ResourceStatus.STANDALONE_LOADED
     should_be_frozen: bool = True
     should_be_serialized = True
     should_be_loaded = True
@@ -261,7 +259,7 @@ def resource_from_fl_resource(
 
 
 class TestFromFrictionless(TestDiskResource):
-    expected_resource_status = ResourceStatus.ON_DISK_NOT_LOADED
+    expected_resource_status = ResourceStatus.STANDALONE_NOT_LOADED
 
     @pytest.fixture()
     def dc_resource(self, resource_from_fl_resource):
@@ -276,7 +274,7 @@ def resource_from_dict(resource_from_descriptor):
 
 
 class TestFromDict(TestDiskResource):
-    expected_resource_status = ResourceStatus.ON_DISK_NOT_LOADED
+    expected_resource_status = ResourceStatus.STANDALONE_NOT_LOADED
 
     @pytest.fixture()
     def dc_resource(self, resource_from_dict):
@@ -291,7 +289,7 @@ def resource_from_config(resource_from_descriptor):
 
 
 class TestFromConfig(TestDiskResource):
-    expected_resource_status = ResourceStatus.ON_DISK_NOT_LOADED
+    expected_resource_status = ResourceStatus.STANDALONE_NOT_LOADED
 
     @pytest.fixture()
     def dc_resource(self, resource_from_config):
@@ -323,7 +321,7 @@ def zipped_resource_from_fl_package(
 
 
 class TestFromFlPackage(TestDiskResource):
-    expected_resource_status = ResourceStatus.PACKAGED
+    expected_resource_status = ResourceStatus.PACKAGED_NOT_LOADED
     should_have_descriptor = True
 
     @pytest.fixture()
@@ -342,7 +340,7 @@ def zipped_resource_from_dc_package(
 
 
 class TestFromDcPackage(TestDiskResource):
-    expected_resource_status = ResourceStatus.PACKAGED
+    expected_resource_status = ResourceStatus.PACKAGED_NOT_LOADED
     should_have_descriptor = True
 
     @pytest.fixture()

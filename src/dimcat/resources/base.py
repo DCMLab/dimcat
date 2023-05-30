@@ -6,6 +6,7 @@ import re
 import zipfile
 from enum import IntEnum, auto
 from functools import cache
+from pprint import pformat
 from typing import Collection, Generic, List, Optional, TypeAlias, TypeVar, Union
 from zipfile import ZipFile
 
@@ -117,11 +118,30 @@ def make_tsv_resource(name: Optional[str] = None) -> fl.Resource:
 
 
 class ResourceStatus(IntEnum):
-    """Expresses the status of a DimcatResource with respect to it being described, valid, and serialized to disk.
-    Value 0 corresponds to empty (no data loaded). All following values have increasingly higher values following the
-    logic "the higher the value, the closer the resource to its final status, SERIALIZED.
-    That enables checking for a minimal status, e.g. ``if status >= ResourceStatus.VALIDATED``. This implies
-    that every status includes all lower steps.
+    """Expresses the status of a DimcatResource with respect to it being described, valid, and serialized to disk,
+    with or without its descriptor file.
+
+    +-----------------------+---------------+-------------------+-----------+
+    | ResourceStatus        | is_serialized | descriptor_exists | is_loaded |
+    +=======================+===============+===================+===========+
+    | EMPTY                 | False         | ?                 | False     |
+    +-----------------------+---------------+-------------------+-----------+
+    | SCHEMA                | False         | ?                 | False     |
+    +-----------------------+---------------+-------------------+-----------+
+    | DATAFRAME             | False         | False             | True      |
+    +-----------------------+---------------+-------------------+-----------+
+    | VALIDATED             | False         | False             | True      |
+    +-----------------------+---------------+-------------------+-----------+
+    | SERIALIZED            | True          | False             | True      |
+    +-----------------------+---------------+-------------------+-----------+
+    | STANDALONE_LOADED     | True          | True              | True      |
+    +-----------------------+---------------+-------------------+-----------+
+    | PACKAGED_LOADED       | True          | True              | True      |
+    +-----------------------+---------------+-------------------+-----------+
+    | STANDALONE_NOT_LOADED | True          | True              | False     |
+    +-----------------------+---------------+-------------------+-----------+
+    | PACKAGED_NOT_LOADED   | True          | True              | False     |
+    +-----------------------+---------------+-------------------+-----------+
     """
 
     EMPTY = 0
@@ -133,13 +153,10 @@ class ResourceStatus(IntEnum):
     SERIALIZED = (
         auto()
     )  # dataframe serialized to disk but not its descriptor (shouldn't happen) -> can be changed or overwritten
-    ON_DISK_AND_LOADED = (
-        auto()
-    )  # descriptor pointing to the serialized dataframe has been written -> must be altered together
-    ON_DISK_NOT_LOADED = (
-        auto()
-    )  # like ON_DISK_AND_LOADED but the dataframe has not been loaded into memory
-    PACKAGED = auto()  # resource is part of a package
+    STANDALONE_LOADED = auto()
+    PACKAGED_LOADED = auto()
+    STANDALONE_NOT_LOADED = auto()
+    PACKAGED_NOT_LOADED = auto()
 
 
 class DimcatResource(Generic[D], Data):
@@ -278,7 +295,7 @@ class DimcatResource(Generic[D], Data):
         filepath: Optional[str] = None,
         column_schema: Optional[fl.Schema | str] = None,
         descriptor_filepath: Optional[str] = None,
-        auto_validate: bool = True,
+        auto_validate: bool = False,
     ) -> None:
         """
 
@@ -307,8 +324,9 @@ class DimcatResource(Generic[D], Data):
                 If you don't pass a schema or a path or URL to one, frictionless will try to infer it. However,
                 this often leads to validation errors.
             auto_validate:
-                By default, the DimcatResource will not be instantiated if the schema validation fails and the resource
-                is re-validated if, for example, the :attr:`column_schema` changes. Set False to prevent validation.
+                By default, the DimcatResource will not be validated upon instantiation or change (but always before
+                writing to disk). Set True to raise an exception during creation or modification of the resource,
+                e.g. replacing the the :attr:`column_schema`.
         """
         logger.debug(
             f"DimcatResource.__init__(resource={resource}, resource_name={resource_name}, basepath={basepath}, "
@@ -370,13 +388,16 @@ class DimcatResource(Generic[D], Data):
 
     def _get_current_status(self) -> ResourceStatus:
         if self.is_zipped_resource:
-            return ResourceStatus.PACKAGED
+            if self._df is None:
+                return ResourceStatus.PACKAGED_NOT_LOADED
+            else:
+                return ResourceStatus.PACKAGED_LOADED
         if self.is_serialized:
             if self.descriptor_exists:
                 if self._df is None:
-                    return ResourceStatus.ON_DISK_NOT_LOADED
+                    return ResourceStatus.STANDALONE_NOT_LOADED
                 else:
-                    return ResourceStatus.ON_DISK_AND_LOADED
+                    return ResourceStatus.STANDALONE_LOADED
             else:
                 if self._df is None:
                     logger.warning(
@@ -384,7 +405,7 @@ class DimcatResource(Generic[D], Data):
                         f"{self.get_descriptor_path(only_if_exists=False)}. Consider passing the "
                         f"descriptor_filepath argument upon initialization."
                     )
-                    return ResourceStatus.ON_DISK_NOT_LOADED
+                    return ResourceStatus.STANDALONE_NOT_LOADED
                 else:
                     return ResourceStatus.SERIALIZED
         elif self._df is not None:
@@ -397,7 +418,7 @@ class DimcatResource(Generic[D], Data):
     def from_descriptor(
         cls,
         descriptor_path: str,
-        auto_validate: bool = True,
+        auto_validate: bool = False,
     ) -> Self:
         """Create a DimcatResource by loading its frictionless descriptor is loaded from disk.
         The descriptor's directory is used as ``basepath``. ``descriptor_path`` is expected to end in
@@ -420,7 +441,7 @@ class DimcatResource(Generic[D], Data):
         filepath: Optional[str] = None,
         column_schema: Optional[fl.Schema | str] = None,
         descriptor_filepath: Optional[str] = None,
-        auto_validate: bool = True,
+        auto_validate: bool = False,
     ) -> Self:
         """Create a DimcatResource from a dataframe, specifying its name and, optionally, at what path it is to be
         serialized.
@@ -499,31 +520,26 @@ class DimcatResource(Generic[D], Data):
         if not isinstance(resource, DimcatResource):
             raise TypeError(f"Expected a DimcatResource, got {type(resource)!r}.")
         fl_resource = resource.resource.to_copy()
-        if resource_name is None:
-            resource_name = fl_resource.name
-        else:
+        if resource_name is not None:
             fl_resource.name = resource_name
-        if basepath is None:
-            fl_resource.basepath = resource.basepath
-        else:
-            fl_resource.basepath = basepath
-        if filepath is not None:
-            fl_resource.path = filepath
         if column_schema is not None:
             fl_resource.schema = column_schema
+        if basepath is not None:
+            resource.basepath = basepath
+        if descriptor_filepath is None:
+            # if basepath stays the same, also copy the descriptor_filepath (otherwise use default)
+            descriptor_filepath = resource.descriptor_filepath
+        if filepath is not None:
+            fl_resource.path = filepath
         if auto_validate is None:
             auto_validate = resource.auto_validate
         new_object = cls(
-            resource_name=resource_name,
+            resource=fl_resource,
+            descriptor_filepath=descriptor_filepath,
             auto_validate=auto_validate,
         )
-        new_object._resource = fl_resource
         if resource._df is not None:
             new_object._df = resource._df.copy()
-        if descriptor_filepath is not None:
-            new_object._descriptor_filepath = descriptor_filepath
-        elif resource._descriptor_filepath is not None:
-            new_object._descriptor_filepath = resource._descriptor_filepath
         new_object._status = resource._status
         return new_object
 
@@ -554,10 +570,6 @@ class DimcatResource(Generic[D], Data):
 
     @property
     def column_schema(self):
-        default_na_values = ["<NA>"]
-        for na in default_na_values:
-            if na not in self._resource.schema.missing_values:
-                self._resource.schema.missing_values.append(na)
         return self._resource.schema
 
     @column_schema.setter
@@ -611,7 +623,7 @@ class DimcatResource(Generic[D], Data):
         if self._df is not None:
             return self._df
         if self.is_frozen:
-            return self.get_dataframe(wrapped=False)
+            return self.get_dataframe()
         raise RuntimeError(f"No dataframe accessible for this {self.name}:\n{self}")
 
     @df.setter
@@ -628,6 +640,11 @@ class DimcatResource(Generic[D], Data):
         self._status = ResourceStatus.DATAFRAME
         if self.auto_validate:
             _ = self.validate(raise_exception=True)
+
+    @property
+    def field_names(self) -> List[str]:
+        """The names of the fields in the resource's schema."""
+        return self.column_schema.field_names
 
     @property
     def filepath(self) -> str:
@@ -667,14 +684,14 @@ class DimcatResource(Generic[D], Data):
     @property
     def is_frozen(self) -> bool:
         """Whether the resource is frozen (i.e. its valid descriptor has been written to disk) or not."""
-        return (
-            self.is_zipped_resource or self.status >= ResourceStatus.ON_DISK_AND_LOADED
-        )
+        return self.is_zipped_resource or self.descriptor_exists
 
     @property
     def is_loaded(self) -> bool:
         return (
-            ResourceStatus.DATAFRAME <= self.status < ResourceStatus.ON_DISK_NOT_LOADED
+            ResourceStatus.DATAFRAME
+            <= self.status
+            < ResourceStatus.STANDALONE_NOT_LOADED
         )
 
     @property
@@ -750,12 +767,9 @@ class DimcatResource(Generic[D], Data):
         return self.basepath
 
     @cache
-    def get_dataframe(self, wrapped=True) -> Union[DimcatResource[D], D]:
+    def get_dataframe(self) -> Union[DimcatResource[D], D]:
         """
         Load the dataframe from disk based on the descriptor's normpath.
-
-        Args:
-            wrapped: By default only the underlying dataframe. Set to True if you want a DimcatResource wrapper.
 
         Returns:
             The dataframe or DimcatResource.
@@ -773,10 +787,10 @@ class DimcatResource(Generic[D], Data):
             df = ms3.load_tsv(self.normpath)
         if len(r.schema.primary_key) > 0:
             df = df.set_index(r.schema.primary_key)
-        if self.status == ResourceStatus.ON_DISK_NOT_LOADED:
-            self._status = ResourceStatus.ON_DISK_AND_LOADED
-        if wrapped:
-            return DimcatResource()
+        if self.status == ResourceStatus.STANDALONE_NOT_LOADED:
+            self._status = ResourceStatus.STANDALONE_LOADED
+        elif self.status == ResourceStatus.PACKAGED_NOT_LOADED:
+            self._status = ResourceStatus.PACKAGED_LOADED
         return df
 
     def copy(self) -> Self:
@@ -849,7 +863,7 @@ class DimcatResource(Generic[D], Data):
             )
         ms3.write_tsv(self.df, full_path)
         self._store_descriptor()
-        self._status = ResourceStatus.ON_DISK_AND_LOADED
+        self._status = ResourceStatus.STANDALONE_LOADED
 
     def _store_descriptor(self, overwrite=True) -> str:
         """Stores the descriptor to disk based on the resource's configuration and returns its path.
@@ -886,7 +900,7 @@ class DimcatResource(Generic[D], Data):
         if only_if_necessary and self.status >= ResourceStatus.VALIDATED:
             logger.info("Already validated.")
             return
-        if self.status >= ResourceStatus.SERIALIZED:
+        if self.is_serialized:
             report = self._resource.validate()
         else:
             tmp_resource = fl.Resource(self.df)
@@ -905,7 +919,11 @@ class DimcatResource(Generic[D], Data):
     def __dir__(self) -> List[str]:
         """Exposes the wrapped dataframe's properties and methods to the IDE."""
         elements = super().__dir__()
-        elements.extend(dir(self.df))
+        if self.is_loaded:
+            elements.extend(dir(self.df))
+        else:
+            # if not loaded, expose the field names from the descriptor
+            elements.extend(self.field_names)
         return sorted(elements)
 
     def __getattr__(self, item):
@@ -920,16 +938,26 @@ class DimcatResource(Generic[D], Data):
             raise AttributeError(msg)
 
     def __getitem__(self, item):
-        try:
-            return self.df[item]
-        except Exception:
-            raise KeyError(item)
+        if self.is_loaded:
+            try:
+                return self.df[item]
+            except Exception:
+                raise KeyError(item)
+        elif item in self.field_names:
+            raise KeyError(
+                f"Column {item!r} will be available after loading the dataframe into memory."
+            )
+        raise KeyError(item)
 
     def __len__(self) -> int:
         return len(self.df.index)
 
     def __hash__(self):
         return id(self)
+
+    def __repr__(self):
+        return_str = f"{pformat(self.to_dict(), sort_dicts=False)}"
+        return f"ResourceStatus={self.status.name}\n{return_str}"
 
 
 @cache

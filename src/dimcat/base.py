@@ -231,9 +231,7 @@ class DimcatObject(ABC):
         return cls.from_json(json_data)
 
     def __repr__(self):
-        from pprint import pformat
-
-        return f"{pformat(self.to_dict())}"
+        return f"{pformat(self.to_dict(), sort_dicts=False)}"
 
     def __str__(self):
         return f"{__name__}.{self.name}"

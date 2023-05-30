@@ -99,7 +99,7 @@ class DimcatPackage(Data):
         package: Optional[fl.Package | str] = None,
         package_name: Optional[str] = None,
         basepath: Optional[str] = None,
-        auto_validate: bool = True,
+        auto_validate: bool = False,
     ) -> None:
         """
 
@@ -193,7 +193,7 @@ class DimcatPackage(Data):
         package: DimcatPackage,
         package_name: Optional[str] = None,
         basepath: Optional[str] = None,
-        auto_validate: bool = True,
+        auto_validate: bool = False,
     ) -> Self:
         """Create a new DimcatPackage from an existing DimcatPackage.
 
@@ -384,7 +384,7 @@ class DimcatPackage(Data):
         basepath: Optional[str] = None,
         filepath: Optional[str] = None,
         column_schema: Optional[fl.Schema | str] = None,
-        auto_validate: bool = True,
+        auto_validate: bool = False,
     ) -> None:
         """Adds a resource to the package. Parameters are passed to :class:`DimcatResource`."""
         if sum(x is not None for x in (resource, df)) == 2:
@@ -464,12 +464,12 @@ class DimcatPackage(Data):
     def __repr__(self):
         values = self._package.to_descriptor()
         values["basepath"] = self.basepath
-        return pformat(values)
+        return pformat(values, sort_dicts=False)
 
     def __str__(self):
         values = self._package.to_descriptor()
         values["basepath"] = self.basepath
-        return pformat(values)
+        return pformat(values, sort_dicts=False)
 
 
 PackageSpecs: TypeAlias = Union[DimcatPackage, fl.Package, str]
@@ -564,12 +564,14 @@ class DimcatCatalog(Data):
         package: Optional[PackageSpecs] = None,
         package_name: Optional[str] = None,
         basepath: Optional[str] = None,
-        validate: bool = True,
+        auto_validate: bool = False,
     ):
         """Adds a package to the catalog. Parameters are the same as for :class:`DimcatPackage`."""
         if package is None or isinstance(package, (fl.Package, str)):
             package = DimcatPackage(
-                package_name=package_name, basepath=basepath, auto_validate=validate
+                package_name=package_name,
+                basepath=basepath,
+                auto_validate=auto_validate,
             )
         elif not isinstance(package, DimcatPackage):
             msg = f"{self.name} takes a Package, not {type(package)!r}."
