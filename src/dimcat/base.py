@@ -166,7 +166,7 @@ class DimcatObject(ABC):
     @property
     def schema(cls):
         """Returns the (instantiated) DimcatSchema singleton object for this class."""
-        return get_schema(cls.dtype)
+        return get_schema(cls.name)
 
     def to_dict(self) -> dict:
         return self.schema.dump(self)
