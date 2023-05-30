@@ -221,7 +221,7 @@ class DimcatResource(Generic[D], Data):
 
     class PickleSchema(Data.Schema):
         resource = mm.fields.Method(
-            serialize="get_descriptor_filepath", deserialize="raw"
+            serialize="get_descriptor_filepath", deserialize="raw", allow_none=True
         )
         basepath = mm.fields.String(allow_none=True)
 
@@ -273,6 +273,8 @@ class DimcatResource(Generic[D], Data):
 
         @mm.post_load
         def init_object(self, data, **kwargs):
+            if "resource" not in data or data["resource"] is None:
+                return super().init_object(data, **kwargs)
             if isinstance(data["resource"], str) and "descriptor_filepath" not in data:
                 if os.path.isabs(data["resource"]):
                     if "basepath" in data:
