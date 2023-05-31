@@ -1,5 +1,6 @@
 import logging
 
-from .features import DimcatResource, FeatureName
+from .base import DimcatIndex, DimcatResource, PieceIndex
+from .features import FeatureName, Notes
 
 logger = logging.getLogger(__name__)

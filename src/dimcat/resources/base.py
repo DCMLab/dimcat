@@ -258,6 +258,20 @@ def load_index_from_fl_resource(
 ) -> SomeIndex:
     """Load the index columns from a frictionless Resource.
 
+    Args:
+        fl_resource: The frictionless Resource to load the index columns from.
+        index_col: The column(s) to use as index. If None, the primary key of the schema is used if it exists.
+        recognized_piece_columns:
+            If the loaded columns do not include 'piece' but one of the names specified here, the first column name
+            of the iterable that is detected in the loaded columns will be renamed to 'piece'. Likewise, such a
+            column would be used (and renamed) if ``index_col`` is not specified *and* the schema does not specify
+            a primary key: in that case, the detected column and all columns left of it will used as index_col argument.
+            The iterable should always start with "piece" -- otherwise the same mechanism will be applied for
+            whatever first value specified.
+
+    Returns:
+        The specified or inferred index column(s) as a (Multi)Index object.
+
     Raises:
         FileNotFoundError: If the normpath of the resource does not exist.
         ValueError: If the resource doesn't yield a normpath or the index columns cannot be inferred from it
@@ -265,14 +279,19 @@ def load_index_from_fl_resource(
     """
     _ = get_existing_normpath(fl_resource)  # raises if normpath doesn't exist
     schema = fl_resource.schema
+    if recognized_piece_columns:
+        recognized_piece_columns = tuple(recognized_piece_columns)
+        right_most_column = recognized_piece_columns[0]
+    else:
+        right_most_column = None
     if index_col is not None:
         if isinstance(index_col, (int, str)):
             index_col = [index_col]
     elif schema.primary_key:
         index_col = schema.primary_key
-    else:
+    elif right_most_column:
         logger.debug(
-            f"Resource {fl_resource.name!r} has no primary key, trying to infer piece column."
+            f"Resource {fl_resource.name!r} has no primary key, trying to detect {right_most_column!r} column."
         )
         piece_col_position = infer_piece_col_position(
             schema.field_names,
@@ -280,13 +299,27 @@ def load_index_from_fl_resource(
         )
         if piece_col_position is None:
             raise ValueError(
-                f"Resource {fl_resource.name!r} has no primary key and no recognized piece column."
+                f"Resource {fl_resource.name!r} has no primary key and no {right_most_column!r} column "
+                f"could be detected."
             )
         index_col = list(range(piece_col_position + 1))
-    dataframe = load_fl_resource(
-        fl_resource, index_col=index_col, usecols=index_col
-    )  # has 0 columns
-    return dataframe.index
+    else:
+        raise ValueError(
+            f"Resource {fl_resource.name!r} has no primary key and neither index_col nor recognized_piece_columns "
+            f"were specified."
+        )
+    dataframe = load_fl_resource(fl_resource, usecols=index_col)
+    if right_most_column not in dataframe.columns:
+        columns = dataframe.columns.to_list()
+        piece_col_position = infer_piece_col_position(
+            columns,
+            recognized_piece_columns=recognized_piece_columns,
+        )
+        if piece_col_position is not None:
+            dataframe = dataframe.rename(
+                columns={columns[piece_col_position]: right_most_column}
+            )
+    return dataframe.set_index(dataframe.columns.to_list()).index
 
 
 # endregion helper functions
@@ -349,6 +382,12 @@ class DimcatIndex(Generic[IX], Data):
     @property
     def index(self) -> IX:
         return self._index
+
+
+class PieceIndex(DimcatIndex):
+    """A unique DimcatIndex where the last (i.e. right-most) level is named `piece`."""
+
+    pass
 
 
 # endregion DimcatIndex
