@@ -7,7 +7,17 @@ import zipfile
 from enum import IntEnum, auto
 from functools import cache
 from pprint import pformat
-from typing import Collection, Generic, List, Optional, TypeAlias, TypeVar, Union
+from typing import (
+    Collection,
+    Generic,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    TypeAlias,
+    TypeVar,
+    Union,
+)
 from zipfile import ZipFile
 
 import frictionless as fl
@@ -24,15 +34,18 @@ try:
 
     SomeDataframe: TypeAlias = Union[pd.DataFrame, mpd.DataFrame]
     SomeSeries: TypeAlias = Union[pd.Series, mpd.Series]
+    SomeIndex: TypeAlias = Union[pd.Index, mpd.Index]
 except ImportError:
     # DiMCAT has not been installed via dimcat[modin], hence the dependency is missing
     SomeDataframe: TypeAlias = pd.DataFrame
     SomeSeries: TypeAlias = pd.Series
+    SomeIndex: TypeAlias = pd.Index
 
 logger = logging.getLogger(__name__)
 
 D = TypeVar("D", bound=SomeDataframe)
 S = TypeVar("S", bound=SomeSeries)
+IX = TypeVar("IX", bound=SomeIndex)
 
 
 # region helper functions
@@ -114,7 +127,232 @@ def make_tsv_resource(name: Optional[str] = None) -> fl.Resource:
     return resource
 
 
+def fl_fields2pandas_params(fields: List[fl.Field]) -> Tuple[dict, dict]:
+    """Convert frictionless Fields to pandas parameters 'dtype' and 'converters'."""
+    dtype = {}
+    converters = {}
+    for field in fields:
+        if not field.type:
+            continue
+        if field.type == "string":
+            dtype[field.name] = "string"
+        elif field.type == "integer":
+            if field.required:
+                dtype[field.name] = int
+            else:
+                dtype[field.name] = "Int64"
+        elif field.type == "number":
+            dtype[field.name] = float
+        elif field.type == "boolean":
+            dtype[field.name] = bool
+        # missing (see https://specs.frictionlessdata.io/table-schema)
+        # - object (i.e. JSON/ a dict)
+        # - array (i.e. JSON/ a list)
+        # - date (i.e. date without time)
+        # - time (i.e. time without date)
+        # - datetime (i.e. a date with a time)
+        # - year (i.e. a year without a month and day)
+        # - yearmonth (i.e. a year and month without a day)
+        # - duration (i.e. a time duration)
+        # - geopoint (i.e. a pair of lat/long coordinates)
+        # - geojson (i.e. a GeoJSON object)
+        else:
+            raise ValueError(f"Unknown frictionless field type {field.type!r}.")
+    return dtype, converters
+
+
+def infer_piece_col_position(
+    column_name: List[str],
+    recognized_piece_columns: Iterable[str] = ("piece", "fname"),
+) -> Optional[int]:
+    """Infer the position of the piece column in a list of column names."""
+    for name in recognized_piece_columns:
+        try:
+            return column_name.index(name)
+        except ValueError:
+            continue
+    return
+
+
+def get_existing_normpath(fl_resource) -> str:
+    if fl_resource.normpath is None:
+        if fl_resource.path is None:
+            raise ValueError(f"Resource {fl_resource.name!r} has no path.")
+        normpath = os.path.abspath(fl_resource.path)
+    else:
+        normpath = fl_resource.normpath
+    if not os.path.isfile(normpath):
+        raise FileNotFoundError(
+            f"Normpath of resource {fl_resource.name!r} does not exist: {normpath}"
+        )
+    if not fl_resource.schema.fields:
+        raise ValueError(f"Resource {fl_resource.name!r}'s column_schema is empty.")
+    return normpath
+
+
+def resolve_columns_argument(
+    columns: Optional[int | str | List[int | str]],
+    field_names: List[str],
+) -> Optional[List[str]]:
+    if columns is None:
+        return
+    result = []
+    for str_or_int in columns:
+        if isinstance(str_or_int, int):
+            result.append(field_names[str_or_int])
+        else:
+            if str_or_int not in field_names:
+                raise ValueError(
+                    f"Column {str_or_int!r} not found in field names {field_names}."
+                )
+            result.append(str_or_int)
+    result_set = set(result)
+    if len(result_set) != len(result):
+        raise ValueError(f"Duplicate column names in {columns}.")
+    return result
+
+
+def load_fl_resource(
+    fl_resource: fl.Resource,
+    index_col: Optional[int | str | List[int | str]] = None,
+    usecols: Optional[Union[int, str, List[int | str]]] = None,
+) -> SomeDataframe:
+    normpath = get_existing_normpath(fl_resource)
+    field_names = fl_resource.schema.field_names
+    index_col_names = resolve_columns_argument(index_col, field_names)
+    usecols_names = resolve_columns_argument(usecols, field_names)
+    usecols_fields = [fl_resource.schema.get_field(name) for name in usecols_names]
+    dtypes, converters = fl_fields2pandas_params(usecols_fields)
+    if normpath.endswith(".zip"):
+        if not fl_resource.innerpath:
+            raise ValueError(
+                f"Resource {fl_resource.name!r} is a zip file but has no innerpath."
+            )
+        zip_file_handler = ZipFile(normpath)
+        file = zip_file_handler.open(fl_resource.innerpath)
+    else:
+        file = normpath
+    try:
+        dataframe = pd.read_csv(
+            file, sep="\t", usecols=usecols_names, dtype=dtypes, converters=converters
+        )
+    except Exception:
+        logger.warning(
+            f"Error executing\n"
+            f"pd.read_csv({file!r},\n"
+            f"            sep='\\t',\n"
+            f"            usecols={usecols_names!r},\n"
+            f"            dtype={dtypes!r},\n"
+            f"            converters={converters!r})"
+        )
+        raise
+    if index_col_names:
+        return dataframe.set_index(index_col_names)
+    return dataframe
+
+
+def load_index_from_fl_resource(
+    fl_resource: fl.Resource,
+    index_col: Optional[int | str | List[int | str]] = None,
+    recognized_piece_columns: Iterable[str] = ("piece", "fname"),
+) -> SomeIndex:
+    """Load the index columns from a frictionless Resource.
+
+    Raises:
+        FileNotFoundError: If the normpath of the resource does not exist.
+        ValueError: If the resource doesn't yield a normpath or the index columns cannot be inferred from it
+            based on the schema.
+    """
+    _ = get_existing_normpath(fl_resource)  # raises if normpath doesn't exist
+    schema = fl_resource.schema
+    if index_col is not None:
+        if isinstance(index_col, (int, str)):
+            index_col = [index_col]
+    elif schema.primary_key:
+        index_col = schema.primary_key
+    else:
+        logger.debug(
+            f"Resource {fl_resource.name!r} has no primary key, trying to infer piece column."
+        )
+        piece_col_position = infer_piece_col_position(
+            schema.field_names,
+            recognized_piece_columns=recognized_piece_columns,
+        )
+        if piece_col_position is None:
+            raise ValueError(
+                f"Resource {fl_resource.name!r} has no primary key and no recognized piece column."
+            )
+        index_col = list(range(piece_col_position + 1))
+    dataframe = load_fl_resource(
+        fl_resource, index_col=index_col, usecols=index_col
+    )  # has 0 columns
+    return dataframe.index
+
+
 # endregion helper functions
+
+# region DimcatIndex
+
+
+class DimcatIndex(Generic[IX], Data):
+    """A wrapper around a :obj:`pandas.MultiIndex` that provides additional functionality such as keeping track of
+    index levels and default groupings.
+
+    A MultiIndex essentially is a Sequence of tuples where each tuple identifies dataframe row and includes one value
+    per index level. Each index level has a name and can be seen as in individual :obj:`pandas.Index`. One important
+    type of DimcatIndex is the PieceIndex which is a unique MultiIndex (that is, each tuple is unique) and where the
+    last (i.e. right-most) level is named `piece`.
+    """
+
+    @classmethod
+    def from_resource(
+        cls,
+        resource: DimcatResource | fl.Resource,
+        index_col: Optional[int | str | List[int | str]] = None,
+    ) -> Self:
+        """Create a DimcatIndex from a frictionless Resource."""
+        if isinstance(resource, DimcatResource):
+            if resource.status < ResourceStatus.DATAFRAME:
+                return cls()
+            if resource.is_loaded:
+                return cls(resource.df.index)
+            fl_resource = resource.resource
+        elif isinstance(resource, fl.Resource):
+            fl_resource = resource
+        else:
+            raise TypeError(
+                f"Expected DimcatResource or frictionless.Resource, got {type(resource)!r}."
+            )
+        # load only the index columns from the serialized resource
+        index = load_index_from_fl_resource(fl_resource, index_col=index_col)
+        return cls(index)
+
+    def __init__(self, index: Optional[IX] = None):
+        if index is None:
+            self._index = pd.Index()
+        else:
+            self._index = index.copy()
+
+    def __getattr__(self, item):
+        """Enables using DimcatIndex just like the wrapped Index object."""
+        return getattr(self._index, item)
+
+    def __len__(self) -> int:
+        return len(self._index)
+
+    def __repr__(self) -> str:
+        return repr(self._index)
+
+    def __str__(self) -> str:
+        return str(self._index)
+
+    @property
+    def index(self) -> IX:
+        return self._index
+
+
+# endregion DimcatIndex
+# region DimcatResource
 
 
 class ResourceStatus(IntEnum):
@@ -293,7 +531,7 @@ class DimcatResource(Generic[D], Data):
     @classmethod
     def from_resource(
         cls,
-        resource: DimcatResource,
+        resource: DimcatResource[D],
         resource_name: Optional[str] = None,
         basepath: Optional[str] = None,
         filepath: Optional[str] = None,
@@ -548,19 +786,19 @@ class DimcatResource(Generic[D], Data):
     def __len__(self) -> int:
         return len(self.df.index)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return id(self)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return_str = f"{pformat(self.to_dict(), sort_dicts=False)}"
         return f"ResourceStatus={self.status.name}\n{return_str}"
 
     @property
-    def basepath(self):
+    def basepath(self) -> str:
         return self._resource.basepath
 
     @basepath.setter
-    def basepath(self, basepath):
+    def basepath(self, basepath: str):
         basepath = ms3.resolve_dir(basepath)
         if self.is_frozen:
             if basepath == self.basepath:
@@ -581,7 +819,7 @@ class DimcatResource(Generic[D], Data):
             _ = self.validate(raise_exception=True)
 
     @property
-    def column_schema(self):
+    def column_schema(self) -> fl.Schema:
         return self._resource.schema
 
     @column_schema.setter
@@ -663,7 +901,7 @@ class DimcatResource(Generic[D], Data):
         return self._resource.path
 
     @filepath.setter
-    def filepath(self, filepath):
+    def filepath(self, filepath: str):
         if self.is_frozen:
             raise RuntimeError(
                 "Cannot set filepath on a resource whose valid descriptor has been written to disk."
@@ -687,7 +925,7 @@ class DimcatResource(Generic[D], Data):
         self._resource.path = filepath
 
     @property
-    def innerpath(self):
+    def innerpath(self) -> str:
         """The innerpath is the resource_name plus the extension .tsv and is used as filename within a .zip archive."""
         if self.resource_name.endswith(".tsv"):
             return self.resource_name
@@ -752,7 +990,7 @@ class DimcatResource(Generic[D], Data):
         return self._resource
 
     @property
-    def resource_name(self):
+    def resource_name(self) -> str:
         if not self._resource.name:
             return self.filename_factory()
         return self._resource.name
@@ -811,7 +1049,7 @@ class DimcatResource(Generic[D], Data):
         return ResourceStatus.EMPTY
 
     @cache
-    def get_dataframe(self) -> Union[DimcatResource[D], D]:
+    def get_dataframe(self) -> Union[D]:
         """
         Load the dataframe from disk based on the descriptor's normpath.
 
@@ -837,7 +1075,7 @@ class DimcatResource(Generic[D], Data):
             self._status = ResourceStatus.PACKAGED_LOADED
         return df
 
-    def get_descriptor_path(self, only_if_exists=True) -> Optional[str]:
+    def get_descriptor_path(self, only_if_exists: bool = True) -> Optional[str]:
         """Returns the full path to the existing or future descriptor file."""
         if self.basepath is None and only_if_exists:
             return
@@ -848,7 +1086,7 @@ class DimcatResource(Generic[D], Data):
             return
         return descriptor_path
 
-    def get_descriptor_filepath(self, create_if_necessary=False) -> str:
+    def get_descriptor_filepath(self, create_if_necessary: bool = False) -> str:
         """Like :attr:`descriptor_filepath` but default to :attr:`filepath` or, if None, to :attr:`innerpath`.
         If ``create_if_necessary=True``, the descriptor will be created in :attr:`basedir` if missing.
         """
@@ -867,21 +1105,26 @@ class DimcatResource(Generic[D], Data):
             _ = self._store_descriptor()
         return descriptor_filepath
 
-    def get_filepath(self):
+    def get_filepath(self) -> str:
         """Returns the relative path to the data (:attr:`filepath`) if specified, :attr:`innerpath` otherwise."""
         if self.filepath is None:
             return self.innerpath
         return self.filepath
 
-    def load(self, force_reload: bool = False):
-        """Tries to load the data from disk into RAM. If successful, the .is_loaded property will be True."""
+    def get_index(self) -> DimcatIndex:
+        return DimcatIndex.from_resource(self)
+
+    def load(self, force_reload: bool = False) -> None:
+        """Tries to load the data from disk into RAM. If successful, the .is_loaded property will be True.
+        If the resource hadn't been loaded before, its .status property will be updated.
+        """
         if not self.is_loaded or force_reload:
             _ = self.df
 
     def store_dataframe(
         self,
         validate: bool = True,
-    ):
+    ) -> None:
         """Stores the dataframe and its descriptor to disk based on the resource's configuration.
 
         Raises:
@@ -916,6 +1159,9 @@ class DimcatResource(Generic[D], Data):
     def _store_descriptor(self, overwrite=True) -> str:
         """Stores the descriptor to disk based on the resource's configuration and returns its path.
         Does not modify the resource's :attr:`status`.
+
+        Returns:
+            The path to the descriptor file on disk.
         """
         if self.descriptor_filepath is None:
             self.descriptor_filepath = self.get_descriptor_filepath(
@@ -966,6 +1212,9 @@ class DimcatResource(Generic[D], Data):
                 self._status = ResourceStatus.DATAFRAME
             raise fl.FrictionlessException("\n".join(errors))
         return report
+
+
+# endregion DimcatResource
 
 
 @cache

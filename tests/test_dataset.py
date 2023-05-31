@@ -10,7 +10,12 @@ from dimcat.dataset.processed import (
     GroupedAnalyzedDataset,
     GroupedDataset,
 )
-from dimcat.resources.base import DimcatResource, ResourceStatus, get_default_basepath
+from dimcat.resources.base import (
+    DimcatIndex,
+    DimcatResource,
+    ResourceStatus,
+    get_default_basepath,
+)
 
 from tests.conftest import CORPUS_PATH
 
@@ -32,7 +37,11 @@ def dataframe_from_tsv(fl_resource):
 @pytest.fixture()
 def tmp_serialization_path(request, tmp_path_factory):
     """Returns the path to the directory where serialized resources are stored."""
-    return str(tmp_path_factory.mktemp(request.cls.__name__))
+    if request.cls is None:
+        name = request.function.__name__
+    else:
+        name = request.cls.__name__
+    return str(tmp_path_factory.mktemp(name))
 
 
 # endregion helper fixtures
@@ -568,3 +577,27 @@ def test_processed_dataset(package_path):
     assert isinstance(ag_dataset, GroupedDataset)
     assert isinstance(ag_dataset, AnalyzedDataset)
     assert ag_dataset.inputs == dataset.inputs
+
+
+@pytest.fixture(
+    params=[
+        "resource_from_descriptor",
+        "resource_from_fl_resource",
+        "resource_from_dataframe",
+    ]
+)
+def resource_object(
+    request,
+    resource_from_descriptor,
+    resource_from_fl_resource,
+    resource_from_dataframe,
+):
+    yield request.getfixturevalue(request.param)
+
+
+def test_index_from_resource(resource_object):
+    was_loaded_before = resource_object.is_loaded
+    idx = DimcatIndex.from_resource(resource_object)
+    print(idx)
+    assert len(idx) > 0
+    assert resource_object.is_loaded == was_loaded_before
