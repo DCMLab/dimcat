@@ -249,6 +249,32 @@ class DimcatObject(ABC):
         return f"{__name__}.{self.name}"
 
 
+class ObjectEnum(str, Enum):
+    def get_class(self) -> Type[DimcatObject]:
+        return get_class(self.name)
+
+    @classmethod
+    def _missing_(cls, value) -> Self:
+        value_lower = value.lower()
+        lc_values = {member.value.lower(): member for member in cls}
+        if value_lower in lc_values:
+            return lc_values[value_lower]
+        for lc_value, member in lc_values.items():
+            if lc_value.startswith(value_lower):
+                return member
+        raise ValueError(f"ValueError: {value!r} is not a valid {cls.__name__}.")
+
+    def __eq__(self, other) -> bool:
+        if self.value == other:
+            return True
+        if isinstance(other, str):
+            return other.lower() == self.value.lower()
+        return False
+
+    def __hash__(self):
+        return hash(self.value)
+
+
 class DimcatConfig(MutableMapping, DimcatObject):
     """Behaves like a dictionary but accepts only keys and values that are valid under the Schema of the DimcatObject
     specified under the key 'dtype'. Every DimcatConfig needs to have a 'dtype' key that is the name of a DimcatObject

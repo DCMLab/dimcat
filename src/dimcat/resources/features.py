@@ -2,46 +2,21 @@ from __future__ import annotations
 
 import logging
 from enum import Enum
-from typing import Optional, Type
+from typing import Optional
 
 import frictionless as fl
 import marshmallow as mm
-from dimcat import get_class
+from dimcat.base import ObjectEnum
 from dimcat.resources.base import DimcatResource
-from typing_extensions import Self
 
 logger = logging.getLogger(__name__)
 
 
-class FeatureName(str, Enum):
+class FeatureName(ObjectEnum):
     Notes = "Notes"
     Annotations = "Annotations"
     KeyAnnotations = "KeyAnnotations"
     Metadata = "Metadata"
-
-    def get_class(self) -> Type[Feature]:
-        return get_class(self.name)
-
-    @classmethod
-    def _missing_(cls, value) -> Self:
-        value_lower = value.lower()
-        lc_values = {member.value.lower(): member for member in cls}
-        if value_lower in lc_values:
-            return lc_values[value_lower]
-        for lc_value, member in lc_values.items():
-            if lc_value.startswith(value_lower):
-                return member
-        raise ValueError(f"ValueError: {value!r} is not a valid FeatureName.")
-
-    def __eq__(self, other) -> bool:
-        if self.value == other:
-            return True
-        if isinstance(other, str):
-            return other.lower() == self.value.lower()
-        return False
-
-    def __hash__(self):
-        return hash(self.value)
 
 
 class Feature(DimcatResource):

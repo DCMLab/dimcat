@@ -37,7 +37,7 @@ from frictionless.settings import NAME_PATTERN as FRICTIONLESS_NAME_PATTERN
 from typing_extensions import Self
 
 if TYPE_CHECKING:
-    from dimcat.analyzers.base import Result
+    from dimcat.resources.results import Result
 
 logger = logging.getLogger(__name__)
 

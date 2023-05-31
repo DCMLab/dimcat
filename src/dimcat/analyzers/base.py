@@ -10,7 +10,6 @@ from typing import (
     Iterable,
     List,
     MutableMapping,
-    Optional,
     Tuple,
     Type,
     TypeAlias,
@@ -19,14 +18,12 @@ from typing import (
 )
 
 import marshmallow as mm
-import plotly.express as px
-import plotly.graph_objs as go
-from dimcat.base import DimcatConfig, DimcatObject, PipelineStep, get_class
+from dimcat.base import DimcatConfig, DimcatObject, ObjectEnum, PipelineStep
 from dimcat.dataset import Dataset
 from dimcat.dataset.processed import AnalyzedDataset
-from dimcat.resources.base import DimcatResource, SomeSeries
+from dimcat.resources.base import SomeSeries
 from dimcat.resources.features import Feature, FeatureName
-from typing_extensions import Self
+from dimcat.resources.results import Result, ResultName
 
 logger = logging.getLogger(__name__)
 
@@ -35,72 +32,11 @@ R = TypeVar("R")
 FeatureSpecs: TypeAlias = Union[MutableMapping, Feature, FeatureName, str]
 
 
-class AnalyzerName(str, Enum):
+class AnalyzerName(ObjectEnum):
     """Identifies the available analyzers."""
 
     Analyzer = "Analyzer"
     Counter = "Counter"
-
-    def get_class(self) -> Type[Feature]:
-        return get_class(self.name)
-
-    @classmethod
-    def _missing_(cls, value) -> Self:
-        value_lower = value.lower()
-        lc_values = {member.value.lower(): member for member in cls}
-        if value_lower in lc_values:
-            return lc_values[value_lower]
-        for lc_value, member in lc_values.items():
-            if lc_value.startswith(value_lower):
-                return member
-        raise ValueError(f"ValueError: {value!r} is not a valid AnalyzerName.")
-
-    def __eq__(self, other) -> bool:
-        if self.value == other:
-            return True
-        if isinstance(other, str):
-            return other.lower() == self.value.lower()
-        return False
-
-    def __hash__(self):
-        return hash(self.value)
-
-
-class ResultName(str, Enum):
-    """Identifies the available analyzers."""
-
-    Result = "Result"
-
-
-class Result(DimcatResource):
-    _enum_type = ResultName
-
-    def plot(self, layout: Optional[dict] = None, **kwargs) -> go.Figure:
-        """
-
-        Args:
-            layout: Keyword arguments passed to fig.update_layout()
-            **kwargs: Keyword arguments passed to the Plotly plotting function.
-
-        Returns:
-            A Plotly Figure object.
-        """
-        df = self.df.reset_index()
-        fig = px.bar(
-            df,
-            x=df.columns[-2],
-            y=df.columns[-1],
-            hover_data=["corpus", "fname"],
-            labels=dict(index="piece"),
-            **kwargs,
-        )
-        figure_layout = dict(
-            xaxis_type="category",  # prevent Plotly from interpreting values as dates
-        )
-        if layout is not None:
-            figure_layout.update(layout)
-        fig.update_layout(figure_layout)
-        return fig
 
 
 class DispatchStrategy(str, Enum):
@@ -126,6 +62,7 @@ class Analyzer(PipelineStep):
 
     _enum_type: ClassVar[Type[Enum]] = AnalyzerName
     _result_type: ResultName = ResultName.Result
+    """The enum member corresponding to the Result class that this Analyzer produces."""
 
     assert_all: ClassVar[Tuple[str]] = tuple()
     """Each of these :obj:`PipelineSteps <.PipelineStep>` needs to be matched by at least one PipelineStep previously
@@ -178,6 +115,11 @@ class Analyzer(PipelineStep):
         self._orientation: Orientation = None
         self.orientation = orientation
         self.fill_na: Any = fill_na
+
+    @classmethod
+    @property
+    def result_class(cls) -> Type[Result]:
+        return cls._result_type.get_class()
 
     @property
     def features(self) -> List[DimcatConfig]:
@@ -269,7 +211,7 @@ class Analyzer(PipelineStep):
         if self.strategy == DispatchStrategy.GROUPBY_APPLY:
             stacked_feature = self.pre_process(dataset.load_feature(self.features[0]))
             results = self.groupby_apply(stacked_feature)
-            return Result.from_dataframe(
+            return self.result_class.from_dataframe(
                 df=results, resource_name=f"{self.name.lower()}_result"
             )
         raise ValueError(f"Unknown dispatch strategy '{self.strategy!r}'")
