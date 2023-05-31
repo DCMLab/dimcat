@@ -74,6 +74,41 @@ class DimcatPackage(Data):
     * ``basepath`` (:obj:`str`) - The basepath where the package and its .json descriptor are stored.
     """
 
+    @classmethod
+    def from_package(
+        cls,
+        package: DimcatPackage,
+        package_name: Optional[str] = None,
+        basepath: Optional[str] = None,
+        auto_validate: bool = False,
+    ) -> Self:
+        """Create a new DimcatPackage from an existing DimcatPackage.
+
+        Args:
+            package:
+            package_name:
+            basepath:
+            auto_validate:
+
+        """
+        if not isinstance(package, DimcatPackage):
+            raise TypeError(f"Expected a DimcatPackage, got {type(package)!r}")
+        fl_package = package._package
+        if package_name is None:
+            package_name = fl_package.name
+        else:
+            fl_package.name = package_name
+        if basepath is not None:
+            fl_package.basepath = basepath
+        new_package = cls(package_name=package_name, auto_validate=auto_validate)
+        new_package._package = fl_package
+        if package._descriptor_filepath is not None:
+            new_package._descriptor_filepath = package._descriptor_filepath
+        for resource in package._resources:
+            new_package._resources.append(resource.copy())
+        new_package._status = package._status
+        return new_package
+
     class Schema(Data.Schema):
         package = mm.fields.Method(
             serialize="get_package_descriptor", deserialize="raw"
@@ -191,40 +226,18 @@ class DimcatPackage(Data):
         if auto_validate:
             self.validate(raise_exception=True)
 
-    @classmethod
-    def from_package(
-        cls,
-        package: DimcatPackage,
-        package_name: Optional[str] = None,
-        basepath: Optional[str] = None,
-        auto_validate: bool = False,
-    ) -> Self:
-        """Create a new DimcatPackage from an existing DimcatPackage.
+    def __iter__(self) -> Iterator[DimcatResource]:
+        yield from self._resources
 
-        Args:
-            package:
-            package_name:
-            basepath:
-            auto_validate:
+    def __repr__(self):
+        values = self._package.to_descriptor()
+        values["basepath"] = self.basepath
+        return pformat(values, sort_dicts=False)
 
-        """
-        if not isinstance(package, DimcatPackage):
-            raise TypeError(f"Expected a DimcatPackage, got {type(package)!r}")
-        fl_package = package._package
-        if package_name is None:
-            package_name = fl_package.name
-        else:
-            fl_package.name = package_name
-        if basepath is not None:
-            fl_package.basepath = basepath
-        new_package = cls(package_name=package_name, auto_validate=auto_validate)
-        new_package._package = fl_package
-        if package._descriptor_filepath is not None:
-            new_package._descriptor_filepath = package._descriptor_filepath
-        for resource in package._resources:
-            new_package._resources.append(resource.copy())
-        new_package._status = package._status
-        return new_package
+    def __str__(self):
+        values = self._package.to_descriptor()
+        values["basepath"] = self.basepath
+        return pformat(values, sort_dicts=False)
 
     @property
     def basepath(self) -> str:
@@ -290,13 +303,6 @@ class DimcatPackage(Data):
     @property
     def status(self) -> PackageStatus:
         return self._status
-
-    # def __getattr__(self, key):
-    #     """Enables using DimcatPackage like the wrapped :obj:`frictionless.Package`."""
-    #     return getattr(self.df, key)
-    #
-    # def __setattr__(self, key, value):
-    #     return setattr(self.package, key, value)
 
     def add_resource(self, resource: DimcatResource) -> None:
         """Adds a resource to the package."""
@@ -476,19 +482,6 @@ class DimcatPackage(Data):
             raise fl.FrictionlessException("\n".join(errors))
         return report
 
-    def __repr__(self):
-        values = self._package.to_descriptor()
-        values["basepath"] = self.basepath
-        return pformat(values, sort_dicts=False)
-
-    def __str__(self):
-        values = self._package.to_descriptor()
-        values["basepath"] = self.basepath
-        return pformat(values, sort_dicts=False)
-
-    def __iter__(self) -> Iterator[DimcatResource]:
-        yield from self._resources
-
 
 PackageSpecs: TypeAlias = Union[DimcatPackage, fl.Package, str]
 
@@ -532,6 +525,15 @@ class DimcatCatalog(Data):
             self.basepath = basepath
         if packages is not None:
             self.packages = packages
+
+    def __iter__(self) -> Iterator[DimcatPackage]:
+        yield from self._packages
+
+    def __repr__(self):
+        return repr(self._packages)
+
+    def __str__(self):
+        return str(self._packages)
 
     @property
     def basepath(self) -> Optional[str]:
@@ -663,15 +665,6 @@ class DimcatCatalog(Data):
         for package in self._packages:
             package.basepath = basepath_arg
 
-    def __iter__(self) -> Iterator[DimcatPackage]:
-        yield from self._packages
-
-    def __str__(self):
-        return str(self._packages)
-
-    def __repr__(self):
-        return repr(self._packages)
-
 
 # endregion DimcatCatalog
 # region Dataset
@@ -679,6 +672,14 @@ class DimcatCatalog(Data):
 
 class Dataset(Data):
     """The central type of object that all :obj:`PipelineSteps <.PipelineStep>` process and return a copy of."""
+
+    @classmethod
+    def from_dataset(cls, dataset: Dataset, **kwargs):
+        """Instantiate from this Dataset by copying its fields, empty fields otherwise."""
+        new_dataset = cls(**kwargs)
+        new_dataset.inputs.extend(dataset.inputs)
+        new_dataset.outputs.extend(dataset.outputs)
+        return new_dataset
 
     class Schema(Data.Schema):
         """Dataset serialization schema."""
@@ -703,13 +704,11 @@ class Dataset(Data):
         self._inputs = DimcatCatalog()
         self._outputs = DimcatCatalog()
 
-    @classmethod
-    def from_dataset(cls, dataset: Dataset, **kwargs):
-        """Instantiate from this Dataset by copying its fields, empty fields otherwise."""
-        new_dataset = cls(**kwargs)
-        new_dataset.inputs.extend(dataset.inputs)
-        new_dataset.outputs.extend(dataset.outputs)
-        return new_dataset
+    def __repr__(self):
+        return repr(self.inputs)
+
+    def __str__(self):
+        return str(self.inputs)
 
     @property
     def inputs(self) -> DimcatCatalog:
@@ -784,12 +783,6 @@ class Dataset(Data):
         feature = self.get_feature(feature)
         feature.load()
         return feature
-
-    def __str__(self):
-        return str(self.inputs)
-
-    def __repr__(self):
-        return repr(self.inputs)
 
 
 # endregion Dataset

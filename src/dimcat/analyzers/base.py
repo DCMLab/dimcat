@@ -76,6 +76,68 @@ class Analyzer(PipelineStep):
     """:meth:`process_data` raises ValueError if any of the previous :obj:`PipelineStep` applied to the
     :obj:`.Dataset` matches one of these types."""
 
+    @staticmethod
+    def aggregate(result_a: R, result_b: R) -> R:
+        """Static method that combines two results of :meth:`compute`.
+
+        This needs to be equivalent to calling self.compute on the concatenation of the respective data resulting
+        in the two arguments."""
+        pass
+
+    @staticmethod
+    def compute(feature: Feature, **kwargs) -> Any:
+        """Static method that performs the actual computation."""
+        return feature
+
+    @classmethod
+    def _check_asserted_pipeline_steps(cls, dataset: Dataset):
+        """Returns None if the check passes.
+
+        Raises:
+            ValueError: If one of the asserted PipelineSteps has not previously been applied to the Dataset.
+        """
+        if len(cls.assert_all) == 0:
+            return True
+        assert_steps = typestrings2types(cls.assert_all)
+        missing = []
+        for step in assert_steps:
+            if not any(
+                isinstance(previous_step, step)
+                for previous_step in dataset.pipeline_steps
+            ):
+                missing.append(step)
+        if len(missing) > 0:
+            missing_names = ", ".join(m.__name__ for m in missing)
+            raise ValueError(
+                f"Applying a {cls.name} requires previous application of: {missing_names}."
+            )
+
+    @classmethod
+    def _check_excluded_pipeline_steps(cls, dataset: Dataset):
+        """Returns None if the check passes.
+
+        Raises:
+            ValueError: If any of the PipelineSteps applied to the Dataset matches one of the ones excluded.
+        """
+        if len(cls.excluded_steps) == 0:
+            return
+        excluded_steps = typestrings2types(cls.excluded_steps)
+        excluded = []
+        for step in excluded_steps:
+            if any(
+                isinstance(previous_step, step)
+                for previous_step in dataset.pipeline_steps
+            ):
+                excluded.append(step)
+        if len(excluded) > 0:
+            excluded_names = ", ".join(e.__name__ for e in excluded)
+            raise ValueError(f"{cls.name} cannot be applied after {excluded_names}.")
+
+    @classmethod
+    @property
+    def result_class(cls) -> Type[Result]:
+        return cls._result_type.get_class()
+
     class Schema(PipelineStep.Schema):
         features = mm.fields.List(
             mm.fields.Nested(DimcatConfig.Schema),
@@ -115,11 +177,6 @@ class Analyzer(PipelineStep):
         self._orientation: Orientation = None
         self.orientation = orientation
         self.fill_na: Any = fill_na
-
-    @classmethod
-    @property
-    def result_class(cls) -> Type[Result]:
-        return cls._result_type.get_class()
 
     @property
     def features(self) -> List[DimcatConfig]:
@@ -183,27 +240,6 @@ class Analyzer(PipelineStep):
             orientation = Orientation(orientation)
         self._orientation = orientation
 
-    @staticmethod
-    def aggregate(result_a: R, result_b: R) -> R:
-        """Static method that combines two results of :meth:`compute`.
-
-        This needs to be equivalent to calling self.compute on the concatenation of the respective data resulting
-        in the two arguments."""
-        pass
-
-    @staticmethod
-    def compute(feature: Feature, **kwargs) -> Any:
-        """Static method that performs the actual computation."""
-        return feature
-
-    def groupby_apply(self, feature: Feature, groupby: SomeSeries = None, **kwargs):
-        """Static method that performs the computation on a groupby. The value of ``groupby`` needs to be
-        a Series of the same length as ``feature`` or otherwise work as positional argument to feature.groupby().
-        """
-        if groupby is None:
-            return feature.groupby(level=[0, 1]).apply(self.compute, **self.to_dict())
-        return feature.groupby(groupby).apply(self.compute, **self.to_dict())
-
     def dispatch(self, dataset: Dataset) -> Result:
         """The logic how and to what the compute method is applied, based on the config and the Dataset."""
         if self.strategy == DispatchStrategy.ITER_STACK:  # more cases to follow
@@ -216,49 +252,13 @@ class Analyzer(PipelineStep):
             )
         raise ValueError(f"Unknown dispatch strategy '{self.strategy!r}'")
 
-    @classmethod
-    def _check_asserted_pipeline_steps(cls, dataset: Dataset):
-        """Returns None if the check passes.
-
-        Raises:
-            ValueError: If one of the asserted PipelineSteps has not previously been applied to the Dataset.
+    def groupby_apply(self, feature: Feature, groupby: SomeSeries = None, **kwargs):
+        """Static method that performs the computation on a groupby. The value of ``groupby`` needs to be
+        a Series of the same length as ``feature`` or otherwise work as positional argument to feature.groupby().
         """
-        if len(cls.assert_all) == 0:
-            return True
-        assert_steps = typestrings2types(cls.assert_all)
-        missing = []
-        for step in assert_steps:
-            if not any(
-                isinstance(previous_step, step)
-                for previous_step in dataset.pipeline_steps
-            ):
-                missing.append(step)
-        if len(missing) > 0:
-            missing_names = ", ".join(m.__name__ for m in missing)
-            raise ValueError(
-                f"Applying a {cls.name} requires previous application of: {missing_names}."
-            )
-
-    @classmethod
-    def _check_excluded_pipeline_steps(cls, dataset: Dataset):
-        """Returns None if the check passes.
-
-        Raises:
-            ValueError: If any of the PipelineSteps applied to the Dataset matches one of the ones excluded.
-        """
-        if len(cls.excluded_steps) == 0:
-            return
-        excluded_steps = typestrings2types(cls.excluded_steps)
-        excluded = []
-        for step in excluded_steps:
-            if any(
-                isinstance(previous_step, step)
-                for previous_step in dataset.pipeline_steps
-            ):
-                excluded.append(step)
-        if len(excluded) > 0:
-            excluded_names = ", ".join(e.__name__ for e in excluded)
-            raise ValueError(f"{cls.name} cannot be applied after {excluded_names}.")
+        if groupby is None:
+            return feature.groupby(level=[0, 1]).apply(self.compute, **self.to_dict())
+        return feature.groupby(groupby).apply(self.compute, **self.to_dict())
 
     def process(self, dataset: Dataset) -> AnalyzedDataset:
         """Returns an :obj:`AnalyzedData` copy of the Dataset with the added analysis result."""

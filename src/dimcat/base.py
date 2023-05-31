@@ -63,6 +63,12 @@ class DimcatSchema(mm.Schema):
     property that returns its name as a string (or en Enum member that can function as a string). It is inherited by
     all objects' schemas and enables their deserialization from a DimcatConfig."""
 
+    @classmethod
+    @property
+    def name(cls) -> str:
+        """Qualified name of the schema, meaning it includes the name of the class that it is nested in."""
+        return cls.__qualname__
+
     class Meta:
         ordered = True
 
@@ -73,12 +79,6 @@ class DimcatSchema(mm.Schema):
             # the key 'dtype' but, when serializing, it is the property 'dtype' that is relevant
             return obj.dtype
         return super().get_attribute(obj, attr, default)
-
-    @classmethod
-    @property
-    def name(cls) -> str:
-        """Qualified name of the schema, meaning it includes the name of the class that it is nested in."""
-        return cls.__qualname__
 
     @mm.post_load()
     def init_object(self, data, **kwargs) -> DimcatObject:
@@ -131,38 +131,6 @@ class DimcatObject(ABC):
     _registry: ClassVar[Dict[str, Type[DimcatObject]]] = {}
     """Registry of all subclasses (but not their corresponding Schema classes)."""
 
-    class Schema(DimcatSchema):
-        pass
-
-    def __init__(self):
-        super().__init__()
-
-    def __init_subclass__(cls, **kwargs):
-        """Registers every subclass under the class variable :attr:`_registry`"""
-        super().__init_subclass__(**kwargs)
-        if CONTROL_REGISTRY and cls.name in cls._registry:
-            raise RuntimeError(
-                f"A class named {cls.name!r} had already been registered. Choose a different name."
-            )
-        cls._registry[cls.name] = cls
-
-    def __eq__(self, other):
-        if not isinstance(other, DimcatObject):
-            return False
-        if other.name != self.name:
-            return False
-        return other.to_dict() == self.to_dict()
-
-    @classmethod
-    @property
-    def name(cls) -> str:
-        return cls.__name__
-
-    @classmethod
-    @property
-    def logger(cls) -> logging.Logger:
-        return logging.getLogger(f"{cls.__module__}.{cls.__qualname__}")
-
     @classmethod
     @property
     def dtype(cls) -> str | Enum:
@@ -171,44 +139,21 @@ class DimcatObject(ABC):
             return cls.name
         return cls._enum_type(cls.name)
 
-    def filename_factory(self):
-        return self.name
+    @classmethod
+    @property
+    def logger(cls) -> logging.Logger:
+        return logging.getLogger(f"{cls.__module__}.{cls.__qualname__}")
+
+    @classmethod
+    @property
+    def name(cls) -> str:
+        return cls.__name__
 
     @classmethod
     @property
     def schema(cls):
         """Returns the (instantiated) DimcatSchema singleton object for this class."""
         return get_schema(cls.name)
-
-    def to_dict(self) -> dict:
-        return self.schema.dump(self)
-
-    def to_config(self) -> DimcatConfig:
-        return DimcatConfig(self.to_dict())
-
-    def to_options(self):
-        D = self.to_dict()
-        del D["dtype"]
-        return D
-
-    def to_json(self) -> str:
-        return self.schema.dumps(self)
-
-    def to_json_file(self, filepath: str, indent: int = 2, **kwargs):
-        """Serialize object to file.
-
-        Args:
-            filepath: Path to the text file to (over)write.
-            indent: Prettify the JSON layout. Default indentation: 2 spaces
-            **kwargs: Keyword arguments passed to :meth:`json.dumps`.
-
-        Returns:
-
-        """
-        as_dict = self.to_dict()
-        as_dict.update(**kwargs)
-        with open(filepath, "w", encoding="utf-8") as f:
-            json.dump(as_dict, f, indent=indent, **kwargs)
 
     @classmethod
     def from_dict(cls, options, **kwargs) -> Self:
@@ -242,17 +187,69 @@ class DimcatObject(ABC):
             json_data = f.read()
         return cls.from_json(json_data)
 
+    class Schema(DimcatSchema):
+        pass
+
+    def __init__(self):
+        super().__init__()
+
+    def __init_subclass__(cls, **kwargs):
+        """Registers every subclass under the class variable :attr:`_registry`"""
+        super().__init_subclass__(**kwargs)
+        if CONTROL_REGISTRY and cls.name in cls._registry:
+            raise RuntimeError(
+                f"A class named {cls.name!r} had already been registered. Choose a different name."
+            )
+        cls._registry[cls.name] = cls
+
+    def __eq__(self, other):
+        if not isinstance(other, DimcatObject):
+            return False
+        if other.name != self.name:
+            return False
+        return other.to_dict() == self.to_dict()
+
     def __repr__(self):
         return f"{pformat(self.to_dict(), sort_dicts=False)}"
 
     def __str__(self):
         return f"{__name__}.{self.name}"
 
+    def filename_factory(self):
+        return self.name
+
+    def to_dict(self) -> dict:
+        return self.schema.dump(self)
+
+    def to_config(self) -> DimcatConfig:
+        return DimcatConfig(self.to_dict())
+
+    def to_options(self):
+        D = self.to_dict()
+        del D["dtype"]
+        return D
+
+    def to_json(self) -> str:
+        return self.schema.dumps(self)
+
+    def to_json_file(self, filepath: str, indent: int = 2, **kwargs):
+        """Serialize object to file.
+
+        Args:
+            filepath: Path to the text file to (over)write.
+            indent: Prettify the JSON layout. Default indentation: 2 spaces
+            **kwargs: Keyword arguments passed to :meth:`json.dumps`.
+
+        Returns:
+
+        """
+        as_dict = self.to_dict()
+        as_dict.update(**kwargs)
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(as_dict, f, indent=indent, **kwargs)
+
 
 class ObjectEnum(str, Enum):
-    def get_class(self) -> Type[DimcatObject]:
-        return get_class(self.name)
-
     @classmethod
     def _missing_(cls, value) -> Self:
         value_lower = value.lower()
@@ -273,6 +270,9 @@ class ObjectEnum(str, Enum):
 
     def __hash__(self):
         return hash(self.value)
+
+    def get_class(self) -> Type[DimcatObject]:
+        return get_class(self.name)
 
 
 class DimcatConfig(MutableMapping, DimcatObject):
@@ -397,6 +397,72 @@ class DimcatConfig(MutableMapping, DimcatObject):
                 f"\n{report}"
             )
 
+    def __delitem__(self, key):
+        if key == "dtype":
+            raise ValueError("Cannot remove key 'dtype' from DimcatConfig.")
+        del self._options[key]
+
+    def __eq__(self, other: DimcatObject | MutableMapping) -> bool:
+        """The comparison with another DimcatConfig or dict-like returns True if both describe the same object or if
+        one describes the other. That is,
+        - both describe the same object, i.e. key 'dtype' is the same and any other options are identical, or
+        - this DimcatConfig describes the other object, or
+        - the other object describes this DimcatConfig.
+        """
+        if isinstance(other, DimcatConfig):
+            other = other.options
+        elif isinstance(other, DimcatObject):
+            if other.name != self.options_dtype:
+                return False
+            return other.to_dict() == self._options
+
+        if not isinstance(other, MutableMapping):
+            raise TypeError(
+                f"{self.name} can only be compared against dict-like, not {type(other)}."
+            )
+        if "dtype" not in other:
+            return False
+        self_describes_config, other_describes_config = (
+            self["dtype"] == "DimcatConfig",
+            other["dtype"] == "DimcatConfig",
+        )
+        if self_describes_config == other_describes_config:
+            return self.options == other
+        # exactly one of the two described a DimcatConfig, hance we check if one is a serialized version of the other
+        a, b = (self, other) if self_describes_config else (other, self)
+        return self["options"] == other
+
+    def __getitem__(self, key):
+        return self._options[key]
+
+    def __iter__(self):
+        return iter(self._options)
+
+    def __len__(self):
+        return len(self._options)
+
+    def __repr__(self):
+        return f"{self.name}({pformat(self._options, sort_dicts=False)})"
+
+    def __setitem__(self, key, value):
+        if key == "dtype" and value != self._options["dtype"]:
+            tmp_schema = get_schema(value)
+            tmp_dict = dict(self._options, dtype=value)
+            report = tmp_schema.validate(tmp_dict)
+            if report:
+                msg = (
+                    f"Cannot change the value for 'dtype' because its {tmp_schema.name} does not "
+                    f"validate the options:\n{report}"
+                )
+                raise ValidationError(msg)
+        else:
+            dict_to_validate = {key: value}
+            report = self.options_schema.validate(dict_to_validate, partial=True)
+            if report:
+                msg = f"{self.options_schema.name}: Cannot set {key!r} to {value!r}:\n{report}"
+                raise ValidationError(msg)
+        self._options[key] = value
+
     @property
     def options_dtype(self):
         return self._options["dtype"]
@@ -429,72 +495,6 @@ class DimcatConfig(MutableMapping, DimcatObject):
     def validate(self, partial=False) -> Dict[str, List[str]]:
         """Validates the current status of the config in terms of ability to create an object. Empty dict == valid."""
         return self.options_schema.validate(self._options, many=False, partial=partial)
-
-    def __getitem__(self, key):
-        return self._options[key]
-
-    def __delitem__(self, key):
-        if key == "dtype":
-            raise ValueError("Cannot remove key 'dtype' from DimcatConfig.")
-        del self._options[key]
-
-    def __setitem__(self, key, value):
-        if key == "dtype" and value != self._options["dtype"]:
-            tmp_schema = get_schema(value)
-            tmp_dict = dict(self._options, dtype=value)
-            report = tmp_schema.validate(tmp_dict)
-            if report:
-                msg = (
-                    f"Cannot change the value for 'dtype' because its {tmp_schema.name} does not "
-                    f"validate the options:\n{report}"
-                )
-                raise ValidationError(msg)
-        else:
-            dict_to_validate = {key: value}
-            report = self.options_schema.validate(dict_to_validate, partial=True)
-            if report:
-                msg = f"{self.options_schema.name}: Cannot set {key!r} to {value!r}:\n{report}"
-                raise ValidationError(msg)
-        self._options[key] = value
-
-    def __iter__(self):
-        return iter(self._options)
-
-    def __len__(self):
-        return len(self._options)
-
-    def __repr__(self):
-        return f"{self.name}({pformat(self._options, sort_dicts=False)})"
-
-    def __eq__(self, other: DimcatObject | MutableMapping) -> bool:
-        """The comparison with another DimcatConfig or dict-like returns True if both describe the same object or if
-        one describes the other. That is,
-        - both describe the same object, i.e. key 'dtype' is the same and any other options are identical, or
-        - this DimcatConfig describes the other object, or
-        - the other object describes this DimcatConfig.
-        """
-        if isinstance(other, DimcatConfig):
-            other = other.options
-        elif isinstance(other, DimcatObject):
-            if other.name != self.options_dtype:
-                return False
-            return other.to_dict() == self._options
-
-        if not isinstance(other, MutableMapping):
-            raise TypeError(
-                f"{self.name} can only be compared against dict-like, not {type(other)}."
-            )
-        if "dtype" not in other:
-            return False
-        self_describes_config, other_describes_config = (
-            self["dtype"] == "DimcatConfig",
-            other["dtype"] == "DimcatConfig",
-        )
-        if self_describes_config == other_describes_config:
-            return self.options == other
-        # exactly one of the two described a DimcatConfig, hance we check if one is a serialized version of the other
-        a, b = (self, other) if self_describes_config else (other, self)
-        return self["options"] == other
 
 
 class Data(DimcatObject):

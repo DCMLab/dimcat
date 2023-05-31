@@ -112,6 +112,28 @@ Code Contributions
    main concepts will make it easy for potential contributors to get started
    quickly.
 
+Coding Conventions
+------------------
+
+Method ordering:
+
+* class members
+
+  * class variables
+  * `@staticmethod`
+  * `@classmethod
+     @property`
+  * `@classmethod`
+  * nested classes (esp. `Schema()`)
+
+* instance members
+
+  * `__init__()`
+  * magic methods
+  * `@property` and setters
+  * public and private methods
+
+
 Submit an issue
 ---------------
 
