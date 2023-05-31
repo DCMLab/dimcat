@@ -281,15 +281,14 @@ class DimcatPackage(Data):
 
     @package_name.setter
     def package_name(self, package_name: str) -> None:
-        name_lower = package_name.lower()
-        if not re.match(FRICTIONLESS_NAME_PATTERN, name_lower):
+        if not re.match(FRICTIONLESS_NAME_PATTERN, package_name):
             raise ValueError(
-                f"Name must be lowercase and work as filename: {name_lower!r}"
+                f"Name can only contain [a-z], [0-9], [-._/], and no spaces: {package_name!r}"
             )
-        self._package.name = name_lower
+        self._package.name = package_name
         if self._descriptor_filepath is not None:
             self._descriptor_filepath = os.path.join(
-                self.basepath, name_lower + ".datapackage.json"
+                self.basepath, package_name + ".datapackage.json"
             )
 
     @property

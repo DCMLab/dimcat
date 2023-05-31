@@ -127,12 +127,13 @@ def make_tsv_resource(name: Optional[str] = None) -> fl.Resource:
     return resource
 
 
-def fl_fields2pandas_params(fields: List[fl.Field]) -> Tuple[dict, dict]:
-    """Convert frictionless Fields to pandas parameters 'dtype' and 'converters'."""
+def fl_fields2pandas_params(fields: List[fl.Field]) -> Tuple[dict, dict, list]:
+    """Convert frictionless Fields to pd.read_csv() parameters 'dtype', 'converters' and 'parse_dates'."""
     dtype = {}
     converters = {}
+    parse_dates = []
     for field in fields:
-        if not field.type:
+        if not field.type or field.type == "any":
             continue
         if field.type == "string":
             dtype[field.name] = "string"
@@ -145,6 +146,8 @@ def fl_fields2pandas_params(fields: List[fl.Field]) -> Tuple[dict, dict]:
             dtype[field.name] = float
         elif field.type == "boolean":
             dtype[field.name] = bool
+        elif field.type == "date":
+            parse_dates.append(field.name)
         # missing (see https://specs.frictionlessdata.io/table-schema)
         # - object (i.e. JSON/ a dict)
         # - array (i.e. JSON/ a list)
@@ -158,7 +161,7 @@ def fl_fields2pandas_params(fields: List[fl.Field]) -> Tuple[dict, dict]:
         # - geojson (i.e. a GeoJSON object)
         else:
             raise ValueError(f"Unknown frictionless field type {field.type!r}.")
-    return dtype, converters
+    return dtype, converters, parse_dates
 
 
 def infer_piece_col_position(
@@ -175,6 +178,20 @@ def infer_piece_col_position(
 
 
 def get_existing_normpath(fl_resource) -> str:
+    """Get the normpath of a frictionless resource, raising an exception if it does not exist.
+
+    Args:
+        fl_resource:
+            The frictionless resource. If its basepath is not specified, the filepath is tried
+            relative to the current working directory.
+
+    Returns:
+        The absolute path of the frictionless resource.
+
+    Raises:
+        FileNotFoundError: If the normpath does not exist.
+        ValueError: If the resource has no path or no column_schema.
+    """
     if fl_resource.normpath is None:
         if fl_resource.path is None:
             raise ValueError(f"Resource {fl_resource.name!r} has no path.")
@@ -194,6 +211,20 @@ def resolve_columns_argument(
     columns: Optional[int | str | List[int | str]],
     field_names: List[str],
 ) -> Optional[List[str]]:
+    """Resolve the columns argument of a load function to a list of column names.
+
+    Args:
+        columns:
+            A list of integer position and/or column names. Can be mixed but integers will always
+            be interpreted as positions.
+        field_names: List of column names to choose from.
+
+    Returns:
+        The resolved list of column names. None if ``columns`` is None.
+
+    Raises:
+        ValueError: If ``columns`` contains duplicate column names.
+    """
     if columns is None:
         return
     result = []
@@ -217,12 +248,38 @@ def load_fl_resource(
     index_col: Optional[int | str | List[int | str]] = None,
     usecols: Optional[Union[int, str, List[int | str]]] = None,
 ) -> SomeDataframe:
+    """Load a dataframe from a :obj:`frictionless.Resource`.
+
+    Args:
+        fl_resource: The resource whose normpath points to a file on the local file system.
+        index_col: Column(s) to be used as index levels, overriding the primary key specified in the resource's schema.
+        usecols: If only a subset of the specified fields is to be loaded, the names or positions of the subset.
+
+    Returns:
+        The loaded dataframe loaded with the dtypes resulting from converting the schema fields via
+        :func:`fl_fields2pandas_params`.
+    """
     normpath = get_existing_normpath(fl_resource)
     field_names = fl_resource.schema.field_names
     index_col_names = resolve_columns_argument(index_col, field_names)
     usecols_names = resolve_columns_argument(usecols, field_names)
+    if usecols_names is None:
+        usecols_names = field_names
+    if index_col_names is None:
+        if fl_resource.schema.primary_key:
+            index_col_names = fl_resource.schema.primary_key
+        else:
+            logger.warning(
+                f"Resource {fl_resource.name!r} has no primary key and no index_col was given. "
+                f"Dataframe will come with a RangeIndex."
+            )
+    if index_col_names is not None:
+        missing_col_names = [
+            col_name for col_name in index_col_names if col_name not in usecols_names
+        ]
+        usecols_names = missing_col_names + usecols_names
     usecols_fields = [fl_resource.schema.get_field(name) for name in usecols_names]
-    dtypes, converters = fl_fields2pandas_params(usecols_fields)
+    dtypes, converters, parse_dates = fl_fields2pandas_params(usecols_fields)
     if normpath.endswith(".zip"):
         if not fl_resource.innerpath:
             raise ValueError(
@@ -234,7 +291,12 @@ def load_fl_resource(
         file = normpath
     try:
         dataframe = pd.read_csv(
-            file, sep="\t", usecols=usecols_names, dtype=dtypes, converters=converters
+            file,
+            sep="\t",
+            usecols=usecols_names,
+            parse_dates=parse_dates,
+            dtype=dtypes,
+            converters=converters,
         )
     except Exception:
         logger.warning(
@@ -242,6 +304,7 @@ def load_fl_resource(
             f"pd.read_csv({file!r},\n"
             f"            sep='\\t',\n"
             f"            usecols={usecols_names!r},\n"
+            f"            parse_dates={parse_dates!r},\n"
             f"            dtype={dtypes!r},\n"
             f"            converters={converters!r})"
         )
@@ -279,16 +342,20 @@ def load_index_from_fl_resource(
     """
     _ = get_existing_normpath(fl_resource)  # raises if normpath doesn't exist
     schema = fl_resource.schema
+    right_most_column = None
     if recognized_piece_columns:
         recognized_piece_columns = tuple(recognized_piece_columns)
-        right_most_column = recognized_piece_columns[0]
-    else:
-        right_most_column = None
+        if len(recognized_piece_columns) > 0:
+            right_most_column = recognized_piece_columns[0]
     if index_col is not None:
         if isinstance(index_col, (int, str)):
             index_col = [index_col]
     elif schema.primary_key:
         index_col = schema.primary_key
+        logger.debug(
+            f"Loading index columns {index_col!r} from {fl_resource.name!r} based on the schema's "
+            f"primary key."
+        )
     elif right_most_column:
         logger.debug(
             f"Resource {fl_resource.name!r} has no primary key, trying to detect {right_most_column!r} column."
@@ -303,23 +370,17 @@ def load_index_from_fl_resource(
                 f"could be detected."
             )
         index_col = list(range(piece_col_position + 1))
+        logger.debug(
+            f"Loading index columns {index_col!r} from {fl_resource.name!r} based on the recognized "
+            f"piece column {schema.field_names[piece_col_position]!r}."
+        )
     else:
         raise ValueError(
             f"Resource {fl_resource.name!r} has no primary key and neither index_col nor recognized_piece_columns "
             f"were specified."
         )
-    dataframe = load_fl_resource(fl_resource, usecols=index_col)
-    if right_most_column not in dataframe.columns:
-        columns = dataframe.columns.to_list()
-        piece_col_position = infer_piece_col_position(
-            columns,
-            recognized_piece_columns=recognized_piece_columns,
-        )
-        if piece_col_position is not None:
-            dataframe = dataframe.rename(
-                columns={columns[piece_col_position]: right_most_column}
-            )
-    return dataframe.set_index(dataframe.columns.to_list()).index
+    dataframe = load_fl_resource(fl_resource, index_col=index_col, usecols=index_col)
+    return dataframe.index
 
 
 # endregion helper functions
@@ -336,6 +397,16 @@ class DimcatIndex(Generic[IX], Data):
     type of DimcatIndex is the PieceIndex which is a unique MultiIndex (that is, each tuple is unique) and where the
     last (i.e. right-most) level is named `piece`.
     """
+
+    @classmethod
+    def from_dataframe(cls, df: SomeDataframe) -> Self:
+        """Create a DimcatIndex from a dataframe."""
+        return cls.from_index(df.index)
+
+    @classmethod
+    def from_index(cls, index: SomeIndex) -> Self:
+        """Create a DimcatIndex from a dataframe index."""
+        return cls(index)
 
     @classmethod
     def from_resource(
@@ -366,9 +437,36 @@ class DimcatIndex(Generic[IX], Data):
         else:
             self._index = index.copy()
 
+    def __contains__(self, item):
+        if isinstance(item, tuple):
+            return item in set(self._index)
+        if isinstance(item, Iterable):
+            return set(item).issubset(set(self._index))
+        return False
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, Iterable):
+            print("YES")
+            return set(self) == set(other)
+        print("NO")
+        return False
+
     def __getattr__(self, item):
         """Enables using DimcatIndex just like the wrapped Index object."""
         return getattr(self._index, item)
+
+    def __getitem__(self, item):
+        """Enables using DimcatIndex just like the wrapped Index object."""
+        result = self._index[item]
+        if isinstance(result, pd.Index):
+            return self.__class__(result)
+        return result
+
+    def __hash__(self):
+        return hash(set(self._index))
+
+    def __iter__(self):
+        return iter(self._index)
 
     def __len__(self) -> int:
         return len(self._index)
@@ -383,11 +481,58 @@ class DimcatIndex(Generic[IX], Data):
     def index(self) -> IX:
         return self._index
 
+    @property
+    def names(self) -> List[str]:
+        return list(self._index.names)
 
-class PieceIndex(DimcatIndex):
+    @property
+    def piece_level_position(self) -> Optional[int]:
+        """The position of the `piece` level in the index, or None if the index has no `piece` level."""
+        return self.names.index("piece") if "piece" in self.names else None
+
+    def copy(self) -> Self:
+        return self.__class__(self._index.copy())
+
+
+class PieceIndex(DimcatIndex[IX]):
     """A unique DimcatIndex where the last (i.e. right-most) level is named `piece`."""
 
-    pass
+    @classmethod
+    def from_index(
+        cls,
+        index: DimcatIndex[IX] | IX,
+        max_levels: int = 2,
+        recognized_piece_columns: Optional[Iterable[str]] = (
+            "piece",
+            "pieces",
+            "fname",
+            "fnames",
+        ),
+    ) -> Self:
+        """Create a PieceIndex from another index."""
+        level_names = index.names
+        piece_level_position = infer_piece_col_position(
+            level_names, recognized_piece_columns=recognized_piece_columns
+        )
+        if level_names[piece_level_position] != "piece":
+            index.rename("piece", level=piece_level_position, inplace=True)
+        right_boundary = piece_level_position + 1
+        drop_levels = level_names[right_boundary:]
+        if piece_level_position >= max_levels:
+            drop_levels = level_names[: right_boundary - max_levels] + drop_levels
+        if len(drop_levels) > 0:
+            index = index.droplevel(drop_levels)
+        return cls(index.drop_duplicates())
+
+    @classmethod
+    def from_resource(
+        cls,
+        resource: DimcatResource | fl.Resource,
+        index_col: Optional[int | str | List[int | str]] = None,
+    ) -> Self:
+        """Create a PieceIndex from a frictionless Resource."""
+        index = DimcatIndex.from_resource(resource, index_col=index_col)
+        return cls.from_index(index)
 
 
 # endregion DimcatIndex
@@ -1035,13 +1180,12 @@ class DimcatResource(Generic[D], Data):
         return self._resource.name
 
     @resource_name.setter
-    def resource_name(self, name: str):
-        name_lower = name.lower()
-        if not re.match(FRICTIONLESS_NAME_PATTERN, name_lower):
+    def resource_name(self, resource_name: str):
+        if not re.match(FRICTIONLESS_NAME_PATTERN, resource_name):
             raise ValueError(
-                f"Name must be lowercase and work as filename: {name_lower!r}"
+                f"Name can only contain [a-z], [0-9], [-._/], and no spaces: {resource_name!r}"
             )
-        self._resource.name = name_lower
+        self._resource.name = resource_name
 
     @property
     def status(self) -> ResourceStatus:
@@ -1095,24 +1239,12 @@ class DimcatResource(Generic[D], Data):
         Returns:
             The dataframe or DimcatResource.
         """
-        r = self._resource
-        if self.normpath is None:
-            raise mm.ValidationError(
-                f"The resource does not refer to a file path and cannot be loaded.\n"
-                f"basepath: {self.basepath}, filepath: {self.filepath}"
-            )
-        if self.normpath.endswith(".zip") or r.compression == "zip":
-            zip_file_handler = ZipFile(self.normpath)
-            df = ms3.load_tsv(zip_file_handler.open(r.innerpath))
-        else:
-            df = ms3.load_tsv(self.normpath)
-        if len(r.schema.primary_key) > 0:
-            df = df.set_index(r.schema.primary_key)
+        dataframe = load_fl_resource(self._resource)
         if self.status == ResourceStatus.STANDALONE_NOT_LOADED:
             self._status = ResourceStatus.STANDALONE_LOADED
         elif self.status == ResourceStatus.PACKAGED_NOT_LOADED:
             self._status = ResourceStatus.PACKAGED_LOADED
-        return df
+        return dataframe
 
     def get_descriptor_path(self, only_if_exists: bool = True) -> Optional[str]:
         """Returns the full path to the existing or future descriptor file."""
