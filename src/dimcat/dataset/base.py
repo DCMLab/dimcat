@@ -19,7 +19,7 @@ import os
 import re
 from enum import IntEnum, auto
 from pprint import pformat
-from typing import TYPE_CHECKING, List, Optional, TypeAlias, Union
+from typing import TYPE_CHECKING, Iterable, Iterator, List, Optional, TypeAlias, Union
 
 import frictionless as fl
 import marshmallow as mm
@@ -49,6 +49,9 @@ def feature_argument2config(
         return feature
     feature_name = FeatureName(feature)
     return DimcatConfig(dtype=feature_name)
+
+
+# region DimcatPackage
 
 
 class PackageStatus(IntEnum):
@@ -326,6 +329,17 @@ class DimcatPackage(Data):
         """Returns a copy of the package."""
         return self.from_package(self)
 
+    def extend(self, resources: Iterable[DimcatResource]) -> None:
+        """Adds multiple resources to the package."""
+        status_before = self.status
+        for resource in resources:
+            self.add_resource(resource.copy())
+        status_after = self.status
+        if status_before == status_after:
+            self.logger.debug(
+                f"Status changed from {status_before!r} to {status_after!r}"
+            )
+
     def get_descriptor_path(self, only_if_exists=True) -> Optional[str]:
         """Returns the path to the descriptor file."""
         descriptor_path = os.path.join(self.basepath, self.descriptor_filepath)
@@ -472,8 +486,14 @@ class DimcatPackage(Data):
         values["basepath"] = self.basepath
         return pformat(values, sort_dicts=False)
 
+    def __iter__(self) -> Iterator[DimcatResource]:
+        yield from self._resources
+
 
 PackageSpecs: TypeAlias = Union[DimcatPackage, fl.Package, str]
+
+# endregion DimcatPackage
+# region DimcatCatalog
 
 
 class DimcatCatalog(Data):
@@ -525,6 +545,10 @@ class DimcatCatalog(Data):
         self.set_basepath(basepath, set_packages=False)
 
     @property
+    def package_names(self) -> List[str]:
+        return [package.package_name for package in self._packages]
+
+    @property
     def packages(self) -> List[DimcatPackage]:
         return self._packages
 
@@ -536,36 +560,6 @@ class DimcatCatalog(Data):
             packages = [packages]
         for package in packages:
             self.add_package(package.copy())
-
-    def copy(self) -> Self:
-        new_object = self.__class__()
-        new_object.packages = self.packages
-        return new_object
-
-    def set_basepath(
-        self,
-        basepath: str,
-        set_packages: bool = True,
-    ) -> None:
-        """Sets the basepath for all packages in the catalog (if set_packages=True)."""
-        basepath_arg = ms3.resolve_dir(basepath)
-        if not os.path.isdir(basepath_arg):
-            raise ValueError(f"basepath {basepath_arg!r} is not an existing directory.")
-        self._basepath = basepath_arg
-        if not set_packages:
-            return
-        for package in self._packages:
-            package.basepath = basepath_arg
-
-    def __str__(self):
-        return str(self._packages)
-
-    def __repr__(self):
-        return repr(self._packages)
-
-    @property
-    def package_names(self):
-        return [p.package_name for p in self._packages]
 
     def add_package(
         self,
@@ -600,6 +594,20 @@ class DimcatCatalog(Data):
         package = self.get_package_by_name(package_name, create=True)
         package.make_new_resource(resource=resource)
 
+    def copy(self) -> Self:
+        new_object = self.__class__()
+        new_object.packages = self.packages
+        return new_object
+
+    def extend(self, catalog: Iterable[DimcatPackage]) -> None:
+        """Adds all packages from another catalog to this one."""
+        for package in catalog:
+            if package.package_name not in self.package_names:
+                self.add_package(package.copy())
+                continue
+            self_package = self.get_package_by_name(package.package_name)
+            self_package.extend(package)
+
     def get_feature(self, feature: Union[FeatureName, str, DimcatConfig]) -> Feature:
         p = self.get_package()
         feature_config = feature_argument2config(feature)
@@ -633,6 +641,41 @@ class DimcatCatalog(Data):
         error = fl.errors.CatalogError(note=f'package "{name}" does not exist')
         raise fl.FrictionlessException(error)
 
+    def has_package(self, name: str) -> bool:
+        """Returns True if a package with the given name is loaded, False otherwise."""
+        for package in self._packages:
+            if package.package_name == name:
+                return True
+        return False
+
+    def set_basepath(
+        self,
+        basepath: str,
+        set_packages: bool = True,
+    ) -> None:
+        """Sets the basepath for all packages in the catalog (if set_packages=True)."""
+        basepath_arg = ms3.resolve_dir(basepath)
+        if not os.path.isdir(basepath_arg):
+            raise ValueError(f"basepath {basepath_arg!r} is not an existing directory.")
+        self._basepath = basepath_arg
+        if not set_packages:
+            return
+        for package in self._packages:
+            package.basepath = basepath_arg
+
+    def __iter__(self) -> Iterator[DimcatPackage]:
+        yield from self._packages
+
+    def __str__(self):
+        return str(self._packages)
+
+    def __repr__(self):
+        return repr(self._packages)
+
+
+# endregion DimcatCatalog
+# region Dataset
+
 
 class Dataset(Data):
     """The central type of object that all :obj:`PipelineSteps <.PipelineStep>` process and return a copy of."""
@@ -657,20 +700,26 @@ class Dataset(Data):
             **kwargs: Dataset is cooperative and calls super().__init__(data=dataset, **kwargs)
         """
         super().__init__(**kwargs)
-        self.inputs = DimcatCatalog()
-        self.outputs = DimcatCatalog()
+        self._inputs = DimcatCatalog()
+        self._outputs = DimcatCatalog()
 
     @classmethod
     def from_dataset(cls, dataset: Dataset, **kwargs):
         """Instantiate from this Dataset by copying its fields, empty fields otherwise."""
         new_dataset = cls(**kwargs)
-        new_dataset.inputs = dataset.inputs.copy()
-        new_dataset.outputs = dataset.outputs.copy()
+        new_dataset.inputs.extend(dataset.inputs)
+        new_dataset.outputs.extend(dataset.outputs)
         return new_dataset
 
-    def add_result(self, result: Result):
-        """Adds a result to the outputs catalog."""
-        self.add_output(resource=result, package_name="results")
+    @property
+    def inputs(self) -> DimcatCatalog:
+        """The inputs catalog."""
+        return self._inputs
+
+    @property
+    def outputs(self) -> DimcatCatalog:
+        """The outputs catalog."""
+        return self._outputs
 
     def add_output(
         self,
@@ -707,13 +756,6 @@ class Dataset(Data):
         metadata = self.get_feature("metadata")
         return metadata.df
 
-    def get_result(self, analyzer_name: Optional[str] = None) -> Result:
-        """Returns the result of the previously applied analyzer with the given name."""
-        results = self.outputs.get_package("results")
-        if analyzer_name is None:
-            return results.get_resource()
-        raise NotImplementedError("get_result with analyzer_name not implemented yet.")
-
     def load_package(
         self,
         package: Union[fl.Package, str],
@@ -748,3 +790,6 @@ class Dataset(Data):
 
     def __repr__(self):
         return repr(self.inputs)
+
+
+# endregion Dataset
