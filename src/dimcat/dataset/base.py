@@ -25,14 +25,9 @@ import frictionless as fl
 import marshmallow as mm
 import ms3
 from dimcat.base import Data, DimcatConfig
-from dimcat.resources.base import (
-    D,
-    DimcatResource,
-    SomeDataframe,
-    check_file_path,
-    get_default_basepath,
-)
+from dimcat.resources.base import D, DimcatResource, SomeDataframe
 from dimcat.resources.features import Feature, FeatureName
+from dimcat.utils import check_file_path, get_default_basepath
 from frictionless.settings import NAME_PATTERN as FRICTIONLESS_NAME_PATTERN
 from typing_extensions import Self
 

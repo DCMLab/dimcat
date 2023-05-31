@@ -14,9 +14,9 @@ from dimcat.resources.base import (
     DimcatResource,
     PieceIndex,
     ResourceStatus,
-    get_default_basepath,
-    load_fl_resource,
 )
+from dimcat.resources.utils import load_fl_resource
+from dimcat.utils import get_default_basepath
 
 from tests.conftest import CORPUS_PATH
 
