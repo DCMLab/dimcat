@@ -4,6 +4,7 @@ from pprint import pformat
 import marshmallow as mm
 from dimcat import Dataset, DimcatConfig, get_class, get_schema
 from dimcat.analyzers import Counter
+from dimcat.dataset.processed import AnalyzedDataset
 from dimcat.resources.features import FeatureName
 
 if __name__ == "__main__":
@@ -104,6 +105,7 @@ if __name__ == "__main__":
     assert c_counter == d_counter
 
     analyzed_dataset = d_counter.process(dataset)
+    assert isinstance(analyzed_dataset, AnalyzedDataset)
     result = analyzed_dataset.get_result()
     fig = result.plot()
     print(fig)

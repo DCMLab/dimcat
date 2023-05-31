@@ -5,6 +5,11 @@ import ms3
 import pytest
 from dimcat.dataset import DimcatPackage
 from dimcat.dataset.base import Dataset, PackageStatus
+from dimcat.dataset.processed import (
+    AnalyzedDataset,
+    GroupedAnalyzedDataset,
+    GroupedDataset,
+)
 from dimcat.resources.base import DimcatResource, ResourceStatus, get_default_basepath
 
 from tests.conftest import CORPUS_PATH
@@ -546,3 +551,20 @@ def test_dataset(package_path):
     new_dataset = Dataset.from_dataset(dataset)
     assert new_dataset == dataset
     assert new_dataset is not dataset
+
+
+def test_processed_dataset(package_path):
+    dataset = Dataset()
+    dataset.load_package(package_path)
+    a_dataset = AnalyzedDataset.from_dataset(dataset)
+    assert not hasattr(dataset, "get_result")
+    assert hasattr(a_dataset, "get_result")
+    assert isinstance(a_dataset, AnalyzedDataset)
+    assert a_dataset.inputs == dataset.inputs
+    assert a_dataset.outputs.has_package("results")
+
+    ag_dataset = GroupedDataset.from_dataset(a_dataset)
+    assert isinstance(ag_dataset, GroupedAnalyzedDataset)
+    assert isinstance(ag_dataset, GroupedDataset)
+    assert isinstance(ag_dataset, AnalyzedDataset)
+    assert ag_dataset.inputs == dataset.inputs

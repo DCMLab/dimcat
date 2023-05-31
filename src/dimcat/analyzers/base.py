@@ -23,6 +23,7 @@ import plotly.express as px
 import plotly.graph_objs as go
 from dimcat.base import DimcatConfig, DimcatObject, PipelineStep, get_class
 from dimcat.dataset import Dataset
+from dimcat.dataset.processed import AnalyzedDataset
 from dimcat.resources.base import DimcatResource, SomeSeries
 from dimcat.resources.features import Feature, FeatureName
 from typing_extensions import Self
@@ -317,11 +318,11 @@ class Analyzer(PipelineStep):
             excluded_names = ", ".join(e.__name__ for e in excluded)
             raise ValueError(f"{cls.name} cannot be applied after {excluded_names}.")
 
-    def process(self, dataset: Dataset) -> Dataset:
+    def process(self, dataset: Dataset) -> AnalyzedDataset:
         """Returns an :obj:`AnalyzedData` copy of the Dataset with the added analysis result."""
         self._check_asserted_pipeline_steps(dataset)
         self._check_excluded_pipeline_steps(dataset)
-        new_dataset = Dataset(dataset)
+        new_dataset = AnalyzedDataset.from_dataset(dataset)
         result = self.dispatch(dataset)
         result = self.post_process(result)
         new_dataset.add_result(result)
