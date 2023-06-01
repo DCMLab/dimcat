@@ -3,9 +3,12 @@ Configuring the test suite.
 """
 import os
 
+import frictionless as fl
 import pandas as pd
 import pytest
+from dimcat.dataset.base import DimcatPackage
 from dimcat.resources.base import DimcatResource
+from dimcat.resources.utils import load_fl_resource
 from git import Repo
 
 # ----------------------------- SETTINGS -----------------------------
@@ -284,4 +287,75 @@ def datapackage_json_path() -> str:
 #     print(f"\n{pretty_dict(filtered_data.indices)}")
 #     return filtered_data
 
+
 # endregion deprecated
+@pytest.fixture()
+def resource_from_descriptor(resource_path):
+    """Returns a DimcatResource object created from the descriptor on disk."""
+    return DimcatResource.from_descriptor(descriptor_path=resource_path)
+
+
+@pytest.fixture()
+def resource_from_fl_resource(
+    fl_resource, resource_descriptor_filepath
+) -> DimcatResource:
+    """Returns a Dimcat resource object created from the frictionless.Resource object."""
+    return DimcatResource(
+        resource=fl_resource, descriptor_filepath=resource_descriptor_filepath
+    )
+
+
+@pytest.fixture(scope="session")
+def fl_resource(resource_path):
+    """Returns a frictionless resource object."""
+    return fl.Resource(resource_path)
+
+
+@pytest.fixture(scope="session")
+def resource_descriptor_filepath(resource_path) -> str:
+    """Returns the path to the descriptor file."""
+    return os.path.relpath(resource_path, CORPUS_PATH)
+
+
+@pytest.fixture()
+def resource_from_dataframe(
+    dataframe_from_tsv,
+    fl_resource,
+    tmp_serialization_path,
+    resource_descriptor_filepath,
+) -> DimcatResource:
+    """Returns a DimcatResource object created from the dataframe."""
+    return DimcatResource.from_dataframe(
+        df=dataframe_from_tsv,
+        resource_name=fl_resource.name,
+        basepath=tmp_serialization_path,
+        column_schema=fl_resource.schema,
+    )
+
+
+@pytest.fixture(scope="session")
+def dataframe_from_tsv(fl_resource):
+    """Returns a dataframe read directly from the normpath of the fl_resource."""
+    return load_fl_resource(fl_resource)
+
+
+@pytest.fixture()
+def tmp_serialization_path(request, tmp_path_factory):
+    """Returns the path to the directory where serialized resources are stored."""
+    if request.cls is None:
+        name = request.function.__name__
+    else:
+        name = request.cls.__name__
+    return str(tmp_path_factory.mktemp(name))
+
+
+@pytest.fixture()
+def fl_package(package_path) -> fl.Package:
+    """Returns a frictionless package object."""
+    return fl.Package(package_path)
+
+
+@pytest.fixture()
+def package_from_fl_package(fl_package) -> DimcatPackage:
+    """Returns a DimcatPackage object."""
+    return DimcatPackage(fl_package)
