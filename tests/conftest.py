@@ -16,7 +16,7 @@ CORPUS_DIR = "~"
 def corpus_path():
     """Compose the paths for the test corpora."""
     print("Path was requested")
-    repo_name, test_commit = ("unittest_metacorpus", "4ce49d9")
+    repo_name, test_commit = ("unittest_metacorpus", "40e0841")
     path = os.path.join(CORPUS_DIR, repo_name)
     path = os.path.expanduser(path)
     assert os.path.isdir(path)

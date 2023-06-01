@@ -19,13 +19,14 @@ from frictionless.settings import NAME_PATTERN as FRICTIONLESS_NAME_PATTERN
 from typing_extensions import Self
 
 from .utils import (
+    align_with_grouping,
     check_rel_path,
-    infer_piece_col_position,
+    ensure_level_named_piece,
     infer_schema_from_df,
     load_fl_resource,
     load_index_from_fl_resource,
+    make_boolean_mask_from_set_of_tuples,
     make_rel_path,
-    make_selection_mask_from_set_of_tuples,
     make_tsv_resource,
 )
 
@@ -99,9 +100,13 @@ class DimcatIndex(Generic[IX], Data):
 
     def __init__(self, index: Optional[IX] = None):
         if index is None:
-            self._index = pd.Index()
-        else:
+            self._index = pd.Index([])
+        elif isinstance(index, pd.Index):
             self._index = index.copy()
+        else:
+            raise TypeError(
+                f"Expected None or pandas.(Multi)Index, got {type(index)!r}."
+            )
 
     def __contains__(self, item):
         if isinstance(item, tuple):
@@ -174,19 +179,19 @@ class PieceIndex(DimcatIndex[IX]):
         ),
     ) -> Self:
         """Create a PieceIndex from another index."""
-        level_names = index.names
-        piece_level_position = infer_piece_col_position(
-            level_names, recognized_piece_columns=recognized_piece_columns
+        if isinstance(index, DimcatIndex):
+            index = index.index
+        index, piece_level_position = ensure_level_named_piece(
+            index, recognized_piece_columns
         )
-        if level_names[piece_level_position] != "piece":
-            index.rename("piece", level=piece_level_position, inplace=True)
+        level_names = index.names
         right_boundary = piece_level_position + 1
         drop_levels = level_names[right_boundary:]
         if piece_level_position >= max_levels:
             drop_levels = level_names[: right_boundary - max_levels] + drop_levels
         if len(drop_levels) > 0:
             index = index.droplevel(drop_levels)
-        return cls(index.drop_duplicates())
+        return cls(index)
 
     @classmethod
     def from_resource(
@@ -197,6 +202,15 @@ class PieceIndex(DimcatIndex[IX]):
         """Create a PieceIndex from a frictionless Resource."""
         index = DimcatIndex.from_resource(resource, index_col=index_col)
         return cls.from_index(index)
+
+    def __init__(self, index: Optional[IX] = None):
+        if index is None:
+            self._index = pd.MultiIndex.from_tuples([], name=("corpus", "piece"))
+        else:
+            self._index = index.drop_duplicates()
+            assert (
+                self.names[-1] == "piece"
+            ), f"Expected last level to be named 'piece', got {self.names[-1]!r}."
 
 
 # endregion DimcatIndex
@@ -861,6 +875,22 @@ class DimcatResource(Generic[D], Data):
             self._status = ResourceStatus.SCHEMA
         return self._status
 
+    def align_with_grouping(
+        self,
+        grouping: DimcatIndex | pd.MultiIndex,
+        sort_index=True,
+    ) -> pd.DataFrame:
+        """Aligns the resource with a grouping index. In the typical case, the grouping index will come with the levels
+        ["<grouping_name>", "corpus", "piece"] and the result will be aligned such that every group contains the
+        resource's sub-dataframes for the included pieces.
+        """
+        if isinstance(grouping, DimcatIndex):
+            grouping = grouping.index
+        if self.is_empty:
+            self.logger.warning(f"Resource {self.name} is empty.")
+            return pd.DataFrame(index=grouping)
+        return align_with_grouping(self.df, grouping, sort_index=sort_index)
+
     def copy(self) -> Self:
         """Returns a copy of the resource."""
         return self.from_resource(self)
@@ -976,7 +1006,7 @@ class DimcatResource(Generic[D], Data):
             raise TypeError(
                 f"Pass an iterable of tuples. A randomly selected element had type {type(random_tuple)!r}."
             )
-        mask = make_selection_mask_from_set_of_tuples(self.df.index, tuple_set, levels)
+        mask = make_boolean_mask_from_set_of_tuples(self.df.index, tuple_set, levels)
         return self.df[mask].copy()
 
     def store_dataframe(

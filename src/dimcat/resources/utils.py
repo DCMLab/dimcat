@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import logging
 import os
+from collections import Counter
 from operator import itemgetter
-from typing import TYPE_CHECKING, Iterable, List, Optional, Set, Tuple, Union
+from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Set, Tuple, Union
 from zipfile import ZipFile
 
 import frictionless as fl
@@ -94,19 +95,6 @@ def fl_fields2pandas_params(fields: List[fl.Field]) -> Tuple[dict, dict, list]:
         else:
             raise ValueError(f"Unknown frictionless field type {field.type!r}.")
     return dtype, converters, parse_dates
-
-
-def infer_piece_col_position(
-    column_name: List[str],
-    recognized_piece_columns: Iterable[str] = ("piece", "fname"),
-) -> Optional[int]:
-    """Infer the position of the piece column in a list of column names."""
-    for name in recognized_piece_columns:
-        try:
-            return column_name.index(name)
-        except ValueError:
-            continue
-    return
 
 
 def get_existing_normpath(fl_resource) -> str:
@@ -284,7 +272,7 @@ def load_fl_resource(
 def load_index_from_fl_resource(
     fl_resource: fl.Resource,
     index_col: Optional[int | str | List[int | str]] = None,
-    recognized_piece_columns: Iterable[str] = ("piece", "fname"),
+    recognized_piece_columns: Iterable[str] = ("piece", "pieces", "fname", "fnames"),
 ) -> SomeIndex:
     """Load the index columns from a frictionless Resource.
 
@@ -296,8 +284,6 @@ def load_index_from_fl_resource(
             of the iterable that is detected in the loaded columns will be renamed to 'piece'. Likewise, such a
             column would be used (and renamed) if ``index_col`` is not specified *and* the schema does not specify
             a primary key: in that case, the detected column and all columns left of it will used as index_col argument.
-            The iterable should always start with "piece" -- otherwise the same mechanism will be applied for
-            whatever first value specified.
 
     Returns:
         The specified or inferred index column(s) as a (Multi)Index object.
@@ -350,7 +336,7 @@ def load_index_from_fl_resource(
     return dataframe.index
 
 
-def make_selection_mask_from_set_of_tuples(
+def make_boolean_mask_from_set_of_tuples(
     index: DimcatIndex | pd.MultiIndex,
     tuples: Set[tuple],
     levels: Optional[Iterable[int]] = None,
@@ -420,3 +406,108 @@ def make_selection_mask_from_set_of_tuples(
         return index.isin(tuples)
     tuple_maker = itemgetter(*levels)
     return index.map(lambda index_tuple: tuple_maker(index_tuple) in tuples)
+
+
+def infer_piece_col_position(
+    column_name: List[str],
+    recognized_piece_columns: Iterable[str] = None,
+) -> Optional[int]:
+    """Infer the position of the piece column in a list of column names."""
+    if recognized_piece_columns is None:
+        recognized_piece_columns = ("piece", "pieces", "fname", "fnames")
+    elif recognized_piece_columns[0] != "piece":
+        recognized_piece_columns = ["piece"] + list(recognized_piece_columns)
+    for name in recognized_piece_columns:
+        try:
+            return column_name.index(name)
+        except ValueError:
+            continue
+    return
+
+
+def ensure_level_named_piece(
+    index: pd.MultiIndex, recognized_piece_columns: Optional[Iterable[str]] = None
+) -> Tuple[pd.MultiIndex, int]:
+    """Ensures that the index has a level named "piece" by detecting alternative level names and renaming it in case it
+     doesn't have one. Returns the index and the position of the piece level.
+
+
+    Args:
+        index: MultiIndex.
+        recognized_piece_columns:
+            Defaults to ("pieces", "fname", "fnames"). If other names are to be recognized as "piece" level, pass those.
+
+    Returns:
+        The same index or a copy with a renamed level.
+        The position of the piece level.
+    """
+    level_names = index.names
+    piece_level_position = infer_piece_col_position(
+        level_names, recognized_piece_columns=recognized_piece_columns
+    )
+    if level_names[piece_level_position] != "piece":
+        return index.rename("piece", level=piece_level_position), piece_level_position
+    return index, piece_level_position
+
+
+def align_with_grouping(
+    df: pd.DataFrame, grouping: pd.MultiIndex, sort_index: bool = True
+) -> pd.DataFrame:
+    """Aligns a dataframe with a grouping index that has n levels such that the index levels of the  new dataframe
+    start with the n levels of the grouping index and are followed by the remaining levels of the original dataframe.
+    This is typically used to align a dataframe with feature information for many pieces with an index grouping
+    piece names.
+    """
+    df_levels = list(df.index.names)
+    gr_levels = grouping.names
+    if "piece" in gr_levels and "piece" not in df_levels:
+        piece_level_position = infer_piece_col_position(df_levels)
+        df = df.copy()
+        df.index.rename("piece", level=piece_level_position, inplace=True)
+        df_levels[piece_level_position] = "piece"
+    shared_levels = set(df_levels).intersection(set(gr_levels))
+    if len(shared_levels) == 0:
+        raise ValueError(f"No shared levels between {df_levels!r} and {gr_levels!r}")
+    grouping_df = pd.DataFrame(index=grouping)
+    df_aligned = grouping_df.join(
+        df,
+        how="left",
+    )
+    level_order = gr_levels + [level for level in df_levels if level not in gr_levels]
+    result = df_aligned.reorder_levels(level_order)
+    if sort_index:
+        return result.sort_index()
+    return result
+
+
+def make_index_from_grouping_dict(
+    grouping: Dict[str, List[tuple]],
+    names=("group", "corpus", "piece"),
+    sort=False,
+    raise_if_multiple_membership: bool = False,
+) -> pd.MultiIndex:
+    """Creates a MultiIndex from a dictionary with grouped tuples.
+
+    Args:
+        grouping: A dictionary where keys are group names and values are lists of index tuples.
+        names: Names for the levels of the MultiIndex, i.e. one for the group level and one per level in the tuples.
+        sort: By default the returned MultiIndex is sorted. Set False to disable sorting.
+        raise_if_multiple_membership: If True, raises a ValueError if a member is in multiple groups.
+
+    Returns:
+        A MultiIndex with the given names and the tuples from the grouping dictionary.
+    """
+    if raise_if_multiple_membership:
+        all_members = []
+        for members in grouping.values():
+            all_members.extend(members)
+        if len(all_members) != len(set(all_members)):
+            c = Counter(all_members)
+            multiple_members = [member for member, count in c.items() if count > 1]
+            raise ValueError(f"Multiple membership detected: {multiple_members}")
+    index_tuples = [
+        (group,) + piece for group, pieces in grouping.items() for piece in pieces
+    ]
+    if sort:
+        index_tuples = sorted(index_tuples)
+    return pd.MultiIndex.from_tuples(index_tuples, names=names)
