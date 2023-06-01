@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import TYPE_CHECKING, Iterable, List, Optional, Tuple, Union
+from operator import itemgetter
+from typing import TYPE_CHECKING, Iterable, List, Optional, Set, Tuple, Union
 from zipfile import ZipFile
 
 import frictionless as fl
@@ -11,7 +12,7 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from .base import SomeDataframe, SomeIndex
+    from .base import DimcatIndex, SomeDataframe, SomeIndex
 
 
 def infer_schema_from_df(df: SomeDataframe) -> fl.Schema:
@@ -140,7 +141,7 @@ def get_existing_normpath(fl_resource) -> str:
 
 def resolve_columns_argument(
     columns: Optional[int | str | List[int | str]],
-    field_names: List[str],
+    column_names: List[str],
 ) -> Optional[List[str]]:
     """Resolve the columns argument of a load function to a list of column names.
 
@@ -148,7 +149,7 @@ def resolve_columns_argument(
         columns:
             A list of integer position and/or column names. Can be mixed but integers will always
             be interpreted as positions.
-        field_names: List of column names to choose from.
+        column_names: List of column names to choose from.
 
     Returns:
         The resolved list of column names. None if ``columns`` is None.
@@ -159,19 +160,54 @@ def resolve_columns_argument(
     if columns is None:
         return
     result = []
+    if isinstance(columns, (int, str)):
+        columns = [columns]
     for str_or_int in columns:
         if isinstance(str_or_int, int):
-            result.append(field_names[str_or_int])
+            result.append(column_names[str_or_int])
         else:
-            if str_or_int not in field_names:
+            if str_or_int not in column_names:
                 raise ValueError(
-                    f"Column {str_or_int!r} not found in field names {field_names}."
+                    f"Column {str_or_int!r} not found in field names {column_names}."
                 )
             result.append(str_or_int)
     result_set = set(result)
     if len(result_set) != len(result):
         raise ValueError(f"Duplicate column names in {columns}.")
     return result
+
+
+def resolve_levels_argument(
+    levels: Optional[int | str | Iterable[int | str]],
+    level_names: List[str],
+    inverse: bool = False,
+) -> Optional[Tuple[int]]:
+    """Turns a selection of index levels into a list of positive level positions."""
+    if levels is None:
+        return
+    result = []
+    nlevels = len(level_names)
+    if isinstance(levels, (int, str)):
+        levels = [levels]
+    for str_or_int in levels:
+        if isinstance(str_or_int, int):
+            if str_or_int < 0:
+                as_int = nlevels + str_or_int
+            else:
+                as_int = str_or_int
+        else:
+            as_int = level_names.index(str_or_int)
+        if as_int < 0 or as_int >= nlevels:
+            raise ValueError(
+                f"Level {str_or_int!r} not found in level names {level_names}."
+            )
+        result.append(as_int)
+    result_set = set(result)
+    if len(result_set) != len(result):
+        raise ValueError(f"Duplicate level names in {levels}.")
+    if inverse:
+        result = [i for i in range(nlevels) if i not in result]
+    return tuple(result)
 
 
 def load_fl_resource(
@@ -312,3 +348,75 @@ def load_index_from_fl_resource(
         )
     dataframe = load_fl_resource(fl_resource, index_col=index_col, usecols=index_col)
     return dataframe.index
+
+
+def make_selection_mask_from_set_of_tuples(
+    index: DimcatIndex | pd.MultiIndex,
+    tuples: Set[tuple],
+    levels: Optional[Iterable[int]] = None,
+) -> pd.Index[bool]:
+    """Returns a boolean mask for the given tuples based on index tuples formed from integer positions of the index
+    levels to subselect.
+
+    Args:
+        index: Index (of the dataframe) you want to subselect from using the returned boolean mask.
+        tuples:
+        levels:
+
+            * If None, the last n levels of the index are used, where n is the length of the selection tuples.
+            * If an iterable of integers, they are interpreted as level positions and used to create for each row a
+              tuple to compare against the selected tuples.
+
+    Returns:
+        A boolean mask of the same length as the index, where True indicates that the corresponding index tuple is
+        contained in the selection tuples.
+
+    Raises:
+        TypeError: If tuples is not a set.
+        ValueError: If tuples is empty.
+        ValueError: If the index has less levels than the selection tuples.
+        ValueError: If levels is not None and has a different length than the selection tuples.
+    """
+    if not isinstance(tuples, set):
+        raise TypeError(f"tuples must be a set, not {type(tuples)}")
+    if len(tuples) == 0:
+        raise ValueError("tuples must not be empty")
+    random_tuple = next(iter(tuples))
+    n_selection_levels = len(random_tuple)
+    if index.nlevels < n_selection_levels:
+        raise ValueError(
+            f"index has {index.nlevels} levels, but {n_selection_levels} levels were specified for selection."
+        )
+    if levels is None:
+        # select the first n levels
+        next_to_each_other = True
+        levels = tuple(range(n_selection_levels))
+    else:
+        # clean up levels argument
+        is_int, is_str = isinstance(levels, int), isinstance(levels, str)
+        if (is_int or is_str) and n_selection_levels > 1:
+            # only the first level was specified, select its n-1 right neightbours, too
+            if is_str:
+                position = index.names.index(levels)
+            else:
+                position = levels
+            levels = tuple(position + i for i in range(n_selection_levels))
+            next_to_each_other = True
+        else:
+            levels = resolve_levels_argument(levels, index.names)
+            if len(levels) != n_selection_levels:
+                raise ValueError(
+                    f"The selection tuples have length {n_selection_levels}, but {len(levels)} levels were specified: "
+                    f"{levels}."
+                )
+            next_to_each_other = all(b == a + 1 for a, b in zip(levels, levels[1:]))
+    if n_selection_levels == index.nlevels:
+        drop_levels = None
+    else:
+        drop_levels = tuple(i for i in range(index.nlevels) if i not in levels)
+    if drop_levels:
+        index = index.droplevel(drop_levels)
+    if next_to_each_other:
+        return index.isin(tuples)
+    tuple_maker = itemgetter(*levels)
+    return index.map(lambda index_tuple: tuple_maker(index_tuple) in tuples)

@@ -20,7 +20,8 @@ from .base import (
     get_class,
     get_schema,
 )
-from .dataset import Dataset
-from .resources import FeatureName
+from .dataset.base import Dataset, DimcatPackage
+from .resources.base import DimcatIndex, DimcatResource, PieceIndex
+from .resources.features import FeatureName
 
 logger = logging.getLogger(__name__)

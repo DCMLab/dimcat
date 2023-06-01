@@ -25,6 +25,7 @@ from .utils import (
     load_fl_resource,
     load_index_from_fl_resource,
     make_rel_path,
+    make_selection_mask_from_set_of_tuples,
     make_tsv_resource,
 )
 
@@ -58,6 +59,9 @@ class DimcatIndex(Generic[IX], Data):
     per index level. Each index level has a name and can be seen as in individual :obj:`pandas.Index`. One important
     type of DimcatIndex is the PieceIndex which is a unique MultiIndex (that is, each tuple is unique) and where the
     last (i.e. right-most) level is named `piece`.
+
+    NB: If you want to use the index in a dataframe constructor, use the actual, wrapped index object as in
+    `pd.DataFrame(index=dc_index.index)`.
     """
 
     @classmethod
@@ -108,9 +112,7 @@ class DimcatIndex(Generic[IX], Data):
 
     def __eq__(self, other) -> bool:
         if isinstance(other, Iterable):
-            print("YES")
             return set(self) == set(other)
-        print("NO")
         return False
 
     def __getattr__(self, item):
@@ -778,6 +780,10 @@ class DimcatResource(Generic[D], Data):
         return self.resource_name + ".tsv"
 
     @property
+    def is_empty(self) -> bool:
+        return self.status < ResourceStatus.DATAFRAME
+
+    @property
     def is_frozen(self) -> bool:
         """Whether the resource is frozen (i.e. its valid descriptor has been written to disk) or not."""
         return self.is_zipped_resource or self.descriptor_exists
@@ -954,6 +960,25 @@ class DimcatResource(Generic[D], Data):
         if not self.is_loaded or force_reload:
             _ = self.df
 
+    def subselect(
+        self,
+        tuples: DimcatIndex | Iterable[tuple],
+        levels: Optional[int | str | List[int | str]] = None,
+    ) -> pd.DataFrame:
+        """Returns a copy of a subselection of the dataframe based on the union of its index tuples (or subtuples)
+        and the given tuples."""
+        if self.is_empty:
+            self.logger.warning("Resource is empty.")
+            return self.copy()
+        tuple_set = set(tuples)
+        random_tuple = next(iter(tuple_set))
+        if not isinstance(random_tuple, tuple):
+            raise TypeError(
+                f"Pass an iterable of tuples. A randomly selected element had type {type(random_tuple)!r}."
+            )
+        mask = make_selection_mask_from_set_of_tuples(self.df.index, tuple_set, levels)
+        return self.df[mask].copy()
+
     def store_dataframe(
         self,
         validate: bool = True,
@@ -981,14 +1006,6 @@ class DimcatResource(Generic[D], Data):
         self._store_descriptor()
         self._status = ResourceStatus.STANDALONE_LOADED
 
-    def to_config(self, pickle=False) -> DimcatConfig:
-        return DimcatConfig(self.to_dict(pickle=pickle))
-
-    def to_dict(self, pickle=False) -> dict:
-        if pickle:
-            return self.pickle_schema.dump(self)
-        return self.schema.dump(self)
-
     def _store_descriptor(self, overwrite=True) -> str:
         """Stores the descriptor to disk based on the resource's configuration and returns its path.
         Does not modify the resource's :attr:`status`.
@@ -1015,6 +1032,14 @@ class DimcatResource(Generic[D], Data):
                 f"Descriptor path must end with .resource.yaml or .resource.json: {descriptor_path}"
             )
         return descriptor_path
+
+    def to_config(self, pickle=False) -> DimcatConfig:
+        return DimcatConfig(self.to_dict(pickle=pickle))
+
+    def to_dict(self, pickle=False) -> dict:
+        if pickle:
+            return self.pickle_schema.dump(self)
+        return self.schema.dump(self)
 
     def _update_status(self) -> None:
         self._status = self._get_current_status()
