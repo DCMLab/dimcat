@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import os
-import re
 import zipfile
 from enum import IntEnum, auto
 from functools import cache
@@ -14,8 +13,7 @@ import marshmallow as mm
 import ms3
 import pandas as pd
 from dimcat.base import NEVER_STORE_UNVALIDATED_DATA, Data, DimcatConfig, get_class
-from dimcat.utils import check_file_path, get_default_basepath, replace_ext
-from frictionless.settings import NAME_PATTERN as FRICTIONLESS_NAME_PATTERN
+from dimcat.utils import check_file_path, check_name, get_default_basepath, replace_ext
 from typing_extensions import Self
 
 from .utils import (
@@ -863,10 +861,7 @@ class DimcatResource(Generic[D], Data):
 
     @resource_name.setter
     def resource_name(self, resource_name: str):
-        if not re.match(FRICTIONLESS_NAME_PATTERN, resource_name):
-            raise ValueError(
-                f"Name can only contain [a-z], [0-9], [-._/], and no spaces: {resource_name!r}"
-            )
+        check_name(resource_name)
         self._resource.name = resource_name
 
     @property

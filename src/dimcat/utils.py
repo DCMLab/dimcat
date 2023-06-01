@@ -3,10 +3,12 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from typing import Collection, Optional
 
 import ms3
 import pandas as pd
+from frictionless.settings import NAME_PATTERN as FRICTIONLESS_NAME_PATTERN
 
 logger = logging.getLogger(__name__)
 
@@ -189,3 +191,15 @@ def check_file_path(
 
 def get_default_basepath():
     return os.getcwd()
+
+
+def check_name(name: str) -> None:
+    """Check if a name is valid according to frictionless.
+
+    Raises:
+        ValueError: If the name is not valid.
+    """
+    if not re.match(FRICTIONLESS_NAME_PATTERN, name):
+        raise ValueError(
+            f"Name can only contain [a-z], [0-9], [-._/], and no spaces: {name!r}"
+        )

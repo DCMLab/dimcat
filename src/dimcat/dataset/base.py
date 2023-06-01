@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import logging
 import os
-import re
 from enum import IntEnum, auto
 from pprint import pformat
 from typing import TYPE_CHECKING, Iterable, Iterator, List, Optional, TypeAlias, Union
@@ -27,8 +26,7 @@ import ms3
 from dimcat.base import Data, DimcatConfig
 from dimcat.resources.base import D, DimcatResource, SomeDataframe
 from dimcat.resources.features import Feature, FeatureName
-from dimcat.utils import check_file_path, get_default_basepath
-from frictionless.settings import NAME_PATTERN as FRICTIONLESS_NAME_PATTERN
+from dimcat.utils import check_file_path, check_name, get_default_basepath
 from typing_extensions import Self
 
 if TYPE_CHECKING:
@@ -276,10 +274,7 @@ class DimcatPackage(Data):
 
     @package_name.setter
     def package_name(self, package_name: str) -> None:
-        if not re.match(FRICTIONLESS_NAME_PATTERN, package_name):
-            raise ValueError(
-                f"Name can only contain [a-z], [0-9], [-._/], and no spaces: {package_name!r}"
-            )
+        check_name(package_name)
         self._package.name = package_name
         if self._descriptor_filepath is not None:
             self._descriptor_filepath = os.path.join(
