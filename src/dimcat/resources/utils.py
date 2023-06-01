@@ -482,7 +482,7 @@ def align_with_grouping(
 
 def make_index_from_grouping_dict(
     grouping: Dict[str, List[tuple]],
-    names=("group", "corpus", "piece"),
+    level_names=("group_name", "corpus", "piece"),
     sort=False,
     raise_if_multiple_membership: bool = False,
 ) -> pd.MultiIndex:
@@ -490,7 +490,7 @@ def make_index_from_grouping_dict(
 
     Args:
         grouping: A dictionary where keys are group names and values are lists of index tuples.
-        names: Names for the levels of the MultiIndex, i.e. one for the group level and one per level in the tuples.
+        level_names: Names for the levels of the MultiIndex, i.e. one for the group level and one per grouped level.
         sort: By default the returned MultiIndex is sorted. Set False to disable sorting.
         raise_if_multiple_membership: If True, raises a ValueError if a member is in multiple groups.
 
@@ -510,4 +510,4 @@ def make_index_from_grouping_dict(
     ]
     if sort:
         index_tuples = sorted(index_tuples)
-    return pd.MultiIndex.from_tuples(index_tuples, names=names)
+    return pd.MultiIndex.from_tuples(index_tuples, names=level_names)

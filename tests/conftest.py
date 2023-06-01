@@ -6,6 +6,7 @@ import os
 import frictionless as fl
 import pandas as pd
 import pytest
+from dimcat import Dataset
 from dimcat.dataset.base import DimcatPackage
 from dimcat.resources.base import DimcatResource
 from dimcat.resources.utils import load_fl_resource
@@ -359,3 +360,10 @@ def fl_package(package_path) -> fl.Package:
 def package_from_fl_package(fl_package) -> DimcatPackage:
     """Returns a DimcatPackage object."""
     return DimcatPackage(fl_package)
+
+
+@pytest.fixture()
+def dataset_from_single_package(package_path):
+    dataset = Dataset()
+    dataset.load_package(package_path)
+    return dataset

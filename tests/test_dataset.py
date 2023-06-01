@@ -78,13 +78,6 @@ class TestPackageFromFL(TestPackageFromDescriptor):
 # endregion test DimcatPackage objects
 
 
-@pytest.fixture()
-def dataset_from_single_package(package_path):
-    dataset = Dataset()
-    dataset.load_package(package_path)
-    return dataset
-
-
 def test_dataset(dataset_from_single_package):
     new_dataset = Dataset.from_dataset(dataset_from_single_package)
     assert new_dataset == dataset_from_single_package
