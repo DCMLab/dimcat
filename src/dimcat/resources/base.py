@@ -177,6 +177,10 @@ class DimcatIndex(Generic[IX], Data):
     def copy(self) -> Self:
         return self.__class__(self._index.copy())
 
+    def to_resource(self, **kwargs) -> DimcatResource:
+        """Create a DimcatResource from this index."""
+        return DimcatResource.from_index(self, **kwargs)
+
 
 class PieceIndex(DimcatIndex[IX]):
     """A unique DimcatIndex where the last (i.e. right-most) level is named `piece`."""
@@ -411,6 +415,30 @@ class DimcatResource(Generic[D], Data):
         if "dtype" not in options and "resource" not in options:
             return cls(**options, **kwargs)
         return super().from_dict(options, **kwargs)
+
+    @classmethod
+    def from_index(
+        cls,
+        index: DimcatIndex | SomeIndex,
+        resource_name: str,
+        basepath: Optional[str] = None,
+        filepath: Optional[str] = None,
+        column_schema: Optional[fl.Schema | str] = None,
+        descriptor_filepath: Optional[str] = None,
+        auto_validate: bool = False,
+    ) -> Self:
+        if isinstance(index, DimcatIndex):
+            index = index.index
+        dataframe = pd.DataFrame(index=index)
+        return cls.from_dataframe(
+            df=dataframe,
+            resource_name=resource_name,
+            basepath=basepath,
+            filepath=filepath,
+            column_schema=column_schema,
+            descriptor_filepath=descriptor_filepath,
+            auto_validate=auto_validate,
+        )
 
     @classmethod
     def from_resource(
