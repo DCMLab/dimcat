@@ -1,19 +1,14 @@
 import os
 
 import pytest
-from dimcat import DimcatResource
+from dimcat import DimcatIndex, DimcatResource, PieceIndex
 from dimcat.resources.base import ResourceStatus
 from dimcat.utils import get_default_basepath
 
 from tests.conftest import CORPUS_PATH
 
 
-@pytest.fixture()
-def empty_resource():
-    return DimcatResource(resource_name="empty_resource")
-
-
-class TestVanillaResource:
+class TestEmptyResource:
     expected_resource_status: ResourceStatus = ResourceStatus.EMPTY
     """The expected status of the resource after initialization."""
     should_be_frozen: bool = False
@@ -70,7 +65,7 @@ class TestVanillaResource:
         assert copy.status == dc_resource.status
 
 
-class TestDiskResource(TestVanillaResource):
+class TestDiskResource(TestEmptyResource):
     expected_resource_status = ResourceStatus.STANDALONE_NOT_LOADED
     should_be_frozen: bool = True
     should_be_serialized = True
@@ -85,26 +80,13 @@ class TestDiskResource(TestVanillaResource):
         return resource_from_descriptor
 
 
-@pytest.fixture()
-def resource_from_frozen_resource(resource_from_descriptor):
-    """Returns a DimcatResource object created from a frozen resource."""
-    return DimcatResource.from_resource(resource_from_descriptor)
-
-
 class TestResourceFromFrozen(TestDiskResource):
     @pytest.fixture()
     def dc_resource(self, resource_from_frozen_resource):
         return resource_from_frozen_resource
 
 
-@pytest.fixture()
-def empty_resource_with_paths(tmp_serialization_path):
-    return DimcatResource(
-        basepath=tmp_serialization_path, filepath="empty_resource.tsv"
-    )
-
-
-class TestMemoryResource(TestVanillaResource):
+class TestMemoryResource(TestEmptyResource):
     """MemoryResources are those instantiated from a dataframe. They have in common that, in this
     test suite, their basepath is a temporary path where they can be serialized."""
 
@@ -125,13 +107,7 @@ class TestMemoryResource(TestVanillaResource):
         pass
 
 
-@pytest.fixture()
-def schema_resource(fl_resource):
-    """Returns a DimcatResource with a pre-set frictionless.Schema object."""
-    return DimcatResource(column_schema=fl_resource.schema)
-
-
-class TestSchemaResource(TestVanillaResource):
+class TestSchemaResource(TestEmptyResource):
     expected_resource_status = ResourceStatus.SCHEMA
 
     @pytest.fixture()
@@ -148,28 +124,10 @@ class TestFromDataFrame(TestMemoryResource):
         return resource_from_dataframe
 
 
-@pytest.fixture()
-def resource_from_memory_resource(resource_from_dataframe):
-    """Returns a DimcatResource object created from a frozen resource."""
-    return DimcatResource.from_resource(resource_from_dataframe)
-
-
 class TestResourceFromMemoryResource(TestFromDataFrame):
     @pytest.fixture()
     def dc_resource(self, resource_from_memory_resource):
         return resource_from_memory_resource
-
-
-@pytest.fixture()
-def assembled_resource(
-    dataframe_from_tsv, fl_resource, tmp_serialization_path
-) -> DimcatResource:
-    resource = DimcatResource(
-        basepath=tmp_serialization_path,
-        resource_name=fl_resource.name,
-    )
-    resource.df = dataframe_from_tsv
-    return resource
 
 
 class TestAssembledResource(TestMemoryResource):
@@ -179,12 +137,6 @@ class TestAssembledResource(TestMemoryResource):
     @pytest.fixture()
     def dc_resource(self, assembled_resource):
         return assembled_resource
-
-
-@pytest.fixture()
-def serialized_resource(resource_from_dataframe) -> DimcatResource:
-    resource_from_dataframe.store_dataframe()
-    return resource_from_dataframe
 
 
 class TestSerializedResource(TestMemoryResource):
@@ -207,26 +159,12 @@ class TestFromFrictionless(TestDiskResource):
         return resource_from_fl_resource
 
 
-@pytest.fixture()
-def resource_from_dict(resource_from_descriptor):
-    """Returns a DimcatResource object created from the descriptor source."""
-    as_dict = resource_from_descriptor.to_dict()
-    return DimcatResource.from_dict(as_dict)
-
-
 class TestFromDict(TestDiskResource):
     expected_resource_status = ResourceStatus.STANDALONE_NOT_LOADED
 
     @pytest.fixture()
     def dc_resource(self, resource_from_dict):
         return resource_from_dict
-
-
-@pytest.fixture()
-def resource_from_config(resource_from_descriptor):
-    """Returns a DimcatResource object created from the descriptor on disk."""
-    config = resource_from_descriptor.to_config()
-    return DimcatResource.from_config(config)
 
 
 class TestFromConfig(TestDiskResource):
@@ -243,18 +181,6 @@ def package_descriptor_filepath(package_path) -> str:
     return os.path.relpath(package_path, CORPUS_PATH)
 
 
-@pytest.fixture()
-def zipped_resource_from_fl_package(
-    fl_package,
-    package_descriptor_filepath,
-) -> DimcatResource:
-    """Returns a DimcatResource object created from the dataframe."""
-    fl_resource = fl_package.get_resource("notes")
-    return DimcatResource(
-        resource=fl_resource, descriptor_filepath=package_descriptor_filepath
-    )
-
-
 class TestFromFlPackage(TestDiskResource):
     expected_resource_status = ResourceStatus.PACKAGED_NOT_LOADED
     should_have_descriptor = True
@@ -262,16 +188,6 @@ class TestFromFlPackage(TestDiskResource):
     @pytest.fixture()
     def dc_resource(self, zipped_resource_from_fl_package):
         return zipped_resource_from_fl_package
-
-
-@pytest.fixture()
-def zipped_resource_from_dc_package(
-    package_from_fl_package, package_descriptor_filepath
-) -> DimcatResource:
-    dc_resource = package_from_fl_package.get_resource("notes")
-    return DimcatResource.from_resource(
-        dc_resource, descriptor_filepath=package_descriptor_filepath
-    )
 
 
 class TestFromDcPackage(TestDiskResource):
@@ -393,3 +309,23 @@ class TestFromDcPackage(TestDiskResource):
 #         assert isinstance(from_config, DimcatResource)
 #         assert from_dict.__dict__.keys() == from_config.__dict__.keys()
 #
+
+
+def test_index_from_resource(resource_object):
+    was_loaded_before = resource_object.is_loaded
+    idx = DimcatIndex.from_resource(resource_object)
+    print(idx)
+    if resource_object.is_empty:
+        assert len(idx) == 0
+    else:
+        assert len(idx) > 0
+    assert resource_object.is_loaded == was_loaded_before
+    piece_idx1 = PieceIndex.from_resource(resource_object)
+    piece_idx2 = PieceIndex.from_index(idx)
+    assert len(piece_idx1) == len(piece_idx2)
+    assert piece_idx1 == piece_idx2
+    assert piece_idx1[:3] in piece_idx2
+    if resource_object.is_empty or piece_idx1.nlevels == idx.nlevels:
+        assert piece_idx1 in idx
+    else:
+        assert piece_idx1 not in idx

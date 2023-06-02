@@ -6,7 +6,7 @@ from dimcat.dataset.processed import (
     GroupedAnalyzedDataset,
     GroupedDataset,
 )
-from dimcat.resources.base import DimcatIndex, PieceIndex, ResourceStatus
+from dimcat.resources.base import ResourceStatus
 from dimcat.utils import get_default_basepath
 
 from tests.conftest import CORPUS_PATH
@@ -97,36 +97,3 @@ def test_processed_dataset(dataset_from_single_package):
     assert isinstance(ag_dataset, GroupedDataset)
     assert isinstance(ag_dataset, AnalyzedDataset)
     assert ag_dataset.inputs == dataset_from_single_package.inputs
-
-
-@pytest.fixture(
-    params=[
-        "resource_from_descriptor",
-        "resource_from_fl_resource",
-        "resource_from_dataframe",
-    ]
-)
-def resource_object(
-    request,
-    resource_from_descriptor,
-    resource_from_fl_resource,
-    resource_from_dataframe,
-):
-    yield request.getfixturevalue(request.param)
-
-
-def test_index_from_resource(resource_object):
-    was_loaded_before = resource_object.is_loaded
-    idx = DimcatIndex.from_resource(resource_object)
-    print(idx)
-    assert len(idx) > 0
-    assert resource_object.is_loaded == was_loaded_before
-    piece_idx1 = PieceIndex.from_resource(resource_object)
-    piece_idx2 = PieceIndex.from_index(idx)
-    assert len(piece_idx1) == len(piece_idx2)
-    assert piece_idx1 == piece_idx2
-    assert piece_idx1[:3] in piece_idx2
-    if piece_idx1.nlevels == idx.nlevels:
-        assert piece_idx1 in idx
-    else:
-        assert piece_idx1 not in idx
