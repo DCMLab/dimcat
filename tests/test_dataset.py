@@ -78,10 +78,13 @@ class TestPackageFromFL(TestPackageFromDescriptor):
 # endregion test DimcatPackage objects
 
 
-def test_dataset(dataset_from_single_package):
+def test_copying_dataset(dataset_from_single_package):
     new_dataset = Dataset.from_dataset(dataset_from_single_package)
     assert new_dataset == dataset_from_single_package
     assert new_dataset is not dataset_from_single_package
+    as_config = dataset_from_single_package.to_config()
+    new_dataset = as_config.create()
+    assert new_dataset == dataset_from_single_package
 
 
 def test_processed_dataset(dataset_from_single_package):

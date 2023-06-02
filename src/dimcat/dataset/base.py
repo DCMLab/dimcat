@@ -663,12 +663,24 @@ class Dataset(Data):
     """The central type of object that all :obj:`PipelineSteps <.PipelineStep>` process and return a copy of."""
 
     @classmethod
+    def from_catalogs(
+        cls,
+        inputs: DimcatCatalog | List[DimcatPackage],
+        outputs: DimcatCatalog | List[DimcatPackage],
+        **kwargs,
+    ):
+        """Instantiate by copying existing catalogs."""
+        new_dataset = cls(**kwargs)
+        new_dataset.inputs.extend(inputs)
+        new_dataset.outputs.extend(outputs)
+        return new_dataset
+
+    @classmethod
     def from_dataset(cls, dataset: Dataset, **kwargs):
         """Instantiate from this Dataset by copying its fields, empty fields otherwise."""
-        new_dataset = cls(**kwargs)
-        new_dataset.inputs.extend(dataset.inputs)
-        new_dataset.outputs.extend(dataset.outputs)
-        return new_dataset
+        return cls.from_catalogs(
+            inputs=dataset.inputs, outputs=dataset.outputs, **kwargs
+        )
 
     class Schema(Data.Schema):
         """Dataset serialization schema."""
@@ -678,20 +690,25 @@ class Dataset(Data):
             DimcatCatalog.Schema, required=False, load_default=[]
         )
 
+        @mm.post_load
+        def init_object(self, data, **kwargs) -> Dataset:
+            return Dataset.from_catalogs(
+                inputs=data["inputs"],
+                outputs=data["outputs"],
+            )
+
     def __init__(
         self,
-        data: Optional[Dataset] = None,
         **kwargs,
     ):
         """The central type of object that all :obj:`PipelineSteps <.PipelineStep>` process and return a copy of.
 
         Args:
-            data: Instantiate from this Dataset by copying its fields, empty fields otherwise.
             **kwargs: Dataset is cooperative and calls super().__init__(data=dataset, **kwargs)
         """
-        super().__init__(**kwargs)
         self._inputs = DimcatCatalog()
         self._outputs = DimcatCatalog()
+        super().__init__(**kwargs)
 
     def __repr__(self):
         return repr(self.inputs)
