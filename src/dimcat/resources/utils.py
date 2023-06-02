@@ -9,6 +9,7 @@ from zipfile import ZipFile
 
 import frictionless as fl
 import pandas as pd
+from dimcat.base import get_setting
 
 logger = logging.getLogger(__name__)
 
@@ -408,15 +409,26 @@ def make_boolean_mask_from_set_of_tuples(
     return index.map(lambda index_tuple: tuple_maker(index_tuple) in tuples)
 
 
+def resolve_recognized_piece_columns_argument(
+    recognized_piece_columns: Optional[Iterable[str]] = None,
+) -> List[str]:
+    """Resolve the recognized_piece_columns argument by replacing None with the default value."""
+    if recognized_piece_columns is None:
+        return get_setting("recognized_piece_columns")
+    else:
+        return list(recognized_piece_columns)
+
+
 def infer_piece_col_position(
     column_name: List[str],
-    recognized_piece_columns: Iterable[str] = None,
+    recognized_piece_columns: Optional[Iterable[str]] = None,
 ) -> Optional[int]:
     """Infer the position of the piece column in a list of column names."""
-    if recognized_piece_columns is None:
-        recognized_piece_columns = ("piece", "pieces", "fname", "fnames")
-    elif recognized_piece_columns[0] != "piece":
-        recognized_piece_columns = ["piece"] + list(recognized_piece_columns)
+    recognized_piece_columns = resolve_recognized_piece_columns_argument(
+        recognized_piece_columns
+    )
+    if recognized_piece_columns[0] != "piece":
+        recognized_piece_columns = ["piece"] + [col for col in recognized_piece_columns]
     for name in recognized_piece_columns:
         try:
             return column_name.index(name)
@@ -445,6 +457,13 @@ def ensure_level_named_piece(
     piece_level_position = infer_piece_col_position(
         level_names, recognized_piece_columns=recognized_piece_columns
     )
+    if piece_level_position is None:
+        resolved_arg = resolve_recognized_piece_columns_argument(
+            recognized_piece_columns
+        )
+        raise ValueError(
+            f"No level has any of the recognized 'piece' column names {resolved_arg!r}: {level_names!r}"
+        )
     if level_names[piece_level_position] != "piece":
         return index.rename("piece", level=piece_level_position), piece_level_position
     return index, piece_level_position

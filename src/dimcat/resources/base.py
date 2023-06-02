@@ -9,11 +9,11 @@ from pprint import pformat
 from typing import Generic, Iterable, List, Optional, TypeAlias, TypeVar, Union
 
 import frictionless as fl
-import marshmallow as mm
 import ms3
 import pandas as pd
-from dimcat.base import NEVER_STORE_UNVALIDATED_DATA, Data, DimcatConfig, get_class
+from dimcat.base import Data, DimcatConfig, get_class, get_setting
 from dimcat.utils import check_file_path, check_name, get_default_basepath, replace_ext
+from marshmallow import fields, post_load
 from typing_extensions import Self
 
 from .utils import (
@@ -179,6 +179,8 @@ class PieceIndex(DimcatIndex[IX]):
         """Create a PieceIndex from another index."""
         if isinstance(index, DimcatIndex):
             index = index.index
+        if len(index) == 0:
+            return cls()
         index, piece_level_position = ensure_level_named_piece(
             index, recognized_piece_columns
         )
@@ -439,12 +441,12 @@ class DimcatResource(Generic[D], Data):
         return new_object
 
     class PickleSchema(Data.Schema):
-        resource = mm.fields.Method(
+        resource = fields.Method(
             serialize="get_descriptor_filepath",
             deserialize="raw",
             allow_none=True,
         )
-        basepath = mm.fields.String(allow_none=True)
+        basepath = fields.String(allow_none=True)
 
         def get_descriptor_filepath(self, obj: DimcatResource) -> str | dict:
             if obj.is_zipped_resource:
@@ -467,7 +469,7 @@ class DimcatResource(Generic[D], Data):
         def raw(self, data):
             return data
 
-        @mm.post_load
+        @post_load
         def init_object(self, data, **kwargs):
             if isinstance(data["resource"], str) and "basepath" in data:
                 descriptor_path = os.path.join(data["basepath"], data["resource"])
@@ -479,16 +481,14 @@ class DimcatResource(Generic[D], Data):
             return super().init_object(data, **kwargs)
 
     class Schema(Data.Schema):
-        resource = mm.fields.Method(
+        resource = fields.Method(
             serialize="get_resource_descriptor",
             deserialize="raw",
             metadata={"expose": False},
         )
-        basepath = mm.fields.String(allow_none=True, metadata={"expose": False})
-        descriptor_filepath = mm.fields.String(
-            allow_none=True, metadata={"expose": False}
-        )
-        auto_validate = mm.fields.Boolean(metadata={"expose": False})
+        basepath = fields.String(allow_none=True, metadata={"expose": False})
+        descriptor_filepath = fields.String(allow_none=True, metadata={"expose": False})
+        auto_validate = fields.Boolean(metadata={"expose": False})
 
         def get_resource_descriptor(self, obj: DimcatResource) -> str | dict:
             return obj._resource.to_descriptor()
@@ -496,7 +496,7 @@ class DimcatResource(Generic[D], Data):
         def raw(self, data):
             return data
 
-        @mm.post_load
+        @post_load
         def init_object(self, data, **kwargs):
             if "resource" not in data or data["resource"] is None:
                 return super().init_object(data, **kwargs)
@@ -1020,7 +1020,7 @@ class DimcatResource(Generic[D], Data):
         if self.status < ResourceStatus.DATAFRAME:
             raise RuntimeError(f"This {self.name} does not contain a dataframe.")
         if validate and self.status < ResourceStatus.VALIDATED:
-            _ = self.validate(raise_exception=NEVER_STORE_UNVALIDATED_DATA)
+            _ = self.validate(raise_exception=True)
 
         full_path = self.normpath
         if os.path.isfile(full_path):
@@ -1089,11 +1089,12 @@ class DimcatResource(Generic[D], Data):
         if report.valid:
             if self.status < ResourceStatus.VALIDATED:
                 self._status = ResourceStatus.VALIDATED
-        elif raise_exception:
+        else:
             errors = [err.message for task in report.tasks for err in task.errors]
             if self.status == ResourceStatus.VALIDATED:
                 self._status = ResourceStatus.DATAFRAME
-            raise fl.FrictionlessException("\n".join(errors))
+            if get_setting("never_store_unvalidated_data") and raise_exception:
+                raise fl.FrictionlessException("\n".join(errors))
         return report
 
 

@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from abc import ABC
+from configparser import ConfigParser
+from dataclasses import dataclass
+from dataclasses import field as dataclass_field
 from enum import Enum
 from functools import cache
 from inspect import isclass
@@ -22,19 +26,19 @@ from typing import (
 )
 
 import marshmallow as mm
+
+# this is the only dimcat import currently allowed in this file:
 from marshmallow import ValidationError
 from typing_extensions import Self
 
 logger = logging.getLogger(__name__)
 
-# ----------------------------- GLOBAL SETTINGS -----------------------------
+# ----------------------------- DEVELOPER SETTINGS -----------------------------
 
-NEVER_STORE_UNVALIDATED_DATA = (
-    False  # allows for skipping mandatory validations; set to True for production
-)
-CONTROL_REGISTRY = (
-    False  # raise an error if a subclass has the same name as another subclass
-)
+CONTROL_REGISTRY = False
+"""Raise an error if a subclass has the same name as another subclass. Set True for production."""
+
+# region DimcatSchema
 
 
 class DtypeField(mm.fields.Field):
@@ -120,6 +124,10 @@ class DimcatSchema(mm.Schema):
         raise AttributeError(
             f"AttributeError: {self.name!r} object has no attribute {item!r}"
         )
+
+
+# endregion DimcatSchema
+# region DimcatObject
 
 
 class DimcatObject(ABC):
@@ -273,6 +281,10 @@ class ObjectEnum(str, Enum):
 
     def get_class(self) -> Type[DimcatObject]:
         return get_class(self.name)
+
+
+# endregion DimcatObject
+# region DimcatConfig
 
 
 class DimcatConfig(MutableMapping, DimcatObject):
@@ -497,6 +509,10 @@ class DimcatConfig(MutableMapping, DimcatObject):
         return self.options_schema.validate(self._options, many=False, partial=partial)
 
 
+# endregion DimcatConfig
+# region Data and PipelineStep
+
+
 class Data(DimcatObject):
     """
     This base class unites all classes containing data in some way or another.
@@ -559,6 +575,8 @@ class PipelineStep(DimcatObject):
         return [self.process(d) for d in data]
 
 
+# endregion Data and PipelineStep
+# region querying DimcatObjects by name
 @cache
 def get_class(name) -> Type[DimcatObject]:
     if isinstance(name, Enum):
@@ -616,3 +634,121 @@ def deserialize_json_file(json_file) -> DimcatObject:
     with open(json_file, "r") as f:
         json_data = f.read()
     return deserialize_json_str(json_data)
+
+
+# endregion querying DimcatObjects by name
+# region DimcatSettings
+
+
+@dataclass
+class DimcatSettings(DimcatObject):
+    """Settings for the dimcat library."""
+
+    never_store_unvalidated_data: bool = True
+    """setting this to False allows for skipping mandatory validations; set to True for production"""
+    recognized_piece_columns: List[str] = dataclass_field(
+        default_factory=lambda: ["piece", "pieces", "fname", "fnames"]
+    )
+    """column names that are recognized as piece identifiers and automatically renamed to 'piece' when needed"""
+
+    class Schema(DimcatObject.Schema):
+        never_store_unvalidated_data = mm.fields.Boolean(required=True)
+        recognized_piece_columns = mm.fields.List(mm.fields.String(), required=True)
+
+
+def parse_config_file(config_filepath: str) -> ConfigParser:
+    """Parse a config file and return a ConfigParser object."""
+    if not os.path.isfile(config_filepath):
+        raise FileNotFoundError(f"Config file '{config_filepath}' not found.")
+    config = ConfigParser()
+    config.read(config_filepath)
+    return config
+
+
+def make_default_settings() -> DimcatConfig:
+    """Make a DimcatConfig object representing DimcatSettings with default values."""
+    return DimcatSettings().to_config()
+
+
+def make_settings_from_config_parser(config: ConfigParser) -> DimcatConfig:
+    """Make a DimcatSettings object from a ConfigParser object."""
+    settings = make_default_settings()
+    # recognized_settings = [f.name for f in dataclass_fields(settings)]
+    all_section_names: list[str] = config.sections()
+    all_section_names.append("DEFAULT")
+    setting_fields = {
+        name: f for name, f in DimcatSettings.schema.declared_fields.items()
+    }
+    for section_name in all_section_names:
+        for key, value in config.items(section_name):
+            split_value = [
+                word for line in value.split("\n") for word in line.split(",")
+            ]
+            while "" in split_value:
+                split_value.remove("")
+            if len(split_value) > 1:
+                settings[key] = split_value
+            else:
+                setting_field = setting_fields[key]
+                if isinstance(setting_field, mm.fields.Boolean):
+                    value = value in setting_field.truthy
+                settings[key] = value
+    return settings
+
+
+def make_settings_from_config_file(config_filepath: str) -> DimcatConfig:
+    """Make a DimcatSettings object from a config file."""
+    try:
+        config = parse_config_file(config_filepath)
+    except FileNotFoundError:
+        logger.warning(
+            f"Config file '{config_filepath}' not found. Falling back to default settings."
+        )
+        return make_default_settings()
+    try:
+        return make_settings_from_config_parser(config)
+    except Exception as e:
+        logger.warning(
+            f"Error while parsing config file '{config_filepath}': {e}. Falling back to default settings."
+        )
+        return make_default_settings()
+
+
+def load_settings(config_filepath: Optional[str] = None) -> DimcatConfig:
+    """Get the DimcatSettings object."""
+    if config_filepath is None:
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        config_filepath = os.path.join(dir_path, "settings.ini")
+        if os.path.isfile(config_filepath):
+            settings = make_settings_from_config_file(config_filepath)
+            logger.info(f"Loaded default config file at '{config_filepath}'.")
+            return settings
+        else:
+            logger.warning(
+                f"No config file path was provided and the default config file was not found: "
+                f"{config_filepath}. Falling back to default."
+            )
+            return make_default_settings()
+    settings = make_settings_from_config_file(config_filepath)
+    logger.info(f"Loaded config file at '{config_filepath}'.")
+    return settings
+
+
+SETTINGS: DimcatConfig = load_settings()
+
+
+def get_setting(key: str) -> Any:
+    return SETTINGS[key]
+
+
+def change_setting(key: str, value: Any) -> None:
+    SETTINGS[key] = value
+
+
+def reset_settings(config_filepath: Optional[str] = None) -> None:
+    """Reset the DiMCAT settings to the default or to those found in the settings.ini file at the given path."""
+    global SETTINGS
+    SETTINGS = load_settings(config_filepath)
+
+
+# endregion DimcatSettings
