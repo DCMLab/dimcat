@@ -320,7 +320,7 @@ def test_index_from_resource(resource_object):
     else:
         assert len(idx) > 0
     assert resource_object.is_loaded == was_loaded_before
-    piece_idx1 = PieceIndex.from_resource(resource_object)
+    piece_idx1 = resource_object.get_piece_index()
     piece_idx2 = PieceIndex.from_index(idx)
     assert len(piece_idx1) == len(piece_idx2)
     assert piece_idx1 == piece_idx2
@@ -329,3 +329,6 @@ def test_index_from_resource(resource_object):
         assert piece_idx1 in idx
     else:
         assert piece_idx1 not in idx
+    serialized = idx.to_json()
+    deserialized = DimcatIndex.from_json(serialized)
+    assert idx == deserialized

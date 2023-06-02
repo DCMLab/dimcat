@@ -50,6 +50,11 @@ IX = TypeVar("IX", bound=SomeIndex)
 # region DimcatIndex
 
 
+class IndexField(fields.Field):
+    def _serialize(self, value, attr, obj, **kwargs):
+        return value.to_list()
+
+
 class DimcatIndex(Generic[IX], Data):
     """A wrapper around a :obj:`pandas.MultiIndex` that provides additional functionality such as keeping track of
     index levels and default groupings.
@@ -62,6 +67,14 @@ class DimcatIndex(Generic[IX], Data):
     NB: If you want to use the index in a dataframe constructor, use the actual, wrapped index object as in
     `pd.DataFrame(index=dc_index.index)`.
     """
+
+    class Schema(Data.Schema):
+        index = IndexField(required=True)
+        names = fields.List(fields.Str(), required=True)
+
+        @post_load
+        def init_object(self, data, **kwargs) -> pd.MultiIndex:
+            return pd.MultiIndex.from_tuples(data["index"], names=data["names"])
 
     @classmethod
     def from_dataframe(cls, df: SomeDataframe) -> Self:
@@ -98,8 +111,12 @@ class DimcatIndex(Generic[IX], Data):
 
     def __init__(self, index: Optional[IX] = None):
         if index is None:
-            self._index = pd.Index([])
+            self._index = pd.MultiIndex.from_tuples([], names=["dimcat_index"])
         elif isinstance(index, pd.Index):
+            if None in index.names:
+                raise ValueError("Index cannot have a None name: {index.names}.")
+            for name in index.names:
+                check_name(name)
             self._index = index.copy()
         else:
             raise TypeError(
@@ -168,13 +185,8 @@ class PieceIndex(DimcatIndex[IX]):
     def from_index(
         cls,
         index: DimcatIndex[IX] | IX,
+        recognized_piece_columns: Optional[Iterable[str]] = None,
         max_levels: int = 2,
-        recognized_piece_columns: Optional[Iterable[str]] = (
-            "piece",
-            "pieces",
-            "fname",
-            "fnames",
-        ),
     ) -> Self:
         """Create a PieceIndex from another index."""
         if isinstance(index, DimcatIndex):
@@ -198,19 +210,29 @@ class PieceIndex(DimcatIndex[IX]):
         cls,
         resource: DimcatResource | fl.Resource,
         index_col: Optional[int | str | List[int | str]] = None,
+        recognized_piece_columns: Optional[Iterable[str]] = None,
+        max_levels: int = 2,
     ) -> Self:
         """Create a PieceIndex from a frictionless Resource."""
-        index = DimcatIndex.from_resource(resource, index_col=index_col)
-        return cls.from_index(index)
+        index = DimcatIndex.from_resource(
+            resource,
+            index_col=index_col,
+        )
+        return cls.from_index(
+            index,
+            recognized_piece_columns=recognized_piece_columns,
+            max_levels=max_levels,
+        )
 
     def __init__(self, index: Optional[IX] = None):
         if index is None:
-            self._index = pd.MultiIndex.from_tuples([], name=("corpus", "piece"))
+            index = pd.MultiIndex.from_tuples([], name=("corpus", "piece"))
         else:
-            self._index = index.drop_duplicates()
+            index = index.drop_duplicates()
             assert (
-                self.names[-1] == "piece"
-            ), f"Expected last level to be named 'piece', got {self.names[-1]!r}."
+                index.names[-1] == "piece"
+            ), f"Expected last level to be named 'piece', got {index.names[-1]!r}."
+        super().__init__(index)
 
 
 # endregion DimcatIndex
@@ -976,7 +998,21 @@ class DimcatResource(Generic[D], Data):
         return self.filepath
 
     def get_index(self) -> DimcatIndex:
+        """Returns the index of the resource based on the ``primaryKey`` of the :obj:`frictionless.Schema`."""
         return DimcatIndex.from_resource(self)
+
+    def get_piece_index(self, max_levels: int = 2) -> PieceIndex:
+        """Returns the :class:`PieceIndex` of the resource based on :attr:`get_index`. That is,
+        an index of which the right-most level is unique and called `piece` and up to ``max_levels``
+        additional index levels to its right.
+
+        Args:
+            max_levels: By default, the number of levels is limited to the default 2, ('corpus', 'piece').
+
+        Returns:
+            An index of the pieces described by the resource.
+        """
+        return PieceIndex.from_resource(self, max_levels=max_levels)
 
     def load(self, force_reload: bool = False) -> None:
         """Tries to load the data from disk into RAM. If successful, the .is_loaded property will be True.
