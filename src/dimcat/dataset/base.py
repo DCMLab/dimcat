@@ -362,7 +362,7 @@ class DimcatPackage(Data):
         resource_name = name2resource[feature_name]
         resource = self.get_resource(resource_name)
         Constructor = feature_name.get_class()
-        return Constructor(resource=resource.resource)
+        return Constructor.from_resource(resource)
 
     def _get_fl_resource(self, name: str) -> fl.Resource:
         """Returns the frictionless resource with the given name."""
