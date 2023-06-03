@@ -124,6 +124,14 @@ class PipelineStep(DimcatObject):
         """Return a list of feature names required for this PipelineStep."""
         return self.features
 
+    def _make_new_dataset(self, dataset):
+        if self.new_dataset_type is None:
+            dataset_constructor: Type[Dataset] = dataset.__class__
+        else:
+            dataset_constructor: Type[Dataset] = self.new_dataset_type
+        new_dataset = dataset_constructor.from_dataset(dataset)
+        return new_dataset
+
     def pre_process_resource(self, resource: DimcatResource) -> DimcatResource:
         """Perform some pre-processing on a resource before processing it."""
         resource.load()
@@ -165,11 +173,7 @@ class PipelineStep(DimcatObject):
 
     def _process_dataset(self, dataset: Dataset) -> Dataset:
         """Apply this PipelineStep to a :class:`Dataset` and return a copy containing the output(s)."""
-        if self.new_dataset_type is None:
-            dataset_constructor: Type[Dataset] = dataset.__class__
-        else:
-            dataset_constructor: Type[Dataset] = self.new_dataset_type
-        new_dataset = dataset_constructor.from_dataset(dataset)
+        new_dataset = self._make_new_dataset(dataset)
         self.fit_to_dataset(new_dataset)
         resources = list(new_dataset.iter_features(self.features))
         is_transformation = self.output_package_name is None
