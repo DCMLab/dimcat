@@ -11,19 +11,7 @@ from enum import Enum
 from functools import cache
 from inspect import isclass
 from pprint import pformat
-from typing import (
-    Any,
-    ClassVar,
-    Dict,
-    Iterable,
-    List,
-    MutableMapping,
-    Optional,
-    Tuple,
-    Type,
-    Union,
-    overload,
-)
+from typing import Any, ClassVar, Dict, List, MutableMapping, Optional, Type
 
 import marshmallow as mm
 
@@ -257,7 +245,9 @@ class DimcatObject(ABC):
             json.dump(as_dict, f, indent=indent, **kwargs)
 
 
-class ObjectEnum(str, Enum):
+class FriendlyEnum(str, Enum):
+    """Members of this Enum can be created from and compared to strings in a case-insensitive manner."""
+
     @classmethod
     def _missing_(cls, value) -> Self:
         value_lower = value.lower()
@@ -279,6 +269,8 @@ class ObjectEnum(str, Enum):
     def __hash__(self):
         return hash(self.value)
 
+
+class ObjectEnum(FriendlyEnum):
     def get_class(self) -> Type[DimcatObject]:
         return get_class(self.name)
 
@@ -297,7 +289,8 @@ class DimcatConfig(MutableMapping, DimcatObject):
 
     - ``DC['dtype']`` is the name of the described DimcatObject (equivalent to ``DC.options_dtype``)
     - ``DC.dtype`` returns the class name "DimcatConfig", according to all DimcatObjects' default behaviour
-    - ``DC.options`` returns the key-value pairs wrapped by this config, which includes at least the 'dtype' key
+    - ``DC.options`` (equivalent to ``dict(DC)`` returns the key-value pairs wrapped by this config,
+      which includes at least the 'dtype' key
     - ``DC['options']`` is the value of the 'options' option, which exists only if it is part of the described
       object's schema, for example if the described object is a :class:`DimcatConfig` itself.
 
@@ -523,58 +516,6 @@ class Data(DimcatObject):
         pass
 
 
-class PipelineStep(DimcatObject):
-    """
-    This abstract base class unites all classes able to transform some data in a pre-defined way.
-
-    The initializer will set some parameters of the transformation, and then the
-    :meth:`process` method is used to transform an input Data object, returning a copy.
-
-
-    """
-
-    class Schema(DimcatObject.Schema):
-        pass
-
-    def check(self, _) -> Tuple[bool, str]:
-        """Test piece of data for certain properties before computing analysis.
-
-        Returns:
-            True if the passed data is eligible.
-            Error message in case the passed data is not eligible.
-        """
-        return True, ""
-
-    def process(self, data: Data) -> Data:
-        """
-        Perform a transformation on an input Data object. This should never alter the
-        Data or its properties in place, instead returning a copy or view of the input.
-
-        Args:
-            data: The data to be transformed. This should not be altered in place.
-
-        Returns:
-            A copy of the input Data, potentially transformed in some way defined by this PipelineStep.
-        """
-        return data
-
-    @overload
-    def process_data(self, data: Data) -> Data:
-        ...
-
-    @overload
-    def process_data(self, data: Iterable[Data]) -> List[Data]:
-        ...
-
-    def process_data(
-        self, data: Union[Data, Iterable[Data]]
-    ) -> Union[Data, List[Data]]:
-        """Same as process(), with the difference that an Iterable is accepted."""
-        if isinstance(data, Data):
-            return self.process(data)
-        return [self.process(d) for d in data]
-
-
 # endregion Data and PipelineStep
 # region querying DimcatObjects by name
 @cache
@@ -600,6 +541,15 @@ def is_name_of_dimcat_class(name) -> bool:
         return True
     except KeyError:
         return False
+
+
+@cache
+def is_subclass_of(name: str, parent: str | Type[DimcatObject]) -> bool:
+    """Returns True if the DimcatObject with the given name is a subclass of the given parent."""
+    cls = get_class(name)
+    if isinstance(parent, str):
+        parent = get_class(parent)
+    return issubclass(cls, parent)
 
 
 @cache
