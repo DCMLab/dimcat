@@ -33,7 +33,7 @@ class _AnalyzedMixin(_ProcessedMixin):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if not self.outputs.has_package("results"):
-            self.outputs.add_package(package_name="results")
+            self.outputs.make_new_package(package_name="results")
 
     def add_result(self, result: Result):
         """Adds a result to the outputs catalog."""

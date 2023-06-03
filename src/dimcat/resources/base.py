@@ -6,7 +6,7 @@ import zipfile
 from enum import IntEnum, auto
 from functools import cache
 from pprint import pformat
-from typing import Generic, Iterable, List, Optional, TypeAlias, TypeVar, Union
+from typing import Dict, Generic, Iterable, List, Optional, TypeAlias, TypeVar, Union
 
 import frictionless as fl
 import ms3
@@ -643,10 +643,6 @@ class DimcatResource(Generic[D], Data):
 
         if basepath is not None:
             self.basepath = basepath
-        elif not self.basepath:
-            if filepath is None or not os.path.isabs(filepath):
-                self.basepath = get_default_basepath()
-                self.logger.info(f"Using default basepath: {self.basepath}")
 
         if resource_name is not None:
             self.resource_name = resource_name
@@ -748,7 +744,7 @@ class DimcatResource(Generic[D], Data):
 
     @property
     def descriptor_exists(self) -> bool:
-        return self.get_descriptor_path(only_if_exists=True) is not None
+        return os.path.isfile(self.get_descriptor_path())
 
     @property
     def descriptor_filepath(self) -> Optional[str]:
@@ -759,10 +755,18 @@ class DimcatResource(Generic[D], Data):
     @descriptor_filepath.setter
     def descriptor_filepath(self, descriptor_filepath: str):
         if self.descriptor_exists:
-            raise RuntimeError(
-                f"Cannot set descriptor filepath for {self.name!r} because it already exists at "
-                f"{self.get_descriptor_path()!r}."
-            )
+            if (
+                descriptor_filepath == self._descriptor_filepath
+                or descriptor_filepath == self.get_descriptor_path()
+            ):
+                self.logger.info(
+                    f"Descriptor filepath for {self.name!r} was already set to {descriptor_filepath!r}."
+                )
+            else:
+                raise RuntimeError(
+                    f"Cannot set descriptor_filepath for {self.name!r} to {descriptor_filepath} because it already "
+                    f"set to the existing one at {self.get_descriptor_path()!r}."
+                )
         if os.path.isabs(descriptor_filepath):
             filepath = check_file_path(
                 descriptor_filepath,
@@ -861,7 +865,7 @@ class DimcatResource(Generic[D], Data):
     @property
     def is_serialized(self) -> bool:
         """Returns True if the resource is serialized (i.e. its dataframe has been written to disk)."""
-        if self.normpath is None:
+        if self.basepath is None:
             return False
         if not os.path.isfile(self.normpath):
             return False
@@ -895,7 +899,7 @@ class DimcatResource(Generic[D], Data):
     def normpath(self) -> str:
         """Absolute path to the serialized or future tabular file. Raises if basepath is not set."""
         if self.basepath is None:
-            raise RuntimeError(f"DimcatResource {self.name} has no basepath.")
+            raise RuntimeError(f"DimcatResource {self.resource_name} has no basepath.")
         file_path = self.get_filepath()
         return os.path.normpath(os.path.join(self.basepath, file_path))
 
@@ -989,34 +993,23 @@ class DimcatResource(Generic[D], Data):
             self._status = ResourceStatus.PACKAGED_LOADED
         return dataframe
 
-    def get_descriptor_path(self, only_if_exists: bool = True) -> Optional[str]:
+    def get_descriptor_path(self, create_if_necessary: bool = False) -> Optional[str]:
         """Returns the full path to the existing or future descriptor file."""
-        if self.basepath is None and only_if_exists:
-            return
         descriptor_path = os.path.join(
             self.get_basepath(), self.get_descriptor_filepath()
         )
-        if only_if_exists and not os.path.isfile(descriptor_path):
-            return
+        if not os.path.isfile(descriptor_path) and create_if_necessary:
+            self._store_descriptor(descriptor_path)
         return descriptor_path
 
-    def get_descriptor_filepath(self, create_if_necessary: bool = False) -> str:
-        """Like :attr:`descriptor_filepath` but default to :attr:`filepath` or, if None, to :attr:`innerpath`.
-        If ``create_if_necessary=True``, the descriptor will be created in :attr:`basedir` if missing.
-        """
-        if self.descriptor_filepath is None:
-            if self.filepath is None:
-                descriptor_filepath = replace_ext(self.innerpath, ".resource.json")
-            else:
-                descriptor_filepath = replace_ext(self.filepath, ".resource.json")
+    def get_descriptor_filepath(self) -> str:
+        """Like :attr:`descriptor_filepath` but returning a default value if None."""
+        if self.descriptor_filepath is not None:
+            return self.descriptor_filepath
+        if self.filepath is None:
+            descriptor_filepath = replace_ext(self.innerpath, ".resource.json")
         else:
-            descriptor_filepath = self.descriptor_filepath
-        descriptor_path = os.path.join(self.get_basepath(), descriptor_filepath)
-        if os.path.isfile(descriptor_path):
-            self._descriptor_filepath = descriptor_filepath
-        elif create_if_necessary:
-            self._descriptor_filepath = descriptor_filepath
-            _ = self._store_descriptor()
+            descriptor_filepath = replace_ext(self.filepath, ".resource.json")
         return descriptor_filepath
 
     def get_filepath(self) -> str:
@@ -1028,6 +1021,16 @@ class DimcatResource(Generic[D], Data):
     def get_index(self) -> DimcatIndex:
         """Returns the index of the resource based on the ``primaryKey`` of the :obj:`frictionless.Schema`."""
         return DimcatIndex.from_resource(self)
+
+    def get_path_dict(self) -> Dict[str, str]:
+        """Returns a dictionary with the paths to the resource's data and descriptor."""
+        return dict(
+            basepath=self.basepath,
+            filepath=self.filepath,
+            descriptor_filepath=self.descriptor_filepath,
+            normpath=self.normpath,
+            descriptor_path=self.get_descriptor_path(),
+        )
 
     def get_piece_index(self, max_levels: int = 2) -> PieceIndex:
         """Returns the :class:`PieceIndex` of the resource based on :attr:`get_index`. That is,
@@ -1095,20 +1098,19 @@ class DimcatResource(Generic[D], Data):
         self._store_descriptor()
         self._status = ResourceStatus.STANDALONE_LOADED
 
-    def _store_descriptor(self, overwrite=True) -> str:
+    def _store_descriptor(
+        self, descriptor_path: Optional[str] = None, overwrite=True
+    ) -> str:
         """Stores the descriptor to disk based on the resource's configuration and returns its path.
         Does not modify the resource's :attr:`status`.
 
         Returns:
             The path to the descriptor file on disk.
         """
-        if self.descriptor_filepath is None:
-            self.descriptor_filepath = self.get_descriptor_filepath(
-                create_if_necessary=False
-            )
-        descriptor_path = self.get_descriptor_path(only_if_exists=False)
+        if descriptor_path is None:
+            descriptor_path = self.get_descriptor_path()
         if not overwrite and os.path.isfile(descriptor_path):
-            self.logger.debug(
+            self.logger.info(
                 f"Descriptor exists already and will not be overwritten: {descriptor_path}"
             )
             return descriptor_path
@@ -1120,6 +1122,7 @@ class DimcatResource(Generic[D], Data):
             raise ValueError(
                 f"Descriptor path must end with .resource.yaml or .resource.json: {descriptor_path}"
             )
+        self.descriptor_filepath = descriptor_path
         return descriptor_path
 
     def to_config(self, pickle=False) -> DimcatConfig:

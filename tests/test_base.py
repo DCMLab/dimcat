@@ -5,7 +5,7 @@ import os
 import tempfile
 from itertools import product
 from pprint import pprint
-from typing import Iterable, List, Tuple, Type
+from typing import List, Tuple, Type
 
 import frictionless as fl
 import pandas as pd
@@ -17,76 +17,22 @@ from dimcat.base import (
     DimcatConfig,
     DimcatObject,
     DimcatSchema,
-    PipelineStep,
     deserialize_dict,
     deserialize_json_file,
     deserialize_json_str,
 )
 from dimcat.dataset.base import DimcatCatalog, DimcatPackage
+from dimcat.pipeline import PipelineStep
 from dimcat.resources.base import DimcatResource
 from dimcat.resources.features import Notes
-from marshmallow import ValidationError, fields, pre_load, validate
+from marshmallow import ValidationError, fields
 from marshmallow.class_registry import _registry as MM_REGISTRY
 
 from tests.conftest import datapackage_json_path, single_resource_path
 
 
-class DummyAnalyzer(PipelineStep):
-    """This class simulates the aspect of embedding a list of configs."""
-
-    class Schema(PipelineStep.Schema):
-        features = fields.List(
-            fields.Nested(DimcatConfig.Schema), validate=validate.Length(min=1)
-        )
-
-        @pre_load()
-        def features_as_list(self, obj, **kwargs):
-            features = self.get_attribute(obj, "features", None)
-            if features is not None and not isinstance(features, list):
-                try:
-                    obj.features = [obj.features]
-                except AttributeError:
-                    obj["features"] = [obj["features"]]
-            return obj
-
-    def __init__(
-        self,
-        features: DimcatConfig | Iterable[DimcatConfig],
-    ):
-        self._features: List[DimcatConfig] = []
-        self.features = features
-
-    @property
-    def features(self) -> List[DimcatConfig]:
-        return self._features
-
-    @features.setter
-    def features(self, features):
-        if isinstance(features, DimcatConfig):
-            features = [features]
-        configs = []
-        for config in features:
-            if isinstance(config, DimcatConfig):
-                configs.append(config)
-            else:
-                raise ValueError(f"Not a DimcatConfig: {config}")
-        if len(configs) == 0:
-            raise ValidationError(
-                f"{self.name} requires at least one feature to analyze."
-            )
-        self._features = configs
-
-
-def test_dummy_analyzer():
-    config = DimcatConfig(dtype="DimcatObject")
-    report = DummyAnalyzer.schema.validate({"features": [config]})
-    assert len(report) == 0
-
-
 class TestBaseObjects:
-    @pytest.fixture(
-        params=[DimcatObject, Data, PipelineStep, DimcatConfig, DummyAnalyzer]
-    )
+    @pytest.fixture(params=[DimcatObject, Data, PipelineStep, DimcatConfig])
     def dimcat_class(self, request):
         return request.param
 
@@ -94,11 +40,8 @@ class TestBaseObjects:
     def dimcat_object(self, dimcat_class):
         """Initializes each of the objects to be tested."""
         if dimcat_class == DimcatConfig:
-            feature_config = DimcatConfig(dtype="DimcatObject")
-            return DimcatConfig(dtype="DummyAnalyzer", features=[feature_config])
-        if dimcat_class == DummyAnalyzer:
-            feature_config = DimcatConfig(dtype="DimcatObject")
-            return DummyAnalyzer(features=feature_config)
+            feature_config = DimcatConfig(dtype="Feature")
+            return DimcatConfig(dtype="Analyzer", features=[feature_config])
         return dimcat_class()
 
     @pytest.fixture()
@@ -136,8 +79,6 @@ class TestBaseObjects:
         options = dict(dtype=dimcat_class.dtype)
         if dimcat_class == DimcatConfig:
             options["options"] = dict(dtype="DimcatObject")
-        elif dimcat_class == DummyAnalyzer:
-            options["features"] = [DimcatConfig(dtype="DimcatObject")]
         config = DimcatConfig(options)
         obj = config.create()
         assert isinstance(obj, dimcat_class)
@@ -160,7 +101,6 @@ DIMCAT_OBJECT_TEST_CASES: List[Tuple[Type[DimcatObject], dict]] = [
         DimcatResource,
         dict(resource=fl.Resource(name="empty_resource", path="empty_resource.tsv")),
     ),
-    (DummyAnalyzer, dict(features=dummy_config())),
     (Notes, dict(resource=single_resource_path())),
     (Analyzer, dict(features=dummy_config())),
     (Counter, dict(features=dummy_config())),

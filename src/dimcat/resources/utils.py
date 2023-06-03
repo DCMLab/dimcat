@@ -35,7 +35,7 @@ def check_rel_path(rel_path, basepath):
 def make_rel_path(path: str, start: str):
     """Like os.path.relpath() but ensures that path is contained within start."""
     rel_path = os.path.relpath(path, start)
-    return check_rel_path(rel_path)
+    return check_rel_path(rel_path, start)
 
 
 def make_tsv_resource(name: Optional[str] = None) -> fl.Resource:

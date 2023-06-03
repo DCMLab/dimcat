@@ -7,7 +7,6 @@ from dimcat.dataset.processed import (
     GroupedDataset,
 )
 from dimcat.resources.base import ResourceStatus
-from dimcat.utils import get_default_basepath
 
 from tests.conftest import CORPUS_PATH
 
@@ -26,7 +25,7 @@ class TestDimcatPackage:
     @pytest.fixture()
     def expected_basepath(self):
         """The expected basepath of the resource after initialization."""
-        return get_default_basepath()
+        return None
 
     @pytest.fixture()
     def package_obj(self, empty_package):

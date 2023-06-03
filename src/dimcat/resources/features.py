@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import logging
 from enum import Enum
-from typing import Optional
+from typing import Iterable, List, MutableMapping, Optional, TypeAlias, Union
 
 import frictionless as fl
 import marshmallow as mm
-from dimcat.base import ObjectEnum
+from dimcat import DimcatConfig
+from dimcat.base import ObjectEnum, is_subclass_of
 from dimcat.resources.base import DimcatResource
 
 logger = logging.getLogger(__name__)
@@ -96,3 +97,48 @@ class Annotations(Feature):
 
 class KeyAnnotations(Annotations):
     pass
+
+
+FeatureSpecs: TypeAlias = Union[MutableMapping, Feature, FeatureName, str]
+
+
+def feature_specs2config(feature: FeatureSpecs) -> DimcatConfig:
+    """Converts a feature specification into a dimcat configuration.
+
+    Raises:
+        TypeError: If the feature cannot be converted to a dimcat configuration.
+    """
+    if isinstance(feature, DimcatConfig):
+        feature_config = feature
+    elif isinstance(feature, Feature):
+        feature_config = feature.to_config()
+    elif isinstance(feature, MutableMapping):
+        feature_config = DimcatConfig(feature)
+    elif isinstance(feature, str):
+        feature_name = FeatureName(feature)
+        feature_config = DimcatConfig(dtype=feature_name)
+    else:
+        raise TypeError(
+            f"Cannot convert the {type(feature).__name__} {feature!r} to DimcatConfig."
+        )
+    if feature_config.options_dtype == "DimcatConfig":
+        feature_config = DimcatConfig(feature_config["options"])
+    if not is_subclass_of(feature_config.options_dtype, Feature):
+        raise TypeError(
+            f"DimcatConfig describes a {feature_config.options_dtype}, not a Feature: "
+            f"{feature_config.options}"
+        )
+    return feature_config
+
+
+def features_argument2config_list(
+    features: Optional[FeatureSpecs | Iterable[FeatureSpecs]] = None,
+) -> List[DimcatConfig]:
+    if features is None:
+        return []
+    if isinstance(features, (MutableMapping, Feature, FeatureName, str)):
+        features = [features]
+    configs = []
+    for specs in features:
+        configs.append(feature_specs2config(specs))
+    return configs
