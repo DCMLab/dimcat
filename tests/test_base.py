@@ -11,7 +11,6 @@ import frictionless as fl
 import pandas as pd
 import pytest
 from dimcat.base import (
-    Data,
     DimcatConfig,
     DimcatObject,
     DimcatSchema,
@@ -19,6 +18,7 @@ from dimcat.base import (
     deserialize_json_file,
     deserialize_json_str,
 )
+from dimcat.data.base import Data
 from dimcat.dataset.base import DimcatCatalog, DimcatPackage
 from dimcat.resources.base import DimcatResource
 from dimcat.resources.features import Notes

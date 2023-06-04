@@ -506,16 +506,6 @@ class DimcatConfig(MutableMapping, DimcatObject):
 # region Data and PipelineStep
 
 
-class Data(DimcatObject):
-    """
-    This base class unites all classes containing data in some way or another.
-    """
-
-    class Schema(DimcatObject.Schema):
-        # basedir = fields.String(required=True)
-        pass
-
-
 # endregion Data and PipelineStep
 # region querying DimcatObjects by name
 @cache

@@ -11,7 +11,8 @@ from typing import Dict, Generic, Iterable, List, Optional, TypeAlias, TypeVar, 
 import frictionless as fl
 import ms3
 import pandas as pd
-from dimcat.base import Data, DimcatConfig, get_class, get_setting
+from dimcat.base import DimcatConfig, get_class, get_setting
+from dimcat.data.base import Data
 from dimcat.utils import check_file_path, check_name, get_default_basepath, replace_ext
 from marshmallow import fields, post_load
 from typing_extensions import Self

@@ -3,7 +3,8 @@ from __future__ import annotations
 import logging
 from typing import ClassVar, Iterable, List, Optional, Tuple, Type, Union, overload
 
-from dimcat.base import Data, DimcatConfig, DimcatObject
+from dimcat.base import DimcatConfig, DimcatObject
+from dimcat.data.base import Data
 from dimcat.dataset.base import Dataset, DimcatPackage
 from dimcat.exceptions import (
     EmptyDatasetError,

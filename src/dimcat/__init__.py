@@ -12,7 +12,7 @@ finally:
     del version, PackageNotFoundError
 
 
-from .base import Data, DimcatConfig, DimcatObject, DimcatSchema, get_class, get_schema
+from .base import DimcatConfig, DimcatObject, DimcatSchema, get_class, get_schema
 from .dataset.base import Dataset, DimcatPackage
 from .resources.base import DimcatIndex, DimcatResource, PieceIndex
 from .resources.features import FeatureName

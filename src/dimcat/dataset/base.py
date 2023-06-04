@@ -32,7 +32,8 @@ from typing import (
 import frictionless as fl
 import marshmallow as mm
 import ms3
-from dimcat.base import Data, DimcatConfig, FriendlyEnum, get_class
+from dimcat.base import DimcatConfig, FriendlyEnum, get_class
+from dimcat.data.base import Data
 from dimcat.exceptions import (
     EmptyCatalogError,
     EmptyPackageError,
