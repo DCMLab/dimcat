@@ -3,7 +3,7 @@ from typing import Dict, List, Sequence
 
 import pandas as pd
 from dimcat.data.dataset.processed import GroupedDataset
-from dimcat.data.resources.base import DimcatIndex
+from dimcat.data.resources.base import DimcatIndex, DimcatResource
 from dimcat.data.resources.features import Feature
 from dimcat.data.resources.utils import make_index_from_grouping_dict
 from dimcat.steps import PipelineStep
@@ -49,6 +49,11 @@ class Grouper(PipelineStep):
             df=results,
             resource_name=result_name,
         )
+
+    def post_process_result(self, result: DimcatResource) -> DimcatResource:
+        """Change the default_groupby value of the returned Feature."""
+        result.update_default_groupby(self.level_name)
+        return result
 
 
 class CustomPieceGrouper(Grouper):
