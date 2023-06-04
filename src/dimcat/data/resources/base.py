@@ -693,9 +693,6 @@ class DimcatResource(Generic[D], Data):
     def __len__(self) -> int:
         return len(self.df.index)
 
-    def __hash__(self) -> int:
-        return id(self)
-
     def __repr__(self) -> str:
         return_str = f"{pformat(self.to_dict(), sort_dicts=False)}"
         return f"ResourceStatus={self.status.name}\n{return_str}"

@@ -205,6 +205,9 @@ class DimcatObject(ABC):
             return False
         return other.to_dict() == self.to_dict()
 
+    def __hash__(self) -> int:
+        return id(self)
+
     def __repr__(self):
         return f"{pformat(self.to_dict(), sort_dicts=False)}"
 
