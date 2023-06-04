@@ -112,7 +112,7 @@ class DimcatIndex(Generic[IX], Data):
 
     def __init__(self, index: Optional[IX] = None):
         if index is None:
-            self._index = pd.MultiIndex.from_tuples([], names=["dimcat_index"])
+            self._index = pd.MultiIndex.from_tuples([], names=["corpus", "piece"])
         elif isinstance(index, pd.Index):
             if None in index.names:
                 raise ValueError("Index cannot have a None name: {index.names}.")
@@ -204,7 +204,7 @@ class PieceIndex(DimcatIndex[IX]):
         level_names = index.names
         right_boundary = piece_level_position + 1
         drop_levels = level_names[right_boundary:]
-        if piece_level_position >= max_levels:
+        if max_levels > 0 and piece_level_position >= max_levels:
             drop_levels = level_names[: right_boundary - max_levels] + drop_levels
         if len(drop_levels) > 0:
             index = index.droplevel(drop_levels)
@@ -366,6 +366,7 @@ class DimcatResource(Generic[D], Data):
         column_schema: Optional[fl.Schema | str] = None,
         descriptor_filepath: Optional[str] = None,
         auto_validate: bool = False,
+        default_groupby: Optional[str | list[str]] = None,
     ) -> Self:
         """Create a DimcatResource from a dataframe, specifying its name and, optionally, at what path it is to be
         serialized.
@@ -405,6 +406,7 @@ class DimcatResource(Generic[D], Data):
             column_schema=column_schema,
             descriptor_filepath=descriptor_filepath,
             auto_validate=auto_validate,
+            default_groupby=default_groupby,
         )
         new_resource.df = df
         return new_resource
@@ -427,6 +429,7 @@ class DimcatResource(Generic[D], Data):
         column_schema: Optional[fl.Schema | str] = None,
         descriptor_filepath: Optional[str] = None,
         auto_validate: bool = False,
+        default_groupby: Optional[str | list[str]] = None,
     ) -> Self:
         if isinstance(index, DimcatIndex):
             index = index.index
@@ -439,6 +442,7 @@ class DimcatResource(Generic[D], Data):
             column_schema=column_schema,
             descriptor_filepath=descriptor_filepath,
             auto_validate=auto_validate,
+            default_groupby=default_groupby,
         )
 
     @classmethod
@@ -451,6 +455,7 @@ class DimcatResource(Generic[D], Data):
         column_schema: Optional[fl.Schema | str] = None,
         descriptor_filepath: Optional[str] = None,
         auto_validate: Optional[bool] = None,
+        default_groupby: Optional[str | list[str]] = None,
     ) -> Self:
         """Create a DimcatResource from an existing DimcatResource, specifying its name and, optionally, at what path
         it is to be serialized.
@@ -485,6 +490,7 @@ class DimcatResource(Generic[D], Data):
             resource=fl_resource,
             descriptor_filepath=descriptor_filepath,
             auto_validate=auto_validate,
+            default_groupby=default_groupby,
         )
         if resource._df is not None:
             new_object._df = resource._df.copy()
@@ -540,6 +546,7 @@ class DimcatResource(Generic[D], Data):
         basepath = fields.String(allow_none=True, metadata={"expose": False})
         descriptor_filepath = fields.String(allow_none=True, metadata={"expose": False})
         auto_validate = fields.Boolean(metadata={"expose": False})
+        default_groupby = fields.List(fields.String(), allow_none=True)
 
         def get_resource_descriptor(self, obj: DimcatResource) -> str | dict:
             return obj._resource.to_descriptor()
@@ -574,6 +581,7 @@ class DimcatResource(Generic[D], Data):
         column_schema: Optional[fl.Schema | str] = None,
         descriptor_filepath: Optional[str] = None,
         auto_validate: bool = False,
+        default_groupby: Optional[str | list[str]] = None,
     ) -> None:
         """
 
@@ -616,6 +624,9 @@ class DimcatResource(Generic[D], Data):
         self._df: D = None
         self._descriptor_filepath: Optional[str] = descriptor_filepath
         self.auto_validate: bool = auto_validate
+        self._default_groupby: List[str] = []
+        if default_groupby is not None:
+            self.default_groupby = default_groupby
 
         if basepath is not None:
             basepath = ms3.resolve_dir(basepath)
@@ -739,6 +750,27 @@ class DimcatResource(Generic[D], Data):
             self._status = ResourceStatus.DATAFRAME
         if self.auto_validate:
             _ = self.validate(raise_exception=True)
+
+    @property
+    def default_groupby(self) -> List[str]:
+        return list(self._default_groupby)
+
+    @default_groupby.setter
+    def default_groupby(self, default_groupby: str | List[str]) -> None:
+        if default_groupby is None:
+            raise ValueError("default_groupby cannot be None")
+        if isinstance(default_groupby, str):
+            default_groupby = [default_groupby]
+        else:
+            default_groupby = list(default_groupby)
+        available_levels = self.get_level_names()
+        missing = [level for level in default_groupby if level not in available_levels]
+        if missing:
+            raise ValueError(
+                f"Invalid default_groupby: {missing!r} are not valid levels. "
+                f"Available levels are: {available_levels!r}"
+            )
+        self._default_groupby = default_groupby
 
     @property
     def descriptor_exists(self) -> bool:
@@ -991,6 +1023,12 @@ class DimcatResource(Generic[D], Data):
             self._status = ResourceStatus.PACKAGED_LOADED
         return dataframe
 
+    def get_default_groupby(self) -> List[str]:
+        """Returns the default index levels for grouping the resource."""
+        if not self.default_groupby:
+            return self.get_grouping_levels()
+        return self.default_groupby
+
     def get_descriptor_path(self, create_if_necessary: bool = False) -> Optional[str]:
         """Returns the full path to the existing or future descriptor file."""
         descriptor_path = os.path.join(
@@ -1016,9 +1054,17 @@ class DimcatResource(Generic[D], Data):
             return self.innerpath
         return self.filepath
 
+    def get_grouping_levels(self) -> List[str]:
+        """Returns the levels of the grouping index."""
+        return self.get_piece_index(max_levels=0).names
+
     def get_index(self) -> DimcatIndex:
         """Returns the index of the resource based on the ``primaryKey`` of the :obj:`frictionless.Schema`."""
         return DimcatIndex.from_resource(self)
+
+    def get_level_names(self) -> List[str]:
+        """Returns the level names of the resource's index."""
+        return self.get_index().names
 
     def get_path_dict(self) -> Dict[str, str]:
         """Returns a dictionary with the paths to the resource's data and descriptor."""
@@ -1130,6 +1176,21 @@ class DimcatResource(Generic[D], Data):
         if pickle:
             return self.pickle_schema.dump(self)
         return self.schema.dump(self)
+
+    def update_default_groupby(self, new_level_name: str) -> None:
+        """Updates the value of :attr:`default_groupby` by prepending the new level name to it."""
+        current_default = self.get_default_groupby()
+        if current_default[0] == new_level_name:
+            self.logger.debug(
+                f"Default levels already start with {new_level_name!r}: {current_default}."
+            )
+            new_default_value = current_default
+        else:
+            new_default_value = [new_level_name] + current_default
+            self.logger.debug(
+                f"Updating default levels from {current_default} to {new_default_value}."
+            )
+        self.default_groupby = new_default_value
 
     def _update_status(self) -> None:
         self._status = self._get_current_status()

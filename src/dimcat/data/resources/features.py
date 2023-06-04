@@ -68,6 +68,7 @@ class Notes(Feature):
         filepath: Optional[str] = None,
         descriptor_filepath: Optional[str] = None,
         auto_validate: bool = True,
+        default_groupby: Optional[str | list[str]] = None,
     ) -> None:
         self._format: NotesFormat = format
         self._weight_grace_notes: float = weight_grace_notes
@@ -79,6 +80,7 @@ class Notes(Feature):
             column_schema=column_schema,
             descriptor_filepath=descriptor_filepath,
             auto_validate=auto_validate,
+            default_groupby=default_groupby,
         )
 
     @property

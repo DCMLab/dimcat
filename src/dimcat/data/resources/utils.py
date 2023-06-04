@@ -425,7 +425,10 @@ def make_index_from_grouping_dict(
 def make_rel_path(path: str, start: str):
     """Like os.path.relpath() but ensures that path is contained within start."""
     rel_path = os.path.relpath(path, start)
-    return check_rel_path(rel_path, start)
+    try:
+        return check_rel_path(rel_path, start)
+    except ValueError as e:
+        raise ValueError(f"Turning {path} into a relative path failed with {e}")
 
 
 def make_tsv_resource(name: Optional[str] = None) -> fl.Resource:
