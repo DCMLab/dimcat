@@ -24,6 +24,7 @@ import frictionless as fl
 import marshmallow as mm
 import ms3
 from dimcat.base import Data, DimcatConfig, FriendlyEnum
+from dimcat.exceptions import EmptyPackageError, ResourceNotFoundError
 from dimcat.resources.base import D, DimcatResource, ResourceStatus, SomeDataframe
 from dimcat.resources.features import (
     Feature,
@@ -197,6 +198,9 @@ class DimcatPackage(Data):
                 )
         if auto_validate:
             self.validate(raise_exception=True)
+
+    def __getitem__(self, item: str) -> DimcatResource:
+        return self.get_resource(item)
 
     def __iter__(self) -> Iterator[DimcatResource]:
         yield from self._resources
@@ -543,15 +547,20 @@ class DimcatPackage(Data):
             raise fl.FrictionlessException(msg)
 
     def get_resource(self, name: Optional[str] = None) -> DimcatResource:
-        """Returns the DimcatResource with the given name. If no name is given, returns the last resource."""
+        """Returns the DimcatResource with the given name. If no name is given, returns the last resource.
+
+        Raises:
+            EmptyPackageError: If the package is empty.
+            ResourceNotFoundError: If the resource with the given name is not found.
+        """
         if self.n_resources == 0:
-            raise ValueError(f"Package {self.package_name} is empty.")
+            raise EmptyPackageError(self.package_name)
         if name is None:
             return self._resources[-1]
         for resource in self._resources:
             if resource.resource_name == name:
                 return resource
-        raise ValueError(f"Resource {name} not found in package {self.package_name}.")
+        raise ResourceNotFoundError(name, self.package_name)
 
     def _handle_resource_paths(
         self,
@@ -698,6 +707,7 @@ class DimcatPackage(Data):
 
 
 PackageSpecs: TypeAlias = Union[DimcatPackage, fl.Package, str]
+
 
 # endregion DimcatPackage
 # region DimcatCatalog

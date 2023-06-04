@@ -35,6 +35,12 @@ class DimcatError(Exception):
         super().__init__(*args)
 
 
+class BasePathNotDefinedError(DimcatError):
+    nargs2message = {
+        0: "The base path is not defined.",
+    }
+
+
 class EmptyDatasetError(DimcatError):
     """optional args: (dataset_name,)"""
 
@@ -44,21 +50,21 @@ class EmptyDatasetError(DimcatError):
     }
 
 
-class EmptyResourceError(DimcatError):
-    """optional args: (resource_name,)"""
-
-    nargs2message = {
-        0: "The resource is empty.",
-        1: lambda name: f"Resource {name!r} is empty.",
-    }
-
-
 class EmptyPackageError(DimcatError):
     """optional args: (package_name,)"""
 
     nargs2message = {
         0: "The package is empty.",
         1: lambda name: f"Package {name!r} is empty.",
+    }
+
+
+class EmptyResourceError(DimcatError):
+    """optional args: (resource_name,)"""
+
+    nargs2message = {
+        0: "The resource is empty.",
+        1: lambda name: f"Resource {name!r} is empty.",
     }
 
 
@@ -77,7 +83,11 @@ class NoFeaturesSelectedError(DimcatError):
     }
 
 
-class BasePathNotDefinedError(DimcatError):
+class ResourceNotFoundError(DimcatError):
+    """optional args: (resource_name, package_name)"""
+
     nargs2message = {
-        0: "The base path is not defined.",
+        0: "Resource not found.",
+        1: lambda name: f"Resource {name!r} not found.",
+        2: lambda name, package: f"Resource {name!r} not found in {package!r}.",
     }
