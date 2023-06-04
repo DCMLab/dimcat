@@ -11,7 +11,7 @@ from dimcat.dataset.processed import AnalyzedDataset
 from dimcat.resources.base import DimcatResource, SomeSeries
 from dimcat.resources.features import Feature, FeatureSpecs
 from dimcat.resources.results import Result
-from dimcat.steps import PipelineStep
+from dimcat.steps.base import PipelineStep
 
 logger = logging.getLogger(__name__)
 

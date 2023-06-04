@@ -1,8 +1,8 @@
 import logging
 
-from dimcat.analyzers.base import Analyzer
 from dimcat.resources.base import DimcatResource, SomeDataframe, SomeSeries
 from dimcat.resources.features import Feature
+from dimcat.steps.analyzers.base import Analyzer
 
 logger = logging.getLogger(__name__)
 

@@ -2,11 +2,11 @@ import os
 from pprint import pformat
 
 import marshmallow as mm
-from dimcat.analyzers import Counter
 from dimcat.base import get_class, get_schema
 from dimcat.dataset.base import Dataset, DimcatConfig
 from dimcat.dataset.processed import AnalyzedDataset
 from dimcat.resources.features import FeatureName
+from dimcat.steps.analyzers import Counter
 
 if __name__ == "__main__":
     os.chdir(os.path.dirname(__file__))
