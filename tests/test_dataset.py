@@ -1,12 +1,12 @@
 import pytest
-from dimcat.dataset import DimcatPackage
-from dimcat.dataset.base import Dataset, PackageStatus
-from dimcat.dataset.processed import (
+from dimcat.data.dataset import DimcatPackage
+from dimcat.data.dataset.base import Dataset, PackageStatus
+from dimcat.data.dataset.processed import (
     AnalyzedDataset,
     GroupedAnalyzedDataset,
     GroupedDataset,
 )
-from dimcat.resources.base import ResourceStatus
+from dimcat.data.resources.base import ResourceStatus
 
 from tests.conftest import CORPUS_PATH
 

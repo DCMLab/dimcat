@@ -3,9 +3,9 @@ from pprint import pformat
 
 import marshmallow as mm
 from dimcat.base import get_class, get_schema
-from dimcat.dataset.base import Dataset, DimcatConfig
-from dimcat.dataset.processed import AnalyzedDataset
-from dimcat.resources.features import FeatureName
+from dimcat.data.dataset.base import Dataset, DimcatConfig
+from dimcat.data.dataset.processed import AnalyzedDataset
+from dimcat.data.resources.features import FeatureName
 from dimcat.steps.analyzers import Counter
 
 if __name__ == "__main__":

@@ -19,9 +19,9 @@ from dimcat.base import (
     deserialize_json_str,
 )
 from dimcat.data.base import Data
-from dimcat.dataset.base import DimcatCatalog, DimcatPackage
-from dimcat.resources.base import DimcatResource
-from dimcat.resources.features import Notes
+from dimcat.data.dataset.base import DimcatCatalog, DimcatPackage
+from dimcat.data.resources.base import DimcatResource
+from dimcat.data.resources.features import Notes
 from dimcat.steps.analyzers import Analyzer, Counter
 from dimcat.steps.base import PipelineStep
 from marshmallow import ValidationError, fields

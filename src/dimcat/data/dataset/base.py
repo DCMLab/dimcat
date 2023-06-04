@@ -34,6 +34,15 @@ import marshmallow as mm
 import ms3
 from dimcat.base import DimcatConfig, FriendlyEnum, get_class
 from dimcat.data.base import Data
+from dimcat.data.resources.base import D, DimcatResource, ResourceStatus, SomeDataframe
+from dimcat.data.resources.features import (
+    Feature,
+    FeatureName,
+    FeatureSpecs,
+    feature_specs2config,
+    features_argument2config_list,
+)
+from dimcat.data.resources.utils import make_rel_path
 from dimcat.exceptions import (
     EmptyCatalogError,
     EmptyPackageError,
@@ -41,20 +50,11 @@ from dimcat.exceptions import (
     PackageNotFoundError,
     ResourceNotFoundError,
 )
-from dimcat.resources.base import D, DimcatResource, ResourceStatus, SomeDataframe
-from dimcat.resources.features import (
-    Feature,
-    FeatureName,
-    FeatureSpecs,
-    feature_specs2config,
-    features_argument2config_list,
-)
-from dimcat.resources.utils import make_rel_path
 from dimcat.utils import check_file_path, check_name, get_default_basepath
 from typing_extensions import Literal, Self
 
 if TYPE_CHECKING:
-    from dimcat.resources.results import Result
+    from dimcat.data.resources.results import Result
     from dimcat.steps.base import PipelineStep
 
 logger = logging.getLogger(__name__)

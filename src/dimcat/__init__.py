@@ -13,9 +13,8 @@ finally:
 
 
 from .base import DimcatConfig, DimcatObject, DimcatSchema, get_class, get_schema
-from .dataset.base import Dataset, DimcatPackage
-from .resources.base import DimcatIndex, DimcatResource, PieceIndex
-from .resources.features import FeatureName
+from .data.dataset import Dataset, DimcatPackage
+from .data.resources import DimcatIndex, DimcatResource, FeatureName, PieceIndex
 from .steps.base import PipelineStep
 from .steps.groupers import CustomPieceGrouper
 from .steps.pipelines import Pipeline

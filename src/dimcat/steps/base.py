@@ -5,14 +5,18 @@ from typing import ClassVar, Iterable, List, Optional, Tuple, Type, Union, overl
 
 from dimcat.base import DimcatConfig, DimcatObject
 from dimcat.data.base import Data
-from dimcat.dataset.base import Dataset, DimcatPackage
+from dimcat.data.dataset.base import Dataset, DimcatPackage
+from dimcat.data.resources import (
+    DimcatResource,
+    FeatureSpecs,
+    features_argument2config_list,
+)
 from dimcat.exceptions import (
     EmptyDatasetError,
     EmptyResourceError,
     FeatureUnavailableError,
     NoFeaturesActiveError,
 )
-from dimcat.resources import DimcatResource, FeatureSpecs, features_argument2config_list
 from marshmallow import fields
 
 logger = logging.getLogger(__name__)

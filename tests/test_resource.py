@@ -1,7 +1,7 @@
 import os
 
 import pytest
-from dimcat.resources.base import (
+from dimcat.data.resources.base import (
     DimcatIndex,
     DimcatResource,
     PieceIndex,

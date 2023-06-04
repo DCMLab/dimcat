@@ -7,7 +7,7 @@ from typing import Iterable, List, MutableMapping, Optional, TypeAlias, Union
 import frictionless as fl
 import marshmallow as mm
 from dimcat.base import DimcatConfig, ObjectEnum, is_subclass_of
-from dimcat.resources.base import DimcatResource
+from dimcat.data.resources.base import DimcatResource
 
 logger = logging.getLogger(__name__)
 

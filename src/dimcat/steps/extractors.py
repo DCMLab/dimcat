@@ -4,7 +4,7 @@ import logging
 from typing import List
 
 from dimcat.base import DimcatConfig
-from dimcat.resources.features import features_argument2config_list
+from dimcat.data.resources.features import features_argument2config_list
 from marshmallow import fields, validate
 
 from .base import PipelineStep
