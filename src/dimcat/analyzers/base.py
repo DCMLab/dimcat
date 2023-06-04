@@ -6,9 +6,9 @@ from enum import Enum
 from typing import Any, ClassVar, Iterable, Optional, Type, TypeVar
 
 import marshmallow as mm
-from dimcat import PipelineStep
 from dimcat.base import ObjectEnum
 from dimcat.dataset.processed import AnalyzedDataset
+from dimcat.pipeline import PipelineStep
 from dimcat.resources.base import DimcatResource, SomeSeries
 from dimcat.resources.features import Feature, FeatureSpecs
 from dimcat.resources.results import Result

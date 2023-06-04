@@ -5,7 +5,7 @@ import os
 
 import frictionless as fl
 import pytest
-from dimcat import Dataset
+from dimcat.dataset import Dataset
 from dimcat.dataset.base import DimcatPackage
 from dimcat.resources.base import DimcatResource
 from dimcat.resources.utils import load_fl_resource

@@ -1,6 +1,5 @@
 import pytest
-from dimcat import DimcatConfig
-from dimcat.base import load_settings
+from dimcat.base import DimcatConfig, load_settings
 from marshmallow import ValidationError
 
 

@@ -2,9 +2,9 @@ import logging
 from typing import Dict, List, Sequence
 
 import pandas as pd
-from dimcat import DimcatIndex, PipelineStep
 from dimcat.dataset.processed import GroupedDataset
-from dimcat.resources.base import IndexField
+from dimcat.pipeline import PipelineStep
+from dimcat.resources.base import DimcatIndex, IndexField
 from dimcat.resources.features import Feature
 from dimcat.resources.utils import make_index_from_grouping_dict
 from dimcat.utils import check_name
@@ -99,7 +99,7 @@ class CustomPieceGrouper(Grouper):
             grouped_pieces = DimcatIndex(grouped_pieces)
         elif isinstance(grouped_pieces, dict):
             raise TypeError(
-                f"Use {self.name}.from_dict() to create a {self.name}from from a dictionary."
+                f"Use {self.name}.from_dict() to create a {self.name}from xfrom a dictionary."
             )
         elif not isinstance(grouped_pieces, DimcatIndex):
             raise TypeError(f"Expected DimcatIndex, got {type(grouped_pieces)}")

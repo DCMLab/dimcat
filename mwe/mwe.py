@@ -2,8 +2,9 @@ import os
 from pprint import pformat
 
 import marshmallow as mm
-from dimcat import Dataset, DimcatConfig, get_class, get_schema
 from dimcat.analyzers import Counter
+from dimcat.base import get_class, get_schema
+from dimcat.dataset.base import Dataset, DimcatConfig
 from dimcat.dataset.processed import AnalyzedDataset
 from dimcat.resources.features import FeatureName
 
@@ -77,19 +78,11 @@ if __name__ == "__main__":
         )
         print(info)
 
-    # analyzers have the required field 'features' which needs to include at least one
-    # DimcatConfig describing a feature
-
-    counter_config = DimcatConfig(dtype="Counter")
-    try:
-        counter_config.create()
-        raise RuntimeError(
-            "Creating an analyzer without features should raise an error."
-        )
-    except mm.ValidationError:
-        pass
-
     # two ways of creating the identically configured Counter analyzer:
+    counter_config = DimcatConfig(
+        dtype="Counter"
+    )  # UPDATE: if the 'features' argument is not specified,
+    # analyzer will be applied to all loaded features
     counter_config[
         "features"
     ] = notes_config  # notes_config created from empty_notes_feature above
