@@ -18,7 +18,16 @@ import logging
 import os
 from enum import IntEnum, auto
 from pprint import pformat
-from typing import TYPE_CHECKING, Iterable, Iterator, List, Optional, TypeAlias, Union
+from typing import (
+    TYPE_CHECKING,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    TypeAlias,
+    Union,
+    overload,
+)
 
 import frictionless as fl
 import marshmallow as mm
@@ -41,7 +50,7 @@ from dimcat.resources.features import (
 )
 from dimcat.resources.utils import make_rel_path
 from dimcat.utils import check_file_path, check_name, get_default_basepath
-from typing_extensions import Self
+from typing_extensions import Literal, Self
 
 if TYPE_CHECKING:
     from dimcat.pipeline import PipelineStep
@@ -475,11 +484,16 @@ class DimcatPackage(Data):
     def extend(self, resources: Iterable[DimcatResource]) -> None:
         """Adds multiple resources to the package."""
         status_before = self.status
+        resources = tuple(resources)
         if len(resources) == 0:
             self.logger.debug("Nothing to add.")
             return
-        for resource in resources:
+        for n_added, resource in enumerate(resources, 1):
             self.add_resource(resource.copy())
+        self.logger.info(
+            f"Package {self.package_name!r} was extended with {n_added} resources to a total "
+            f"of {self.n_resources}."
+        )
         status_after = self.status
         if status_before != status_after:
             self.logger.debug(
@@ -898,9 +912,13 @@ class DimcatCatalog(Data):
         """Replaces the package with the same name as the given package with the given package."""
         if not isinstance(package, DimcatPackage):
             msg = f"{self.name}.replace_package() takes a DimcatPackage, not {type(package)!r}."
-            raise ValueError(msg)
+            raise TypeError(msg)
         for i, p in enumerate(self._packages):
             if p.package_name == package.package_name:
+                self.logger.info(
+                    f"Replacing package {p.package_name!r} ({p.n_resources} resources) with "
+                    f"package {package.package_name!r} ({package.n_resources} resources)"
+                )
                 self._packages[i] = package
                 return
         self.add_package(package)
@@ -982,10 +1000,10 @@ class Dataset(Data):
         super().__init__(**kwargs)
 
     def __repr__(self):
-        return pformat(self.summary_dict(), sort_dicts=False)
+        return self.info(print=False)
 
     def __str__(self):
-        return pformat(self.summary_dict(), sort_dicts=False)
+        return self.info(print=False)
 
     @property
     def inputs(self) -> DimcatCatalog:
@@ -1062,16 +1080,38 @@ class Dataset(Data):
         feature = self.inputs.get_feature(feature_config)
         return feature
 
+    @overload
+    def info(self, print: Literal[True]) -> None:
+        ...
+
+    @overload
+    def info(self, print: Literal[False] = False) -> str:
+        ...
+
+    def info(self, print=True) -> Optional[str]:
+        """Returns a summary of the dataset."""
+        summary = self.summary_dict()
+        title = self.name
+        title += f"\n{'=' * len(title)}\n"
+        summary_str = f"{title}{pformat(summary, sort_dicts=False)}"
+        if print:
+            print(summary_str)
+        else:
+            return summary_str
+
     def iter_features(
         self, features: FeatureSpecs | Iterable[FeatureSpecs] = None
     ) -> Iterator[DimcatResource]:
         if not features:
-            yield from self.outputs.get_package_by_name("features")
+            if self.n_active_features == 0:
+                yield from []
+            else:
+                yield from self.outputs.get_package_by_name("features")
         configs = features_argument2config_list(features)
         for config in configs:
             yield self.get_feature(config)
 
-    def get_feature_package(
+    def make_features_package(
         self,
         features: FeatureSpecs | Iterable[FeatureSpecs] = None,
     ) -> DimcatPackage:

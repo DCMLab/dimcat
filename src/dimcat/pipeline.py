@@ -5,10 +5,9 @@ from typing import ClassVar, Iterable, List, Optional, Tuple, Type, Union, overl
 
 from dimcat.exceptions import (
     EmptyDatasetError,
-    EmptyPackageError,
     EmptyResourceError,
     FeatureUnavailableError,
-    NoFeaturesSelectedError,
+    NoFeaturesActiveError,
 )
 from marshmallow import fields, validate
 
@@ -37,6 +36,10 @@ class PipelineStep(DimcatObject):
     output_package_name: Optional[str] = None
     """Name of the package in which to store the outputs of this step. If None, the PipeLine step will replace the
     'features' package of the given dataset."""
+    applicable_to_empty_datasets: ClassVar[bool] = True
+    """If False, :meth:`check_dataset` will raise an EmptyDatasetError if no data has been loaded yet. This makes sense
+    for PipelineSteps that are dependent on the data, e.g. because they use :meth:`fit_to_dataset`."""
+    requires_at_least_one_feature: ClassVar[bool] = False
 
     class Schema(DimcatObject.Schema):
         features = fields.List(
@@ -63,6 +66,13 @@ class PipelineStep(DimcatObject):
             )
         self._features = configs
 
+    @property
+    def is_transformation(self) -> bool:
+        """True if this PipelineStep transforms features, replacing the dataset.outputs['features'] package."""
+        return (
+            self.output_package_name is None or self.output_package_name == "features"
+        )
+
     def check(self, _) -> Tuple[bool, str]:
         """Test piece of data for certain properties before computing analysis.
 
@@ -80,12 +90,13 @@ class PipelineStep(DimcatObject):
         """
         if not isinstance(dataset, Dataset):
             raise TypeError(f"Expected Dataset, got {type(dataset)}")
-        if dataset.n_features_available == 0:
-            raise EmptyDatasetError
+        if not self.applicable_to_empty_datasets:
+            if dataset.n_features_available == 0:
+                raise EmptyDatasetError
         required_features = self.get_required_features()
-        if len(required_features) == 0:
-            if dataset.n_active_features == 0:
-                raise NoFeaturesSelectedError
+        if self.requires_at_least_one_feature:
+            if len(required_features) == 0 and dataset.n_active_features == 0:
+                raise NoFeaturesActiveError
         for feature in required_features:
             if not dataset.check_feature_availability(feature):
                 raise FeatureUnavailableError
@@ -130,7 +141,15 @@ class PipelineStep(DimcatObject):
         else:
             dataset_constructor: Type[Dataset] = self.new_dataset_type
         new_dataset = dataset_constructor.from_dataset(dataset)
+        self.logger.debug(
+            f"Created new dataset {new_dataset} of type {dataset_constructor.__name__}."
+        )
         return new_dataset
+
+    def _make_new_package(self) -> DimcatPackage:
+        if self.output_package_name is None:
+            return DimcatPackage(package_name="features")
+        return DimcatPackage(package_name=self.output_package_name)
 
     def pre_process_resource(self, resource: DimcatResource) -> DimcatResource:
         """Perform some pre-processing on a resource before processing it."""
@@ -176,15 +195,21 @@ class PipelineStep(DimcatObject):
         new_dataset = self._make_new_dataset(dataset)
         self.fit_to_dataset(new_dataset)
         resources = list(new_dataset.iter_features(self.features))
-        is_transformation = self.output_package_name is None
-        package_name = "features" if is_transformation else self.output_package_name
-        new_package = DimcatPackage(package_name=package_name)
+        new_package = self._make_new_package()
         for resource in resources:
             new_resource = self.process_resource(resource)
             new_package.add_resource(new_resource)
-        if len(new_package) == 0:
-            raise EmptyPackageError
-        if is_transformation:
+        if len(new_package) < len(resources):
+            if len(new_package) == 0:
+                self.logger.warning(
+                    f"None of the {len(resources)} features were successfully transformed."
+                )
+            else:
+                self.logger.warning(
+                    f"Transformation was successful only on {len(new_package)} of the "
+                    f"{len(resources)} features."
+                )
+        if self.is_transformation:
             new_dataset.outputs.replace_package(new_package)
         else:
             new_dataset.outputs.extend_package(new_package)

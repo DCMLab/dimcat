@@ -90,12 +90,6 @@ class NoFeaturesActiveError(DimcatError):
     }
 
 
-class NoFeaturesSelectedError(DimcatError):
-    nargs2message = {
-        0: "No features have been selected.",
-    }
-
-
 class PackageNotFoundError(DimcatError):
     """optional args: (package_name,)"""
 

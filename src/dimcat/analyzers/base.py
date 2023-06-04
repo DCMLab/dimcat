@@ -51,6 +51,8 @@ class Analyzer(PipelineStep):
     new_dataset_type = AnalyzedDataset
     new_resource_type = Result
     output_package_name = "results"
+    applicable_to_empty_datasets = False
+    requires_at_least_one_feature = True
 
     # assert_all: ClassVar[Tuple[str]] = tuple()
     # """Each of these :obj:`PipelineSteps <.PipelineStep>` needs to be matched by at least one PipelineStep previously
