@@ -23,6 +23,7 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    Literal,
     Optional,
     TypeAlias,
     Union,
@@ -51,7 +52,7 @@ from dimcat.exceptions import (
     ResourceNotFoundError,
 )
 from dimcat.utils import check_file_path, check_name, get_default_basepath
-from typing_extensions import Literal, Self
+from typing_extensions import Self
 
 if TYPE_CHECKING:
     from dimcat.data.resources.results import Result
@@ -992,7 +993,9 @@ class Dataset(Data):
         outputs = mm.fields.Nested(
             DimcatCatalog.Schema, required=False, load_default=[]
         )
-        pipeline = DimcatObjectField()
+        pipeline = (
+            DimcatObjectField()
+        )  # mm.fields.Nested(Pipeline.Schema) would cause circular import
 
         @mm.post_load
         def init_object(self, data, **kwargs) -> Dataset:
@@ -1215,6 +1218,7 @@ class Dataset(Data):
         summary = dict(
             inputs=self.inputs.summary_dict(),
             outputs=self.outputs.summary_dict(),
+            pipeline=[step.name for step in self._pipeline],
         )
         return summary
 

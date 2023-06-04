@@ -3,7 +3,7 @@ from typing import Dict, List, Sequence
 
 import pandas as pd
 from dimcat.data.dataset.processed import GroupedDataset
-from dimcat.data.resources.base import DimcatIndex, IndexField
+from dimcat.data.resources.base import DimcatIndex
 from dimcat.data.resources.features import Feature
 from dimcat.data.resources.utils import make_index_from_grouping_dict
 from dimcat.steps import PipelineStep
@@ -53,10 +53,10 @@ class Grouper(PipelineStep):
 
 class CustomPieceGrouper(Grouper):
     class Schema(Grouper.Schema):
-        grouped_pieces = IndexField()
+        grouped_pieces = fields.Nested(DimcatIndex.Schema)
 
     @classmethod
-    def from_dict(
+    def from_grouping(
         cls,
         piece_groups: Dict[str, List[tuple]],
         level_names: Sequence[str] = ("piece_group", "corpus", "piece"),

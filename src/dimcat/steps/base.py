@@ -197,6 +197,7 @@ class PipelineStep(DimcatObject):
         """Apply this PipelineStep to a :class:`Dataset` and return a copy containing the output(s)."""
         new_dataset = self._make_new_dataset(dataset)
         self.fit_to_dataset(new_dataset)
+        new_dataset._pipeline.add_step(self)
         resources = list(new_dataset.iter_features(self.features))
         new_package = self._make_new_package()
         for resource in resources:

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Iterable, List, Optional
+from typing import Iterable, Iterator, List, Optional
 
 from dimcat.base import DimcatConfig, DimcatObject, DimcatObjectField
 from marshmallow import fields
@@ -29,6 +29,9 @@ class Pipeline(PipelineStep):
         self._steps: List[PipelineStep] = []
         if steps is not None:
             self.steps = steps
+
+    def __iter__(self) -> Iterator[PipelineStep]:
+        yield from self.steps
 
     @property
     def steps(self) -> List[PipelineStep]:
