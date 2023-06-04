@@ -1,7 +1,17 @@
 from __future__ import annotations
 
 import logging
-from typing import ClassVar, Iterable, List, Optional, Tuple, Type, Union, overload
+from typing import (
+    ClassVar,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+    overload,
+)
 
 from dimcat.base import DimcatConfig, DimcatObject
 from dimcat.data.base import Data
@@ -20,6 +30,8 @@ from dimcat.exceptions import (
 from marshmallow import fields
 
 logger = logging.getLogger(__name__)
+
+D = TypeVar("D", bound=Data)
 
 
 class PipelineStep(DimcatObject):
@@ -96,7 +108,7 @@ class PipelineStep(DimcatObject):
         if not self.applicable_to_empty_datasets:
             if dataset.n_features_available == 0:
                 raise EmptyDatasetError
-        required_features = self.get_required_features()
+        required_features = self.get_feature_specs()
         if self.requires_at_least_one_feature:
             if len(required_features) == 0 and dataset.n_active_features == 0:
                 raise NoFeaturesActiveError
@@ -119,7 +131,7 @@ class PipelineStep(DimcatObject):
         resource_name = self.resource_name_factory(resource)
         return resource_constructor.from_resource(resource, resource_name=resource_name)
 
-    def get_new_resource_type(self, resource):
+    def get_new_resource_type(self, resource: DimcatResource) -> Type[DimcatResource]:
         if self.new_resource_type is None:
             resource_constructor: Type[DimcatResource] = resource.__class__
         else:
@@ -134,11 +146,15 @@ class PipelineStep(DimcatObject):
         """
         return
 
-    def get_required_features(self) -> List[DimcatConfig]:
+    def get_features(self, dataset: Dataset) -> Iterable[DimcatResource]:
+        feature_specs = self.get_feature_specs()
+        return dataset.iter_features(feature_specs)
+
+    def get_feature_specs(self) -> List[DimcatConfig]:
         """Return a list of feature names required for this PipelineStep."""
         return self.features
 
-    def _make_new_dataset(self, dataset):
+    def _make_new_dataset(self, dataset: Dataset) -> Dataset:
         if self.new_dataset_type is None:
             dataset_constructor: Type[Dataset] = dataset.__class__
         else:
@@ -164,20 +180,28 @@ class PipelineStep(DimcatObject):
         return result
 
     @overload
-    def process(self, data: Data) -> Data:
+    def process(self, data: D) -> D:
         ...
 
     @overload
-    def process(self, data: Iterable[Data]) -> List[Data]:
+    def process(self, data: Iterable[D]) -> List[D]:
         ...
 
-    def process(self, data: Union[Data, Iterable[Data]]) -> Union[Data, List[Data]]:
+    def process(self, data: Union[D, Iterable[D]]) -> Union[D, List[D]]:
         """Same as process_data(), with the difference that an Iterable is accepted."""
         if isinstance(data, Data):
             return self.process_data(data)
         return [self.process_data(d) for d in data]
 
-    def process_data(self, data: Data) -> Data:
+    @overload
+    def process_data(self, data: Dataset) -> Dataset:
+        ...
+
+    @overload
+    def process_data(self, data: DimcatResource) -> DimcatResource:
+        ...
+
+    def process_data(self, data: Dataset | DimcatResource) -> Dataset | DimcatResource:
         """
         Perform a transformation on an input Data object. This should never alter the
         Data or its properties in place, instead returning a copy or view of the input.
@@ -192,26 +216,28 @@ class PipelineStep(DimcatObject):
             return self.process_dataset(data)
         if isinstance(data, DimcatResource):
             return self.process_resource(data)
+        raise TypeError(f"Expected Dataset or DimcatResource, got {type(data)}")
 
     def _process_dataset(self, dataset: Dataset) -> Dataset:
         """Apply this PipelineStep to a :class:`Dataset` and return a copy containing the output(s)."""
         new_dataset = self._make_new_dataset(dataset)
         self.fit_to_dataset(new_dataset)
         new_dataset._pipeline.add_step(self)
-        resources = list(new_dataset.iter_features(self.features))
+        resources = self.get_features(new_dataset)
         new_package = self._make_new_package()
-        for resource in resources:
+        n_processed = 0
+        for n_processed, resource in enumerate(resources, 1):
             new_resource = self.process_resource(resource)
             new_package.add_resource(new_resource)
-        if len(new_package) < len(resources):
-            if len(new_package) == 0:
+        if new_package.n_resources < n_processed:
+            if new_package.n_resources == 0:
                 self.logger.warning(
-                    f"None of the {len(resources)} features were successfully transformed."
+                    f"None of the {n_processed} features were successfully transformed."
                 )
             else:
                 self.logger.warning(
                     f"Transformation was successful only on {len(new_package)} of the "
-                    f"{len(resources)} features."
+                    f"{n_processed} features."
                 )
         if self.is_transformation:
             new_dataset.outputs.replace_package(new_package)
