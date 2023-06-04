@@ -512,6 +512,20 @@ class DimcatConfig(MutableMapping, DimcatObject):
     def create(self) -> DimcatObject:
         return self.options_schema.load(self._options)
 
+    def matches(self, config: DimcatConfig) -> bool:
+        """Returns True if both configs have the same :attr:`options_dtype` and the overlapping options are equal."""
+        if not isinstance(config, DimcatConfig):
+            raise TypeError(
+                f"Can only compare against DimcatConfig, not {type(config)}."
+            )
+        if self.options_dtype != config.options_dtype:
+            return False
+        overlapping_keys = set(self.options.keys()) & set(config.options.keys())
+        for key in overlapping_keys:
+            if self[key] != config[key]:
+                return False
+        return True
+
     def validate(self, partial=False) -> Dict[str, List[str]]:
         """Validates the current status of the config in terms of ability to create an object. Empty dict == valid."""
         return self.options_schema.validate(self._options, many=False, partial=partial)
