@@ -201,6 +201,9 @@ class DimcatPackage(Data):
     def __iter__(self) -> Iterator[DimcatResource]:
         yield from self._resources
 
+    def __len__(self):
+        return len(self._resources)
+
     def __repr__(self):
         values = self._package.to_descriptor()
         values["basepath"] = self.basepath
@@ -462,6 +465,9 @@ class DimcatPackage(Data):
     def extend(self, resources: Iterable[DimcatResource]) -> None:
         """Adds multiple resources to the package."""
         status_before = self.status
+        if len(resources) == 0:
+            self.logger.debug("Nothing to add.")
+            return
         for resource in resources:
             self.add_resource(resource.copy())
         status_after = self.status
@@ -738,10 +744,10 @@ class DimcatCatalog(Data):
         yield from self._packages
 
     def __repr__(self):
-        return repr(self._packages)
+        return pformat(self.summary_dict(), sort_dicts=False)
 
     def __str__(self):
-        return str(self._packages)
+        return pformat(self.summary_dict(), sort_dicts=False)
 
     @property
     def basepath(self) -> Optional[str]:
@@ -814,6 +820,11 @@ class DimcatCatalog(Data):
             self_package = self.get_package_by_name(package.package_name)
             self_package.extend(package)
 
+    def extend_package(self, package: DimcatPackage) -> None:
+        """Adds all resources from the given package to the existing one with the same name."""
+        catalog_package = self.get_package_by_name(package.package_name, create=True)
+        catalog_package.extend(package)
+
     def get_feature(self, feature: FeatureSpecs) -> Feature:
         p = self.get_package()
         feature_config = feature_specs2config(feature)
@@ -885,7 +896,7 @@ class DimcatCatalog(Data):
             if p.package_name == package.package_name:
                 self._packages[i] = package
                 return
-        raise ValueError(f"Package {package.package_name!r} not found in catalog.")
+        self.add_package(package)
 
     def set_basepath(
         self,
@@ -901,6 +912,11 @@ class DimcatCatalog(Data):
             return
         for package in self._packages:
             package.basepath = basepath_arg
+
+    def summary_dict(self) -> dict:
+        """Returns a summary of the dataset."""
+        summary = {p.package_name: p.resource_names for p in self._packages}
+        return dict(basepath=self.basepath, packages=summary)
 
 
 # endregion DimcatCatalog
@@ -959,10 +975,10 @@ class Dataset(Data):
         super().__init__(**kwargs)
 
     def __repr__(self):
-        return repr(self.inputs)
+        return pformat(self.summary_dict(), sort_dicts=False)
 
     def __str__(self):
-        return str(self.inputs)
+        return pformat(self.summary_dict(), sort_dicts=False)
 
     @property
     def inputs(self) -> DimcatCatalog:
@@ -1039,6 +1055,15 @@ class Dataset(Data):
         feature = self.inputs.get_feature(feature_config)
         return feature
 
+    def iter_features(
+        self, features: FeatureSpecs | Iterable[FeatureSpecs] = None
+    ) -> Iterator[DimcatResource]:
+        if not features:
+            yield from self.outputs.get_package_by_name("features")
+        configs = features_argument2config_list(features)
+        for config in configs:
+            yield self.get_feature(config)
+
     def get_feature_package(
         self,
         features: FeatureSpecs | Iterable[FeatureSpecs] = None,
@@ -1057,22 +1082,9 @@ class Dataset(Data):
                     "No active features to return and none were requested."
                 )
             return self.outputs.get_package_by_name("features")
-        configs = features_argument2config_list(features)
         new_package = DimcatPackage(package_name="features")
-        for config in configs:
-            resource = self.inputs.get_package().get_resource("notes")
-            paths1 = resource.get_path_dict()
-            feature = self.get_feature(config)
-            paths2 = feature.get_path_dict()
-            assert (
-                paths1 == paths2
-            ), f"paths before adding: {pformat(paths1)} != {pformat(paths2)}"
+        for feature in self.iter_features(features):
             new_package.add_resource(feature)
-            feature_after = new_package.get_resource("notes")
-            paths3 = feature_after.get_path_dict()
-            assert (
-                paths1 == paths3
-            ), f"paths after adding: {pformat(paths1)} != {pformat(paths3)}"
         return new_package
 
     def get_metadata(self) -> SomeDataframe:
@@ -1116,6 +1128,14 @@ class Dataset(Data):
         feature = self.get_feature(feature)
         feature.load()
         return feature
+
+    def summary_dict(self) -> str:
+        """Returns a summary of the dataset."""
+        summary = dict(
+            inputs=self.inputs.summary_dict(),
+            outputs=self.outputs.summary_dict(),
+        )
+        return summary
 
 
 # endregion Dataset
