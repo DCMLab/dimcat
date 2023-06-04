@@ -17,9 +17,34 @@ if TYPE_CHECKING:
     from .base import DimcatIndex, SomeDataframe, SomeIndex
 
 
-def infer_schema_from_df(df: SomeDataframe) -> fl.Schema:
-    """Infer a frictionless.Schema from a dataframe."""
-    return fl.Schema.describe(df)
+def align_with_grouping(
+    df: pd.DataFrame, grouping: pd.MultiIndex, sort_index: bool = True
+) -> pd.DataFrame:
+    """Aligns a dataframe with a grouping index that has n levels such that the index levels of the  new dataframe
+    start with the n levels of the grouping index and are followed by the remaining levels of the original dataframe.
+    This is typically used to align a dataframe with feature information for many pieces with an index grouping
+    piece names.
+    """
+    df_levels = list(df.index.names)
+    gr_levels = grouping.names
+    if "piece" in gr_levels and "piece" not in df_levels:
+        piece_level_position = infer_piece_col_position(df_levels)
+        df = df.copy()
+        df.index.rename("piece", level=piece_level_position, inplace=True)
+        df_levels[piece_level_position] = "piece"
+    shared_levels = set(df_levels).intersection(set(gr_levels))
+    if len(shared_levels) == 0:
+        raise ValueError(f"No shared levels between {df_levels!r} and {gr_levels!r}")
+    grouping_df = pd.DataFrame(index=grouping)
+    df_aligned = grouping_df.join(
+        df,
+        how="left",
+    )
+    level_order = gr_levels + [level for level in df_levels if level not in gr_levels]
+    result = df_aligned.reorder_levels(level_order)
+    if sort_index:
+        return result.sort_index()
+    return result
 
 
 def check_rel_path(rel_path, basepath):
@@ -32,33 +57,36 @@ def check_rel_path(rel_path, basepath):
     return rel_path
 
 
-def make_rel_path(path: str, start: str):
-    """Like os.path.relpath() but ensures that path is contained within start."""
-    rel_path = os.path.relpath(path, start)
-    return check_rel_path(rel_path, start)
+def ensure_level_named_piece(
+    index: pd.MultiIndex, recognized_piece_columns: Optional[Iterable[str]] = None
+) -> Tuple[pd.MultiIndex, int]:
+    """Ensures that the index has a level named "piece" by detecting alternative level names and renaming it in case it
+     doesn't have one. Returns the index and the position of the piece level.
 
 
-def make_tsv_resource(name: Optional[str] = None) -> fl.Resource:
-    """Returns a frictionless.Resource with the default properties of a TSV file stored to disk."""
-    tsv_dialect = fl.Dialect.from_options(
-        {
-            "csv": {
-                "delimiter": "\t",
-            }
-        }
+    Args:
+        index: MultiIndex.
+        recognized_piece_columns:
+            Defaults to ("pieces", "fname", "fnames"). If other names are to be recognized as "piece" level, pass those.
+
+    Returns:
+        The same index or a copy with a renamed level.
+        The position of the piece level.
+    """
+    level_names = index.names
+    piece_level_position = infer_piece_col_position(
+        level_names, recognized_piece_columns=recognized_piece_columns
     )
-    options = {
-        "scheme": "file",
-        "format": "tsv",
-        "mediatype": "text/tsv",
-        "encoding": "utf-8",
-        "dialect": tsv_dialect,
-    }
-    if name is not None:
-        options["name"] = name
-    resource = fl.Resource(**options)
-    resource.type = "table"
-    return resource
+    if piece_level_position is None:
+        resolved_arg = resolve_recognized_piece_columns_argument(
+            recognized_piece_columns
+        )
+        raise ValueError(
+            f"No level has any of the recognized 'piece' column names {resolved_arg!r}: {level_names!r}"
+        )
+    if level_names[piece_level_position] != "piece":
+        return index.rename("piece", level=piece_level_position), piece_level_position
+    return index, piece_level_position
 
 
 def fl_fields2pandas_params(fields: List[fl.Field]) -> Tuple[dict, dict, list]:
@@ -128,75 +156,27 @@ def get_existing_normpath(fl_resource) -> str:
     return normpath
 
 
-def resolve_columns_argument(
-    columns: Optional[int | str | List[int | str]],
-    column_names: List[str],
-) -> Optional[List[str]]:
-    """Resolve the columns argument of a load function to a list of column names.
-
-    Args:
-        columns:
-            A list of integer position and/or column names. Can be mixed but integers will always
-            be interpreted as positions.
-        column_names: List of column names to choose from.
-
-    Returns:
-        The resolved list of column names. None if ``columns`` is None.
-
-    Raises:
-        ValueError: If ``columns`` contains duplicate column names.
-    """
-    if columns is None:
-        return
-    result = []
-    if isinstance(columns, (int, str)):
-        columns = [columns]
-    for str_or_int in columns:
-        if isinstance(str_or_int, int):
-            result.append(column_names[str_or_int])
-        else:
-            if str_or_int not in column_names:
-                raise ValueError(
-                    f"Column {str_or_int!r} not found in field names {column_names}."
-                )
-            result.append(str_or_int)
-    result_set = set(result)
-    if len(result_set) != len(result):
-        raise ValueError(f"Duplicate column names in {columns}.")
-    return result
+def infer_piece_col_position(
+    column_name: List[str],
+    recognized_piece_columns: Optional[Iterable[str]] = None,
+) -> Optional[int]:
+    """Infer the position of the piece column in a list of column names."""
+    recognized_piece_columns = resolve_recognized_piece_columns_argument(
+        recognized_piece_columns
+    )
+    if recognized_piece_columns[0] != "piece":
+        recognized_piece_columns = ["piece"] + [col for col in recognized_piece_columns]
+    for name in recognized_piece_columns:
+        try:
+            return column_name.index(name)
+        except ValueError:
+            continue
+    return
 
 
-def resolve_levels_argument(
-    levels: Optional[int | str | Iterable[int | str]],
-    level_names: List[str],
-    inverse: bool = False,
-) -> Optional[Tuple[int]]:
-    """Turns a selection of index levels into a list of positive level positions."""
-    if levels is None:
-        return
-    result = []
-    nlevels = len(level_names)
-    if isinstance(levels, (int, str)):
-        levels = [levels]
-    for str_or_int in levels:
-        if isinstance(str_or_int, int):
-            if str_or_int < 0:
-                as_int = nlevels + str_or_int
-            else:
-                as_int = str_or_int
-        else:
-            as_int = level_names.index(str_or_int)
-        if as_int < 0 or as_int >= nlevels:
-            raise ValueError(
-                f"Level {str_or_int!r} not found in level names {level_names}."
-            )
-        result.append(as_int)
-    result_set = set(result)
-    if len(result_set) != len(result):
-        raise ValueError(f"Duplicate level names in {levels}.")
-    if inverse:
-        result = [i for i in range(nlevels) if i not in result]
-    return tuple(result)
+def infer_schema_from_df(df: SomeDataframe) -> fl.Schema:
+    """Infer a frictionless.Schema from a dataframe."""
+    return fl.Schema.describe(df)
 
 
 def load_fl_resource(
@@ -409,96 +389,6 @@ def make_boolean_mask_from_set_of_tuples(
     return index.map(lambda index_tuple: tuple_maker(index_tuple) in tuples)
 
 
-def resolve_recognized_piece_columns_argument(
-    recognized_piece_columns: Optional[Iterable[str]] = None,
-) -> List[str]:
-    """Resolve the recognized_piece_columns argument by replacing None with the default value."""
-    if recognized_piece_columns is None:
-        return get_setting("recognized_piece_columns")
-    else:
-        return list(recognized_piece_columns)
-
-
-def infer_piece_col_position(
-    column_name: List[str],
-    recognized_piece_columns: Optional[Iterable[str]] = None,
-) -> Optional[int]:
-    """Infer the position of the piece column in a list of column names."""
-    recognized_piece_columns = resolve_recognized_piece_columns_argument(
-        recognized_piece_columns
-    )
-    if recognized_piece_columns[0] != "piece":
-        recognized_piece_columns = ["piece"] + [col for col in recognized_piece_columns]
-    for name in recognized_piece_columns:
-        try:
-            return column_name.index(name)
-        except ValueError:
-            continue
-    return
-
-
-def ensure_level_named_piece(
-    index: pd.MultiIndex, recognized_piece_columns: Optional[Iterable[str]] = None
-) -> Tuple[pd.MultiIndex, int]:
-    """Ensures that the index has a level named "piece" by detecting alternative level names and renaming it in case it
-     doesn't have one. Returns the index and the position of the piece level.
-
-
-    Args:
-        index: MultiIndex.
-        recognized_piece_columns:
-            Defaults to ("pieces", "fname", "fnames"). If other names are to be recognized as "piece" level, pass those.
-
-    Returns:
-        The same index or a copy with a renamed level.
-        The position of the piece level.
-    """
-    level_names = index.names
-    piece_level_position = infer_piece_col_position(
-        level_names, recognized_piece_columns=recognized_piece_columns
-    )
-    if piece_level_position is None:
-        resolved_arg = resolve_recognized_piece_columns_argument(
-            recognized_piece_columns
-        )
-        raise ValueError(
-            f"No level has any of the recognized 'piece' column names {resolved_arg!r}: {level_names!r}"
-        )
-    if level_names[piece_level_position] != "piece":
-        return index.rename("piece", level=piece_level_position), piece_level_position
-    return index, piece_level_position
-
-
-def align_with_grouping(
-    df: pd.DataFrame, grouping: pd.MultiIndex, sort_index: bool = True
-) -> pd.DataFrame:
-    """Aligns a dataframe with a grouping index that has n levels such that the index levels of the  new dataframe
-    start with the n levels of the grouping index and are followed by the remaining levels of the original dataframe.
-    This is typically used to align a dataframe with feature information for many pieces with an index grouping
-    piece names.
-    """
-    df_levels = list(df.index.names)
-    gr_levels = grouping.names
-    if "piece" in gr_levels and "piece" not in df_levels:
-        piece_level_position = infer_piece_col_position(df_levels)
-        df = df.copy()
-        df.index.rename("piece", level=piece_level_position, inplace=True)
-        df_levels[piece_level_position] = "piece"
-    shared_levels = set(df_levels).intersection(set(gr_levels))
-    if len(shared_levels) == 0:
-        raise ValueError(f"No shared levels between {df_levels!r} and {gr_levels!r}")
-    grouping_df = pd.DataFrame(index=grouping)
-    df_aligned = grouping_df.join(
-        df,
-        how="left",
-    )
-    level_order = gr_levels + [level for level in df_levels if level not in gr_levels]
-    result = df_aligned.reorder_levels(level_order)
-    if sort_index:
-        return result.sort_index()
-    return result
-
-
 def make_index_from_grouping_dict(
     grouping: Dict[str, List[tuple]],
     level_names=("group_name", "corpus", "piece"),
@@ -530,3 +420,116 @@ def make_index_from_grouping_dict(
     if sort:
         index_tuples = sorted(index_tuples)
     return pd.MultiIndex.from_tuples(index_tuples, names=level_names)
+
+
+def make_rel_path(path: str, start: str):
+    """Like os.path.relpath() but ensures that path is contained within start."""
+    rel_path = os.path.relpath(path, start)
+    try:
+        return check_rel_path(rel_path, start)
+    except ValueError as e:
+        raise ValueError(f"Turning {path} into a relative path failed with {e}")
+
+
+def make_tsv_resource(name: Optional[str] = None) -> fl.Resource:
+    """Returns a frictionless.Resource with the default properties of a TSV file stored to disk."""
+    tsv_dialect = fl.Dialect.from_options(
+        {
+            "csv": {
+                "delimiter": "\t",
+            }
+        }
+    )
+    options = {
+        "scheme": "file",
+        "format": "tsv",
+        "mediatype": "text/tsv",
+        "encoding": "utf-8",
+        "dialect": tsv_dialect,
+    }
+    if name is not None:
+        options["name"] = name
+    resource = fl.Resource(**options)
+    resource.type = "table"
+    return resource
+
+
+def resolve_columns_argument(
+    columns: Optional[int | str | List[int | str]],
+    column_names: List[str],
+) -> Optional[List[str]]:
+    """Resolve the columns argument of a load function to a list of column names.
+
+    Args:
+        columns:
+            A list of integer position and/or column names. Can be mixed but integers will always
+            be interpreted as positions.
+        column_names: List of column names to choose from.
+
+    Returns:
+        The resolved list of column names. None if ``columns`` is None.
+
+    Raises:
+        ValueError: If ``columns`` contains duplicate column names.
+    """
+    if columns is None:
+        return
+    result = []
+    if isinstance(columns, (int, str)):
+        columns = [columns]
+    for str_or_int in columns:
+        if isinstance(str_or_int, int):
+            result.append(column_names[str_or_int])
+        else:
+            if str_or_int not in column_names:
+                raise ValueError(
+                    f"Column {str_or_int!r} not found in field names {column_names}."
+                )
+            result.append(str_or_int)
+    result_set = set(result)
+    if len(result_set) != len(result):
+        raise ValueError(f"Duplicate column names in {columns}.")
+    return result
+
+
+def resolve_levels_argument(
+    levels: Optional[int | str | Iterable[int | str]],
+    level_names: List[str],
+    inverse: bool = False,
+) -> Optional[Tuple[int]]:
+    """Turns a selection of index levels into a list of positive level positions."""
+    if levels is None:
+        return
+    result = []
+    nlevels = len(level_names)
+    if isinstance(levels, (int, str)):
+        levels = [levels]
+    for str_or_int in levels:
+        if isinstance(str_or_int, int):
+            if str_or_int < 0:
+                as_int = nlevels + str_or_int
+            else:
+                as_int = str_or_int
+        else:
+            as_int = level_names.index(str_or_int)
+        if as_int < 0 or as_int >= nlevels:
+            raise ValueError(
+                f"Level {str_or_int!r} not found in level names {level_names}."
+            )
+        result.append(as_int)
+    result_set = set(result)
+    if len(result_set) != len(result):
+        raise ValueError(f"Duplicate level names in {levels}.")
+    if inverse:
+        result = [i for i in range(nlevels) if i not in result]
+    return tuple(result)
+
+
+def resolve_recognized_piece_columns_argument(
+    recognized_piece_columns: Optional[Iterable[str]] = None,
+) -> List[str]:
+    """Resolve the recognized_piece_columns argument by replacing None with the default value."""
+    if recognized_piece_columns is None:
+        return get_setting("recognized_piece_columns")
+    else:
+        return list(recognized_piece_columns)

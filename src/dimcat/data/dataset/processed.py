@@ -7,10 +7,10 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Optional
 
-from dimcat import Dataset
+from .base import Dataset
 
 if TYPE_CHECKING:
-    from dimcat.resources import Result
+    from dimcat.data.resources import Result
 
 logger = logging.getLogger(__name__)
 

@@ -10,10 +10,7 @@ from typing import List, Tuple, Type
 import frictionless as fl
 import pandas as pd
 import pytest
-from dimcat.analyzers import Counter
-from dimcat.analyzers.base import Analyzer
 from dimcat.base import (
-    Data,
     DimcatConfig,
     DimcatObject,
     DimcatSchema,
@@ -21,10 +18,12 @@ from dimcat.base import (
     deserialize_json_file,
     deserialize_json_str,
 )
-from dimcat.dataset.base import DimcatCatalog, DimcatPackage
-from dimcat.pipeline import PipelineStep
-from dimcat.resources.base import DimcatResource
-from dimcat.resources.features import Notes
+from dimcat.data.base import Data
+from dimcat.data.dataset.base import DimcatCatalog, DimcatPackage
+from dimcat.data.resources.base import DimcatResource
+from dimcat.data.resources.features import Notes
+from dimcat.steps.analyzers import Analyzer, Counter
+from dimcat.steps.base import PipelineStep
 from marshmallow import ValidationError, fields
 from marshmallow.class_registry import _registry as MM_REGISTRY
 

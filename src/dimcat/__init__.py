@@ -11,17 +11,14 @@ except PackageNotFoundError:  # pragma: no cover
 finally:
     del version, PackageNotFoundError
 
-from .base import (
-    Data,
-    DimcatConfig,
-    DimcatObject,
-    DimcatSchema,
-    PipelineStep,
-    get_class,
-    get_schema,
-)
-from .dataset.base import Dataset, DimcatPackage
-from .resources.base import DimcatIndex, DimcatResource, PieceIndex
-from .resources.features import FeatureName
+
+from .base import DimcatConfig, get_class, get_schema
+from .data.dataset import Dataset
+from .steps.pipelines import Pipeline
 
 logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.WARNING,
+    format="%(levelname)-8s %(name)s -- %(pathname)s (line %(lineno)s) in %(funcName)s():\n\t%(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)

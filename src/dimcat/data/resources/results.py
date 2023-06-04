@@ -31,13 +31,19 @@ class Result(DimcatResource):
         Returns:
             A Plotly Figure object.
         """
+        groups = self.get_default_groupby()
+        for level in ("corpus", "piece"):
+            if level in groups:
+                groups.remove(level)
+        if len(groups) > 0 and "color" not in kwargs:
+            kwargs["color"] = groups[0]
+            print(kwargs)
         df = self.df.reset_index()
         fig = px.bar(
             df,
             x=df.columns[-2],
             y=df.columns[-1],
-            hover_data=["corpus", "fname"],
-            labels=dict(index="piece"),
+            hover_data=["corpus", "piece"],
             **kwargs,
         )
         figure_layout = dict(

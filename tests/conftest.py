@@ -5,10 +5,10 @@ import os
 
 import frictionless as fl
 import pytest
-from dimcat import Dataset
-from dimcat.dataset.base import DimcatPackage
-from dimcat.resources.base import DimcatResource
-from dimcat.resources.utils import load_fl_resource
+from dimcat.data.dataset import Dataset
+from dimcat.data.dataset.base import DimcatPackage
+from dimcat.data.resources.base import DimcatResource
+from dimcat.data.resources.utils import load_fl_resource
 from git import Repo
 
 # ----------------------------- SETTINGS -----------------------------

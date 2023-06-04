@@ -1,8 +1,12 @@
 import os
 
 import pytest
-from dimcat import DimcatIndex, DimcatResource, PieceIndex
-from dimcat.resources.base import ResourceStatus
+from dimcat.data.resources.base import (
+    DimcatIndex,
+    DimcatResource,
+    PieceIndex,
+    ResourceStatus,
+)
 from dimcat.utils import get_default_basepath
 
 from tests.conftest import CORPUS_PATH

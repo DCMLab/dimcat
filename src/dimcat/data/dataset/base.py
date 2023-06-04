@@ -18,27 +18,47 @@ import logging
 import os
 from enum import IntEnum, auto
 from pprint import pformat
-from typing import TYPE_CHECKING, Iterable, Iterator, List, Optional, TypeAlias, Union
+from typing import (
+    TYPE_CHECKING,
+    Iterable,
+    Iterator,
+    List,
+    Literal,
+    Optional,
+    TypeAlias,
+    Union,
+    overload,
+)
 
 import frictionless as fl
 import marshmallow as mm
 import ms3
-from dimcat.base import Data, DimcatConfig, FriendlyEnum
-from dimcat.resources.base import D, DimcatResource, ResourceStatus, SomeDataframe
-from dimcat.resources.features import (
+from dimcat.base import DimcatConfig, DimcatObjectField, FriendlyEnum, get_class
+from dimcat.data.base import Data
+from dimcat.data.resources.base import D, DimcatResource, ResourceStatus, SomeDataframe
+from dimcat.data.resources.features import (
     Feature,
     FeatureName,
     FeatureSpecs,
     feature_specs2config,
     features_argument2config_list,
 )
-from dimcat.resources.utils import make_rel_path
+from dimcat.data.resources.utils import make_rel_path
+from dimcat.exceptions import (
+    EmptyCatalogError,
+    EmptyPackageError,
+    NoFeaturesActiveError,
+    NoMatchingResourceFoundError,
+    PackageNotFoundError,
+    ResourceNotFoundError,
+)
 from dimcat.utils import check_file_path, check_name, get_default_basepath
 from typing_extensions import Self
 
 if TYPE_CHECKING:
-    from dimcat.pipeline import PipelineStep
-    from dimcat.resources.results import Result
+    from dimcat.data.resources.results import Result
+    from dimcat.steps.base import PipelineStep
+    from dimcat.steps.pipelines import Pipeline
 
 logger = logging.getLogger(__name__)
 
@@ -198,8 +218,17 @@ class DimcatPackage(Data):
         if auto_validate:
             self.validate(raise_exception=True)
 
+    def __getitem__(self, item: str) -> DimcatResource:
+        try:
+            return self.get_resource(item)
+        except Exception as e:
+            raise KeyError(str(e)) from e
+
     def __iter__(self) -> Iterator[DimcatResource]:
         yield from self._resources
+
+    def __len__(self):
+        return len(self._resources)
 
     def __repr__(self):
         values = self._package.to_descriptor()
@@ -462,13 +491,41 @@ class DimcatPackage(Data):
     def extend(self, resources: Iterable[DimcatResource]) -> None:
         """Adds multiple resources to the package."""
         status_before = self.status
-        for resource in resources:
+        resources = tuple(resources)
+        if len(resources) == 0:
+            self.logger.debug("Nothing to add.")
+            return
+        for n_added, resource in enumerate(resources, 1):
             self.add_resource(resource.copy())
+        self.logger.info(
+            f"Package {self.package_name!r} was extended with {n_added} resources to a total "
+            f"of {self.n_resources}."
+        )
         status_after = self.status
         if status_before != status_after:
             self.logger.debug(
                 f"Status changed from {status_before!r} to {status_after!r}"
             )
+
+    def extract_feature(self, feature: FeatureSpecs) -> Feature:
+        feature_config = feature_specs2config(feature)
+        feature_name = FeatureName(feature_config.options_dtype)
+        name2resource = dict(
+            Notes="notes",
+            Annotations="expanded",
+            KeyAnnotations="expanded",
+            Metadata="metadata",
+        )
+        try:
+            resource_name = name2resource[feature_name]
+        except KeyError:
+            raise NoMatchingResourceFoundError(feature_config)
+        try:
+            resource = self.get_resource(resource_name)
+        except ResourceNotFoundError:
+            raise NoMatchingResourceFoundError(feature_config)
+        Constructor = feature_name.get_class()
+        return Constructor.from_resource(resource)
 
     def get_basepath(self) -> str:
         """Get the basepath of the resource. If not specified, the default basepath is returned."""
@@ -496,18 +553,34 @@ class DimcatPackage(Data):
         return descriptor_filepath
 
     def get_feature(self, feature: FeatureSpecs) -> Feature:
+        """Checks if the package includes a feature matching the specs, and extracts it otherwise, if possible.
+
+        Raises:
+            NoMatchingResourceFoundError:
+                If none of the previously extracted features matches the specs and none of the input resources
+                allows for extracting a matching feature.
+        """
         feature_config = feature_specs2config(feature)
-        feature_name = FeatureName(feature_config.options_dtype)
-        name2resource = dict(
-            Notes="notes",
-            Annotations="expanded",
-            KeyAnnotations="expanded",
-            Metadata="metadata",
-        )
-        resource_name = name2resource[feature_name]
-        resource = self.get_resource(resource_name)
-        Constructor = feature_name.get_class()
-        return Constructor.from_resource(resource)
+        try:
+            return self.get_resource_by_config(feature_config)
+        except NoMatchingResourceFoundError:
+            pass
+        return self.extract_feature(feature_config)
+
+    def get_metadata(self) -> SomeDataframe:
+        """Returns the metadata of the package."""
+        return self.get_resource("metadata").df
+
+    def get_resource_by_config(self, config: DimcatConfig) -> DimcatResource:
+        """Returns the first resource that matches the given config."""
+        for resource in self.resources:
+            resource_config = resource.to_config()
+            if resource_config.matches(config):
+                self.logger.debug(
+                    f"Requested config {config!r} matched with {resource_config!r}."
+                )
+                return resource
+        raise NoMatchingResourceFoundError(config)
 
     def get_zip_filepath(self) -> str:
         """Returns the path of the ZIP file that the resources of this package are serialized to."""
@@ -525,27 +598,21 @@ class DimcatPackage(Data):
         zip_filename = self.get_zip_filepath()
         return os.path.join(self.get_basepath(), zip_filename)
 
-    def _get_fl_resource(self, name: str) -> fl.Resource:
-        """Returns the frictionless resource with the given name."""
-        try:
-            return self._package.get_resource(name)
-        except fl.FrictionlessException:
-            msg = (
-                f"Resource {name!r} not found in package {self.package_name!r}. "
-                f"Available resources: {self.resource_names!r}."
-            )
-            raise fl.FrictionlessException(msg)
-
     def get_resource(self, name: Optional[str] = None) -> DimcatResource:
-        """Returns the DimcatResource with the given name. If no name is given, returns the last resource."""
+        """Returns the DimcatResource with the given name. If no name is given, returns the last resource.
+
+        Raises:
+            EmptyPackageError: If the package is empty.
+            ResourceNotFoundError: If the resource with the given name is not found.
+        """
         if self.n_resources == 0:
-            raise ValueError(f"Package {self.package_name} is empty.")
+            raise EmptyPackageError(self.package_name)
         if name is None:
             return self._resources[-1]
         for resource in self._resources:
             if resource.resource_name == name:
                 return resource
-        raise ValueError(f"Resource {name} not found in package {self.package_name}.")
+        raise ResourceNotFoundError(name, self.package_name)
 
     def _handle_resource_paths(
         self,
@@ -693,6 +760,7 @@ class DimcatPackage(Data):
 
 PackageSpecs: TypeAlias = Union[DimcatPackage, fl.Package, str]
 
+
 # endregion DimcatPackage
 # region DimcatCatalog
 
@@ -734,14 +802,20 @@ class DimcatCatalog(Data):
         if packages is not None:
             self.packages = packages
 
+    def __getitem__(self, item: str) -> DimcatPackage:
+        try:
+            return self.get_package(item)
+        except Exception as e:
+            raise KeyError(str(e)) from e
+
     def __iter__(self) -> Iterator[DimcatPackage]:
         yield from self._packages
 
     def __repr__(self):
-        return repr(self._packages)
+        return pformat(self.summary_dict(), sort_dicts=False)
 
     def __str__(self):
-        return str(self._packages)
+        return pformat(self.summary_dict(), sort_dicts=False)
 
     @property
     def basepath(self) -> Optional[str]:
@@ -794,7 +868,7 @@ class DimcatCatalog(Data):
     ):
         """Adds a resource to the catalog. If package_name is given, adds the resource to the package with that name."""
         package = self.get_package_by_name(package_name, create=True)
-        package.make_new_resource(resource=resource)
+        package.add_resource(resource=resource)
 
     def check_feature_availability(self, feature: FeatureSpecs) -> bool:
         """Checks whether the given feature is potentially available."""
@@ -814,10 +888,10 @@ class DimcatCatalog(Data):
             self_package = self.get_package_by_name(package.package_name)
             self_package.extend(package)
 
-    def get_feature(self, feature: FeatureSpecs) -> Feature:
-        p = self.get_package()
-        feature_config = feature_specs2config(feature)
-        return p.get_feature(feature_config)
+    def extend_package(self, package: DimcatPackage) -> None:
+        """Adds all resources from the given package to the existing one with the same name."""
+        catalog_package = self.get_package_by_name(package.package_name, create=True)
+        catalog_package.extend(package)
 
     def get_package(self, name: Optional[str] = None) -> DimcatPackage:
         """If a name is given, calls :meth:`get_package_by_name`, otherwise returns the last loaded package.
@@ -828,7 +902,7 @@ class DimcatCatalog(Data):
         if name is not None:
             return self.get_package_by_name(name=name)
         if len(self._packages) == 0:
-            raise ValueError("Catalog is Empty.")
+            raise EmptyCatalogError
         return self._packages[-1]
 
     def get_package_by_name(self, name: str, create: bool = False) -> DimcatPackage:
@@ -847,8 +921,7 @@ class DimcatCatalog(Data):
             )
             self.logger.info(f"Automatically added new empty package {name!r}")
             return self.get_package()
-        error = fl.errors.CatalogError(note=f'package "{name}" does not exist')
-        raise fl.FrictionlessException(error)
+        raise PackageNotFoundError(name)
 
     def has_package(self, name: str) -> bool:
         """Returns True if a package with the given name is loaded, False otherwise."""
@@ -880,12 +953,16 @@ class DimcatCatalog(Data):
         """Replaces the package with the same name as the given package with the given package."""
         if not isinstance(package, DimcatPackage):
             msg = f"{self.name}.replace_package() takes a DimcatPackage, not {type(package)!r}."
-            raise ValueError(msg)
+            raise TypeError(msg)
         for i, p in enumerate(self._packages):
             if p.package_name == package.package_name:
+                self.logger.info(
+                    f"Replacing package {p.package_name!r} ({p.n_resources} resources) with "
+                    f"package {package.package_name!r} ({package.n_resources} resources)"
+                )
                 self._packages[i] = package
                 return
-        raise ValueError(f"Package {package.package_name!r} not found in catalog.")
+        self.add_package(package)
 
     def set_basepath(
         self,
@@ -902,6 +979,43 @@ class DimcatCatalog(Data):
         for package in self._packages:
             package.basepath = basepath_arg
 
+    def summary_dict(self) -> dict:
+        """Returns a summary of the dataset."""
+        summary = {p.package_name: p.resource_names for p in self._packages}
+        return dict(basepath=self.basepath, packages=summary)
+
+
+class InputsCatalog(DimcatCatalog):
+    def extract_feature(self, feature: FeatureSpecs) -> Feature:
+        """Extracts the given features from all packages and combines them in a Feature resource."""
+        package = self.get_package()
+        feature_config = feature_specs2config(feature)
+        return package.extract_feature(feature_config)
+
+    def get_feature(self, feature: FeatureSpecs) -> Feature:
+        """ToDo: Get features from all packages and merge them."""
+        package = self.get_package()
+        feature_config = feature_specs2config(feature)
+        return package.get_feature(feature_config)
+
+    def get_metadata(self) -> SomeDataframe:
+        """Returns a dataframe with all metadata."""
+        package = self.get_package()
+        return package.get_metadata()
+
+
+class OutputsCatalog(DimcatCatalog):
+    def get_feature(self, feature: FeatureSpecs) -> DimcatResource:
+        """Looks up the given feature in the "features" package and returns it.
+
+        Raises:
+            PackageNotFoundError: If no package with the name "features" is loaded.
+            NoMatchingResourceFoundError: If no resource matching the specs is found in the "features" package.
+        """
+        package = self.get_package_by_name("features")
+        feature_config = feature_specs2config(feature)
+        return package.get_resource_by_config(feature_config)
+
 
 # endregion DimcatCatalog
 # region Dataset
@@ -915,10 +1029,13 @@ class Dataset(Data):
         cls,
         inputs: DimcatCatalog | List[DimcatPackage],
         outputs: DimcatCatalog | List[DimcatPackage],
+        pipeline: Optional[Pipeline] = None,
         **kwargs,
     ):
         """Instantiate by copying existing catalogs."""
         new_dataset = cls(**kwargs)
+        if pipeline is not None:
+            new_dataset._pipeline = pipeline
         new_dataset.inputs.extend(inputs)
         new_dataset.outputs.extend(outputs)
         return new_dataset
@@ -927,7 +1044,10 @@ class Dataset(Data):
     def from_dataset(cls, dataset: Dataset, **kwargs):
         """Instantiate from this Dataset by copying its fields, empty fields otherwise."""
         return cls.from_catalogs(
-            inputs=dataset.inputs, outputs=dataset.outputs, **kwargs
+            inputs=dataset.inputs,
+            outputs=dataset.outputs,
+            pipeline=dataset.pipeline,
+            **kwargs,
         )
 
     class Schema(Data.Schema):
@@ -937,6 +1057,9 @@ class Dataset(Data):
         outputs = mm.fields.Nested(
             DimcatCatalog.Schema, required=False, load_default=[]
         )
+        pipeline = (
+            DimcatObjectField()
+        )  # mm.fields.Nested(Pipeline.Schema) would cause circular import
 
         @mm.post_load
         def init_object(self, data, **kwargs) -> Dataset:
@@ -954,18 +1077,20 @@ class Dataset(Data):
         Args:
             **kwargs: Dataset is cooperative and calls super().__init__(data=dataset, **kwargs)
         """
-        self._inputs = DimcatCatalog()
-        self._outputs = DimcatCatalog()
+        self._inputs = InputsCatalog()
+        self._outputs = OutputsCatalog()
+        self._pipeline = None
+        self.reset_pipeline()
         super().__init__(**kwargs)
 
     def __repr__(self):
-        return repr(self.inputs)
+        return self.info(print=False)
 
     def __str__(self):
-        return str(self.inputs)
+        return self.info(print=False)
 
     @property
-    def inputs(self) -> DimcatCatalog:
+    def inputs(self) -> InputsCatalog:
         """The inputs catalog."""
         return self._inputs
 
@@ -983,9 +1108,17 @@ class Dataset(Data):
         return sum(package.n_resources for package in self.inputs)
 
     @property
-    def outputs(self) -> DimcatCatalog:
+    def outputs(self) -> OutputsCatalog:
         """The outputs catalog."""
         return self._outputs
+
+    @property
+    def pipeline(self) -> Pipeline:
+        """A copy of the pipeline representing the steps that have been applied to this Dataset so far.
+        To add a PipelineStep to the pipeline of this Dataset, use :meth:`apply`.
+        """
+        Constructor = get_class("Pipeline")
+        return Constructor.from_pipeline(self._pipeline)
 
     def add_output(
         self,
@@ -1018,7 +1151,7 @@ class Dataset(Data):
         self,
         step: PipelineStep,
     ) -> Self:
-        """Applies a pipeline step to the specified features or, if None, to all active features."""
+        """Applies a pipeline step to the features it is configured for or, if None, to all active features."""
         return step.process_dataset(self)
 
     def check_feature_availability(self, feature: FeatureSpecs) -> bool:
@@ -1034,12 +1167,78 @@ class Dataset(Data):
         """Returns a copy of this Dataset."""
         return Dataset.from_dataset(self)
 
-    def get_feature(self, feature: FeatureSpecs) -> Feature:
-        feature_config = feature_specs2config(feature)
-        feature = self.inputs.get_feature(feature_config)
-        return feature
+    def _extract_feature(self, feature_config: DimcatConfig) -> Feature:
+        """Extracts a feature from this Dataset.
 
-    def get_feature_package(
+        Args:
+            feature: FeatureSpecs to be extracted.
+        """
+        extracted = self.inputs.extract_feature(feature_config)
+        if len(self._pipeline) == 0:
+            return extracted
+        return self._pipeline.process_resource(extracted)
+
+    def extract_feature(self, feature: FeatureSpecs) -> Feature:
+        """Extracts a feature from this Dataset, adds it to the OutputsCatalog, and adds the corresponding
+        FeatureExtractor to the dataset's pipeline as if it had been applied.
+
+        Args:
+            feature: FeatureSpecs to be extracted.
+        """
+        feature_config = feature_specs2config(feature)
+        Constructor = get_class("FeatureExtractor")
+        feature_extractor = Constructor(feature_config)
+        self._pipeline.add_step(feature_extractor)
+        extracted = self._extract_feature(feature_config)
+        self.add_output(resource=extracted, package_name="features")
+        return extracted
+
+    def get_feature(self, feature: FeatureSpecs) -> Feature:
+        """High-level method that first looks up a feature fitting the specs in the outputs catalog,
+        and adds a FeatureExtractor to the dataset's pipeline otherwise."""
+        feature_config = feature_specs2config(feature)
+        try:
+            return self.outputs.get_feature(feature_config)
+        except (
+            PackageNotFoundError,
+            NoMatchingResourceFoundError,
+            NoMatchingResourceFoundError,
+        ):
+            pass
+        return self.extract_feature(feature_config)
+
+    @overload
+    def info(self, print: Literal[True]) -> None:
+        ...
+
+    @overload
+    def info(self, print: Literal[False] = False) -> str:
+        ...
+
+    def info(self, print=True) -> Optional[str]:
+        """Returns a summary of the dataset."""
+        summary = self.summary_dict()
+        title = self.name
+        title += f"\n{'=' * len(title)}\n"
+        summary_str = f"{title}{pformat(summary, sort_dicts=False)}"
+        if print:
+            print(summary_str)
+        else:
+            return summary_str
+
+    def iter_features(
+        self, features: FeatureSpecs | Iterable[FeatureSpecs] = None
+    ) -> Iterator[DimcatResource]:
+        if not features:
+            if self.n_active_features == 0:
+                yield from []
+            else:
+                yield from self.outputs.get_package_by_name("features")
+        configs = features_argument2config_list(features)
+        for config in configs:
+            yield self.get_feature(config)
+
+    def make_features_package(
         self,
         features: FeatureSpecs | Iterable[FeatureSpecs] = None,
     ) -> DimcatPackage:
@@ -1053,31 +1252,16 @@ class Dataset(Data):
         """
         if not features:
             if self.n_active_features == 0:
-                raise ValueError(
-                    "No active features to return and none were requested."
-                )
+                raise NoFeaturesActiveError
             return self.outputs.get_package_by_name("features")
-        configs = features_argument2config_list(features)
         new_package = DimcatPackage(package_name="features")
-        for config in configs:
-            resource = self.inputs.get_package().get_resource("notes")
-            paths1 = resource.get_path_dict()
-            feature = self.get_feature(config)
-            paths2 = feature.get_path_dict()
-            assert (
-                paths1 == paths2
-            ), f"paths before adding: {pformat(paths1)} != {pformat(paths2)}"
+        for feature in self.iter_features(features):
             new_package.add_resource(feature)
-            feature_after = new_package.get_resource("notes")
-            paths3 = feature_after.get_path_dict()
-            assert (
-                paths1 == paths3
-            ), f"paths after adding: {pformat(paths1)} != {pformat(paths3)}"
         return new_package
 
     def get_metadata(self) -> SomeDataframe:
-        metadata = self.get_feature("metadata")
-        return metadata.df
+        metadata = self.inputs.get_metadata()
+        return metadata
 
     def load_package(
         self,
@@ -1116,6 +1300,24 @@ class Dataset(Data):
         feature = self.get_feature(feature)
         feature.load()
         return feature
+
+    def reset_pipeline(self) -> None:
+        """Resets the pipeline by replacing it with an empty one."""
+        if self._pipeline is None:
+            self.logger.debug("Initializing empty Pipeline.")
+        else:
+            self.logger.debug("Resetting Pipeline.")
+        Constructor = get_class("Pipeline")
+        self._pipeline = Constructor()
+
+    def summary_dict(self) -> str:
+        """Returns a summary of the dataset."""
+        summary = dict(
+            inputs=self.inputs.summary_dict(),
+            outputs=self.outputs.summary_dict(),
+            pipeline=[step.name for step in self._pipeline],
+        )
+        return summary
 
 
 # endregion Dataset

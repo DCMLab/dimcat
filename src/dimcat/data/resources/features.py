@@ -6,9 +6,8 @@ from typing import Iterable, List, MutableMapping, Optional, TypeAlias, Union
 
 import frictionless as fl
 import marshmallow as mm
-from dimcat import DimcatConfig
-from dimcat.base import ObjectEnum, is_subclass_of
-from dimcat.resources.base import DimcatResource
+from dimcat.base import DimcatConfig, ObjectEnum, is_subclass_of
+from dimcat.data.resources.base import DimcatResource
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +68,7 @@ class Notes(Feature):
         filepath: Optional[str] = None,
         descriptor_filepath: Optional[str] = None,
         auto_validate: bool = True,
+        default_groupby: Optional[str | list[str]] = None,
     ) -> None:
         self._format: NotesFormat = format
         self._weight_grace_notes: float = weight_grace_notes
@@ -80,6 +80,7 @@ class Notes(Feature):
             column_schema=column_schema,
             descriptor_filepath=descriptor_filepath,
             auto_validate=auto_validate,
+            default_groupby=default_groupby,
         )
 
     @property

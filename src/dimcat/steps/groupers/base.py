@@ -2,9 +2,11 @@ import logging
 from typing import Dict, List, Sequence
 
 import pandas as pd
-from dimcat import Data, Dataset, DimcatIndex, DimcatResource, PipelineStep
-from dimcat.dataset.processed import GroupedDataset
-from dimcat.resources.utils import make_index_from_grouping_dict
+from dimcat.data.dataset.processed import GroupedDataset
+from dimcat.data.resources.base import DimcatIndex, DimcatResource
+from dimcat.data.resources.features import Feature
+from dimcat.data.resources.utils import make_index_from_grouping_dict
+from dimcat.steps import PipelineStep
 from dimcat.utils import check_name
 from marshmallow import fields
 from typing_extensions import Self
@@ -13,6 +15,10 @@ logger = logging.getLogger(__name__)
 
 
 class Grouper(PipelineStep):
+    new_dataset_type = GroupedDataset
+    new_resource_type = None
+    output_package_name = None
+
     class Schema(PipelineStep.Schema):
         level_name = fields.Str()
 
@@ -30,21 +36,32 @@ class Grouper(PipelineStep):
         check_name(level_name)
         self._level_name = level_name
 
-    def process(self, data: Data) -> Data:
-        if isinstance(data, Dataset):
-            return self.process_dataset(data)
+    def apply_grouper(self, resource: Feature) -> pd.DataFrame:
+        """Apply the grouper to a Feature."""
+        return pd.concat([resource.df], keys=[self.level_name], names=[self.level_name])
 
-    def process_dataset(self, dataset: Dataset) -> GroupedDataset:
-        grouped_dataset = GroupedDataset.from_dataset(dataset)
-        grouped_dataset.outputs.add_resource(
-            resource=self.grouping, package_name="groupings"
+    def dispatch(self, resource: Feature) -> Feature:
+        """Apply the grouper to a Feature."""
+        result_constructor = self.get_new_resource_type(resource)
+        results = self.apply_grouper(resource)
+        result_name = self.resource_name_factory(resource)
+        return result_constructor.from_dataframe(
+            df=results,
+            resource_name=result_name,
         )
-        return grouped_dataset
+
+    def post_process_result(self, result: DimcatResource) -> DimcatResource:
+        """Change the default_groupby value of the returned Feature."""
+        result.update_default_groupby(self.level_name)
+        return result
 
 
 class CustomPieceGrouper(Grouper):
+    class Schema(Grouper.Schema):
+        grouped_pieces = fields.Nested(DimcatIndex.Schema)
+
     @classmethod
-    def from_dict(
+    def from_grouping(
         cls,
         piece_groups: Dict[str, List[tuple]],
         level_names: Sequence[str] = ("piece_group", "corpus", "piece"),
@@ -74,22 +91,21 @@ class CustomPieceGrouper(Grouper):
         **kwargs,
     ):
         super().__init__(level_name=level_name, **kwargs)
-        self._grouped_pieces = grouped_pieces
+        self._grouped_pieces = None
+        self.grouped_pieces = grouped_pieces
 
     @property
     def grouped_pieces(self) -> DimcatIndex:
         return self._grouped_pieces
 
-    @property
-    def grouping(self) -> DimcatResource:
-        df = pd.DataFrame(index=self.grouped_pieces.index)
-        resource = DimcatResource.from_dataframe(df, resource_name=self.level_name)
-        return resource
-
     @grouped_pieces.setter
     def grouped_pieces(self, grouped_pieces: DimcatIndex):
         if isinstance(grouped_pieces, pd.Index):
             grouped_pieces = DimcatIndex(grouped_pieces)
+        elif isinstance(grouped_pieces, dict):
+            raise TypeError(
+                f"Use {self.name}.from_dict() to create a {self.name}from xfrom a dictionary."
+            )
         elif not isinstance(grouped_pieces, DimcatIndex):
             raise TypeError(f"Expected DimcatIndex, got {type(grouped_pieces)}")
         if grouped_pieces.names[-1] != "piece":
@@ -97,3 +113,7 @@ class CustomPieceGrouper(Grouper):
                 f"Expected last level to to be named 'piece', not {grouped_pieces.names[-1]}"
             )
         self._grouped_pieces = grouped_pieces
+
+    def apply_grouper(self, resource: Feature) -> pd.DataFrame:
+        """Apply the grouper to a Feature."""
+        return resource.align_with_grouping(self.grouped_pieces)

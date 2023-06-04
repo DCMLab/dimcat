@@ -11,24 +11,12 @@ from enum import Enum
 from functools import cache
 from inspect import isclass
 from pprint import pformat
-from typing import (
-    Any,
-    ClassVar,
-    Dict,
-    Iterable,
-    List,
-    MutableMapping,
-    Optional,
-    Tuple,
-    Type,
-    Union,
-    overload,
-)
+from typing import Any, ClassVar, Dict, List, MutableMapping, Optional, Type
 
 import marshmallow as mm
 
 # this is the only dimcat import currently allowed in this file:
-from marshmallow import ValidationError
+from marshmallow import ValidationError, fields
 from typing_extensions import Self
 
 logger = logging.getLogger(__name__)
@@ -217,6 +205,9 @@ class DimcatObject(ABC):
             return False
         return other.to_dict() == self.to_dict()
 
+    def __hash__(self) -> int:
+        return id(self)
+
     def __repr__(self):
         return f"{pformat(self.to_dict(), sort_dicts=False)}"
 
@@ -257,7 +248,21 @@ class DimcatObject(ABC):
             json.dump(as_dict, f, indent=indent, **kwargs)
 
 
-class ObjectEnum(str, Enum):
+class DimcatObjectField(fields.Field):
+    """Used for (de)serializing attributes resolving to DimcatObjects."""
+
+    def _serialize(self, value, attr, obj, **kwargs):
+        if isinstance(value, DimcatConfig):
+            return dict(value)
+        return value.to_dict()
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        return deserialize_dict(value)
+
+
+class FriendlyEnum(str, Enum):
+    """Members of this Enum can be created from and compared to strings in a case-insensitive manner."""
+
     @classmethod
     def _missing_(cls, value) -> Self:
         value_lower = value.lower()
@@ -279,6 +284,8 @@ class ObjectEnum(str, Enum):
     def __hash__(self):
         return hash(self.value)
 
+
+class ObjectEnum(FriendlyEnum):
     def get_class(self) -> Type[DimcatObject]:
         return get_class(self.name)
 
@@ -297,7 +304,8 @@ class DimcatConfig(MutableMapping, DimcatObject):
 
     - ``DC['dtype']`` is the name of the described DimcatObject (equivalent to ``DC.options_dtype``)
     - ``DC.dtype`` returns the class name "DimcatConfig", according to all DimcatObjects' default behaviour
-    - ``DC.options`` returns the key-value pairs wrapped by this config, which includes at least the 'dtype' key
+    - ``DC.options`` (equivalent to ``dict(DC)`` returns the key-value pairs wrapped by this config,
+      which includes at least the 'dtype' key
     - ``DC['options']`` is the value of the 'options' option, which exists only if it is part of the described
       object's schema, for example if the described object is a :class:`DimcatConfig` itself.
 
@@ -504,6 +512,20 @@ class DimcatConfig(MutableMapping, DimcatObject):
     def create(self) -> DimcatObject:
         return self.options_schema.load(self._options)
 
+    def matches(self, config: DimcatConfig) -> bool:
+        """Returns True if both configs have the same :attr:`options_dtype` and the overlapping options are equal."""
+        if not isinstance(config, DimcatConfig):
+            raise TypeError(
+                f"Can only compare against DimcatConfig, not {type(config)}."
+            )
+        if self.options_dtype != config.options_dtype:
+            return False
+        overlapping_keys = set(self.options.keys()) & set(config.options.keys())
+        for key in overlapping_keys:
+            if self[key] != config[key]:
+                return False
+        return True
+
     def validate(self, partial=False) -> Dict[str, List[str]]:
         """Validates the current status of the config in terms of ability to create an object. Empty dict == valid."""
         return self.options_schema.validate(self._options, many=False, partial=partial)
@@ -511,68 +533,6 @@ class DimcatConfig(MutableMapping, DimcatObject):
 
 # endregion DimcatConfig
 # region Data and PipelineStep
-
-
-class Data(DimcatObject):
-    """
-    This base class unites all classes containing data in some way or another.
-    """
-
-    class Schema(DimcatObject.Schema):
-        # basedir = fields.String(required=True)
-        pass
-
-
-class PipelineStep(DimcatObject):
-    """
-    This abstract base class unites all classes able to transform some data in a pre-defined way.
-
-    The initializer will set some parameters of the transformation, and then the
-    :meth:`process` method is used to transform an input Data object, returning a copy.
-
-
-    """
-
-    class Schema(DimcatObject.Schema):
-        pass
-
-    def check(self, _) -> Tuple[bool, str]:
-        """Test piece of data for certain properties before computing analysis.
-
-        Returns:
-            True if the passed data is eligible.
-            Error message in case the passed data is not eligible.
-        """
-        return True, ""
-
-    def process(self, data: Data) -> Data:
-        """
-        Perform a transformation on an input Data object. This should never alter the
-        Data or its properties in place, instead returning a copy or view of the input.
-
-        Args:
-            data: The data to be transformed. This should not be altered in place.
-
-        Returns:
-            A copy of the input Data, potentially transformed in some way defined by this PipelineStep.
-        """
-        return data
-
-    @overload
-    def process_data(self, data: Data) -> Data:
-        ...
-
-    @overload
-    def process_data(self, data: Iterable[Data]) -> List[Data]:
-        ...
-
-    def process_data(
-        self, data: Union[Data, Iterable[Data]]
-    ) -> Union[Data, List[Data]]:
-        """Same as process(), with the difference that an Iterable is accepted."""
-        if isinstance(data, Data):
-            return self.process(data)
-        return [self.process(d) for d in data]
 
 
 # endregion Data and PipelineStep
@@ -600,6 +560,15 @@ def is_name_of_dimcat_class(name) -> bool:
         return True
     except KeyError:
         return False
+
+
+@cache
+def is_subclass_of(name: str, parent: str | Type[DimcatObject]) -> bool:
+    """Returns True if the DimcatObject with the given name is a subclass of the given parent."""
+    cls = get_class(name)
+    if isinstance(parent, str):
+        parent = get_class(parent)
+    return issubclass(cls, parent)
 
 
 @cache
