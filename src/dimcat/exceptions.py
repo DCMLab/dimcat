@@ -90,6 +90,15 @@ class NoFeaturesActiveError(DimcatError):
     }
 
 
+class NoMatchingResourceFoundError(DimcatError):
+    """optional args: (config,)"""
+
+    nargs2message = {
+        0: "No matching resource found.",
+        1: lambda config: f"No matching resource found for {config!r}.",
+    }
+
+
 class PackageNotFoundError(DimcatError):
     """optional args: (package_name,)"""
 

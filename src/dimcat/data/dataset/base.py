@@ -48,6 +48,7 @@ from dimcat.exceptions import (
     EmptyCatalogError,
     EmptyPackageError,
     NoFeaturesActiveError,
+    NoMatchingResourceFoundError,
     PackageNotFoundError,
     ResourceNotFoundError,
 )
@@ -506,6 +507,26 @@ class DimcatPackage(Data):
                 f"Status changed from {status_before!r} to {status_after!r}"
             )
 
+    def extract_feature(self, feature: FeatureSpecs) -> Feature:
+        feature_config = feature_specs2config(feature)
+        feature_name = FeatureName(feature_config.options_dtype)
+        name2resource = dict(
+            Notes="notes",
+            Annotations="expanded",
+            KeyAnnotations="expanded",
+            Metadata="metadata",
+        )
+        try:
+            resource_name = name2resource[feature_name]
+        except KeyError:
+            raise NoMatchingResourceFoundError(feature_config)
+        try:
+            resource = self.get_resource(resource_name)
+        except ResourceNotFoundError:
+            raise NoMatchingResourceFoundError(feature_config)
+        Constructor = feature_name.get_class()
+        return Constructor.from_resource(resource)
+
     def get_basepath(self) -> str:
         """Get the basepath of the resource. If not specified, the default basepath is returned."""
         if not self.basepath:
@@ -532,18 +553,34 @@ class DimcatPackage(Data):
         return descriptor_filepath
 
     def get_feature(self, feature: FeatureSpecs) -> Feature:
+        """Checks if the package includes a feature matching the specs, and extracts it otherwise, if possible.
+
+        Raises:
+            NoMatchingResourceFoundError:
+                If none of the previously extracted features matches the specs and none of the input resources
+                allows for extracting a matching feature.
+        """
         feature_config = feature_specs2config(feature)
-        feature_name = FeatureName(feature_config.options_dtype)
-        name2resource = dict(
-            Notes="notes",
-            Annotations="expanded",
-            KeyAnnotations="expanded",
-            Metadata="metadata",
-        )
-        resource_name = name2resource[feature_name]
-        resource = self.get_resource(resource_name)
-        Constructor = feature_name.get_class()
-        return Constructor.from_resource(resource)
+        try:
+            return self.get_resource_by_config(feature_config)
+        except NoMatchingResourceFoundError:
+            pass
+        return self.extract_feature(feature_config)
+
+    def get_metadata(self) -> SomeDataframe:
+        """Returns the metadata of the package."""
+        return self.get_resource("metadata").df
+
+    def get_resource_by_config(self, config: DimcatConfig) -> DimcatResource:
+        """Returns the first resource that matches the given config."""
+        for resource in self.resources:
+            resource_config = resource.to_config()
+            if resource_config.matches(config):
+                self.logger.debug(
+                    f"Requested config {config!r} matched with {resource_config!r}."
+                )
+                return resource
+        raise NoMatchingResourceFoundError(config)
 
     def get_zip_filepath(self) -> str:
         """Returns the path of the ZIP file that the resources of this package are serialized to."""
@@ -831,7 +868,7 @@ class DimcatCatalog(Data):
     ):
         """Adds a resource to the catalog. If package_name is given, adds the resource to the package with that name."""
         package = self.get_package_by_name(package_name, create=True)
-        package.make_new_resource(resource=resource)
+        package.add_resource(resource=resource)
 
     def check_feature_availability(self, feature: FeatureSpecs) -> bool:
         """Checks whether the given feature is potentially available."""
@@ -855,11 +892,6 @@ class DimcatCatalog(Data):
         """Adds all resources from the given package to the existing one with the same name."""
         catalog_package = self.get_package_by_name(package.package_name, create=True)
         catalog_package.extend(package)
-
-    def get_feature(self, feature: FeatureSpecs) -> Feature:
-        p = self.get_package()
-        feature_config = feature_specs2config(feature)
-        return p.get_feature(feature_config)
 
     def get_package(self, name: Optional[str] = None) -> DimcatPackage:
         """If a name is given, calls :meth:`get_package_by_name`, otherwise returns the last loaded package.
@@ -953,6 +985,38 @@ class DimcatCatalog(Data):
         return dict(basepath=self.basepath, packages=summary)
 
 
+class InputsCatalog(DimcatCatalog):
+    def extract_feature(self, feature: FeatureSpecs) -> Feature:
+        """Extracts the given features from all packages and combines them in a Feature resource."""
+        package = self.get_package()
+        feature_config = feature_specs2config(feature)
+        return package.extract_feature(feature_config)
+
+    def get_feature(self, feature: FeatureSpecs) -> Feature:
+        """ToDo: Get features from all packages and merge them."""
+        package = self.get_package()
+        feature_config = feature_specs2config(feature)
+        return package.get_feature(feature_config)
+
+    def get_metadata(self) -> SomeDataframe:
+        """Returns a dataframe with all metadata."""
+        package = self.get_package()
+        return package.get_metadata()
+
+
+class OutputsCatalog(DimcatCatalog):
+    def get_feature(self, feature: FeatureSpecs) -> DimcatResource:
+        """Looks up the given feature in the "features" package and returns it.
+
+        Raises:
+            PackageNotFoundError: If no package with the name "features" is loaded.
+            NoMatchingResourceFoundError: If no resource matching the specs is found in the "features" package.
+        """
+        package = self.get_package_by_name("features")
+        feature_config = feature_specs2config(feature)
+        return package.get_resource_by_config(feature_config)
+
+
 # endregion DimcatCatalog
 # region Dataset
 
@@ -1013,8 +1077,8 @@ class Dataset(Data):
         Args:
             **kwargs: Dataset is cooperative and calls super().__init__(data=dataset, **kwargs)
         """
-        self._inputs = DimcatCatalog()
-        self._outputs = DimcatCatalog()
+        self._inputs = InputsCatalog()
+        self._outputs = OutputsCatalog()
         self._pipeline = None
         self.reset_pipeline()
         super().__init__(**kwargs)
@@ -1026,7 +1090,7 @@ class Dataset(Data):
         return self.info(print=False)
 
     @property
-    def inputs(self) -> DimcatCatalog:
+    def inputs(self) -> InputsCatalog:
         """The inputs catalog."""
         return self._inputs
 
@@ -1044,7 +1108,7 @@ class Dataset(Data):
         return sum(package.n_resources for package in self.inputs)
 
     @property
-    def outputs(self) -> DimcatCatalog:
+    def outputs(self) -> OutputsCatalog:
         """The outputs catalog."""
         return self._outputs
 
@@ -1103,12 +1167,45 @@ class Dataset(Data):
         """Returns a copy of this Dataset."""
         return Dataset.from_dataset(self)
 
+    def _extract_feature(self, feature_config: DimcatConfig) -> Feature:
+        """Extracts a feature from this Dataset.
+
+        Args:
+            feature: FeatureSpecs to be extracted.
+        """
+        extracted = self.inputs.extract_feature(feature_config)
+        if len(self._pipeline) == 0:
+            return extracted
+        return self._pipeline.process_resource(extracted)
+
+    def extract_feature(self, feature: FeatureSpecs) -> Feature:
+        """Extracts a feature from this Dataset, adds it to the OutputsCatalog, and adds the corresponding
+        FeatureExtractor to the dataset's pipeline as if it had been applied.
+
+        Args:
+            feature: FeatureSpecs to be extracted.
+        """
+        feature_config = feature_specs2config(feature)
+        Constructor = get_class("FeatureExtractor")
+        feature_extractor = Constructor(feature_config)
+        self._pipeline.add_step(feature_extractor)
+        extracted = self._extract_feature(feature_config)
+        self.add_output(resource=extracted, package_name="features")
+        return extracted
+
     def get_feature(self, feature: FeatureSpecs) -> Feature:
         """High-level method that first looks up a feature fitting the specs in the outputs catalog,
         and adds a FeatureExtractor to the dataset's pipeline otherwise."""
         feature_config = feature_specs2config(feature)
-        feature = self.inputs.get_feature(feature_config)
-        return feature
+        try:
+            return self.outputs.get_feature(feature_config)
+        except (
+            PackageNotFoundError,
+            NoMatchingResourceFoundError,
+            NoMatchingResourceFoundError,
+        ):
+            pass
+        return self.extract_feature(feature_config)
 
     @overload
     def info(self, print: Literal[True]) -> None:
@@ -1163,8 +1260,8 @@ class Dataset(Data):
         return new_package
 
     def get_metadata(self) -> SomeDataframe:
-        metadata = self.get_feature("metadata")
-        return metadata.df
+        metadata = self.inputs.get_metadata()
+        return metadata
 
     def load_package(
         self,
