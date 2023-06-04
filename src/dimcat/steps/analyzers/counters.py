@@ -17,10 +17,10 @@ class Counter(Analyzer):
         a Series of the same length as ``feature`` or otherwise work as positional argument to feature.groupby().
         """
         if groupby is None:
-            gpb = feature.groupby(level=[0, 1])
-        else:
-            gpb = feature.groupby(groupby)
-        return gpb.size().to_frame(f"{self.features[0].options_dtype} counts")
+            groupby = feature.get_default_groupby()
+        return (
+            feature.groupby(groupby).size().to_frame(f"{feature.resource_name} counts")
+        )
 
     def resource_name_factory(self, resource: DimcatResource) -> str:
         """Returns a name for the resource based on its name and the name of the pipeline step."""

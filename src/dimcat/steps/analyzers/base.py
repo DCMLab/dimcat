@@ -206,7 +206,7 @@ class Analyzer(PipelineStep):
         a Series of the same length as ``feature`` or otherwise work as positional argument to feature.groupby().
         """
         if groupby is None:
-            return feature.groupby(level=[0, 1]).apply(self.compute, **self.to_dict())
+            groupby = feature.get_default_groupby()
         return feature.groupby(groupby).apply(self.compute, **self.to_dict())
 
     def resource_name_factory(self, resource: DimcatResource) -> str:
