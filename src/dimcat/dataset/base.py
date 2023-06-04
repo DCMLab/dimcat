@@ -27,6 +27,7 @@ from dimcat.base import Data, DimcatConfig, FriendlyEnum
 from dimcat.exceptions import (
     EmptyCatalogError,
     EmptyPackageError,
+    NoFeaturesActiveError,
     PackageNotFoundError,
     ResourceNotFoundError,
 )
@@ -539,17 +540,6 @@ class DimcatPackage(Data):
         """Returns the path of the ZIP file that the resources of this package are serialized to."""
         zip_filename = self.get_zip_filepath()
         return os.path.join(self.get_basepath(), zip_filename)
-
-    def _get_fl_resource(self, name: str) -> fl.Resource:
-        """Returns the frictionless resource with the given name."""
-        try:
-            return self._package.get_resource(name)
-        except fl.FrictionlessException:
-            msg = (
-                f"Resource {name!r} not found in package {self.package_name!r}. "
-                f"Available resources: {self.resource_names!r}."
-            )
-            raise fl.FrictionlessException(msg)
 
     def get_resource(self, name: Optional[str] = None) -> DimcatResource:
         """Returns the DimcatResource with the given name. If no name is given, returns the last resource.
@@ -1095,9 +1085,7 @@ class Dataset(Data):
         """
         if not features:
             if self.n_active_features == 0:
-                raise ValueError(
-                    "No active features to return and none were requested."
-                )
+                raise NoFeaturesActiveError
             return self.outputs.get_package_by_name("features")
         new_package = DimcatPackage(package_name="features")
         for feature in self.iter_features(features):

@@ -83,6 +83,13 @@ class FeatureUnavailableError(DimcatError):
     }
 
 
+class NoFeaturesActiveError(DimcatError):
+    nargs2message = {
+        0: "No features are currently active and none have been requested. Apply a FeatureExtractor first or "
+        "pass specs for at least one feature to be extracted.",
+    }
+
+
 class NoFeaturesSelectedError(DimcatError):
     nargs2message = {
         0: "No features have been selected.",
