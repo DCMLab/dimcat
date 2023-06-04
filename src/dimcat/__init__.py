@@ -12,11 +12,8 @@ finally:
     del version, PackageNotFoundError
 
 
-from .base import DimcatConfig, DimcatObject, DimcatSchema, get_class, get_schema
-from .data.dataset import Dataset, DimcatPackage
-from .data.resources import DimcatIndex, DimcatResource, FeatureName, PieceIndex
-from .steps.base import PipelineStep
-from .steps.groupers import CustomPieceGrouper
+from .base import DimcatConfig, get_class, get_schema
+from .data.dataset import Dataset
 from .steps.pipelines import Pipeline
 
 logger = logging.getLogger(__name__)

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from dimcat import DimcatObject
+from dimcat.base import DimcatObject
 
 logger = logging.getLogger(__name__)
 
