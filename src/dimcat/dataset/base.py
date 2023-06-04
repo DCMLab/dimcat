@@ -24,7 +24,12 @@ import frictionless as fl
 import marshmallow as mm
 import ms3
 from dimcat.base import Data, DimcatConfig, FriendlyEnum
-from dimcat.exceptions import EmptyPackageError, ResourceNotFoundError
+from dimcat.exceptions import (
+    EmptyCatalogError,
+    EmptyPackageError,
+    PackageNotFoundError,
+    ResourceNotFoundError,
+)
 from dimcat.resources.base import D, DimcatResource, ResourceStatus, SomeDataframe
 from dimcat.resources.features import (
     Feature,
@@ -750,6 +755,9 @@ class DimcatCatalog(Data):
         if packages is not None:
             self.packages = packages
 
+    def __getitem__(self, item: str) -> DimcatPackage:
+        return self.get_package(item)
+
     def __iter__(self) -> Iterator[DimcatPackage]:
         yield from self._packages
 
@@ -849,7 +857,7 @@ class DimcatCatalog(Data):
         if name is not None:
             return self.get_package_by_name(name=name)
         if len(self._packages) == 0:
-            raise ValueError("Catalog is Empty.")
+            raise EmptyCatalogError
         return self._packages[-1]
 
     def get_package_by_name(self, name: str, create: bool = False) -> DimcatPackage:
@@ -868,8 +876,7 @@ class DimcatCatalog(Data):
             )
             self.logger.info(f"Automatically added new empty package {name!r}")
             return self.get_package()
-        error = fl.errors.CatalogError(note=f'package "{name}" does not exist')
-        raise fl.FrictionlessException(error)
+        raise PackageNotFoundError(name)
 
     def has_package(self, name: str) -> bool:
         """Returns True if a package with the given name is loaded, False otherwise."""

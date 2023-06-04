@@ -41,6 +41,12 @@ class BasePathNotDefinedError(DimcatError):
     }
 
 
+class EmptyCatalogError(DimcatError):
+    nargs2message = {
+        0: "The catalog is empty.",
+    }
+
+
 class EmptyDatasetError(DimcatError):
     """optional args: (dataset_name,)"""
 
@@ -80,6 +86,15 @@ class FeatureUnavailableError(DimcatError):
 class NoFeaturesSelectedError(DimcatError):
     nargs2message = {
         0: "No features have been selected.",
+    }
+
+
+class PackageNotFoundError(DimcatError):
+    """optional args: (package_name,)"""
+
+    nargs2message = {
+        0: "Package not found.",
+        1: lambda name: f"Package {name!r} not found.",
     }
 
 
