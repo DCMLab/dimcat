@@ -3,33 +3,20 @@ from __future__ import annotations
 
 import logging
 from enum import Enum
-from typing import (
-    Any,
-    ClassVar,
-    Collection,
-    Iterable,
-    List,
-    MutableMapping,
-    Tuple,
-    Type,
-    TypeAlias,
-    TypeVar,
-    Union,
-)
+from typing import Any, ClassVar, Iterable, Optional, Type, TypeVar
 
 import marshmallow as mm
-from dimcat.base import DimcatConfig, DimcatObject, ObjectEnum, PipelineStep
-from dimcat.dataset import Dataset
+from dimcat import PipelineStep
+from dimcat.base import ObjectEnum
 from dimcat.dataset.processed import AnalyzedDataset
-from dimcat.resources.base import SomeSeries
-from dimcat.resources.features import Feature, FeatureName
-from dimcat.resources.results import Result, ResultName
+from dimcat.resources.base import DimcatResource, SomeSeries
+from dimcat.resources.features import Feature, FeatureSpecs
+from dimcat.resources.results import Result
 
 logger = logging.getLogger(__name__)
 
 
 R = TypeVar("R")
-FeatureSpecs: TypeAlias = Union[MutableMapping, Feature, FeatureName, str]
 
 
 class AnalyzerName(ObjectEnum):
@@ -61,20 +48,21 @@ class Analyzer(PipelineStep):
     """
 
     _enum_type: ClassVar[Type[Enum]] = AnalyzerName
-    _result_type: ResultName = ResultName.Result
-    """The enum member corresponding to the Result class that this Analyzer produces."""
+    new_dataset_type = AnalyzedDataset
+    new_resource_type = Result
+    output_package_name = "results"
 
-    assert_all: ClassVar[Tuple[str]] = tuple()
-    """Each of these :obj:`PipelineSteps <.PipelineStep>` needs to be matched by at least one PipelineStep previously
-     applied to the :obj:`.Dataset`, otherwise :meth:`process_data` raises a ValueError."""
-
-    # assert_previous_step: ClassVar[Tuple[str]] = tuple()
-    # """Analyzer.process_data() raises ValueError if last :obj:`PipelineStep` applied to the
-    # :obj:`_Dataset` does not match any of these types."""
-
-    excluded_steps: ClassVar[Tuple[str]] = tuple()
-    """:meth:`process_data` raises ValueError if any of the previous :obj:`PipelineStep` applied to the
-    :obj:`.Dataset` matches one of these types."""
+    # assert_all: ClassVar[Tuple[str]] = tuple()
+    # """Each of these :obj:`PipelineSteps <.PipelineStep>` needs to be matched by at least one PipelineStep previously
+    #  applied to the :obj:`.Dataset`, otherwise :meth:`process_data` raises a ValueError."""
+    #
+    # # assert_previous_step: ClassVar[Tuple[str]] = tuple()
+    # # """Analyzer.process_data() raises ValueError if last :obj:`PipelineStep` applied to the
+    # # :obj:`_Dataset` does not match any of these types."""
+    #
+    # excluded_steps: ClassVar[Tuple[str]] = tuple()
+    # """:meth:`process_data` raises ValueError if any of the previous :obj:`PipelineStep` applied to the
+    # :obj:`.Dataset` matches one of these types."""
 
     @staticmethod
     def aggregate(result_a: R, result_b: R) -> R:
@@ -89,61 +77,51 @@ class Analyzer(PipelineStep):
         """Static method that performs the actual computation."""
         return feature
 
-    @classmethod
-    def _check_asserted_pipeline_steps(cls, dataset: Dataset):
-        """Returns None if the check passes.
-
-        Raises:
-            ValueError: If one of the asserted PipelineSteps has not previously been applied to the Dataset.
-        """
-        if len(cls.assert_all) == 0:
-            return True
-        assert_steps = typestrings2types(cls.assert_all)
-        missing = []
-        for step in assert_steps:
-            if not any(
-                isinstance(previous_step, step)
-                for previous_step in dataset.pipeline_steps
-            ):
-                missing.append(step)
-        if len(missing) > 0:
-            missing_names = ", ".join(m.__name__ for m in missing)
-            raise ValueError(
-                f"Applying a {cls.name} requires previous application of: {missing_names}."
-            )
-
-    @classmethod
-    def _check_excluded_pipeline_steps(cls, dataset: Dataset):
-        """Returns None if the check passes.
-
-        Raises:
-            ValueError: If any of the PipelineSteps applied to the Dataset matches one of the ones excluded.
-        """
-        if len(cls.excluded_steps) == 0:
-            return
-        excluded_steps = typestrings2types(cls.excluded_steps)
-        excluded = []
-        for step in excluded_steps:
-            if any(
-                isinstance(previous_step, step)
-                for previous_step in dataset.pipeline_steps
-            ):
-                excluded.append(step)
-        if len(excluded) > 0:
-            excluded_names = ", ".join(e.__name__ for e in excluded)
-            raise ValueError(f"{cls.name} cannot be applied after {excluded_names}.")
-
-    @classmethod
-    @property
-    def result_class(cls) -> Type[Result]:
-        return cls._result_type.get_class()
+    # @classmethod
+    # def _check_asserted_pipeline_steps(cls, dataset: Dataset):
+    #     """Returns None if the check passes.
+    #
+    #     Raises:
+    #         ValueError: If one of the asserted PipelineSteps has not previously been applied to the Dataset.
+    #     """
+    #     if len(cls.assert_all) == 0:
+    #         return True
+    #     assert_steps = typestrings2types(cls.assert_all)
+    #     missing = []
+    #     for step in assert_steps:
+    #         if not any(
+    #             isinstance(previous_step, step)
+    #             for previous_step in dataset.pipeline_steps
+    #         ):
+    #             missing.append(step)
+    #     if len(missing) > 0:
+    #         missing_names = ", ".join(m.__name__ for m in missing)
+    #         raise ValueError(
+    #             f"Applying a {cls.name} requires previous application of: {missing_names}."
+    #         )
+    #
+    # @classmethod
+    # def _check_excluded_pipeline_steps(cls, dataset: Dataset):
+    #     """Returns None if the check passes.
+    #
+    #     Raises:
+    #         ValueError: If any of the PipelineSteps applied to the Dataset matches one of the ones excluded.
+    #     """
+    #     if len(cls.excluded_steps) == 0:
+    #         return
+    #     excluded_steps = typestrings2types(cls.excluded_steps)
+    #     excluded = []
+    #     for step in excluded_steps:
+    #         if any(
+    #             isinstance(previous_step, step)
+    #             for previous_step in dataset.pipeline_steps
+    #         ):
+    #             excluded.append(step)
+    #     if len(excluded) > 0:
+    #         excluded_names = ", ".join(e.__name__ for e in excluded)
+    #         raise ValueError(f"{cls.name} cannot be applied after {excluded_names}.")
 
     class Schema(PipelineStep.Schema):
-        features = mm.fields.List(
-            mm.fields.Nested(DimcatConfig.Schema),
-            required=True,
-            validate=mm.validate.Length(min=1),
-        )
         strategy = mm.fields.Enum(DispatchStrategy, metadata={"expose": False})
         smallest_unit = mm.fields.Enum(UnitOfAnalysis, metadata={"expose": False})
         orientation = mm.fields.Enum(Orientation, metadata={"expose": False})
@@ -162,14 +140,13 @@ class Analyzer(PipelineStep):
 
     def __init__(
         self,
-        features: FeatureSpecs | Iterable[FeatureSpecs],
+        features: Optional[FeatureSpecs | Iterable[FeatureSpecs]] = None,
         strategy: DispatchStrategy = DispatchStrategy.GROUPBY_APPLY,
         smallest_unit: UnitOfAnalysis = UnitOfAnalysis.SLICE,
         orientation: Orientation = Orientation.WIDE,
         fill_na: Any = None,
     ):
-        self._features: List[DimcatConfig] = []
-        self.features = features
+        super().__init__(features=features)
         self._strategy: DispatchStrategy = None
         self.strategy = strategy
         self._smallest_unit: UnitOfAnalysis = None
@@ -177,38 +154,6 @@ class Analyzer(PipelineStep):
         self._orientation: Orientation = None
         self.orientation = orientation
         self.fill_na: Any = fill_na
-
-    @property
-    def features(self) -> List[DimcatConfig]:
-        return self._features
-
-    @features.setter
-    def features(self, features):
-        if isinstance(features, (MutableMapping, Feature, FeatureName, str)):
-            features = [features]
-        configs, not_configs = [], []
-        for config in features:
-            if isinstance(config, DimcatConfig):
-                configs.append(config)
-            elif isinstance(config, Feature):
-                cfg = config.to_config()
-                configs.append(cfg)
-            elif isinstance(config, MutableMapping):
-                cfg = DimcatConfig(config)
-                configs.append(cfg)
-            elif isinstance(config, str):
-                feature_name = FeatureName(config)
-                cfg = DimcatConfig(dtype=feature_name)
-                configs.append(cfg)
-            else:
-                not_configs.append(config)
-        if len(not_configs) > 0:
-            self.logger.warning(f"Not a configuration of a Feature: {not_configs}")
-        if len(configs) == 0:
-            raise ValueError(
-                f"Did not receive any DimcatConfig, not setting {self.name}.features."
-            )
-        self._features = configs
 
     @property
     def strategy(self) -> DispatchStrategy:
@@ -240,17 +185,19 @@ class Analyzer(PipelineStep):
             orientation = Orientation(orientation)
         self._orientation = orientation
 
-    def dispatch(self, dataset: Dataset) -> Result:
-        """The logic how and to what the compute method is applied, based on the config and the Dataset."""
+    def dispatch(self, resource: Feature) -> Result:
+        """Dispatch the passed resource to the appropriate method."""
         if self.strategy == DispatchStrategy.ITER_STACK:  # more cases to follow
             raise NotImplementedError()
-        if self.strategy == DispatchStrategy.GROUPBY_APPLY:
-            stacked_feature = self.pre_process(dataset.load_feature(self.features[0]))
-            results = self.groupby_apply(stacked_feature)
-            return self.result_class.from_dataframe(
-                df=results, resource_name=f"{self.name.lower()}_result"
-            )
-        raise ValueError(f"Unknown dispatch strategy '{self.strategy!r}'")
+        if not self.strategy == DispatchStrategy.GROUPBY_APPLY:
+            raise ValueError(f"Unknown dispatch strategy '{self.strategy!r}'")
+        result_constructor = self.get_new_resource_type(resource)
+        results = self.groupby_apply(resource)
+        result_name = self.resource_name_factory(resource)
+        return result_constructor.from_dataframe(
+            df=results,
+            resource_name=result_name,
+        )
 
     def groupby_apply(self, feature: Feature, groupby: SomeSeries = None, **kwargs):
         """Static method that performs the computation on a groupby. The value of ``groupby`` needs to be
@@ -260,43 +207,27 @@ class Analyzer(PipelineStep):
             return feature.groupby(level=[0, 1]).apply(self.compute, **self.to_dict())
         return feature.groupby(groupby).apply(self.compute, **self.to_dict())
 
-    def process(self, dataset: Dataset) -> AnalyzedDataset:
-        """Returns an :obj:`AnalyzedData` copy of the Dataset with the added analysis result."""
-        self._check_asserted_pipeline_steps(dataset)
-        self._check_excluded_pipeline_steps(dataset)
-        new_dataset = AnalyzedDataset.from_dataset(dataset)
-        result = self.dispatch(dataset)
-        result = self.post_process(result)
-        new_dataset.add_result(result)
-        return new_dataset
-
-    def pre_process(self, feature: Feature) -> Feature:
-        """Whatever needs to be done before analyzing the feature, e.g. transforming it based on
-        the config. The method needs to work both on a Feature and a StackedFeature.
-        """
-        return feature
-
-    def post_process(self, result):
-        """Whatever needs to be done after analyzing the data before passing it to the dataset."""
-        return result
+    def resource_name_factory(self, resource: DimcatResource) -> str:
+        """Returns a name for the resource based on its name and the name of the pipeline step."""
+        return f"{resource.resource_name}_analyzed"
 
 
-def typestrings2types(
-    typestrings: Union[Union[str, Enum], Collection[Union[str, Enum]]]
-) -> Tuple[type]:
-    """Turns one or several names of classes into a tuple of references to these classes."""
-    if isinstance(typestrings, (str, Enum)):
-        typestrings = [typestrings]
-    result = [typestring2type(typestring) for typestring in typestrings]
-    return tuple(result)
-
-
-def typestring2type(typestring: Union[str, Enum]) -> type:
-    if isinstance(typestring, Enum):
-        typestring = typestring.value
-    if typestring in DimcatObject._registry:
-        return DimcatObject._registry[typestring]
-    raise KeyError(
-        f"Typestring '{typestring}' does not correspond to a known subclass of DimcatObject:\n"
-        f"{DimcatObject._registry}"
-    )
+# def typestrings2types(
+#     typestrings: Union[Union[str, Enum], Collection[Union[str, Enum]]]
+# ) -> Tuple[type]:
+#     """Turns one or several names of classes into a tuple of references to these classes."""
+#     if isinstance(typestrings, (str, Enum)):
+#         typestrings = [typestrings]
+#     result = [typestring2type(typestring) for typestring in typestrings]
+#     return tuple(result)
+#
+#
+# def typestring2type(typestring: Union[str, Enum]) -> type:
+#     if isinstance(typestring, Enum):
+#         typestring = typestring.value
+#     if typestring in DimcatObject._registry:
+#         return DimcatObject._registry[typestring]
+#     raise KeyError(
+#         f"Typestring '{typestring}' does not correspond to a known subclass of DimcatObject:\n"
+#         f"{DimcatObject._registry}"
+#     )
