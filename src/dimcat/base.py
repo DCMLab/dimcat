@@ -16,7 +16,7 @@ from typing import Any, ClassVar, Dict, List, MutableMapping, Optional, Type
 import marshmallow as mm
 
 # this is the only dimcat import currently allowed in this file:
-from marshmallow import ValidationError
+from marshmallow import ValidationError, fields
 from typing_extensions import Self
 
 logger = logging.getLogger(__name__)
@@ -243,6 +243,18 @@ class DimcatObject(ABC):
         as_dict.update(**kwargs)
         with open(filepath, "w", encoding="utf-8") as f:
             json.dump(as_dict, f, indent=indent, **kwargs)
+
+
+class DimcatObjectField(fields.Field):
+    """Used for (de)serializing attributes resolving to DimcatObjects."""
+
+    def _serialize(self, value, attr, obj, **kwargs):
+        if isinstance(value, DimcatConfig):
+            return dict(value)
+        return value.to_dict()
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        return deserialize_dict(value)
 
 
 class FriendlyEnum(str, Enum):

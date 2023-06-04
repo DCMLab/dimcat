@@ -32,7 +32,7 @@ from typing import (
 import frictionless as fl
 import marshmallow as mm
 import ms3
-from dimcat.base import DimcatConfig, FriendlyEnum, get_class
+from dimcat.base import DimcatConfig, DimcatObjectField, FriendlyEnum, get_class
 from dimcat.data.base import Data
 from dimcat.data.resources.base import D, DimcatResource, ResourceStatus, SomeDataframe
 from dimcat.data.resources.features import (
@@ -56,6 +56,7 @@ from typing_extensions import Literal, Self
 if TYPE_CHECKING:
     from dimcat.data.resources.results import Result
     from dimcat.steps.base import PipelineStep
+    from dimcat.steps.pipelines import Pipeline
 
 logger = logging.getLogger(__name__)
 
@@ -963,10 +964,13 @@ class Dataset(Data):
         cls,
         inputs: DimcatCatalog | List[DimcatPackage],
         outputs: DimcatCatalog | List[DimcatPackage],
+        pipeline: Optional[Pipeline] = None,
         **kwargs,
     ):
         """Instantiate by copying existing catalogs."""
         new_dataset = cls(**kwargs)
+        if pipeline is not None:
+            new_dataset._pipeline = pipeline
         new_dataset.inputs.extend(inputs)
         new_dataset.outputs.extend(outputs)
         return new_dataset
@@ -975,7 +979,10 @@ class Dataset(Data):
     def from_dataset(cls, dataset: Dataset, **kwargs):
         """Instantiate from this Dataset by copying its fields, empty fields otherwise."""
         return cls.from_catalogs(
-            inputs=dataset.inputs, outputs=dataset.outputs, **kwargs
+            inputs=dataset.inputs,
+            outputs=dataset.outputs,
+            pipeline=dataset.pipeline,
+            **kwargs,
         )
 
     class Schema(Data.Schema):
@@ -985,6 +992,7 @@ class Dataset(Data):
         outputs = mm.fields.Nested(
             DimcatCatalog.Schema, required=False, load_default=[]
         )
+        pipeline = DimcatObjectField()
 
         @mm.post_load
         def init_object(self, data, **kwargs) -> Dataset:
@@ -1037,6 +1045,14 @@ class Dataset(Data):
         """The outputs catalog."""
         return self._outputs
 
+    @property
+    def pipeline(self) -> Pipeline:
+        """A copy of the pipeline representing the steps that have been applied to this Dataset so far.
+        To add a PipelineStep to the pipeline of this Dataset, use :meth:`apply`.
+        """
+        Constructor = get_class("Pipeline")
+        return Constructor.from_pipeline(self._pipeline)
+
     def add_output(
         self,
         resource: DimcatResource,
@@ -1068,7 +1084,7 @@ class Dataset(Data):
         self,
         step: PipelineStep,
     ) -> Self:
-        """Applies a pipeline step to the specified features or, if None, to all active features."""
+        """Applies a pipeline step to the features it is configured for or, if None, to all active features."""
         return step.process_dataset(self)
 
     def check_feature_availability(self, feature: FeatureSpecs) -> bool:

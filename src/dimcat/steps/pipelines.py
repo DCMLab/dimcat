@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Iterable, List, Optional
 
-from dimcat.base import DimcatConfig, DimcatObject, deserialize_dict
+from dimcat.base import DimcatConfig, DimcatObject, DimcatObjectField
 from marshmallow import fields
 
 from .base import PipelineStep
@@ -11,17 +11,11 @@ from .base import PipelineStep
 logger = logging.getLogger(__name__)
 
 
-class DimcatObjectField(fields.Field):
-    def _serialize(self, value, attr, obj, **kwargs):
-        if isinstance(value, DimcatConfig):
-            return dict(value)
-        return value.to_dict()
-
-    def _deserialize(self, value, attr, data, **kwargs):
-        return deserialize_dict(value)
-
-
 class Pipeline(PipelineStep):
+    @classmethod
+    def from_pipeline(cls, pipeline: Pipeline) -> Pipeline:
+        return cls(steps=pipeline.steps)
+
     class Schema(PipelineStep.Schema):
         steps = fields.List(DimcatObjectField())
 
