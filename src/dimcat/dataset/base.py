@@ -32,7 +32,7 @@ from typing import (
 import frictionless as fl
 import marshmallow as mm
 import ms3
-from dimcat.base import Data, DimcatConfig, FriendlyEnum
+from dimcat.base import Data, DimcatConfig, FriendlyEnum, get_class
 from dimcat.exceptions import (
     EmptyCatalogError,
     EmptyPackageError,
@@ -53,8 +53,8 @@ from dimcat.utils import check_file_path, check_name, get_default_basepath
 from typing_extensions import Literal, Self
 
 if TYPE_CHECKING:
-    from dimcat.pipeline import PipelineStep
     from dimcat.resources.results import Result
+    from dimcat.steps.base import PipelineStep
 
 logger = logging.getLogger(__name__)
 
@@ -215,7 +215,10 @@ class DimcatPackage(Data):
             self.validate(raise_exception=True)
 
     def __getitem__(self, item: str) -> DimcatResource:
-        return self.get_resource(item)
+        try:
+            return self.get_resource(item)
+        except Exception as e:
+            raise KeyError(str(e)) from e
 
     def __iter__(self) -> Iterator[DimcatResource]:
         yield from self._resources
@@ -760,7 +763,10 @@ class DimcatCatalog(Data):
             self.packages = packages
 
     def __getitem__(self, item: str) -> DimcatPackage:
-        return self.get_package(item)
+        try:
+            return self.get_package(item)
+        except Exception as e:
+            raise KeyError(str(e)) from e
 
     def __iter__(self) -> Iterator[DimcatPackage]:
         yield from self._packages
@@ -997,6 +1003,8 @@ class Dataset(Data):
         """
         self._inputs = DimcatCatalog()
         self._outputs = DimcatCatalog()
+        self._pipeline = None
+        self.reset_pipeline()
         super().__init__(**kwargs)
 
     def __repr__(self):
@@ -1076,6 +1084,8 @@ class Dataset(Data):
         return Dataset.from_dataset(self)
 
     def get_feature(self, feature: FeatureSpecs) -> Feature:
+        """High-level method that first looks up a feature fitting the specs in the outputs catalog,
+        and adds a FeatureExtractor to the dataset's pipeline otherwise."""
         feature_config = feature_specs2config(feature)
         feature = self.inputs.get_feature(feature_config)
         return feature
@@ -1173,6 +1183,15 @@ class Dataset(Data):
         feature = self.get_feature(feature)
         feature.load()
         return feature
+
+    def reset_pipeline(self) -> None:
+        """Resets the pipeline by replacing it with an empty one."""
+        if self._pipeline is None:
+            self.logger.debug("Initializing empty Pipeline.")
+        else:
+            self.logger.debug("Resetting Pipeline.")
+        Constructor = get_class("Pipeline")
+        self._pipeline = Constructor()
 
     def summary_dict(self) -> str:
         """Returns a summary of the dataset."""

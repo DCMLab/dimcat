@@ -3,10 +3,10 @@ from typing import Dict, List, Sequence
 
 import pandas as pd
 from dimcat.dataset.processed import GroupedDataset
-from dimcat.pipeline import PipelineStep
 from dimcat.resources.base import DimcatIndex, IndexField
 from dimcat.resources.features import Feature
 from dimcat.resources.utils import make_index_from_grouping_dict
+from dimcat.steps import PipelineStep
 from dimcat.utils import check_name
 from marshmallow import fields
 from typing_extensions import Self

@@ -22,9 +22,9 @@ from dimcat.base import (
     deserialize_json_str,
 )
 from dimcat.dataset.base import DimcatCatalog, DimcatPackage
-from dimcat.pipeline import PipelineStep
 from dimcat.resources.base import DimcatResource
 from dimcat.resources.features import Notes
+from dimcat.steps.base import PipelineStep
 from marshmallow import ValidationError, fields
 from marshmallow.class_registry import _registry as MM_REGISTRY
 

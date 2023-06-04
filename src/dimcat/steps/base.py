@@ -3,18 +3,16 @@ from __future__ import annotations
 import logging
 from typing import ClassVar, Iterable, List, Optional, Tuple, Type, Union, overload
 
+from dimcat.base import Data, DimcatConfig, DimcatObject
+from dimcat.dataset.base import Dataset, DimcatPackage
 from dimcat.exceptions import (
     EmptyDatasetError,
     EmptyResourceError,
     FeatureUnavailableError,
     NoFeaturesActiveError,
 )
-from marshmallow import fields, validate
-
-from .base import Data, DimcatConfig, DimcatObject, deserialize_dict
-from .dataset.base import Dataset, DimcatPackage
-from .resources.base import DimcatResource
-from .resources.features import FeatureSpecs, features_argument2config_list
+from dimcat.resources import DimcatResource, FeatureSpecs, features_argument2config_list
+from marshmallow import fields
 
 logger = logging.getLogger(__name__)
 
@@ -233,78 +231,3 @@ class PipelineStep(DimcatObject):
     def resource_name_factory(self, resource: DimcatResource) -> str:
         """Creates a unique name for the new resource based on the input resource."""
         return resource.resource_name
-
-
-class FeatureExtractor(PipelineStep):
-    output_package_name = "features"
-
-    class Schema(PipelineStep.Schema):
-        features = fields.List(
-            fields.Nested(DimcatConfig.Schema),
-            validate=validate.Length(min=1),
-        )
-
-    @property
-    def features(self) -> List[DimcatConfig]:
-        return self._features
-
-    @features.setter
-    def features(self, features):
-        configs = features_argument2config_list(features)
-        if len(self._features) > 0:
-            self.logger.info(
-                f"Previously selected features {self._features} overwritten by {configs}."
-            )
-        self._features = configs
-
-
-class DimcatObjectField(fields.Field):
-    def _serialize(self, value, attr, obj, **kwargs):
-        if isinstance(value, DimcatConfig):
-            return dict(value)
-        return value.to_dict()
-
-    def _deserialize(self, value, attr, data, **kwargs):
-        return deserialize_dict(value)
-
-
-class Pipeline(PipelineStep):
-    class Schema(PipelineStep.Schema):
-        steps = fields.List(DimcatObjectField())
-
-    def __init__(
-        self,
-        steps: Optional[
-            PipelineStep | DimcatConfig | Iterable[PipelineStep | DimcatConfig]
-        ],
-        **kwargs,
-    ):
-        self._steps: List[PipelineStep] = []
-        if steps is not None:
-            self.steps = steps
-
-    @property
-    def steps(self) -> List[PipelineStep]:
-        return self._steps
-
-    @steps.setter
-    def steps(
-        self, steps: PipelineStep | DimcatConfig | Iterable[PipelineStep | DimcatConfig]
-    ) -> None:
-        if isinstance(steps, (DimcatObject, dict)):
-            steps = [steps]
-        for step in steps:
-            self.add_step(step)
-
-    def add_step(self, step: PipelineStep | DimcatConfig) -> None:
-        if isinstance(step, dict):
-            assert "dtype" in step, (
-                "PipelineStep dict must be config-like and have a 'dtype' key mapping to the "
-                "name of a PipelineStep."
-            )
-            step = DimcatConfig(step)
-        if isinstance(step, DimcatConfig):
-            step = step.create()
-        if not isinstance(step, PipelineStep):
-            raise TypeError(f"Pipeline acceppts only PipelineSteps, not {type(step)}.")
-        self._steps.append(step)

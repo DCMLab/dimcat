@@ -15,9 +15,10 @@ finally:
 from .base import Data, DimcatConfig, DimcatObject, DimcatSchema, get_class, get_schema
 from .dataset.base import Dataset, DimcatPackage
 from .groupers.base import CustomPieceGrouper
-from .pipeline import PipelineStep
 from .resources.base import DimcatIndex, DimcatResource, PieceIndex
 from .resources.features import FeatureName
+from .steps.base import PipelineStep
+from .steps.pipelines import Pipeline
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
