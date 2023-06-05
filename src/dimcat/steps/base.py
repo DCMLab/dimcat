@@ -14,6 +14,7 @@ from typing import (
 )
 
 from dimcat.base import DimcatConfig, DimcatObject
+from dimcat.data import ensure_level_named_piece
 from dimcat.data.base import Data
 from dimcat.data.dataset.base import Dataset, DimcatPackage
 from dimcat.data.resources import (
@@ -173,6 +174,9 @@ class PipelineStep(DimcatObject):
     def pre_process_resource(self, resource: DimcatResource) -> DimcatResource:
         """Perform some pre-processing on a resource before processing it."""
         resource.load()
+        if "piece" not in resource.index.names:
+            # ToDo: This can go once the feature extractor does this systematically
+            resource.df.index, _ = ensure_level_named_piece(resource.df.index)
         return resource
 
     def post_process_result(self, result: DimcatResource) -> DimcatResource:
@@ -222,7 +226,6 @@ class PipelineStep(DimcatObject):
         """Apply this PipelineStep to a :class:`Dataset` and return a copy containing the output(s)."""
         new_dataset = self._make_new_dataset(dataset)
         self.fit_to_dataset(new_dataset)
-        new_dataset._pipeline.add_step(self)
         resources = self.get_features(new_dataset)
         new_package = self._make_new_package()
         n_processed = 0
@@ -243,6 +246,7 @@ class PipelineStep(DimcatObject):
             new_dataset.outputs.replace_package(new_package)
         else:
             new_dataset.outputs.extend_package(new_package)
+        new_dataset._pipeline.add_step(self)
         return new_dataset
 
     def process_dataset(self, dataset: Dataset) -> Dataset:
