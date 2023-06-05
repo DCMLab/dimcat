@@ -115,10 +115,10 @@ class DimcatIndex(Generic[IX], Data):
             sort=sort,
             raise_if_multiple_membership=raise_if_multiple_membership,
         )
-        return cls.from_index(grouping)
+        return cls.from_index(grouping, max_levels=0)
 
     @classmethod
-    def from_index(cls, index: SomeIndex) -> Self:
+    def from_index(cls, index: SomeIndex, **kwargs) -> Self:
         """Create a DimcatIndex from a dataframe index."""
         return cls(index)
 
@@ -472,6 +472,7 @@ class DimcatResource(Generic[D], Data):
         descriptor_filepath: Optional[str] = None,
         auto_validate: bool = False,
         default_groupby: Optional[str | list[str]] = None,
+        **kwargs,
     ) -> Self:
         if isinstance(index, DimcatIndex):
             index = index.index
