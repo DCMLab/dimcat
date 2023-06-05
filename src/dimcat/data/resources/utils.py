@@ -390,7 +390,7 @@ def make_boolean_mask_from_set_of_tuples(
 
 
 def make_index_from_grouping_dict(
-    grouping: Dict[str, List[tuple]],
+    grouping: Dict[str, Iterable[tuple]],
     level_names=("group_name", "corpus", "piece"),
     sort=False,
     raise_if_multiple_membership: bool = False,

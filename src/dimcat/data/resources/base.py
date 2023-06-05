@@ -6,7 +6,17 @@ import zipfile
 from enum import IntEnum, auto
 from functools import cache
 from pprint import pformat
-from typing import Dict, Generic, Iterable, List, Optional, TypeAlias, TypeVar, Union
+from typing import (
+    Dict,
+    Generic,
+    Iterable,
+    List,
+    Optional,
+    Sequence,
+    TypeAlias,
+    TypeVar,
+    Union,
+)
 
 import frictionless as fl
 import ms3
@@ -25,6 +35,7 @@ from .utils import (
     load_fl_resource,
     load_index_from_fl_resource,
     make_boolean_mask_from_set_of_tuples,
+    make_index_from_grouping_dict,
     make_rel_path,
     make_tsv_resource,
 )
@@ -81,6 +92,30 @@ class DimcatIndex(Generic[IX], Data):
     def from_dataframe(cls, df: SomeDataframe) -> Self:
         """Create a DimcatIndex from a dataframe."""
         return cls.from_index(df.index)
+
+    @classmethod
+    def from_grouping(
+        cls,
+        grouping: Dict[str, List[tuple]],
+        level_names: Sequence[str] = ("piece_group", "corpus", "piece"),
+        sort: bool = False,
+        raise_if_multiple_membership: bool = False,
+    ) -> Self:
+        """Creates a DimcatIndex from a dictionary of piece groups.
+
+        Args:
+        grouping: A dictionary where keys are group names and values are lists of index tuples.
+        names: Names for the levels of the MultiIndex, i.e. one for the group level and one per level in the tuples.
+        sort: By default the returned MultiIndex is not sorted. Set False to enable sorting.
+        raise_if_multiple_membership: If True, raises a ValueError if a member is in multiple groups.
+        """
+        grouping = make_index_from_grouping_dict(
+            grouping=grouping,
+            level_names=level_names,
+            sort=sort,
+            raise_if_multiple_membership=raise_if_multiple_membership,
+        )
+        return cls.from_index(grouping)
 
     @classmethod
     def from_index(cls, index: SomeIndex) -> Self:

@@ -1,16 +1,16 @@
 import logging
 from collections import defaultdict
-from typing import Dict, Iterable, List, Sequence
+from typing import Dict, Iterable, List, MutableMapping, Sequence
 
 import pandas as pd
 from dimcat import Dataset
+from dimcat.base import is_subclass_of
 from dimcat.data.dataset.processed import GroupedDataset
-from dimcat.data.resources.base import DimcatIndex, DimcatResource
+from dimcat.data.resources.base import DimcatIndex, DimcatResource, PieceIndex
 from dimcat.data.resources.features import Feature
-from dimcat.data.resources.utils import make_index_from_grouping_dict
 from dimcat.steps import PipelineStep
 from dimcat.utils import check_name
-from marshmallow import fields
+from marshmallow import fields, pre_load
 from typing_extensions import Self
 
 logger = logging.getLogger(__name__)
@@ -93,6 +93,17 @@ class CustomPieceGrouper(Grouper):
     class Schema(Grouper.Schema):
         grouped_pieces = fields.Nested(DimcatIndex.Schema)
 
+        @pre_load
+        def deal_with_dict(self, data, **kwargs):
+            if isinstance(data["grouped_pieces"], MutableMapping):
+                if "dtype" not in data["grouped_pieces"] or not is_subclass_of(
+                    data["grouped_pieces"]["dtype"], DimcatIndex
+                ):
+                    # dealing with a manually compiled DimcatConfig where grouped_pieces are a grouping dict
+                    grouped_pieces = DimcatIndex.from_grouping(data["grouped_pieces"])
+                    data["grouped_pieces"] = grouped_pieces.to_dict()
+            return data
+
     @classmethod
     def from_grouping(
         cls,
@@ -106,16 +117,16 @@ class CustomPieceGrouper(Grouper):
         Args:
         grouping: A dictionary where keys are group names and values are lists of index tuples.
         names: Names for the levels of the MultiIndex, i.e. one for the group level and one per level in the tuples.
-        sort: By default the returned MultiIndex is sorted. Set False to disable sorting.
+        sort: By default the returned MultiIndex is not sorted. Set True to disable sorting.
         raise_if_multiple_membership: If True, raises a ValueError if a member is in multiple groups.
         """
-        grouping = make_index_from_grouping_dict(
+        grouped_pieces = PieceIndex.from_grouping(
             grouping=piece_groups,
             level_names=level_names,
             sort=sort,
             raise_if_multiple_membership=raise_if_multiple_membership,
         )
-        return cls(level_name=level_names[0], grouped_pieces=DimcatIndex(grouping))
+        return cls(level_name=grouped_pieces.names[0], grouped_pieces=grouped_pieces)
 
     def __init__(
         self,
