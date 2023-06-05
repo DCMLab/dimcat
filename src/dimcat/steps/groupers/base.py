@@ -1,7 +1,9 @@
 import logging
-from typing import Dict, List, Sequence
+from collections import defaultdict
+from typing import Dict, Iterable, List, Sequence
 
 import pandas as pd
+from dimcat import Dataset
 from dimcat.data.dataset.processed import GroupedDataset
 from dimcat.data.resources.base import DimcatIndex, DimcatResource
 from dimcat.data.resources.features import Feature
@@ -49,6 +51,37 @@ class Grouper(PipelineStep):
             df=results,
             resource_name=result_name,
         )
+
+    def get_features(self, dataset: Dataset) -> Iterable[DimcatResource]:
+        """Iterate over all resources in the dataset's OutputCatalog."""
+        return dataset.outputs.iter_resources()
+
+    def _process_dataset(self, dataset: Dataset) -> Dataset:
+        """Apply this PipelineStep to a :class:`Dataset` and return a copy containing the output(s)."""
+        new_dataset = self._make_new_dataset(dataset)
+        self.fit_to_dataset(new_dataset)
+        new_dataset._pipeline.add_step(self)
+        package_name_resource_iterator = self.get_features(new_dataset)
+        processed_resources = defaultdict(list)
+        for package_name, resource in package_name_resource_iterator:
+            new_resource = self.process_resource(resource)
+            processed_resources[package_name].append(new_resource)
+        for package_name, resources in processed_resources.items():
+            new_package = self._make_new_package(package_name)
+            new_package.extend(resources)
+            n_processed = len(resources)
+            if new_package.n_resources < n_processed:
+                if new_package.n_resources == 0:
+                    self.logger.warning(
+                        f"None of the {n_processed} {package_name} were successfully transformed."
+                    )
+                else:
+                    self.logger.warning(
+                        f"Transformation was successful only on {new_package.n_resources} of the "
+                        f"{n_processed} features."
+                    )
+            new_dataset.outputs.replace_package(new_package)
+        return new_dataset
 
     def post_process_result(self, result: DimcatResource) -> DimcatResource:
         """Change the default_groupby value of the returned Feature."""

@@ -166,7 +166,9 @@ class PipelineStep(DimcatObject):
         )
         return new_dataset
 
-    def _make_new_package(self) -> DimcatPackage:
+    def _make_new_package(self, package_name: Optional[str] = None) -> DimcatPackage:
+        if package_name is not None:
+            return DimcatPackage(package_name=package_name)
         if self.output_package_name is None:
             return DimcatPackage(package_name="features")
         return DimcatPackage(package_name=self.output_package_name)
@@ -239,7 +241,7 @@ class PipelineStep(DimcatObject):
                 )
             else:
                 self.logger.warning(
-                    f"Transformation was successful only on {len(new_package)} of the "
+                    f"Transformation was successful only on {new_package.n_resources} of the "
                     f"{n_processed} features."
                 )
         if self.is_transformation:

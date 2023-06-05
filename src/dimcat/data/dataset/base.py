@@ -25,6 +25,7 @@ from typing import (
     List,
     Literal,
     Optional,
+    Tuple,
     TypeAlias,
     Union,
     overload,
@@ -1016,6 +1017,16 @@ class OutputsCatalog(DimcatCatalog):
         feature_config = feature_specs2config(feature)
         return package.get_resource_by_config(feature_config)
 
+    def iter_resources(self) -> Iterator[Tuple[str, DimcatResource]]:
+        """Iterates over all resources in all packages.
+
+        Yields:
+            The package name and the resource.
+        """
+        for package in self._packages:
+            for resource in package:
+                yield package.package_name, resource
+
 
 # endregion DimcatCatalog
 # region Dataset
@@ -1177,7 +1188,7 @@ class Dataset(Data):
         if len(self._pipeline) == 0:
             self.logger.debug("Pipeline empty, returning extracted feature as is.")
             return extracted
-        self.logger.warning(
+        self.logger.debug(
             f"Applying pipeline to extracted feature: {self._pipeline.steps}."
         )
         return self._pipeline.process_resource(extracted)

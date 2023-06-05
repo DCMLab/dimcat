@@ -44,6 +44,7 @@ class Result(DimcatResource):
             x=df.columns[-2],
             y=df.columns[-1],
             hover_data=["corpus", "piece"],
+            height=500,
             **kwargs,
         )
         figure_layout = dict(
