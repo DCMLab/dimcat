@@ -213,6 +213,13 @@ class DimcatIndex(Generic[IX], Data):
     def copy(self) -> Self:
         return self.__class__(self._index.copy())
 
+    def sample(self, n: int) -> Self:
+        """Return a random sample of n elements."""
+        as_series = self._index.to_series()
+        sample = as_series.sample(n)
+        as_index = pd.MultiIndex.from_tuples(sample, names=self.names)
+        return self.__class__(as_index)
+
     def to_resource(self, **kwargs) -> DimcatResource:
         """Create a DimcatResource from this index."""
         return DimcatResource.from_index(self, **kwargs)
