@@ -18,6 +18,9 @@ class Counter(Analyzer):
         """
         if groupby is None:
             groupby = feature.get_default_groupby()
+            self.logger.debug(
+                f"Using the {feature.resource_name}'s default groupby {groupby!r}"
+            )
         return (
             feature.groupby(groupby).size().to_frame(f"{feature.resource_name} counts")
         )
