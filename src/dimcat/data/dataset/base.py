@@ -1084,10 +1084,10 @@ class Dataset(Data):
         super().__init__(**kwargs)
 
     def __repr__(self):
-        return self.info(print=False)
+        return self.info(return_str=True)
 
     def __str__(self):
-        return self.info(print=False)
+        return self.info(return_str=True)
 
     @property
     def inputs(self) -> InputsCatalog:
@@ -1212,23 +1212,22 @@ class Dataset(Data):
         return self.extract_feature(feature_config)
 
     @overload
-    def info(self, print: Literal[True]) -> None:
+    def info(self, return_str: Literal[False]) -> None:
         ...
 
     @overload
-    def info(self, print: Literal[False] = False) -> str:
+    def info(self, return_str: Literal[True]) -> str:
         ...
 
-    def info(self, print=True) -> Optional[str]:
+    def info(self, return_str: bool = False) -> Optional[str]:
         """Returns a summary of the dataset."""
         summary = self.summary_dict()
         title = self.name
         title += f"\n{'=' * len(title)}\n"
         summary_str = f"{title}{pformat(summary, sort_dicts=False)}"
-        if print:
-            print(summary_str)
-        else:
+        if return_str:
             return summary_str
+        print(summary_str)
 
     def iter_features(
         self, features: FeatureSpecs | Iterable[FeatureSpecs] = None

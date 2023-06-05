@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Iterable, Iterator, List, Optional
+from typing import Iterable, Iterator, List, Literal, Optional, overload
 
 from dimcat.base import DimcatConfig, DimcatObject, DimcatObjectField
 from dimcat.data.dataset import Dataset
@@ -67,26 +67,40 @@ class Pipeline(PipelineStep):
             raise TypeError(f"Pipeline acceppts only PipelineSteps, not {type(step)}.")
         self._steps.append(step)
 
+    @overload
+    def info(self, return_str: Literal[False] = False) -> None:
+        ...
+
+    @overload
+    def info(self, return_str: Literal[True]) -> str:
+        ...
+
+    def info(self, return_str=False) -> Optional[str]:
+        """Show the names of the included steps."""
+        info_str = f"Pipeline([{', '.join(step.name for step in self._steps)}])"
+        if return_str:
+            return info_str
+        print(info_str)
+
     def _process_dataset(self, dataset: Dataset) -> Dataset:
         if len(self._steps) == 0:
             self.logger.info("Nothing to do.")
             return dataset
-        previous_dataset = dataset
+        processed_dataset = dataset
         for step in self._steps:
+            previous_dataset = processed_dataset
             processed_dataset = step.process(previous_dataset)
             # ToDo: checks?
-            previous_dataset = processed_dataset
         return processed_dataset
 
     def _process_resource(self, resource: DimcatResource) -> DimcatResource:
         if len(self._steps) == 0:
             self.logger.info("Nothing to do.")
             return resource
-
-        previous_resource = resource
+        processed_resource = resource
         for step in self._steps:
-            processed_resource = step.process_resource(previous_resource)
+            previous_resource = processed_resource
+            processed_resource = step.dispatch(previous_resource)
             # ToDo: Pipeline checks the compatibility of steps and data first, uses step._process_resource()
             # ToDo: Check the processed resource and handle errors
-            previous_resource = processed_resource
         return processed_resource
