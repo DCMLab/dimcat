@@ -1175,7 +1175,11 @@ class Dataset(Data):
         """
         extracted = self.inputs.extract_feature(feature_config)
         if len(self._pipeline) == 0:
+            self.logger.debug("Pipeline empty, returning extracted feature as is.")
             return extracted
+        self.logger.warning(
+            f"Applying pipeline to extracted feature: {self._pipeline.steps}."
+        )
         return self._pipeline.process_resource(extracted)
 
     def extract_feature(self, feature: FeatureSpecs) -> Feature:
@@ -1188,9 +1192,9 @@ class Dataset(Data):
         feature_config = feature_specs2config(feature)
         Constructor = get_class("FeatureExtractor")
         feature_extractor = Constructor(feature_config)
-        self._pipeline.add_step(feature_extractor)
         extracted = self._extract_feature(feature_config)
         self.add_output(resource=extracted, package_name="features")
+        self._pipeline.add_step(feature_extractor)
         return extracted
 
     def get_feature(self, feature: FeatureSpecs) -> Feature:
