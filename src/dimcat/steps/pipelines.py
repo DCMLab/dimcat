@@ -15,6 +15,15 @@ logger = logging.getLogger(__name__)
 
 class Pipeline(PipelineStep):
     @classmethod
+    def from_step_configs(cls, configs: Iterable[DimcatConfig]) -> Pipeline:
+        steps = []
+        for config in configs:
+            if not isinstance(config, DimcatConfig):
+                config = DimcatConfig(config)
+            steps.append(config.create())
+        return cls(steps)
+
+    @classmethod
     def from_pipeline(cls, pipeline: Pipeline) -> Pipeline:
         return cls(steps=pipeline.steps)
 
