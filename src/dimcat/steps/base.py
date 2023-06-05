@@ -5,6 +5,7 @@ from typing import (
     ClassVar,
     Iterable,
     List,
+    MutableMapping,
     Optional,
     Tuple,
     Type,
@@ -28,7 +29,7 @@ from dimcat.exceptions import (
     FeatureUnavailableError,
     NoFeaturesActiveError,
 )
-from marshmallow import fields
+from marshmallow import fields, pre_load
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +63,20 @@ class PipelineStep(DimcatObject):
             fields.Nested(DimcatConfig.Schema),
             allow_none=True,
         )
+
+        @pre_load
+        def deal_with_single_item(self, data, **kwargs):
+            if isinstance(data, MutableMapping) and "features" in data:
+                if isinstance(data["features"], MutableMapping):
+                    data["features"] = [data["features"]]
+                feature_list = []
+                for feature in data["features"]:
+                    if not isinstance(feature, DimcatConfig):
+                        feature_list.append(DimcatConfig(feature))
+                    else:
+                        feature_list.append(feature)
+                data["features"] = feature_list
+            return data
 
     def __init__(
         self, features: Optional[FeatureSpecs | Iterable[FeatureSpecs]] = None, **kwargs
