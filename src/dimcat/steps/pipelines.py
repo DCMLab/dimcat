@@ -82,9 +82,11 @@ class Pipeline(PipelineStep):
         if len(self._steps) == 0:
             self.logger.info("Nothing to do.")
             return resource
+
         previous_resource = resource
         for step in self._steps:
-            processed_resource = step.dispatch(previous_resource)
-            # ToDo: checks?
+            processed_resource = step.process_resource(previous_resource)
+            # ToDo: Pipeline checks the compatibility of steps and data first, uses step._process_resource()
+            # ToDo: Check the processed resource and handle errors
             previous_resource = processed_resource
         return processed_resource
