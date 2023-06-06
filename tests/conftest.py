@@ -2,6 +2,15 @@
 Configuring the test suite.
 """
 import os
+import platform
+
+
+def pytest_terminal_summary(terminalreporter : TerminalReporter, exitstatus, config ):
+    terminalreporter.write_sep("=", "Versions summary", bold=True)
+    import pandas as pd
+
+    terminalreporter.write_line(f"Python version : {platform.python_version()}")
+    terminalreporter.write_line(f"Pandas version : {pd.__version__}")
 
 import frictionless as fl
 import pytest
@@ -494,3 +503,12 @@ def dataset_from_single_package(package_path):
 
 
 # endregion deprecated
+
+
+
+def pytest_terminal_summary(terminalreporter : TerminalReporter, exitstatus, config ):
+    terminalreporter.write_sep("=", "Versions summary", bold=True)
+    import pandas as pd
+
+    terminalreporter.write_line(f"Python version : {platform.python_version()}")
+    terminalreporter.write_line(f"Pandas version : {pd.__version__}")
