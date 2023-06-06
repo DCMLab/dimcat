@@ -3,9 +3,12 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Collection
+import re
+from typing import Collection, Optional
 
+import ms3
 import pandas as pd
+from frictionless.settings import NAME_PATTERN as FRICTIONLESS_NAME_PATTERN
 
 logger = logging.getLogger(__name__)
 
@@ -156,3 +159,47 @@ def get_object_value(obj, key, default):
         return obj[key]
     except (KeyError, IndexError, TypeError, AttributeError):
         return getattr(obj, key, default)
+
+
+def check_file_path(
+    filepath: str,
+    extensions: Optional[str | Collection[str]] = None,
+    must_exist: bool = True,
+) -> str:
+    """Checks that the filepath exists and raises an exception otherwise (or if it doesn't have a valid extension).
+
+    Args:
+        filepath:
+        extensions:
+        must_exist: If True (default), raises FileNotFoundError if the file does not exist.
+
+    Returns:
+        The path turned into an absolute path.
+    """
+    path = ms3.resolve_dir(filepath)
+    if must_exist and not os.path.isfile(path):
+        raise FileNotFoundError(f"File {path} does not exist.")
+    if extensions is not None:
+        if isinstance(extensions, str):
+            extensions = [extensions]
+        if not any(path.endswith(ext) for ext in extensions):
+            plural = f"one of {extensions}" if len(extensions) > 1 else extensions[0]
+            _, file_ext = os.path.splitext(path)
+            raise ValueError(f"File {path} has extension {file_ext}, not {plural}.")
+    return path
+
+
+def get_default_basepath():
+    return os.getcwd()
+
+
+def check_name(name: str) -> None:
+    """Check if a name is valid according to frictionless.
+
+    Raises:
+        ValueError: If the name is not valid.
+    """
+    if not re.match(FRICTIONLESS_NAME_PATTERN, name):
+        raise ValueError(
+            f"Name can only contain [a-z], [0-9], [-._/], and no spaces: {name!r}"
+        )

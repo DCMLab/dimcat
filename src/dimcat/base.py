@@ -2,39 +2,31 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from abc import ABC
+from configparser import ConfigParser
+from dataclasses import dataclass
+from dataclasses import field as dataclass_field
 from enum import Enum
 from functools import cache
 from inspect import isclass
 from pprint import pformat
-from typing import (
-    Any,
-    ClassVar,
-    Dict,
-    Iterable,
-    List,
-    MutableMapping,
-    Optional,
-    Tuple,
-    Type,
-    Union,
-    overload,
-)
+from typing import Any, ClassVar, Dict, List, MutableMapping, Optional, Type
 
 import marshmallow as mm
-from marshmallow import ValidationError
+
+# this is the only dimcat import currently allowed in this file:
+from marshmallow import ValidationError, fields
 from typing_extensions import Self
 
 logger = logging.getLogger(__name__)
 
-# ----------------------------- GLOBAL SETTINGS -----------------------------
+# ----------------------------- DEVELOPER SETTINGS -----------------------------
 
-NEVER_STORE_UNVALIDATED_DATA = (
-    False  # allows for skipping mandatory validations; set to True for production
-)
-CONTROL_REGISTRY = (
-    False  # raise an error if a subclass has the same name as another subclass
-)
+CONTROL_REGISTRY = False
+"""Raise an error if a subclass has the same name as another subclass. Set True for production."""
+
+# region DimcatSchema
 
 
 class DtypeField(mm.fields.Field):
@@ -63,6 +55,12 @@ class DimcatSchema(mm.Schema):
     property that returns its name as a string (or en Enum member that can function as a string). It is inherited by
     all objects' schemas and enables their deserialization from a DimcatConfig."""
 
+    @classmethod
+    @property
+    def name(cls) -> str:
+        """Qualified name of the schema, meaning it includes the name of the class that it is nested in."""
+        return cls.__qualname__
+
     class Meta:
         ordered = True
 
@@ -73,12 +71,6 @@ class DimcatSchema(mm.Schema):
             # the key 'dtype' but, when serializing, it is the property 'dtype' that is relevant
             return obj.dtype
         return super().get_attribute(obj, attr, default)
-
-    @classmethod
-    @property
-    def name(cls) -> str:
-        """Qualified name of the schema, meaning it includes the name of the class that it is nested in."""
-        return cls.__qualname__
 
     @mm.post_load()
     def init_object(self, data, **kwargs) -> DimcatObject:
@@ -122,6 +114,10 @@ class DimcatSchema(mm.Schema):
         )
 
 
+# endregion DimcatSchema
+# region DimcatObject
+
+
 class DimcatObject(ABC):
     """All DiMCAT classes derive from DimcatObject, except for the nested Schema(DimcatSchema) class that they define or
     inherit."""
@@ -131,38 +127,6 @@ class DimcatObject(ABC):
     _registry: ClassVar[Dict[str, Type[DimcatObject]]] = {}
     """Registry of all subclasses (but not their corresponding Schema classes)."""
 
-    class Schema(DimcatSchema):
-        pass
-
-    def __init__(self):
-        super().__init__()
-
-    def __init_subclass__(cls, **kwargs):
-        """Registers every subclass under the class variable :attr:`_registry`"""
-        super().__init_subclass__(**kwargs)
-        if CONTROL_REGISTRY and cls.name in cls._registry:
-            raise RuntimeError(
-                f"A class named {cls.name!r} had already been registered. Choose a different name."
-            )
-        cls._registry[cls.name] = cls
-
-    def __eq__(self, other):
-        if not isinstance(other, DimcatObject):
-            return False
-        if other.name != self.name:
-            return False
-        return other.to_dict() == self.to_dict()
-
-    @classmethod
-    @property
-    def name(cls) -> str:
-        return cls.__name__
-
-    @classmethod
-    @property
-    def logger(cls) -> logging.Logger:
-        return logging.getLogger(f"{cls.__module__}.{cls.__qualname__}")
-
     @classmethod
     @property
     def dtype(cls) -> str | Enum:
@@ -171,44 +135,21 @@ class DimcatObject(ABC):
             return cls.name
         return cls._enum_type(cls.name)
 
-    def filename_factory(self):
-        return self.name
+    @classmethod
+    @property
+    def logger(cls) -> logging.Logger:
+        return logging.getLogger(f"{cls.__module__}.{cls.__qualname__}")
+
+    @classmethod
+    @property
+    def name(cls) -> str:
+        return cls.__name__
 
     @classmethod
     @property
     def schema(cls):
         """Returns the (instantiated) DimcatSchema singleton object for this class."""
         return get_schema(cls.name)
-
-    def to_dict(self) -> dict:
-        return self.schema.dump(self)
-
-    def to_config(self) -> DimcatConfig:
-        return DimcatConfig(self.to_dict())
-
-    def to_options(self):
-        D = self.to_dict()
-        del D["dtype"]
-        return D
-
-    def to_json(self) -> str:
-        return self.schema.dumps(self)
-
-    def to_json_file(self, filepath: str, indent: int = 2, **kwargs):
-        """Serialize object to file.
-
-        Args:
-            filepath: Path to the text file to (over)write.
-            indent: Prettify the JSON layout. Default indentation: 2 spaces
-            **kwargs: Keyword arguments passed to :meth:`json.dumps`.
-
-        Returns:
-
-        """
-        as_dict = self.to_dict()
-        as_dict.update(**kwargs)
-        with open(filepath, "w", encoding="utf-8") as f:
-            json.dump(as_dict, f, indent=indent, **kwargs)
 
     @classmethod
     def from_dict(cls, options, **kwargs) -> Self:
@@ -242,11 +183,115 @@ class DimcatObject(ABC):
             json_data = f.read()
         return cls.from_json(json_data)
 
+    class Schema(DimcatSchema):
+        pass
+
+    def __init__(self):
+        super().__init__()
+
+    def __init_subclass__(cls, **kwargs):
+        """Registers every subclass under the class variable :attr:`_registry`"""
+        super().__init_subclass__(**kwargs)
+        if CONTROL_REGISTRY and cls.name in cls._registry:
+            raise RuntimeError(
+                f"A class named {cls.name!r} had already been registered. Choose a different name."
+            )
+        cls._registry[cls.name] = cls
+
+    def __eq__(self, other):
+        if not isinstance(other, DimcatObject):
+            return False
+        if other.name != self.name:
+            return False
+        return other.to_dict() == self.to_dict()
+
+    def __hash__(self) -> int:
+        return id(self)
+
     def __repr__(self):
         return f"{pformat(self.to_dict(), sort_dicts=False)}"
 
     def __str__(self):
         return f"{__name__}.{self.name}"
+
+    def filename_factory(self):
+        return self.name
+
+    def to_dict(self) -> dict:
+        return self.schema.dump(self)
+
+    def to_config(self) -> DimcatConfig:
+        return DimcatConfig(self.to_dict())
+
+    def to_options(self):
+        D = self.to_dict()
+        del D["dtype"]
+        return D
+
+    def to_json(self) -> str:
+        return self.schema.dumps(self)
+
+    def to_json_file(self, filepath: str, indent: int = 2, **kwargs):
+        """Serialize object to file.
+
+        Args:
+            filepath: Path to the text file to (over)write.
+            indent: Prettify the JSON layout. Default indentation: 2 spaces
+            **kwargs: Keyword arguments passed to :meth:`json.dumps`.
+
+        Returns:
+
+        """
+        as_dict = self.to_dict()
+        as_dict.update(**kwargs)
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(as_dict, f, indent=indent, **kwargs)
+
+
+class DimcatObjectField(fields.Field):
+    """Used for (de)serializing attributes resolving to DimcatObjects."""
+
+    def _serialize(self, value, attr, obj, **kwargs):
+        if isinstance(value, DimcatConfig):
+            return dict(value)
+        return value.to_dict()
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        return deserialize_dict(value)
+
+
+class FriendlyEnum(str, Enum):
+    """Members of this Enum can be created from and compared to strings in a case-insensitive manner."""
+
+    @classmethod
+    def _missing_(cls, value) -> Self:
+        value_lower = value.lower()
+        lc_values = {member.value.lower(): member for member in cls}
+        if value_lower in lc_values:
+            return lc_values[value_lower]
+        for lc_value, member in lc_values.items():
+            if lc_value.startswith(value_lower):
+                return member
+        raise ValueError(f"ValueError: {value!r} is not a valid {cls.__name__}.")
+
+    def __eq__(self, other) -> bool:
+        if self.value == other:
+            return True
+        if isinstance(other, str):
+            return other.lower() == self.value.lower()
+        return False
+
+    def __hash__(self):
+        return hash(self.value)
+
+
+class ObjectEnum(FriendlyEnum):
+    def get_class(self) -> Type[DimcatObject]:
+        return get_class(self.name)
+
+
+# endregion DimcatObject
+# region DimcatConfig
 
 
 class DimcatConfig(MutableMapping, DimcatObject):
@@ -259,7 +304,8 @@ class DimcatConfig(MutableMapping, DimcatObject):
 
     - ``DC['dtype']`` is the name of the described DimcatObject (equivalent to ``DC.options_dtype``)
     - ``DC.dtype`` returns the class name "DimcatConfig", according to all DimcatObjects' default behaviour
-    - ``DC.options`` returns the key-value pairs wrapped by this config, which includes at least the 'dtype' key
+    - ``DC.options`` (equivalent to ``dict(DC)`` returns the key-value pairs wrapped by this config,
+      which includes at least the 'dtype' key
     - ``DC['options']`` is the value of the 'options' option, which exists only if it is part of the described
       object's schema, for example if the described object is a :class:`DimcatConfig` itself.
 
@@ -371,74 +417,10 @@ class DimcatConfig(MutableMapping, DimcatObject):
                 f"\n{report}"
             )
 
-    @property
-    def options_dtype(self):
-        return self._options["dtype"]
-
-    @property
-    def options_schema(self):
-        """Returns the (instantiated) Dimcat singleton object for the class this Config describes."""
-        return get_schema(self.options_dtype)
-
-    @classmethod
-    def from_dict(cls, options, **kwargs) -> Self:
-        return cls(options, **kwargs)
-
-    @classmethod
-    def from_object(cls, obj: DimcatObject):
-        options = obj.to_dict()
-        return cls(options)
-
-    @property
-    def options(self):
-        """Returns the options dictionary wrapped and controlled by this DimcatConfig. Whenever a new value is set,
-        it is validated against the Schema of the DimcatObject specified under the key 'dtype'. Note that this property
-        returns a copy of the dictionary including the 'dtype' key and modifying it will not affect the DimcatConfig.
-        Also note that the returned value is different from DimcatConfig["options"]"""
-        return dict(self._options)
-
-    def create(self) -> DimcatObject:
-        return self.options_schema.load(self._options)
-
-    def validate(self, partial=False) -> Dict[str, List[str]]:
-        """Validates the current status of the config in terms of ability to create an object. Empty dict == valid."""
-        return self.options_schema.validate(self._options, many=False, partial=partial)
-
-    def __getitem__(self, key):
-        return self._options[key]
-
     def __delitem__(self, key):
         if key == "dtype":
             raise ValueError("Cannot remove key 'dtype' from DimcatConfig.")
         del self._options[key]
-
-    def __setitem__(self, key, value):
-        if key == "dtype" and value != self._options["dtype"]:
-            tmp_schema = get_schema(value)
-            tmp_dict = dict(self._options, dtype=value)
-            report = tmp_schema.validate(tmp_dict)
-            if report:
-                msg = (
-                    f"Cannot change the value for 'dtype' because its {tmp_schema.name} does not "
-                    f"validate the options:\n{report}"
-                )
-                raise ValidationError(msg)
-        else:
-            dict_to_validate = {key: value}
-            report = self.options_schema.validate(dict_to_validate, partial=True)
-            if report:
-                msg = f"{self.options_schema.name}: Cannot set {key!r} to {value!r}:\n{report}"
-                raise ValidationError(msg)
-        self._options[key] = value
-
-    def __iter__(self):
-        return iter(self._options)
-
-    def __len__(self):
-        return len(self._options)
-
-    def __repr__(self):
-        return f"{self.name}({pformat(self._options, sort_dicts=False)})"
 
     def __eq__(self, other: DimcatObject | MutableMapping) -> bool:
         """The comparison with another DimcatConfig or dict-like returns True if both describe the same object or if
@@ -470,69 +452,91 @@ class DimcatConfig(MutableMapping, DimcatObject):
         a, b = (self, other) if self_describes_config else (other, self)
         return self["options"] == other
 
+    def __getitem__(self, key):
+        return self._options[key]
 
-class Data(DimcatObject):
-    """
-    This base class unites all classes containing data in some way or another.
-    """
+    def __iter__(self):
+        return iter(self._options)
 
-    class Schema(DimcatObject.Schema):
-        # basedir = fields.String(required=True)
-        pass
+    def __len__(self):
+        return len(self._options)
+
+    def __repr__(self):
+        return f"{self.name}({pformat(self._options, sort_dicts=False)})"
+
+    def __setitem__(self, key, value):
+        if key == "dtype" and value != self._options["dtype"]:
+            tmp_schema = get_schema(value)
+            tmp_dict = dict(self._options, dtype=value)
+            report = tmp_schema.validate(tmp_dict)
+            if report:
+                msg = (
+                    f"Cannot change the value for 'dtype' because its {tmp_schema.name} does not "
+                    f"validate the options:\n{report}"
+                )
+                raise ValidationError(msg)
+        else:
+            dict_to_validate = {key: value}
+            report = self.options_schema.validate(dict_to_validate, partial=True)
+            if report:
+                msg = f"{self.options_schema.name}: Cannot set {key!r} to {value!r}:\n{report}"
+                raise ValidationError(msg)
+        self._options[key] = value
+
+    @property
+    def options_dtype(self):
+        return self._options["dtype"]
+
+    @property
+    def options_schema(self):
+        """Returns the (instantiated) Dimcat singleton object for the class this Config describes."""
+        return get_schema(self.options_dtype)
+
+    @classmethod
+    def from_dict(cls, options, **kwargs) -> Self:
+        return cls(options, **kwargs)
+
+    @classmethod
+    def from_object(cls, obj: DimcatObject):
+        options = obj.to_dict()
+        return cls(options)
+
+    @property
+    def options(self):
+        """Returns the options dictionary wrapped and controlled by this DimcatConfig. Whenever a new value is set,
+        it is validated against the Schema of the DimcatObject specified under the key 'dtype'. Note that this property
+        returns a copy of the dictionary including the 'dtype' key and modifying it will not affect the DimcatConfig.
+        Also note that the returned value is different from DimcatConfig["options"]"""
+        return dict(self._options)
+
+    def create(self) -> DimcatObject:
+        return self.options_schema.load(self._options)
+
+    def matches(self, config: DimcatConfig) -> bool:
+        """Returns True if both configs have the same :attr:`options_dtype` and the overlapping options are equal."""
+        if not isinstance(config, DimcatConfig):
+            raise TypeError(
+                f"Can only compare against DimcatConfig, not {type(config)}."
+            )
+        if self.options_dtype != config.options_dtype:
+            return False
+        overlapping_keys = set(self.options.keys()) & set(config.options.keys())
+        for key in overlapping_keys:
+            if self[key] != config[key]:
+                return False
+        return True
+
+    def validate(self, partial=False) -> Dict[str, List[str]]:
+        """Validates the current status of the config in terms of ability to create an object. Empty dict == valid."""
+        return self.options_schema.validate(self._options, many=False, partial=partial)
 
 
-class PipelineStep(DimcatObject):
-    """
-    This abstract base class unites all classes able to transform some data in a pre-defined way.
-
-    The initializer will set some parameters of the transformation, and then the
-    :meth:`process` method is used to transform an input Data object, returning a copy.
+# endregion DimcatConfig
+# region Data and PipelineStep
 
 
-    """
-
-    class Schema(DimcatObject.Schema):
-        pass
-
-    def check(self, _) -> Tuple[bool, str]:
-        """Test piece of data for certain properties before computing analysis.
-
-        Returns:
-            True if the passed data is eligible.
-            Error message in case the passed data is not eligible.
-        """
-        return True, ""
-
-    def process(self, data: Data) -> Data:
-        """
-        Perform a transformation on an input Data object. This should never alter the
-        Data or its properties in place, instead returning a copy or view of the input.
-
-        Args:
-            data: The data to be transformed. This should not be altered in place.
-
-        Returns:
-            A copy of the input Data, potentially transformed in some way defined by this PipelineStep.
-        """
-        return data
-
-    @overload
-    def process_data(self, data: Data) -> Data:
-        ...
-
-    @overload
-    def process_data(self, data: Iterable[Data]) -> List[Data]:
-        ...
-
-    def process_data(
-        self, data: Union[Data, Iterable[Data]]
-    ) -> Union[Data, List[Data]]:
-        """Same as process(), with the difference that an Iterable is accepted."""
-        if isinstance(data, Data):
-            return self.process(data)
-        return [self.process(d) for d in data]
-
-
+# endregion Data and PipelineStep
+# region querying DimcatObjects by name
 @cache
 def get_class(name) -> Type[DimcatObject]:
     if isinstance(name, Enum):
@@ -556,6 +560,15 @@ def is_name_of_dimcat_class(name) -> bool:
         return True
     except KeyError:
         return False
+
+
+@cache
+def is_subclass_of(name: str, parent: str | Type[DimcatObject]) -> bool:
+    """Returns True if the DimcatObject with the given name is a subclass of the given parent."""
+    cls = get_class(name)
+    if isinstance(parent, str):
+        parent = get_class(parent)
+    return issubclass(cls, parent)
 
 
 @cache
@@ -590,3 +603,121 @@ def deserialize_json_file(json_file) -> DimcatObject:
     with open(json_file, "r") as f:
         json_data = f.read()
     return deserialize_json_str(json_data)
+
+
+# endregion querying DimcatObjects by name
+# region DimcatSettings
+
+
+@dataclass
+class DimcatSettings(DimcatObject):
+    """Settings for the dimcat library."""
+
+    never_store_unvalidated_data: bool = True
+    """setting this to False allows for skipping mandatory validations; set to True for production"""
+    recognized_piece_columns: List[str] = dataclass_field(
+        default_factory=lambda: ["piece", "pieces", "fname", "fnames"]
+    )
+    """column names that are recognized as piece identifiers and automatically renamed to 'piece' when needed"""
+
+    class Schema(DimcatObject.Schema):
+        never_store_unvalidated_data = mm.fields.Boolean(required=True)
+        recognized_piece_columns = mm.fields.List(mm.fields.String(), required=True)
+
+
+def parse_config_file(config_filepath: str) -> ConfigParser:
+    """Parse a config file and return a ConfigParser object."""
+    if not os.path.isfile(config_filepath):
+        raise FileNotFoundError(f"Config file '{config_filepath}' not found.")
+    config = ConfigParser()
+    config.read(config_filepath)
+    return config
+
+
+def make_default_settings() -> DimcatConfig:
+    """Make a DimcatConfig object representing DimcatSettings with default values."""
+    return DimcatSettings().to_config()
+
+
+def make_settings_from_config_parser(config: ConfigParser) -> DimcatConfig:
+    """Make a DimcatSettings object from a ConfigParser object."""
+    settings = make_default_settings()
+    # recognized_settings = [f.name for f in dataclass_fields(settings)]
+    all_section_names: list[str] = config.sections()
+    all_section_names.append("DEFAULT")
+    setting_fields = {
+        name: f for name, f in DimcatSettings.schema.declared_fields.items()
+    }
+    for section_name in all_section_names:
+        for key, value in config.items(section_name):
+            split_value = [
+                word for line in value.split("\n") for word in line.split(",")
+            ]
+            while "" in split_value:
+                split_value.remove("")
+            if len(split_value) > 1:
+                settings[key] = split_value
+            else:
+                setting_field = setting_fields[key]
+                if isinstance(setting_field, mm.fields.Boolean):
+                    value = value in setting_field.truthy
+                settings[key] = value
+    return settings
+
+
+def make_settings_from_config_file(config_filepath: str) -> DimcatConfig:
+    """Make a DimcatSettings object from a config file."""
+    try:
+        config = parse_config_file(config_filepath)
+    except FileNotFoundError:
+        logger.warning(
+            f"Config file '{config_filepath}' not found. Falling back to default settings."
+        )
+        return make_default_settings()
+    try:
+        return make_settings_from_config_parser(config)
+    except Exception as e:
+        logger.warning(
+            f"Error while parsing config file '{config_filepath}': {e}. Falling back to default settings."
+        )
+        return make_default_settings()
+
+
+def load_settings(config_filepath: Optional[str] = None) -> DimcatConfig:
+    """Get the DimcatSettings object."""
+    if config_filepath is None:
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        config_filepath = os.path.join(dir_path, "settings.ini")
+        if os.path.isfile(config_filepath):
+            settings = make_settings_from_config_file(config_filepath)
+            logger.info(f"Loaded default config file at '{config_filepath}'.")
+            return settings
+        else:
+            logger.warning(
+                f"No config file path was provided and the default config file was not found: "
+                f"{config_filepath}. Falling back to default."
+            )
+            return make_default_settings()
+    settings = make_settings_from_config_file(config_filepath)
+    logger.info(f"Loaded config file at '{config_filepath}'.")
+    return settings
+
+
+SETTINGS: DimcatConfig = load_settings()
+
+
+def get_setting(key: str) -> Any:
+    return SETTINGS[key]
+
+
+def change_setting(key: str, value: Any) -> None:
+    SETTINGS[key] = value
+
+
+def reset_settings(config_filepath: Optional[str] = None) -> None:
+    """Reset the DiMCAT settings to the default or to those found in the settings.ini file at the given path."""
+    global SETTINGS
+    SETTINGS = load_settings(config_filepath)
+
+
+# endregion DimcatSettings

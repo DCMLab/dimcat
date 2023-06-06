@@ -3,20 +3,25 @@ Configuring the test suite.
 """
 import os
 
-import pandas as pd
+import frictionless as fl
 import pytest
-from dimcat.resources.base import DimcatResource
+from dimcat.data.dataset import Dataset
+from dimcat.data.dataset.base import DimcatPackage
+from dimcat.data.resources.base import DimcatResource
+from dimcat.data.resources.utils import load_fl_resource
 from git import Repo
 
 # ----------------------------- SETTINGS -----------------------------
 # Directory holding your clone of github.com/DCMLab/unittest_metacorpus
 CORPUS_DIR = "~"
 
+# region test directories and files
+
 
 def corpus_path():
     """Compose the paths for the test corpora."""
     print("Path was requested")
-    repo_name, test_commit = ("unittest_metacorpus", "4ce49d9")
+    repo_name, test_commit = ("unittest_metacorpus", "40e0841")
     path = os.path.join(CORPUS_DIR, repo_name)
     path = os.path.expanduser(path)
     assert os.path.isdir(path)
@@ -37,6 +42,22 @@ RESOURCE_PATHS = {
 }
 
 
+def single_resource_path() -> str:
+    """Returns the path to a single resource."""
+    return RESOURCE_PATHS["unittest_notes.resource.yaml"]
+
+
+def datapackage_json_path() -> str:
+    """Returns the path to a single resource."""
+    return os.path.join(CORPUS_PATH, "datapackage.json")
+
+
+@pytest.fixture(scope="session")
+def resource_descriptor_filepath(resource_path) -> str:
+    """Returns the path to the descriptor file."""
+    return os.path.relpath(resource_path, CORPUS_PATH)
+
+
 @pytest.fixture(scope="session", params=RESOURCE_PATHS.values(), ids=RESOURCE_PATHS)
 def resource_path(request):
     return request.param
@@ -47,19 +68,206 @@ def package_path():
     return os.path.join(CORPUS_PATH, "datapackage.json")
 
 
-def single_resource_path() -> str:
-    """Returns the path to a single resource."""
-    return RESOURCE_PATHS["unittest_notes.resource.yaml"]
+@pytest.fixture()
+def tmp_serialization_path(request, tmp_path_factory):
+    """Returns the path to the directory where serialized resources are stored."""
+    if request.cls is None:
+        name = request.function.__name__
+    else:
+        name = request.cls.__name__
+    return str(tmp_path_factory.mktemp(name))
 
 
-def single_dataframe() -> pd.DataFrame:
-    """Creates a DimcatResource and returns its dataframe."""
-    return DimcatResource(single_resource_path()).df
+# endregion test directories and files
+# region DimcatResource objects
 
 
-def datapackage_json_path() -> str:
-    """Returns the path to a single resource."""
-    return os.path.join(CORPUS_PATH, "datapackage.json")
+@pytest.fixture(scope="session")
+def fl_resource(resource_path):
+    """Returns a frictionless resource object."""
+    return fl.Resource(resource_path)
+
+
+@pytest.fixture()
+def assembled_resource(
+    dataframe_from_fl_resource, fl_resource, tmp_serialization_path
+) -> DimcatResource:
+    resource = DimcatResource(
+        basepath=tmp_serialization_path,
+        resource_name=fl_resource.name,
+    )
+    resource.df = dataframe_from_fl_resource
+    return resource
+
+
+@pytest.fixture(scope="session")
+def dataframe_from_fl_resource(fl_resource):
+    """Returns a dataframe read directly from the normpath of the fl_resource."""
+    return load_fl_resource(fl_resource)
+
+
+@pytest.fixture()
+def empty_resource():
+    return DimcatResource(resource_name="empty_resource")
+
+
+@pytest.fixture()
+def empty_resource_with_paths(tmp_serialization_path):
+    return DimcatResource(
+        basepath=tmp_serialization_path, filepath="empty_resource.tsv"
+    )
+
+
+@pytest.fixture()
+def resource_from_config(resource_from_descriptor):
+    """Returns a DimcatResource object created from the descriptor on disk."""
+    config = resource_from_descriptor.to_config()
+    return DimcatResource.from_config(config)
+
+
+@pytest.fixture()
+def resource_from_dataframe(
+    dataframe_from_fl_resource,
+    fl_resource,
+    tmp_serialization_path,
+    resource_descriptor_filepath,
+) -> DimcatResource:
+    """Returns a DimcatResource object created from the dataframe."""
+    return DimcatResource.from_dataframe(
+        df=dataframe_from_fl_resource,
+        resource_name=fl_resource.name,
+        basepath=tmp_serialization_path,
+        column_schema=fl_resource.schema,
+    )
+
+
+@pytest.fixture()
+def resource_from_descriptor(resource_path):
+    """Returns a DimcatResource object created from the descriptor on disk."""
+    return DimcatResource.from_descriptor(descriptor_path=resource_path)
+
+
+@pytest.fixture()
+def resource_from_dict(resource_from_descriptor):
+    """Returns a DimcatResource object created from the descriptor source."""
+    as_dict = resource_from_descriptor.to_dict()
+    return DimcatResource.from_dict(as_dict)
+
+
+@pytest.fixture()
+def resource_from_fl_resource(
+    fl_resource, resource_descriptor_filepath
+) -> DimcatResource:
+    """Returns a Dimcat resource object created from the frictionless.Resource object."""
+    return DimcatResource(
+        resource=fl_resource, descriptor_filepath=resource_descriptor_filepath
+    )
+
+
+@pytest.fixture()
+def resource_from_frozen_resource(resource_from_descriptor):
+    """Returns a DimcatResource object created from a frozen resource."""
+    return DimcatResource.from_resource(resource_from_descriptor)
+
+
+@pytest.fixture()
+def resource_from_memory_resource(resource_from_dataframe):
+    """Returns a DimcatResource object created from a frozen resource."""
+    return DimcatResource.from_resource(resource_from_dataframe)
+
+
+@pytest.fixture()
+def schema_resource(fl_resource):
+    """Returns a (empty) DimcatResource with a pre-set frictionless.Schema object."""
+    return DimcatResource(column_schema=fl_resource.schema)
+
+
+@pytest.fixture()
+def serialized_resource(resource_from_dataframe) -> DimcatResource:
+    resource_from_dataframe.store_dataframe()
+    return resource_from_dataframe
+
+
+@pytest.fixture()
+def zipped_resource_from_dc_package(
+    package_from_fl_package, package_descriptor_filepath
+) -> DimcatResource:
+    dc_resource = package_from_fl_package.get_resource("notes")
+    return DimcatResource.from_resource(
+        dc_resource, descriptor_filepath=package_descriptor_filepath
+    )
+
+
+@pytest.fixture()
+def zipped_resource_from_fl_package(
+    fl_package,
+    package_descriptor_filepath,
+) -> DimcatResource:
+    """Returns a DimcatResource object created from the dataframe."""
+    fl_resource = fl_package.get_resource("notes")
+    return DimcatResource(
+        resource=fl_resource, descriptor_filepath=package_descriptor_filepath
+    )
+
+
+@pytest.fixture(
+    params=[
+        "assembled_resource",
+        "empty_resource",
+        "empty_resource_with_paths",
+        "resource_from_config",
+        "resource_from_dataframe",
+        "resource_from_descriptor",
+        "resource_from_dict",
+        "resource_from_fl_resource",
+        "resource_from_frozen_resource",
+        "resource_from_memory_resource",
+        "schema_resource",
+        "serialized_resource",
+        "zipped_resource_from_dc_package",
+        "zipped_resource_from_fl_package",
+    ]
+)
+def resource_object(
+    request,
+    assembled_resource,
+    empty_resource,
+    empty_resource_with_paths,
+    resource_from_config,
+    resource_from_dataframe,
+    resource_from_descriptor,
+    resource_from_dict,
+    resource_from_fl_resource,
+    resource_from_frozen_resource,
+    resource_from_memory_resource,
+    schema_resource,
+    serialized_resource,
+    zipped_resource_from_dc_package,
+    zipped_resource_from_fl_package,
+):
+    yield request.getfixturevalue(request.param)
+
+
+# endregion DimcatResource objects
+
+
+@pytest.fixture()
+def fl_package(package_path) -> fl.Package:
+    """Returns a frictionless package object."""
+    return fl.Package(package_path)
+
+
+@pytest.fixture()
+def package_from_fl_package(fl_package) -> DimcatPackage:
+    """Returns a DimcatPackage object."""
+    return DimcatPackage(fl_package)
+
+
+@pytest.fixture()
+def dataset_from_single_package(package_path):
+    dataset = Dataset()
+    dataset.load_package(package_path)
+    return dataset
 
 
 # region deprecated
@@ -283,5 +491,6 @@ def datapackage_json_path() -> str:
 #     filtered_data = request.param.process_data(corpus)
 #     print(f"\n{pretty_dict(filtered_data.indices)}")
 #     return filtered_data
+
 
 # endregion deprecated

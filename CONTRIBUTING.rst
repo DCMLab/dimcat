@@ -112,6 +112,41 @@ Code Contributions
    main concepts will make it easy for potential contributors to get started
    quickly.
 
+Coding Conventions
+------------------
+
+Internal imports
+~~~~~~~~~~~~~~~~
+
+The top level of the `src/dimcat` directory consists of the two packages ``data`` and ``steps`` and a couple of
+files which, here, we call ``base``.
+
+* All modules can import from ``base`` and ``data``.
+* ``data`` modules should not import from ``steps``. The only case where currently it would have been required so far
+  are the classes :class:`dimcat.steps.base.Pipeline` and :class:`dimcat.steps.extractors.FeatureExtractor`, which
+  :class:`dimcat.data.dataset.Dataset` uses explicitly. In these cases, importing from ``steps`` is circumvented using
+  the :func:`dimcat.base.get_class` function.
+
+Method ordering
+~~~~~~~~~~~~~~~
+
+* class members
+
+  * class variables
+  * `@staticmethod`
+  * `@classmethod
+     @property`
+  * `@classmethod`
+  * nested classes (esp. `Schema()`)
+
+* instance members
+
+  * `__init__()`
+  * magic methods
+  * `@property` and setters
+  * public and private methods
+
+
 Submit an issue
 ---------------
 
