@@ -8,6 +8,7 @@
 """
 import math
 import os
+import platform
 from collections import defaultdict
 
 import pytest
@@ -231,3 +232,14 @@ def filter(request, corpus):
     filtered_data = request.param.process_data(corpus)
     print(f"\n{pretty_dict(filtered_data.indices)}")
     return filtered_data
+
+
+# This ensures that the pandas version and the python version are put inserted into the test report.
+# It is particularly useful with tox.
+from _pytest.terminal import TerminalReporter
+def pytest_terminal_summary(terminalreporter : TerminalReporter, exitstatus, config ):
+    terminalreporter.write_sep("=", "Versions summary", bold=True)
+    import pandas as pd
+    
+    terminalreporter.write_line(f"Python version : {platform.python_version()}")
+    terminalreporter.write_line(f"Pandas version : {pd.__version__}")
