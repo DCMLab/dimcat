@@ -22,7 +22,7 @@ from git import Repo
 
 # ----------------------------- SETTINGS -----------------------------
 # Directory holding your clone of github.com/DCMLab/unittest_metacorpus
-CORPUS_DIR = "~"
+CORPUS_DIR = os.path.abspath("..")
 
 # region test directories and files
 
