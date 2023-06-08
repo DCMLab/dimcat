@@ -1,3 +1,6 @@
 [submodule "docs/notebooks"]
 	path = docs/notebooks
 	url = https://github.com/DCMLab/data_reports.git
+[submodule "unittest_metacorpus"]
+	path = unittest_metacorpus
+	url = https://github.com/DCMLab/unittest_metacorpus
