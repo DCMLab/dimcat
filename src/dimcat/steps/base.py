@@ -71,10 +71,7 @@ class PipelineStep(DimcatObject):
                     data["features"] = [data["features"]]
                 feature_list = []
                 for feature in data["features"]:
-                    if not isinstance(feature, DimcatConfig):
-                        feature_list.append(DimcatConfig(feature))
-                    else:
-                        feature_list.append(feature)
+                    feature_list.append(feature)
                 data["features"] = feature_list
             return data
 
