@@ -27,7 +27,7 @@ def pytest_terminal_summary(terminalreporter: TerminalReporter, exitstatus, conf
 
 # ----------------------------- SETTINGS -----------------------------
 # Directory holding your clone of github.com/DCMLab/unittest_metacorpus
-CORPUS_DIR = "~"
+CORPUS_DIR = os.path.abspath("..")
 
 # region test directories and files
 
