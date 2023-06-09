@@ -22,7 +22,8 @@ from git import Repo
 
 # ----------------------------- SETTINGS -----------------------------
 # Directory holding your clone of github.com/DCMLab/unittest_metacorpus
-CORPUS_DIR = os.path.abspath("..")
+TEST_DIR = os.path.dirname(os.path.abspath(__file__))
+CORPUS_DIR = os.path.abspath(os.path.join(TEST_DIR, ".."))
 
 # region test directories and files
 
