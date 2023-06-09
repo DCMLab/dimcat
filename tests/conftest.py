@@ -4,21 +4,23 @@ Configuring the test suite.
 import os
 import platform
 
+import frictionless as fl
+import pytest
+from _pytest.terminal import TerminalReporter
+from dimcat.data.dataset import Dataset
+from dimcat.data.dataset.base import DimcatPackage
+from dimcat.data.resources.base import DimcatResource
+from dimcat.data.resources.utils import load_fl_resource
+from git import Repo
 
-def pytest_terminal_summary(terminalreporter : TerminalReporter, exitstatus, config ):
+
+def pytest_terminal_summary(terminalreporter: TerminalReporter, exitstatus, config):
     terminalreporter.write_sep("=", "Versions summary", bold=True)
     import pandas as pd
 
     terminalreporter.write_line(f"Python version : {platform.python_version()}")
     terminalreporter.write_line(f"Pandas version : {pd.__version__}")
 
-import frictionless as fl
-import pytest
-from dimcat.data.dataset import Dataset
-from dimcat.data.dataset.base import DimcatPackage
-from dimcat.data.resources.base import DimcatResource
-from dimcat.data.resources.utils import load_fl_resource
-from git import Repo
 
 # ----------------------------- SETTINGS -----------------------------
 # Directory holding your clone of github.com/DCMLab/unittest_metacorpus
@@ -504,12 +506,3 @@ def dataset_from_single_package(package_path):
 
 
 # endregion deprecated
-
-
-
-def pytest_terminal_summary(terminalreporter : TerminalReporter, exitstatus, config ):
-    terminalreporter.write_sep("=", "Versions summary", bold=True)
-    import pandas as pd
-
-    terminalreporter.write_line(f"Python version : {platform.python_version()}")
-    terminalreporter.write_line(f"Pandas version : {pd.__version__}")
