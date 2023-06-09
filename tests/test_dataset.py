@@ -8,7 +8,7 @@ from dimcat.data.dataset.processed import (
 )
 from dimcat.data.resources.base import ResourceStatus
 
-from tests.conftest import CORPUS_PATH
+from .conftest import CORPUS_PATH
 
 # region test DimcatPackage objects
 
