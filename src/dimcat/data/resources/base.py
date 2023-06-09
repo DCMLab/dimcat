@@ -1173,8 +1173,6 @@ class DimcatResource(Generic[D], Data):
             )
         if self.status < ResourceStatus.DATAFRAME:
             raise RuntimeError(f"This {self.name} does not contain a dataframe.")
-        if validate and self.status < ResourceStatus.VALIDATED:
-            _ = self.validate(raise_exception=True)
 
         full_path = self.normpath
         if os.path.isfile(full_path):
@@ -1183,6 +1181,22 @@ class DimcatResource(Generic[D], Data):
             )
         ms3.write_tsv(self.df, full_path)
         self._store_descriptor()
+        if validate:
+            report = self.validate(raise_exception=False)
+            if report.valid:
+                self.logger.info(f"Resource stored to {full_path} and validated.")
+            else:
+                errors = "\n".join(
+                    str(err.message) for task in report.tasks for err in task.errors
+                )
+                msg = f"The resource did not validate after being stored to {full_path}:\n{errors}"
+                if get_setting("never_store_unvalidated_data"):
+                    os.remove(full_path)
+                    (
+                        msg
+                        + "\nThe file was deleted because of the 'never_store_unvalidated_data' setting."
+                    )
+                self.logger.warning(msg)
         self._status = ResourceStatus.STANDALONE_LOADED
 
     def _store_descriptor(
