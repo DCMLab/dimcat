@@ -1,0 +1,761 @@
+{
+    "name": "dcml_corpora",
+    "resources": [
+        {
+            "name": "measures",
+            "type": "table",
+            "path": "dcml_corpora.zip",
+            "scheme": "file",
+            "format": "tsv",
+            "mediatype": "text/tsv",
+            "compression": "zip",
+            "innerpath": "measures.tsv",
+            "encoding": "utf-8",
+            "dialect": {
+                "csv": {
+                    "delimiter": "\t"
+                }
+            },
+            "schema": {
+                "fields": [
+                    {
+                        "name": "corpus",
+                        "type": "string",
+                        "constraints": {
+                            "required": true
+                        }
+                    },
+                    {
+                        "name": "fname",
+                        "type": "string",
+                        "constraints": {
+                            "required": true
+                        }
+                    },
+                    {
+                        "name": "i",
+                        "type": "integer",
+                        "constraints": {
+                            "required": true
+                        }
+                    },
+                    {
+                        "name": "mc",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "mn",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "quarterbeats",
+                        "type": "string"
+                    },
+                    {
+                        "name": "duration_qb",
+                        "type": "number"
+                    },
+                    {
+                        "name": "keysig",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "timesig",
+                        "type": "string"
+                    },
+                    {
+                        "name": "act_dur",
+                        "type": "string"
+                    },
+                    {
+                        "name": "mc_offset",
+                        "type": "string"
+                    },
+                    {
+                        "name": "numbering_offset",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "dont_count",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "barline",
+                        "type": "string"
+                    },
+                    {
+                        "name": "breaks",
+                        "type": "string"
+                    },
+                    {
+                        "name": "repeats",
+                        "type": "string"
+                    },
+                    {
+                        "name": "next",
+                        "type": "array"
+                    },
+                    {
+                        "name": "quarterbeats_all_endings",
+                        "type": "string"
+                    },
+                    {
+                        "name": "volta",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "markers",
+                        "type": "string"
+                    },
+                    {
+                        "name": "jump_bwd",
+                        "type": "string"
+                    },
+                    {
+                        "name": "jump_fwd",
+                        "type": "string"
+                    },
+                    {
+                        "name": "play_until",
+                        "type": "string"
+                    }
+                ],
+                "primaryKey": [
+                    "corpus",
+                    "fname",
+                    "i"
+                ]
+            }
+        },
+        {
+            "name": "notes",
+            "type": "table",
+            "path": "dcml_corpora.zip",
+            "scheme": "file",
+            "format": "tsv",
+            "mediatype": "text/tsv",
+            "compression": "zip",
+            "innerpath": "notes.tsv",
+            "encoding": "utf-8",
+            "dialect": {
+                "csv": {
+                    "delimiter": "\t"
+                }
+            },
+            "schema": {
+                "fields": [
+                    {
+                        "name": "corpus",
+                        "type": "string",
+                        "constraints": {
+                            "required": true
+                        }
+                    },
+                    {
+                        "name": "fname",
+                        "type": "string",
+                        "constraints": {
+                            "required": true
+                        }
+                    },
+                    {
+                        "name": "i",
+                        "type": "integer",
+                        "constraints": {
+                            "required": true
+                        }
+                    },
+                    {
+                        "name": "mc",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "mn",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "quarterbeats",
+                        "type": "string"
+                    },
+                    {
+                        "name": "duration_qb",
+                        "type": "number"
+                    },
+                    {
+                        "name": "mc_onset",
+                        "type": "string"
+                    },
+                    {
+                        "name": "mn_onset",
+                        "type": "string"
+                    },
+                    {
+                        "name": "timesig",
+                        "type": "string"
+                    },
+                    {
+                        "name": "staff",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "voice",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "duration",
+                        "type": "string"
+                    },
+                    {
+                        "name": "gracenote",
+                        "type": "string"
+                    },
+                    {
+                        "name": "nominal_duration",
+                        "type": "string"
+                    },
+                    {
+                        "name": "scalar",
+                        "type": "string"
+                    },
+                    {
+                        "name": "tied",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "tpc",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "midi",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "name",
+                        "type": "string"
+                    },
+                    {
+                        "name": "octave",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "chord_id",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "tremolo",
+                        "type": "string"
+                    },
+                    {
+                        "name": "volta",
+                        "type": "integer"
+                    }
+                ],
+                "primaryKey": [
+                    "corpus",
+                    "fname",
+                    "i"
+                ]
+            }
+        },
+        {
+            "name": "expanded",
+            "type": "table",
+            "path": "dcml_corpora.zip",
+            "scheme": "file",
+            "format": "tsv",
+            "mediatype": "text/tsv",
+            "compression": "zip",
+            "innerpath": "expanded.tsv",
+            "encoding": "utf-8",
+            "dialect": {
+                "csv": {
+                    "delimiter": "\t"
+                }
+            },
+            "schema": {
+                "fields": [
+                    {
+                        "name": "corpus",
+                        "type": "string",
+                        "constraints": {
+                            "required": true
+                        }
+                    },
+                    {
+                        "name": "fname",
+                        "type": "string",
+                        "constraints": {
+                            "required": true
+                        }
+                    },
+                    {
+                        "name": "i",
+                        "type": "integer",
+                        "constraints": {
+                            "required": true
+                        }
+                    },
+                    {
+                        "name": "mc",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "mn",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "quarterbeats",
+                        "type": "string"
+                    },
+                    {
+                        "name": "duration_qb",
+                        "type": "number"
+                    },
+                    {
+                        "name": "mc_onset",
+                        "type": "string"
+                    },
+                    {
+                        "name": "mn_onset",
+                        "type": "string"
+                    },
+                    {
+                        "name": "timesig",
+                        "type": "string"
+                    },
+                    {
+                        "name": "staff",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "voice",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "label",
+                        "type": "string"
+                    },
+                    {
+                        "name": "globalkey",
+                        "type": "string"
+                    },
+                    {
+                        "name": "localkey",
+                        "type": "string"
+                    },
+                    {
+                        "name": "pedal",
+                        "type": "string"
+                    },
+                    {
+                        "name": "chord",
+                        "type": "string"
+                    },
+                    {
+                        "name": "special",
+                        "type": "string"
+                    },
+                    {
+                        "name": "numeral",
+                        "type": "string"
+                    },
+                    {
+                        "name": "form",
+                        "type": "string"
+                    },
+                    {
+                        "name": "figbass",
+                        "type": "string"
+                    },
+                    {
+                        "name": "changes",
+                        "type": "string"
+                    },
+                    {
+                        "name": "relativeroot",
+                        "type": "string"
+                    },
+                    {
+                        "name": "cadence",
+                        "type": "string"
+                    },
+                    {
+                        "name": "phraseend",
+                        "type": "string"
+                    },
+                    {
+                        "name": "chord_type",
+                        "type": "string"
+                    },
+                    {
+                        "name": "globalkey_is_minor",
+                        "type": "boolean"
+                    },
+                    {
+                        "name": "localkey_is_minor",
+                        "type": "boolean"
+                    },
+                    {
+                        "name": "chord_tones",
+                        "type": "array"
+                    },
+                    {
+                        "name": "added_tones",
+                        "type": "array"
+                    },
+                    {
+                        "name": "root",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "bass_note",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "alt_label",
+                        "type": "string"
+                    },
+                    {
+                        "name": "volta",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "pedalend",
+                        "type": "string"
+                    },
+                    {
+                        "name": "placement",
+                        "type": "string"
+                    }
+                ],
+                "primaryKey": [
+                    "corpus",
+                    "fname",
+                    "i"
+                ]
+            }
+        },
+        {
+            "name": "metadata",
+            "type": "table",
+            "path": "dcml_corpora.zip",
+            "scheme": "file",
+            "format": "tsv",
+            "mediatype": "text/tsv",
+            "compression": "zip",
+            "innerpath": "metadata.tsv",
+            "encoding": "utf-8",
+            "dialect": {
+                "csv": {
+                    "delimiter": "\t"
+                }
+            },
+            "schema": {
+                "fields": [
+                    {
+                        "name": "corpus",
+                        "type": "string",
+                        "constraints": {
+                            "required": true
+                        }
+                    },
+                    {
+                        "name": "fname",
+                        "type": "string",
+                        "constraints": {
+                            "required": true
+                        }
+                    },
+                    {
+                        "name": "TimeSig",
+                        "type": "string"
+                    },
+                    {
+                        "name": "KeySig",
+                        "type": "string"
+                    },
+                    {
+                        "name": "last_mc",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "last_mn",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "length_qb",
+                        "type": "number"
+                    },
+                    {
+                        "name": "last_mc_unfolded",
+                        "type": "number"
+                    },
+                    {
+                        "name": "last_mn_unfolded",
+                        "type": "number"
+                    },
+                    {
+                        "name": "length_qb_unfolded",
+                        "type": "number"
+                    },
+                    {
+                        "name": "volta_mcs",
+                        "type": "string"
+                    },
+                    {
+                        "name": "all_notes_qb",
+                        "type": "number"
+                    },
+                    {
+                        "name": "n_onsets",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "n_onset_positions",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "guitar_chord_count",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "form_label_count",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "label_count",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "annotated_key",
+                        "type": "string"
+                    },
+                    {
+                        "name": "harmony_version",
+                        "type": "string"
+                    },
+                    {
+                        "name": "annotators",
+                        "type": "string"
+                    },
+                    {
+                        "name": "reviewers",
+                        "type": "string"
+                    },
+                    {
+                        "name": "composed_start",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "composed_end",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "composer",
+                        "type": "string"
+                    },
+                    {
+                        "name": "workTitle",
+                        "type": "string"
+                    },
+                    {
+                        "name": "movementNumber",
+                        "type": "string"
+                    },
+                    {
+                        "name": "movementTitle",
+                        "type": "string"
+                    },
+                    {
+                        "name": "workNumber",
+                        "type": "string"
+                    },
+                    {
+                        "name": "poet",
+                        "type": "number"
+                    },
+                    {
+                        "name": "lyricist",
+                        "type": "string"
+                    },
+                    {
+                        "name": "arranger",
+                        "type": "number"
+                    },
+                    {
+                        "name": "copyright",
+                        "type": "string"
+                    },
+                    {
+                        "name": "creationDate",
+                        "type": "string"
+                    },
+                    {
+                        "name": "mscVersion",
+                        "type": "number"
+                    },
+                    {
+                        "name": "platform",
+                        "type": "string"
+                    },
+                    {
+                        "name": "source",
+                        "type": "string"
+                    },
+                    {
+                        "name": "translator",
+                        "type": "number"
+                    },
+                    {
+                        "name": "title_text",
+                        "type": "string"
+                    },
+                    {
+                        "name": "lyricist_text",
+                        "type": "string"
+                    },
+                    {
+                        "name": "composer_text",
+                        "type": "string"
+                    },
+                    {
+                        "name": "musescore",
+                        "type": "string"
+                    },
+                    {
+                        "name": "ms3_version",
+                        "type": "string"
+                    },
+                    {
+                        "name": "subdirectory",
+                        "type": "string"
+                    },
+                    {
+                        "name": "rel_path",
+                        "type": "string"
+                    },
+                    {
+                        "name": "has_drumset",
+                        "type": "boolean"
+                    },
+                    {
+                        "name": "ambitus",
+                        "type": "string"
+                    },
+                    {
+                        "name": "comments",
+                        "type": "string"
+                    },
+                    {
+                        "name": "originalFormat",
+                        "type": "string"
+                    },
+                    {
+                        "name": "staff_1_ambitus",
+                        "type": "string"
+                    },
+                    {
+                        "name": "staff_1_instrument",
+                        "type": "string"
+                    },
+                    {
+                        "name": "staff_2_ambitus",
+                        "type": "string"
+                    },
+                    {
+                        "name": "staff_2_instrument",
+                        "type": "string"
+                    },
+                    {
+                        "name": "staff_3_ambitus",
+                        "type": "string"
+                    },
+                    {
+                        "name": "staff_3_instrument",
+                        "type": "string"
+                    },
+                    {
+                        "name": "staff_4_ambitus",
+                        "type": "string"
+                    },
+                    {
+                        "name": "staff_4_instrument",
+                        "type": "string"
+                    },
+                    {
+                        "name": "composed_source",
+                        "type": "string"
+                    },
+                    {
+                        "name": "subtitle_text",
+                        "type": "string"
+                    },
+                    {
+                        "name": "imslp",
+                        "type": "string"
+                    },
+                    {
+                        "name": "musicbrainz",
+                        "type": "string"
+                    },
+                    {
+                        "name": "viaf",
+                        "type": "string"
+                    },
+                    {
+                        "name": "wikidata",
+                        "type": "string"
+                    },
+                    {
+                        "name": "score_integrity",
+                        "type": "string"
+                    },
+                    {
+                        "name": "imslp.1",
+                        "type": "string"
+                    },
+                    {
+                        "name": "key",
+                        "type": "string"
+                    },
+                    {
+                        "name": "mode",
+                        "type": "string"
+                    },
+                    {
+                        "name": "typesetter",
+                        "type": "string"
+                    },
+                    {
+                        "name": "electronic editor",
+                        "type": "string"
+                    },
+                    {
+                        "name": "electronic encoder",
+                        "type": "string"
+                    },
+                    {
+                        "name": "text",
+                        "type": "string"
+                    },
+                    {
+                        "name": "pdf",
+                        "type": "string"
+                    },
+                    {
+                        "name": "score integrity",
+                        "type": "string"
+                    },
+                    {
+                        "name": "PDF",
+                        "type": "string"
+                    }
+                ],
+                "primaryKey": [
+                    "corpus",
+                    "fname"
+                ]
+            }
+        }
+    ]
+}
