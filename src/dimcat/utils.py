@@ -203,3 +203,11 @@ def check_name(name: str) -> None:
         raise ValueError(
             f"Name can only contain [a-z], [0-9], [-._/], and no spaces: {name!r}"
         )
+
+
+def clean_basepath(path: str) -> str:
+    """If a basepath starts with the (home) directory that "~" resolves to, replace that part with "~"."""
+    home = os.path.expanduser("~")
+    if path.startswith(home):
+        path = "~" + path[len(home) :]
+    return path
