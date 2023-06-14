@@ -29,7 +29,7 @@ def pytest_terminal_summary(terminalreporter: TerminalReporter, exitstatus, conf
 # Directory holding your clone of github.com/DCMLab/unittest_metacorpus
 TEST_DIR = os.path.dirname(os.path.abspath(__file__))
 logger.debug(f"TEST_DIR: {TEST_DIR!r}. Contents: {os.listdir(TEST_DIR)}")
-CORPUS_DIR = os.path.abspath(os.path.join(TEST_DIR, ".."))
+CORPUS_DIR = os.path.abspath("..")
 logger.debug(f"CORPUS_DIR: {CORPUS_DIR!r}. Contents: {os.listdir(CORPUS_DIR)}")
 
 # region test directories and files
