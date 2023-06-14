@@ -311,7 +311,7 @@ class DimcatConfig(MutableMapping, DimcatObject):
 
     Examples:
 
-        >>> from dimcat import DimcatConfig, DimcatObject
+        >>> from dimcat.base import DimcatConfig, DimcatObject
         >>> DC = DimcatConfig(dtype="DimcatObject")
         >>> DC.dtype
         'DimcatConfig'
