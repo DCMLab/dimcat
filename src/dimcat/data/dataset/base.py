@@ -777,13 +777,13 @@ class DimcatCatalog(Data):
         basepath = mm.fields.Str(
             required=False,
             allow_none=True,
-            description="The basepath for all packages in the catalog.",
+            metadata=dict(description="The basepath for all packages in the catalog."),
         )
         packages = mm.fields.List(
             mm.fields.Nested(DimcatPackage.Schema),
             required=False,
             allow_none=True,
-            description="The packages in the catalog.",
+            metadata=dict(description="The packages in the catalog."),
         )
 
     def __init__(

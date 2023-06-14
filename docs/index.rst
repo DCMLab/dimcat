@@ -11,14 +11,12 @@ Contents
    :maxdepth: 3
 
    Overview <readme>
-   tutorial
    manual
-   notebooks
+   Module Reference <api/modules>
    Contributions & Help <contributing>
-   License <license>
+   License <LICENSE>
    Authors <authors>
    Changelog <changelog>
-   Module Reference <api/modules>
 
 
 Indices and tables

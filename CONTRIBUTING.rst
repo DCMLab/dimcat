@@ -106,11 +106,61 @@ and use Python's built-in web server for a preview in your web browser
 Code Contributions
 ==================
 
-.. todo:: Please include a reference or explanation about the internals of the project.
+DiMCAT architecture
+-------------------
 
-   An architecture description, design principles or at least a summary of the
-   main concepts will make it easy for potential contributors to get started
-   quickly.
+1. The library is called DiMCAT and has three high-level objects:
+
+   a. :class:`~.DimcatObject` ("object"): the base class for all objects that manages object creation and serialization and subclass registration.
+      The DimcatObject class has a class attribute called _registry that is a dictionary of all subclasses of DimcatObject.
+      Each DimcatObject has a nested class called Schema that inherits from DimcatSchema.
+   #. :class:`~.DimcatSchema` ("schema"): the base class for all nested Schema classes, inheriting from marshmallow.Schema.
+      The Schema defines the valid values ranges for all attributes of the DimcatObject and how to serialize and deserialize them.
+   #. :class:`~.DimcatConfig` ("config"): a DimcatObject that can represent a subset of the attributes of another DimcatObject and instantiate it using the .create() method.
+      It derives from MutableMapping and used for communicating about and checking the compatibility of DimcatObjects.
+
+#. The nested Schema corresponding to each DimcatObject is instantiated as a singleton and can be retrieved via the class attribute :attr:`~.DimcatObject.schema`.
+   Using this Schema, a DimcatObject can be serialized to and deserialized from:
+
+   a. a dictionary using the :meth:`~.DimcatObject.to_dict` and :meth:`~.DimcatObject.from_dict` methods.
+   #. a DimcatConfig object using the :meth:`~.DimcatObject.to_config` and :meth:`~.DimcatObject.from_config` methods.
+   #. a JSON string using the :meth:`~.DimcatObject.to_json` and :meth:`~.DimcatObject.from_json` methods.
+   #. a JSON file using the :meth:`~.DimcatObject.to_json_file` and :meth:`~.DimcatObject.from_json_file` methods.
+
+   In the following, by "serialized object" we mean its representation as a DimcatConfig if not otherwise specified.
+
+#. All objects that are neither a schema nor a config are one of the two following subclasses of DimcatObject:
+
+   a. :class:`~.Data`: a DimcatObject that represents a dataset, a subset of a dataset, or a an individual resource such as a dataframe.
+   #. :class:`~.PipelineStep`: a DimcatObject that accepts a Data object as input and returns a Data object as output.
+
+#. The principal Data object is called :class:`~.Dataset` and is the one that users will interact with the most.
+   The Dataset provides convenience methods that are equivalent to applying the corresponding PipelineStep.
+   Every PipelineStep applied to it will return a new Dataset that can be serialized and deserialized to re-start the pipeline from that point.
+   To that aim, every Dataset stores a serialization of the applied PipelineSteps and of the original Dataset that served as initial input.
+   This initial input is specified as a :class:`~.DimcatCatalog` which is a collection of :class:`DimcatPackages <.data.dataset.base.DimcatPackage>`,
+   each of which is a collection of :class:`DimcatResources <.data.resources.base.DimcatResource>`,
+   as defined by the `Frictionless Data specifications <https://frictionlessdata.io>`__.
+   The preferred structure of a DimcatPackage is a .zip and a datapackage.json file, where the former contains one or several .tsv files (resources) described in the latter.
+   Since the data that DiMCAT transforms and analyzes comes from very heterogeneous sources, each original corpus is pre-processed and stored as a `frictionless.Package <https://framework.frictionlessdata.io/docs/framework/package.html>`__ together with the metadata relevant for reproducing the pre-processing.
+#. It follows that the Dataset is mainly a container for :class:`DimcatResources <.data.resources.base.DimcatResource>` namely:
+
+   a. Facets, i.e. the resources described in the original datapackage.json. They aim to stay as faithful as possible to the original data, applying only mild standardization and normalization.
+      All Facet resources come with several columns that represent timestamps both in absolute and in musical time, allowing for the alignment of different corpora.
+      The `Frictionless resource <https://framework.frictionlessdata.io/docs/framework/resource.html>`__ descriptors listed in the datapackage.json contain both the column schema and the piece IDs that are present in each of the facets.
+   #. :class:`Features <.data.resources.features.Feature>`, i.e. resources derived from Facets by applying PipelineSteps. They are standardized objects that are requested by the PipelineSteps to compute statistics and visualizations.
+      To allow for straightforward serialization of the Dataset, all Feature resources are represented as a DimcatCatalog called `outputs`, which can be stored as .tsv files in one or several .zip files.
+
+#. A :class:`~.DimcatResource` functions similarly to the `frictionless.Resource <https://framework.frictionlessdata.io/docs/framework/resource.html>`__ that it wraps, meaning that it grants access to the metadata without having to load the dataframes into memory.
+   It can be instantiated in two different ways, either from a resource descriptor or from a dataframe.
+   At any given moment, the :attr:`~.DimcatResource.status` attribute returns an Enum value reflecting the availability and state of the/a dataframe.
+   When a Dataset is serialized, all dataframes from the outputs catalog that haven't been stored to disk yet are written into one or several .zip files so that they can be referenced by resource descriptors.
+#. One of the most important methods, used by most PipelineSteps, is :meth:`.Dataset.get_feature`, which accepts a Feature config and returns a Feature resource.
+   The Feature config is a :class:`~.DimcatConfig` that specifies the type of Feature to be returned and the parameters to be used for its computation. Furthermore, it is also used
+
+   a. to determine for each piece in every loaded DimcatPackage an Availability value, ranging from not available over available with heavy computation to available instantly.
+   #. to determine whether the Feature resource had already been requested and stored in the outputs catalog.
+
 
 Coding Conventions
 ------------------
