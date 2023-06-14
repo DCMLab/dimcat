@@ -13,7 +13,7 @@ from git import Repo
 
 # ----------------------------- SETTINGS -----------------------------
 # Directory holding your clone of github.com/DCMLab/unittest_metacorpus
-CORPUS_DIR = os.path.abspath("..")
+CORPUS_DIR = "~"
 
 # region test directories and files
 
