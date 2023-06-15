@@ -589,7 +589,9 @@ class DimcatResource(Generic[D], Data):
         basepath = fields.String(allow_none=True, metadata={"expose": False})
         descriptor_filepath = fields.String(allow_none=True, metadata={"expose": False})
         auto_validate = fields.Boolean(metadata={"expose": False})
-        default_groupby = fields.List(fields.String(), allow_none=True)
+        default_groupby = fields.List(
+            fields.String(), allow_none=True, metadata={"expose": False}
+        )
 
         def get_resource_descriptor(self, obj: DimcatResource) -> str | dict:
             return obj._resource.to_descriptor()
