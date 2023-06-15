@@ -13,7 +13,6 @@ import pytest
 from dimcat.base import (
     DimcatConfig,
     DimcatObject,
-    DimcatSchema,
     deserialize_dict,
     deserialize_json_file,
     deserialize_json_str,
@@ -220,7 +219,7 @@ class TestSerialization:
 
 
 class BaseObject(DimcatObject):
-    class Schema(DimcatSchema):
+    class Schema(DimcatObject.Schema):
         strong = fields.String(required=True)
 
     def __init__(self, strong: str):
