@@ -9,7 +9,7 @@ from dimcat.data.resources.base import (
 )
 from dimcat.utils import get_default_basepath
 
-from tests.conftest import CORPUS_PATH
+from .conftest import CORPUS_PATH
 
 
 class TestEmptyResource:

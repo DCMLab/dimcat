@@ -13,7 +13,6 @@ import pytest
 from dimcat.base import (
     DimcatConfig,
     DimcatObject,
-    DimcatSchema,
     deserialize_dict,
     deserialize_json_file,
     deserialize_json_str,
@@ -27,7 +26,7 @@ from dimcat.steps.base import PipelineStep
 from marshmallow import ValidationError, fields
 from marshmallow.class_registry import _registry as MM_REGISTRY
 
-from tests.conftest import datapackage_json_path, single_resource_path
+from .conftest import datapackage_json_path, single_resource_path
 
 
 class TestBaseObjects:
@@ -220,7 +219,7 @@ class TestSerialization:
 
 
 class BaseObject(DimcatObject):
-    class Schema(DimcatSchema):
+    class Schema(DimcatObject.Schema):
         strong = fields.String(required=True)
 
     def __init__(self, strong: str):

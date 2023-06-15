@@ -40,7 +40,10 @@ class DimcatSchema(mm.Schema):
     """
     The base class of all Schema() classes that are defined or inherited as nested classes
     for all :class:`DimcatObjects <DimcatObject>`. This class holds the logic for serializing/deserializing DiMCAT
-    objects.
+    objects. However, nested Schema() classes should never inherit directly from DimcatSchema but instead
+    from DimcatObject.Schema because it defines the post_load hook init_object() and the post_dump hook
+    validate_dump(). The parent class DimcatSchema does not do it so that DimcatConfig can define these two
+    differently. In marshmallow, hooks are additive and do not replace hooks of parent schemas.
 
     The arbitrary metadata of the fields currently use the keys:
 
@@ -72,13 +75,6 @@ class DimcatSchema(mm.Schema):
             return obj.dtype
         return super().get_attribute(obj, attr, default)
 
-    @mm.post_load()
-    def init_object(self, data, **kwargs) -> DimcatObject:
-        """Once the data has been loaded, create the corresponding object."""
-        obj_name = data.pop("dtype")
-        Constructor = get_class(obj_name)
-        return Constructor(**data)
-
     @mm.pre_dump()
     def assert_type(self, obj, **kwargs):
         if not isinstance(obj, DimcatObject):
@@ -86,24 +82,6 @@ class DimcatSchema(mm.Schema):
                 f"{self.name}: The object to be serialized needs to be a DimcatObject, not a {type(obj)!r}."
             )
         return obj
-
-    @mm.post_dump()
-    def validate_dump(self, data, **kwargs):
-        """Make sure to never return invalid serialization data."""
-        if "dtype" not in data:
-            msg = (
-                f"{self.name}: The serialized data doesn't have a 'dtype' field, meaning that DiMCAT would "
-                f"not be able to deserialize it."
-            )
-            raise mm.ValidationError(msg)
-        dtype_schema = get_schema(data["dtype"])
-        report = dtype_schema.validate(data)
-        if report:
-            raise mm.ValidationError(
-                f"Dump of {data['dtype']} created with a {self.name} could not be validated by "
-                f"{dtype_schema.name} :\n{report}"
-            )
-        return dict(data)
 
     def __repr__(self):
         return f"{self.name}(many={self.many})"
@@ -184,7 +162,30 @@ class DimcatObject(ABC):
         return cls.from_json(json_data)
 
     class Schema(DimcatSchema):
-        pass
+        @mm.post_load()
+        def init_object(self, data, **kwargs) -> DimcatObject:
+            """Once the data has been loaded, create the corresponding object."""
+            obj_name = data.pop("dtype")
+            Constructor = get_class(obj_name)
+            return Constructor(**data)
+
+        @mm.post_dump()
+        def validate_dump(self, data, **kwargs):
+            """Make sure to never return invalid serialization data."""
+            if "dtype" not in data:
+                msg = (
+                    f"{self.name}: The serialized data doesn't have a 'dtype' field, meaning that DiMCAT would "
+                    f"not be able to deserialize it."
+                )
+                raise mm.ValidationError(msg)
+            dtype_schema = get_schema(data["dtype"])
+            report = dtype_schema.validate(data)
+            if report:
+                raise mm.ValidationError(
+                    f"Dump of {data['dtype']} created with a {self.name} could not be validated by "
+                    f"{dtype_schema.name} :\n{report}"
+                )
+            return dict(data)
 
     def __init__(self):
         super().__init__()
@@ -329,7 +330,7 @@ class DimcatConfig(MutableMapping, DimcatObject):
 
     """
 
-    class Schema(DimcatObject.Schema):
+    class Schema(DimcatSchema):
         options = mm.fields.Dict()
 
         @mm.pre_load()
