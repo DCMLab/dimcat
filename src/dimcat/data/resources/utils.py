@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Set, Tuple, Un
 from zipfile import ZipFile
 
 import frictionless as fl
+import ms3
 import pandas as pd
 from dimcat.base import get_setting
 
@@ -89,6 +90,10 @@ def ensure_level_named_piece(
     return index, piece_level_position
 
 
+def str2tuple(s):
+    return ms3.str2inttuple(s, strict=False)
+
+
 def fl_fields2pandas_params(fields: List[fl.Field]) -> Tuple[dict, dict, list]:
     """Convert frictionless Fields to pd.read_csv() parameters 'dtype', 'converters' and 'parse_dates'."""
     dtype = {}
@@ -110,9 +115,10 @@ def fl_fields2pandas_params(fields: List[fl.Field]) -> Tuple[dict, dict, list]:
             dtype[field.name] = bool
         elif field.type == "date":
             parse_dates.append(field.name)
+        elif field.type == "array":
+            converters[field.name] = str2tuple
         # missing (see https://specs.frictionlessdata.io/table-schema)
         # - object (i.e. JSON/ a dict)
-        # - array (i.e. JSON/ a list)
         # - date (i.e. date without time)
         # - time (i.e. time without date)
         # - datetime (i.e. a date with a time)
