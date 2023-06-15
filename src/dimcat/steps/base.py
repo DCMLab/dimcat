@@ -67,15 +67,19 @@ class PipelineStep(DimcatObject):
         @pre_load
         def deal_with_single_item(self, data, **kwargs):
             if isinstance(data, MutableMapping) and "features" in data:
-                if not isinstance(data["features"], list):
-                    data["features"] = [data["features"]]
+                if isinstance(data["features"], list):
+                    features = data["features"]
+                else:
+                    features = [data["features"]]
                 feature_list = []
-                for feature in data["features"]:
+                for feature in features:
                     if isinstance(feature, dict):
                         # this seems to be a manually created config
                         feature = DimcatConfig(feature)
                     feature_list.append(feature)
-                data["features"] = feature_list
+                data = dict(
+                    data, features=feature_list
+                )  # make sure to not modify data inplace
             return data
 
     def __init__(
