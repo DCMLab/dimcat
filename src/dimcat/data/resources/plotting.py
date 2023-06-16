@@ -19,7 +19,6 @@ X_AXIS = dict()
 
 def tpc_bubbles(
     df,
-    normalize=True,
     width=1200,
     height=1500,
     title="Pitch class durations",
@@ -34,7 +33,6 @@ def tpc_bubbles(
 
     Args:
         df:
-        normalize:
         width:
         height:
         title:
@@ -69,15 +67,7 @@ def tpc_bubbles(
                 yaxis_type="category",  # prevent Plotly from interpreting values as dates
             )
         )
-    if normalize:
-        df = (
-            df.groupby(level=0, group_keys=False)
-            .apply(lambda S: S / S.sum())
-            .reset_index()
-        )
-        title = "Normalized " + title
-    else:
-        df = df.reset_index()
+    df = df.reset_index()
     df["pitch class"] = ms3.fifths2name(df.tpc)
     fig = px.scatter(
         df,
@@ -85,7 +75,7 @@ def tpc_bubbles(
         y=y,
         size="duration in ♩",
         color=color_col,
-        hover_data=["pitch class"],
+        hover_data=["pitch class", "corpus"],
         **COLOR_SCALE_SETTINGS,
         title=title,
         **kwargs,

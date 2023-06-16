@@ -24,6 +24,9 @@ class Result(DimcatResource):
     _enum_type = ResultName
 
     def plot(self, layout: Optional[dict] = None, **kwargs) -> go.Figure:
+        return self.make_bar_plot(layout=layout, **kwargs)
+
+    def make_bar_plot(self, layout: Optional[dict] = None, **kwargs) -> go.Figure:
         """
 
         Args:
@@ -72,4 +75,9 @@ class Durations(Result):
         Returns:
             A Plotly Figure object.
         """
-        return tpc_bubbles(self.df, layout=layout, **kwargs)
+        groups = self.get_default_groupby()
+        normalized = self.df.groupby(groups, group_keys=False).apply(
+            lambda S: S / S.sum()
+        )
+        title = "Normalized pitch class durations"
+        return tpc_bubbles(normalized, title=title, layout=layout, **kwargs)
