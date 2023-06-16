@@ -1,7 +1,7 @@
 import logging
 
-from dimcat.data import Feature
 from dimcat.data.resources.base import DimcatResource, SomeDataframe, SomeSeries
+from dimcat.data.resources.features import Feature, FeatureName
 from dimcat.data.resources.results import Durations
 from dimcat.steps.analyzers.base import Analyzer
 
@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 class PitchClassVectors(Analyzer):
+    allowed_features = (FeatureName.Notes,)
     new_resource_type = Durations
 
     @staticmethod

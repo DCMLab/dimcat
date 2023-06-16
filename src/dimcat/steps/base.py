@@ -14,8 +14,8 @@ from typing import (
     overload,
 )
 
-from dimcat.base import DimcatConfig, DimcatObject
-from dimcat.data import ensure_level_named_piece
+from dimcat.base import DimcatConfig, DimcatObject, get_class
+from dimcat.data import FeatureName, ensure_level_named_piece
 from dimcat.data.base import Data
 from dimcat.data.dataset.base import Dataset, DimcatPackage
 from dimcat.data.resources import (
@@ -26,6 +26,7 @@ from dimcat.data.resources import (
 from dimcat.exceptions import (
     EmptyDatasetError,
     EmptyResourceError,
+    FeatureNotProcessableError,
     FeatureUnavailableError,
     NoFeaturesActiveError,
 )
@@ -46,17 +47,24 @@ class PipelineStep(DimcatObject):
 
     """
 
+    allowed_features: Optional[ClassVar[Tuple[FeatureName]]] = None
+
     new_dataset_type: Optional[ClassVar[Type[Dataset]]] = None
     """If specified, :meth:`process_dataset` will return Datasets of this type, otherwise same as input type."""
+
     new_resource_type: Optional[ClassVar[Type[DimcatResource]]] = None
     """If specified, :meth:`process_resource` will return Resources of this type, otherwise same as input type."""
+
     output_package_name: Optional[str] = None
     """Name of the package in which to store the outputs of this step. If None, the PipeLine step will replace the
     'features' package of the given dataset."""
+
     applicable_to_empty_datasets: ClassVar[bool] = True
     """If False, :meth:`check_dataset` will raise an EmptyDatasetError if no data has been loaded yet. This makes sense
     for PipelineSteps that are dependent on the data, e.g. because they use :meth:`fit_to_dataset`."""
+
     requires_at_least_one_feature: ClassVar[bool] = False
+    """If set to True, this PipelineStep cannot be initialized without specifying at least one feature."""
 
     class Schema(DimcatObject.Schema):
         features = fields.List(
@@ -94,7 +102,9 @@ class PipelineStep(DimcatObject):
 
     @features.setter
     def features(self, features):
-        configs = features_argument2config_list(features)
+        configs = features_argument2config_list(
+            features, allowed_features=self.allowed_features
+        )
         if len(self._features) > 0:
             self.logger.info(
                 f"Previously selected features {self._features} overwritten by {configs}."
@@ -141,6 +151,12 @@ class PipelineStep(DimcatObject):
             raise TypeError(f"Expected DimcatResource, got {type(resource)}")
         if resource.is_empty:
             raise EmptyResourceError
+        if self.allowed_features:
+            if not any(
+                issubclass(resource.__class__, get_class(f))
+                for f in self.allowed_features
+            ):
+                raise FeatureNotProcessableError(resource.name, self.name)
         # ToDo: check if eligible for processing
         return
 
