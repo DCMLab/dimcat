@@ -182,7 +182,8 @@ def infer_piece_col_position(
 
 def infer_schema_from_df(df: SomeDataframe) -> fl.Schema:
     """Infer a frictionless.Schema from a dataframe."""
-    return fl.Schema.describe(df)
+    descriptor = fl.describe(df)
+    return descriptor.schema
 
 
 def load_fl_resource(

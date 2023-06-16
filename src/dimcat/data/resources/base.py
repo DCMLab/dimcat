@@ -24,6 +24,7 @@ import pandas as pd
 from dimcat.base import DimcatConfig, get_class, get_setting
 from dimcat.data.base import Data
 from dimcat.utils import check_file_path, check_name, get_default_basepath, replace_ext
+from frictionless import FrictionlessException
 from marshmallow import fields, post_load
 from typing_extensions import Self
 
@@ -873,9 +874,20 @@ class DimcatResource(Generic[D], Data):
             )
         if self.is_loaded:
             raise RuntimeError("This resource already includes a dataframe.")
+        if isinstance(df, DimcatResource):
+            df = df.df
+        if isinstance(df, pd.Series):
+            df = df.to_frame()
+            self.logger.info(
+                f"Got a series, converted it into a dataframe with column name {df.columns[0]}."
+            )
         self._df = df
         if not self.column_schema.fields:
-            self.column_schema = infer_schema_from_df(df)
+            try:
+                self.column_schema = infer_schema_from_df(df)
+            except FrictionlessException:
+                print(f"Could not infer schema from {type(df)}:\n{df}")
+                raise
         self._status = ResourceStatus.DATAFRAME
         if self.auto_validate:
             _ = self.validate(raise_exception=True)
