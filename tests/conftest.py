@@ -38,7 +38,7 @@ logger.debug(f"CORPUS_DIR: {CORPUS_DIR!r}. Contents: {os.listdir(CORPUS_DIR)}")
 def corpus_path():
     """Compose the paths for the test corpora."""
     print("Path was requested")
-    repo_name, test_commit = ("unittest_metacorpus", "40e0841")
+    repo_name, test_commit = ("unittest_metacorpus", "680c20a")
     path = os.path.join(CORPUS_DIR, repo_name)
     path = os.path.expanduser(path)
     assert os.path.isdir(path)

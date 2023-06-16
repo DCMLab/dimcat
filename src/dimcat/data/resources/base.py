@@ -564,7 +564,7 @@ class DimcatResource(Generic[D], Data):
                     f"This {obj.name} needs to be stored to disk to be expressed as restorable config."
                 )
                 obj.store_dataframe()
-            return obj.get_descriptor_filepath(create_if_necessary=True)
+            return obj.get_descriptor_filepath()
 
         def raw(self, data):
             return data
