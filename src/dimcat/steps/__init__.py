@@ -6,6 +6,7 @@ from .analyzers import (
     Counter,
     DispatchStrategy,
     Orientation,
+    PitchClassVectors,
     UnitOfAnalysis,
 )
 from .base import PipelineStep

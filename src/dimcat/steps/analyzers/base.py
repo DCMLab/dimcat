@@ -24,6 +24,7 @@ class AnalyzerName(ObjectEnum):
 
     Analyzer = "Analyzer"
     Counter = "Counter"
+    PitchClassVectors = "PitchClassVectors"
 
 
 class DispatchStrategy(str, Enum):
@@ -202,7 +203,7 @@ class Analyzer(PipelineStep):
         )
 
     def groupby_apply(self, feature: Feature, groupby: SomeSeries = None, **kwargs):
-        """Static method that performs the computation on a groupby. The value of ``groupby`` needs to be
+        """Performs the computation on a groupby. The value of ``groupby`` needs to be
         a Series of the same length as ``feature`` or otherwise work as positional argument to feature.groupby().
         """
         if groupby is None:
