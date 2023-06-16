@@ -8,6 +8,7 @@ from plotly import express as px
 from plotly import graph_objs as go
 
 from .base import DimcatResource
+from .plotting import tpc_bubbles
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +16,7 @@ logger = logging.getLogger(__name__)
 class ResultName(ObjectEnum):
     """Identifies the available analyzers."""
 
+    Durations = "Durations"
     Result = "Result"
 
 
@@ -54,3 +56,20 @@ class Result(DimcatResource):
             figure_layout.update(layout)
         fig.update_layout(figure_layout)
         return fig
+
+
+class Durations(Result):
+    def plot(self, layout: Optional[dict] = None, **kwargs) -> go.Figure:
+        return self.make_bubble_plot(layout=layout, **kwargs)
+
+    def make_bubble_plot(self, layout: Optional[dict] = None, **kwargs) -> go.Figure:
+        """
+
+        Args:
+            layout: Keyword arguments passed to fig.update_layout()
+            **kwargs: Keyword arguments passed to the Plotly plotting function.
+
+        Returns:
+            A Plotly Figure object.
+        """
+        return tpc_bubbles(self.df, layout=layout, **kwargs)

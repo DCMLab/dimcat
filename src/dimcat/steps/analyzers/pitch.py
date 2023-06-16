@@ -2,12 +2,15 @@ import logging
 
 from dimcat.data import Feature
 from dimcat.data.resources.base import DimcatResource, SomeDataframe, SomeSeries
+from dimcat.data.resources.results import Durations
 from dimcat.steps.analyzers.base import Analyzer
 
 logger = logging.getLogger(__name__)
 
 
 class PitchClassVectors(Analyzer):
+    new_resource_type = Durations
+
     @staticmethod
     def compute(feature: DimcatResource | SomeDataframe, **kwargs) -> int:
         result = feature.groupby("tpc").duration_qb.sum().astype(float)
@@ -27,7 +30,7 @@ class PitchClassVectors(Analyzer):
         result = (
             feature.groupby(groupby, group_keys=False).duration_qb.sum().astype(float)
         )
-        result = result.to_frame(f"{feature.resource_name} duration in ♩")
+        result = result.to_frame("duration in ♩")
         return result
 
     def resource_name_factory(self, resource: DimcatResource) -> str:
