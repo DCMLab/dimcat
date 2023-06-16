@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import logging
-from typing import Iterable, List
+from typing import Iterable
 
 from dimcat.base import DimcatConfig
 from dimcat.data.dataset import Dataset
 from dimcat.data.resources.base import DimcatResource
-from dimcat.data.resources.features import features_argument2config_list
 from marshmallow import fields, validate
 
 from .base import PipelineStep
@@ -33,16 +32,3 @@ class FeatureExtractor(PipelineStep):
     def get_features(self, dataset: Dataset) -> Iterable[DimcatResource]:
         features = self.get_feature_specs()
         return [dataset._extract_feature(feature) for feature in features]
-
-    @property
-    def features(self) -> List[DimcatConfig]:
-        return self._features
-
-    @features.setter
-    def features(self, features):
-        configs = features_argument2config_list(features)
-        if len(self._features) > 0:
-            self.logger.info(
-                f"Previously selected features {self._features} overwritten by {configs}."
-            )
-        self._features = configs

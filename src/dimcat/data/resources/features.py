@@ -8,6 +8,7 @@ import frictionless as fl
 import marshmallow as mm
 from dimcat.base import DimcatConfig, ObjectEnum, is_subclass_of
 from dimcat.data.resources.base import DimcatResource
+from dimcat.exceptions import FeatureNotProcessableError
 
 logger = logging.getLogger(__name__)
 
@@ -134,6 +135,7 @@ def feature_specs2config(feature: FeatureSpecs) -> DimcatConfig:
 
 def features_argument2config_list(
     features: Optional[FeatureSpecs | Iterable[FeatureSpecs]] = None,
+    allowed_features: Optional[Iterable[str | FeatureName]] = None,
 ) -> List[DimcatConfig]:
     if features is None:
         return []
@@ -142,4 +144,9 @@ def features_argument2config_list(
     configs = []
     for specs in features:
         configs.append(feature_specs2config(specs))
+    if allowed_features:
+        allowed_features = [FeatureName(f) for f in allowed_features]
+        for config in configs:
+            if config.options_dtype not in allowed_features:
+                raise FeatureNotProcessableError(config.options_dtype)
     return configs

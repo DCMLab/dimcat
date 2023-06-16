@@ -74,6 +74,16 @@ class EmptyResourceError(DimcatError):
     }
 
 
+class FeatureNotProcessableError(DimcatError):
+    """optional args: (feature_name,)"""
+
+    nargs2message = {
+        0: "Cannot process this feature.",
+        1: lambda name: f"Cannot process {name!r}.",
+        2: lambda name, step: f"{step!r} cannot process feature {name!r}.",
+    }
+
+
 class FeatureUnavailableError(DimcatError):
     """optional args: (feature_name,)"""
 
