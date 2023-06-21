@@ -73,8 +73,7 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
     "sphinx.ext.githubpages",
-    "myst_nb",
-    "sphinx_rtd_theme",
+    "myst_nb"
 ]
 # pip install myst-nb
 
