@@ -27,6 +27,9 @@
     :alt: Project generated with PyScaffold
     :target: https://pyscaffold.org/
 
+.. image:: https://readthedocs.org/projects/dimcat/badge/?version=latest
+    :target: https://dimcat.readthedocs.io/en/latest/?badge=latest
+    :alt: Documentation Status
 |
 
 ======
