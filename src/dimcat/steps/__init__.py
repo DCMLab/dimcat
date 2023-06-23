@@ -9,7 +9,7 @@ from .analyzers import (
     PitchClassVectors,
     UnitOfAnalysis,
 )
-from .base import PipelineStep
+from .base import FeatureStep
 from .extractors import FeatureExtractor
 from .groupers import CustomPieceGrouper, Grouper
 from .pipelines import Pipeline

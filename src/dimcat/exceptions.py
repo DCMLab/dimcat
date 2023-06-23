@@ -74,7 +74,7 @@ class EmptyResourceError(DimcatError):
     }
 
 
-class FeatureNotProcessableError(DimcatError):
+class ResourceNotProcessableError(DimcatError):
     """optional args: (feature_name,)"""
 
     nargs2message = {

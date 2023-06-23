@@ -1,13 +1,13 @@
 from dimcat.base import DimcatConfig
 from dimcat.data.resources import PieceIndex
-from dimcat.steps import PipelineStep
+from dimcat.steps import FeatureStep
 from dimcat.steps.extractors import FeatureExtractor
 from dimcat.steps.groupers import CustomPieceGrouper
 from dimcat.steps.pipelines import Pipeline
 
 
 def test_pipeline():
-    pl = Pipeline([PipelineStep()])
+    pl = Pipeline([FeatureStep()])
     as_dict = pl.to_dict()
     print(as_dict)
     conf = DimcatConfig(as_dict)

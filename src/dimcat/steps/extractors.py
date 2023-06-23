@@ -8,16 +8,16 @@ from dimcat.data.dataset import Dataset
 from dimcat.data.resources.base import DimcatResource
 from marshmallow import fields, validate
 
-from .base import PipelineStep
+from .base import FeatureStep
 
 logger = logging.getLogger(__name__)
 
 
-class FeatureExtractor(PipelineStep):
+class FeatureExtractor(FeatureStep):
     output_package_name = "features"
     requires_at_least_one_feature = True
 
-    class Schema(PipelineStep.Schema):
+    class Schema(FeatureStep.Schema):
         features = fields.List(
             fields.Nested(DimcatConfig.Schema),
             validate=validate.Length(min=1),
