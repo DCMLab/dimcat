@@ -23,12 +23,12 @@ class FeatureExtractor(PipelineStep):
             validate=validate.Length(min=1),
         )
 
-    def dispatch(self, resource: DimcatResource) -> DimcatResource:
+    def _dispatch(self, resource: DimcatResource) -> DimcatResource:
         """The extractor receives resources freshly created by :meth:`Dataset.extract_feature`
         (via :meth:`get_features`) and therefore does not need to create a new resource.
         """
         return resource
 
-    def get_features(self, dataset: Dataset) -> Iterable[DimcatResource]:
+    def _iter_features(self, dataset: Dataset) -> Iterable[DimcatResource]:
         features = self.get_feature_specs()
         return [dataset._extract_feature(feature) for feature in features]

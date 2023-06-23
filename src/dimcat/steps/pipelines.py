@@ -109,7 +109,7 @@ class Pipeline(PipelineStep):
         processed_resource = resource
         for step in self._steps:
             previous_resource = processed_resource
-            processed_resource = step.dispatch(previous_resource)
+            processed_resource = step._dispatch(previous_resource)
             # ToDo: Pipeline checks the compatibility of steps and data first, uses step._process_resource()
             # ToDo: Check the processed resource and handle errors
         return processed_resource

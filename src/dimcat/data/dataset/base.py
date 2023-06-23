@@ -33,7 +33,6 @@ from typing import (
 
 import frictionless as fl
 import marshmallow as mm
-import ms3
 from dimcat.base import DimcatConfig, DimcatObjectField, FriendlyEnum, get_class
 from dimcat.data.base import Data
 from dimcat.data.resources.base import D, DimcatResource, ResourceStatus, SomeDataframe
@@ -53,7 +52,7 @@ from dimcat.exceptions import (
     PackageNotFoundError,
     ResourceNotFoundError,
 )
-from dimcat.utils import check_file_path, check_name, get_default_basepath
+from dimcat.utils import check_file_path, check_name, get_default_basepath, resolve_path
 from typing_extensions import Self
 
 if TYPE_CHECKING:
@@ -196,7 +195,7 @@ class DimcatPackage(Data):
         if package_name is not None:
             self.package_name = package_name
         if basepath is not None:
-            basepath = ms3.resolve_dir(basepath)
+            basepath = resolve_path(basepath)
             self.basepath = basepath
         if descriptor_filepath is not None:
             self.descriptor_filepath = descriptor_filepath
@@ -247,7 +246,7 @@ class DimcatPackage(Data):
 
     @basepath.setter
     def basepath(self, basepath: str) -> None:
-        basepath = ms3.resolve_dir(basepath)
+        basepath = resolve_path(basepath)
         if self.status > PackageStatus.NOT_SERIALIZED:
             if basepath == self.basepath:
                 return
@@ -971,7 +970,7 @@ class DimcatCatalog(Data):
         set_packages: bool = True,
     ) -> None:
         """Sets the basepath for all packages in the catalog (if set_packages=True)."""
-        basepath_arg = ms3.resolve_dir(basepath)
+        basepath_arg = resolve_path(basepath)
         if not os.path.isdir(basepath_arg):
             raise ValueError(f"basepath {basepath_arg!r} is not an existing directory.")
         self._basepath = basepath_arg

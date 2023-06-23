@@ -6,7 +6,6 @@ import os
 import re
 from typing import Collection, Optional
 
-import ms3
 import pandas as pd
 from frictionless.settings import NAME_PATTERN as FRICTIONLESS_NAME_PATTERN
 
@@ -176,7 +175,7 @@ def check_file_path(
     Returns:
         The path turned into an absolute path.
     """
-    path = ms3.resolve_dir(filepath)
+    path = resolve_path(filepath)
     if must_exist and not os.path.isfile(path):
         raise FileNotFoundError(f"File {path} does not exist.")
     if extensions is not None:
@@ -211,3 +210,20 @@ def clean_basepath(path: str) -> str:
     if path.startswith(home):
         path = "~" + path[len(home) :]
     return path
+
+
+class AbsolutePathStr(str):
+    """This is just a string but if it includes the HOME directory, it is represented with a leading '~'."""
+
+    def __repr__(self):
+        return clean_basepath(self.__str__())
+
+
+def resolve_path(path) -> Optional[AbsolutePathStr]:
+    """Resolves '~' to HOME directory and turns ``path`` into an absolute path."""
+    if path is None:
+        return None
+    path = str(path)
+    if "~" in path:
+        return AbsolutePathStr(os.path.expanduser(path))
+    return AbsolutePathStr(os.path.abspath(path))

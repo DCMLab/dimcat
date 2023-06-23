@@ -15,12 +15,13 @@ from typing import (
 )
 
 from dimcat.base import DimcatConfig, DimcatObject, get_class
-from dimcat.data import FeatureName, ensure_level_named_piece
+from dimcat.data import FeatureName, ensure_level_named_piece, resource_specs2resource
 from dimcat.data.base import Data
 from dimcat.data.dataset.base import Dataset, DimcatPackage
 from dimcat.data.resources import (
     DimcatResource,
     FeatureSpecs,
+    ResourceSpecs,
     features_argument2config_list,
 )
 from dimcat.exceptions import (
@@ -118,15 +119,6 @@ class PipelineStep(DimcatObject):
             self.output_package_name is None or self.output_package_name == "features"
         )
 
-    def check(self, _) -> Tuple[bool, str]:
-        """Test piece of data for certain properties before computing analysis.
-
-        Returns:
-            True if the passed data is eligible.
-            Error message in case the passed data is not eligible.
-        """
-        return True, ""
-
     def check_dataset(self, dataset: Dataset) -> None:
         """Check if the dataset is eligible for processing.
 
@@ -160,14 +152,14 @@ class PipelineStep(DimcatObject):
         # ToDo: check if eligible for processing
         return
 
-    def dispatch(self, resource: DimcatResource) -> DimcatResource:
+    def _dispatch(self, resource: DimcatResource) -> DimcatResource:
         """Dispatch the passed resource to the appropriate method."""
-        resource_constructor = self.get_new_resource_type(resource)
+        resource_constructor = self._get_new_resource_type(resource)
         # This is where the input resource is being processed
         resource_name = self.resource_name_factory(resource)
         return resource_constructor.from_resource(resource, resource_name=resource_name)
 
-    def get_new_resource_type(self, resource: DimcatResource) -> Type[DimcatResource]:
+    def _get_new_resource_type(self, resource: DimcatResource) -> Type[DimcatResource]:
         if self.new_resource_type is None:
             resource_constructor: Type[DimcatResource] = resource.__class__
         else:
@@ -182,7 +174,7 @@ class PipelineStep(DimcatObject):
         """
         return
 
-    def get_features(self, dataset: Dataset) -> Iterable[DimcatResource]:
+    def _iter_features(self, dataset: Dataset) -> Iterable[DimcatResource]:
         feature_specs = self.get_feature_specs()
         return dataset.iter_features(feature_specs)
 
@@ -208,7 +200,7 @@ class PipelineStep(DimcatObject):
             return DimcatPackage(package_name="features")
         return DimcatPackage(package_name=self.output_package_name)
 
-    def pre_process_resource(self, resource: DimcatResource) -> DimcatResource:
+    def _pre_process_resource(self, resource: DimcatResource) -> DimcatResource:
         """Perform some pre-processing on a resource before processing it."""
         resource.load()
         if "piece" not in resource.index.names:
@@ -216,7 +208,7 @@ class PipelineStep(DimcatObject):
             resource.df.index, _ = ensure_level_named_piece(resource.df.index)
         return resource
 
-    def post_process_result(self, result: DimcatResource) -> DimcatResource:
+    def _post_process_result(self, result: DimcatResource) -> DimcatResource:
         """Perform some post-processing on a resource after processing it."""
         return result
 
@@ -263,7 +255,7 @@ class PipelineStep(DimcatObject):
         """Apply this PipelineStep to a :class:`Dataset` and return a copy containing the output(s)."""
         new_dataset = self._make_new_dataset(dataset)
         self.fit_to_dataset(new_dataset)
-        resources = self.get_features(new_dataset)
+        resources = self._iter_features(new_dataset)
         new_package = self._make_new_package()
         n_processed = 0
         for n_processed, resource in enumerate(resources, 1):
@@ -293,11 +285,12 @@ class PipelineStep(DimcatObject):
 
     def _process_resource(self, resource: DimcatResource) -> DimcatResource:
         """Apply this PipelineStep to a :class:`Resource` and return a copy containing the output(s)."""
-        resource = self.pre_process_resource(resource)
-        result = self.dispatch(resource)
-        return self.post_process_result(result)
+        resource = self._pre_process_resource(resource)
+        result = self._dispatch(resource)
+        return self._post_process_result(result)
 
-    def process_resource(self, resource: DimcatResource) -> DimcatResource:
+    def process_resource(self, resource: ResourceSpecs) -> DimcatResource:
+        resource = resource_specs2resource(resource)
         self.check_resource(resource)
         return self._process_resource(resource)
 

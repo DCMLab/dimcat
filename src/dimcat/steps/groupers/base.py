@@ -42,9 +42,9 @@ class Grouper(PipelineStep):
         """Apply the grouper to a Feature."""
         return pd.concat([resource.df], keys=[self.level_name], names=[self.level_name])
 
-    def dispatch(self, resource: Feature) -> Feature:
+    def _dispatch(self, resource: Feature) -> Feature:
         """Apply the grouper to a Feature."""
-        result_constructor = self.get_new_resource_type(resource)
+        result_constructor = self._get_new_resource_type(resource)
         results = self.apply_grouper(resource)
         result_name = self.resource_name_factory(resource)
         return result_constructor.from_dataframe(
@@ -52,7 +52,7 @@ class Grouper(PipelineStep):
             resource_name=result_name,
         )
 
-    def get_features(self, dataset: Dataset) -> Iterable[DimcatResource]:
+    def _iter_features(self, dataset: Dataset) -> Iterable[DimcatResource]:
         """Iterate over all resources in the dataset's OutputCatalog."""
         return dataset.outputs.iter_resources()
 
@@ -61,7 +61,7 @@ class Grouper(PipelineStep):
         new_dataset = self._make_new_dataset(dataset)
         self.fit_to_dataset(new_dataset)
         new_dataset._pipeline.add_step(self)
-        package_name_resource_iterator = self.get_features(new_dataset)
+        package_name_resource_iterator = self._iter_features(new_dataset)
         processed_resources = defaultdict(list)
         for package_name, resource in package_name_resource_iterator:
             new_resource = self.process_resource(resource)
@@ -83,7 +83,7 @@ class Grouper(PipelineStep):
             new_dataset.outputs.replace_package(new_package)
         return new_dataset
 
-    def post_process_result(self, result: DimcatResource) -> DimcatResource:
+    def _post_process_result(self, result: DimcatResource) -> DimcatResource:
         """Change the default_groupby value of the returned Feature."""
         result.update_default_groupby(self.level_name)
         return result

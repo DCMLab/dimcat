@@ -5,6 +5,7 @@ import os
 import zipfile
 from enum import IntEnum, auto
 from functools import cache
+from pathlib import Path
 from pprint import pformat
 from typing import (
     Dict,
@@ -23,7 +24,13 @@ import ms3
 import pandas as pd
 from dimcat.base import DimcatConfig, get_class, get_setting
 from dimcat.data.base import Data
-from dimcat.utils import check_file_path, check_name, get_default_basepath, replace_ext
+from dimcat.utils import (
+    check_file_path,
+    check_name,
+    get_default_basepath,
+    replace_ext,
+    resolve_path,
+)
 from frictionless import FrictionlessException
 from marshmallow import fields, post_load
 from typing_extensions import Self
@@ -675,10 +682,10 @@ class DimcatResource(Generic[D], Data):
             self.default_groupby = default_groupby
 
         if basepath is not None:
-            basepath = ms3.resolve_dir(basepath)
+            basepath = resolve_path(basepath)
 
         if resource is not None:
-            if isinstance(resource, str):
+            if isinstance(resource, (str, Path)):
                 descriptor_path = check_file_path(
                     resource, extensions=("resource.json", "resource.yaml")
                 )
@@ -760,7 +767,7 @@ class DimcatResource(Generic[D], Data):
 
     @basepath.setter
     def basepath(self, basepath: str):
-        basepath = ms3.resolve_dir(basepath)
+        basepath = resolve_path(basepath)
         if self.is_frozen:
             if basepath == self.basepath:
                 return
@@ -1296,6 +1303,26 @@ class DimcatResource(Generic[D], Data):
 
 
 # endregion DimcatResource
+
+ResourceSpecs: TypeAlias = Union[DimcatResource, str, Path]
+
+
+def resource_specs2resource(resource: ResourceSpecs) -> DimcatResource:
+    """Converts a resource specification to a resource.
+
+    Args:
+        resource: A resource specification.
+
+    Returns:
+        A resource.
+    """
+    if isinstance(resource, DimcatResource):
+        return resource
+    if isinstance(resource, (str, Path)):
+        return DimcatResource(resource)
+    raise TypeError(
+        f"Expected a DimcatResource, str, or Path. Got {type(resource).__name__!r}."
+    )
 
 
 @cache

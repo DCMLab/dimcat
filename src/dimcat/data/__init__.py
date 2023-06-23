@@ -30,6 +30,7 @@ from .resources import (  # .resources.base; .resources.features; .resources.res
     Metadata,
     Notes,
     PieceIndex,
+    ResourceSpecs,
     ResourceStatus,
     Result,
     ResultName,
@@ -51,6 +52,7 @@ from .resources import (  # .resources.base; .resources.features; .resources.res
     resolve_columns_argument,
     resolve_levels_argument,
     resolve_recognized_piece_columns_argument,
+    resource_specs2resource,
 )
 
 logger = logging.getLogger(__name__)

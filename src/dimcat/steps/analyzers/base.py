@@ -188,13 +188,13 @@ class Analyzer(PipelineStep):
             orientation = Orientation(orientation)
         self._orientation = orientation
 
-    def dispatch(self, resource: Feature) -> Result:
+    def _dispatch(self, resource: Feature) -> Result:
         """Dispatch the passed resource to the appropriate method."""
         if self.strategy == DispatchStrategy.ITER_STACK:  # more cases to follow
             raise NotImplementedError()
         if not self.strategy == DispatchStrategy.GROUPBY_APPLY:
             raise ValueError(f"Unknown dispatch strategy '{self.strategy!r}'")
-        result_constructor = self.get_new_resource_type(resource)
+        result_constructor = self._get_new_resource_type(resource)
         results = self.groupby_apply(resource)
         result_name = self.resource_name_factory(resource)
         return result_constructor.from_dataframe(
