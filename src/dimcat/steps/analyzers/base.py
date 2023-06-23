@@ -188,7 +188,7 @@ class Analyzer(FeatureStep):
             orientation = Orientation(orientation)
         self._orientation = orientation
 
-    def _dispatch(self, resource: Feature) -> Result:
+    def _make_new_resource(self, resource: Feature) -> Result:
         """Dispatch the passed resource to the appropriate method."""
         if self.strategy == DispatchStrategy.ITER_STACK:  # more cases to follow
             raise NotImplementedError()

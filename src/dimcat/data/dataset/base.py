@@ -1278,7 +1278,7 @@ class Dataset(Data):
 
     def load_package(
         self,
-        package: Union[fl.Package, str],
+        package: PackageSpecs,
         package_name: Optional[str] = None,
         **options,
     ):
@@ -1308,7 +1308,7 @@ class Dataset(Data):
             f"with basepath {self.inputs.basepath}."
         )
 
-    def load_feature(self, feature: Union[FeatureName, str, DimcatConfig]) -> Feature:
+    def load_feature(self, feature: FeatureSpecs) -> Feature:
         """ToDo: Harmonize with FeatureExtractor"""
         feature = self.get_feature(feature)
         feature.load()

@@ -11,7 +11,6 @@ from typing import (
     Tuple,
     Type,
     TypeVar,
-    Union,
     overload,
 )
 
@@ -98,12 +97,18 @@ class PipelineStep(DimcatObject):
         """
         return
 
-    def _dispatch(self, resource: DimcatResource) -> DimcatResource:
+    def _make_new_resource(self, resource: DimcatResource) -> DimcatResource:
         """Dispatch the passed resource to the appropriate method."""
         resource_constructor = self._get_new_resource_type(resource)
         # This is where the input resource is being processed
         resource_name = self.resource_name_factory(resource)
-        return resource_constructor.from_resource(resource, resource_name=resource_name)
+        new_resource = resource_constructor.from_resource(
+            resource, resource_name=resource_name
+        )
+        self.logger.debug(
+            f"Created new resource {new_resource} of type {resource_constructor.name}."
+        )
+        return new_resource
 
     def _get_new_resource_type(self, resource: DimcatResource) -> Type[DimcatResource]:
         if self.new_resource_type is None:
@@ -143,7 +148,7 @@ class PipelineStep(DimcatObject):
     def process(self, data: Iterable[D]) -> List[D]:
         ...
 
-    def process(self, data: Union[D, Iterable[D]]) -> Union[D, List[D]]:
+    def process(self, data: D | Iterable[D]) -> D | List[D]:
         """Same as process_data(), with the difference that an Iterable is accepted."""
         if isinstance(data, Data):
             return self.process_data(data)
@@ -189,7 +194,7 @@ class PipelineStep(DimcatObject):
     def _process_resource(self, resource: DimcatResource) -> DimcatResource:
         """Apply this PipelineStep to a :class:`Resource` and return a copy containing the output(s)."""
         resource = self._pre_process_resource(resource)
-        result = self._dispatch(resource)
+        result = self._make_new_resource(resource)
         return self._post_process_result(result)
 
     def process_resource(self, resource: ResourceSpecs) -> DimcatResource:

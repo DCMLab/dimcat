@@ -1073,7 +1073,7 @@ class DimcatResource(Generic[D], Data):
         return ResourceStatus.EMPTY
 
     @cache
-    def get_dataframe(self) -> Union[D]:
+    def get_dataframe(self) -> D:
         """
         Load the dataframe from disk based on the descriptor's normpath.
 

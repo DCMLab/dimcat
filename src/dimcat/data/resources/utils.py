@@ -4,7 +4,7 @@ import logging
 import os
 from collections import Counter
 from operator import itemgetter
-from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Set, Tuple, Union
+from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Set, Tuple
 from zipfile import ZipFile
 
 import frictionless as fl
@@ -189,7 +189,7 @@ def infer_schema_from_df(df: SomeDataframe) -> fl.Schema:
 def load_fl_resource(
     fl_resource: fl.Resource,
     index_col: Optional[int | str | List[int | str]] = None,
-    usecols: Optional[Union[int, str, List[int | str]]] = None,
+    usecols: Optional[int | str | List[int | str]] = None,
 ) -> SomeDataframe:
     """Load a dataframe from a :obj:`frictionless.Resource`.
 

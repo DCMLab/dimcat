@@ -23,7 +23,7 @@ class FeatureExtractor(FeatureStep):
             validate=validate.Length(min=1),
         )
 
-    def _dispatch(self, resource: DimcatResource) -> DimcatResource:
+    def _make_new_resource(self, resource: DimcatResource) -> DimcatResource:
         """The extractor receives resources freshly created by :meth:`Dataset.extract_feature`
         (via :meth:`get_features`) and therefore does not need to create a new resource.
         """

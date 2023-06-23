@@ -42,7 +42,7 @@ class Grouper(FeatureStep):
         """Apply the grouper to a Feature."""
         return pd.concat([resource.df], keys=[self.level_name], names=[self.level_name])
 
-    def _dispatch(self, resource: Feature) -> Feature:
+    def _make_new_resource(self, resource: Feature) -> Feature:
         """Apply the grouper to a Feature."""
         result_constructor = self._get_new_resource_type(resource)
         results = self.apply_grouper(resource)
