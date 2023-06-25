@@ -59,6 +59,11 @@ RESOURCE_PATHS = {
 }
 
 
+@pytest.fixture(scope="session")
+def corpus_path() -> str:
+    return CORPUS_PATH
+
+
 def single_resource_path() -> str:
     """Returns the path to a single resource."""
     return RESOURCE_PATHS["unittest_notes.resource.yaml"]

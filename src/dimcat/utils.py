@@ -5,11 +5,23 @@ import logging
 import os
 import re
 from typing import Collection, Optional
+from urllib.parse import urlparse
 
 import pandas as pd
-from frictionless.settings import NAME_PATTERN as FRICTIONLESS_NAME_PATTERN
 
 logger = logging.getLogger(__name__)
+
+FRICTIONLESS_NAME_PATTERN = (
+    r"^([-a-z0-9._/])+$"  # from frictionless.settings import NAME_PATTERN
+)
+FRICTIONLESS_INVERSE = r"[^-a-z0-9._/]"
+
+
+def make_valid_frictionless_name(name: str, replace_char="_") -> str:
+    name = name.lower()
+    if not re.match(FRICTIONLESS_NAME_PATTERN, name):
+        name = re.sub(FRICTIONLESS_INVERSE, replace_char, name)
+    return name
 
 
 def nest_level(obj, include_tuples=False):
@@ -227,3 +239,12 @@ def resolve_path(path) -> Optional[AbsolutePathStr]:
     if "~" in path:
         return AbsolutePathStr(os.path.expanduser(path))
     return AbsolutePathStr(os.path.abspath(path))
+
+
+def is_uri(path: str) -> bool:
+    """Solution from https://stackoverflow.com/a/38020041"""
+    try:
+        result = urlparse(path)
+        return all([result.scheme, result.netloc])
+    except Exception:
+        return False

@@ -41,6 +41,16 @@ class BasePathNotDefinedError(DimcatError):
     }
 
 
+class DuplicateIDError(DimcatError):
+    """optional args: (id, facet)"""
+
+    nargs2message = {
+        0: "An ID was already in use.",
+        1: lambda id: f"The ID {id!r} is already in use.",
+        2: lambda id, facet: f"The ID {id!r} is already in use for facet {facet!r}.",
+    }
+
+
 class EmptyCatalogError(DimcatError):
     nargs2message = {
         0: "The catalog is empty.",
