@@ -1,23 +1,38 @@
 import os
 
+import music21 as m21
 import pytest
 from dimcat.steps import MuseScoreLoader
 
-from tests.conftest import CORPUS_PATH
+# from dimcat.steps.loaders import Music21Loader
+from dimcat.steps.loaders.m21 import Music21Score
 
 
-def get_score_paths(extensions=(".xml", ".musicxml", ".mxl")):
+def get_score_paths(extensions=(".xml", ".musicxml", ".mxl"), n=1):
+    m21_path = m21.__path__[0]
+    music21_corpus_path = os.path.join(m21_path, "corpus")
     paths = []
-    for path, subdirs, files in os.walk(CORPUS_PATH):
+    i = 0
+    for path, subdirs, files in os.walk(music21_corpus_path):
+        if i == n:
+            break
         for file in files:
+            if i == n:
+                break
             fname, fext = os.path.splitext(file)
             if fext in extensions:
                 paths.append(os.path.join(path, file))
+                i += 1
     return paths
 
 
 @pytest.fixture(
-    params=get_score_paths(extensions=(".xml", ".musicxml", ".mxl")),
+    params=get_score_paths(
+        extensions=(
+            ".xml",
+            ".musicxml",
+        )
+    ),
     ids=os.path.basename,
 )
 def score_path(request):
@@ -43,3 +58,14 @@ def test_musescore_loader(corpus_path, tmp_package_path):
     assert os.path.dirname(L.descriptor_path) == tmp_package_path
     print(os.listdir(tmp_package_path))
     assert len(os.listdir(tmp_package_path)) > 1
+
+
+def test_music21_loader(corpus_path, score_path, tmp_package_path):
+    M = Music21Score(score_path)
+    M.parse()
+    # L = Music21Loader(
+    #     source=corpus_path,
+    #     basepath=tmp_package_path,
+    # )
+    # L.process_resource(score_path)
+    # assert len(L.processed_ids) == 1

@@ -84,6 +84,23 @@ class EmptyResourceError(DimcatError):
     }
 
 
+class ExcludedFileExtensionError(DimcatError):
+    """optional args: (extension, permissible_extensions)"""
+
+    nargs2message = {
+        0: "A file extension is excluded.",
+        1: lambda extension: f"File extension {extension!r} is excluded.",
+        2: lambda extension, permissible_extensions: f"File extension {extension!r} is excluded. "
+        f"Pass one of {permissible_extensions!r}.",
+    }
+
+
+class NoMuseScoreExecutableSpecifiedError(DimcatError):
+    nargs2message = {
+        0: "No MuseScore executable specified.",
+    }
+
+
 class ResourceNotProcessableError(DimcatError):
     """optional args: (feature_name,)"""
 
