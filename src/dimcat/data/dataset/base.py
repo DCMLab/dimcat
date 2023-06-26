@@ -1046,6 +1046,8 @@ class Dataset(Data):
         new_dataset = cls(**kwargs)
         if pipeline is not None:
             new_dataset._pipeline = pipeline
+        new_dataset.inputs.basepath = inputs.basepath
+        new_dataset.outputs.basepath = outputs.basepath
         new_dataset.inputs.extend(inputs)
         new_dataset.outputs.extend(outputs)
         return new_dataset
@@ -1080,6 +1082,7 @@ class Dataset(Data):
 
     def __init__(
         self,
+        basepath: Optional[str] = None,
         **kwargs,
     ):
         """The central type of object that all :obj:`PipelineSteps <.PipelineStep>` process and return a copy of.
@@ -1087,11 +1090,20 @@ class Dataset(Data):
         Args:
             **kwargs: Dataset is cooperative and calls super().__init__(data=dataset, **kwargs)
         """
-        self._inputs = InputsCatalog()
-        self._outputs = OutputsCatalog()
+        if basepath is None:
+            self._inputs = InputsCatalog()
+            self._outputs = OutputsCatalog()
+        else:
+            basepath_arg = resolve_path(basepath)
+            if not os.path.isdir(basepath_arg):
+                raise NotADirectoryError(
+                    f"basepath {basepath_arg!r} is not an existing directory."
+                )
+            self._inputs = InputsCatalog(basepath=basepath_arg)
+            self._outputs = OutputsCatalog(basepath=basepath_arg)
         self._pipeline = None
         self.reset_pipeline()
-        super().__init__(**kwargs)
+        super().__init__(**kwargs)  # calls the Mixin's __init__
 
     def __repr__(self):
         return self.info(return_str=True)
