@@ -1,10 +1,16 @@
 import json
+import logging
 import os
-from typing import Iterable, Tuple
+import re
+from typing import Iterable, Iterator, Literal, Optional, Tuple, overload
 
 import ms3
 import music21 as m21
 import pandas as pd
+from dimcat.utils import resolve_path
+from tqdm.auto import tqdm
+
+logger = logging.getLogger(__name__)
 
 
 def store_facets_as_zip(
@@ -45,6 +51,128 @@ def make_datapackage_descriptor(
         )
         package_descriptor["resources"].append(resource_descriptor)
     return package_descriptor
+
+
+@overload
+def scan_directory(
+    directory,
+    file_re,
+    folder_re,
+    exclude_re,
+    recursive,
+    subdirs: Literal[False],
+    progress,
+    exclude_files_only,
+) -> Iterator[str]:
+    ...
+
+
+@overload
+def scan_directory(
+    directory,
+    file_re,
+    folder_re,
+    exclude_re,
+    recursive,
+    subdirs: Literal[True],
+    progress,
+    exclude_files_only,
+) -> Iterator[Tuple[str, str]]:
+    ...
+
+
+def scan_directory(
+    directory: str,
+    file_re: Optional[str] = None,
+    folder_re: Optional[str] = None,
+    exclude_re: str = r"^(\.|_)",
+    recursive: bool = True,
+    subdirs: bool = False,
+    progress: bool = False,
+    exclude_files_only: bool = False,
+) -> Iterator[str] | Iterator[Tuple[str, str]]:
+    """Generator of filtered file paths in ``directory``.
+
+    Args:
+      directory: Directory to be scanned for files.
+      file_re, folder_re:
+          Regular expressions for filtering certain file names or folder names.
+          The regEx are checked with search(), not match(), allowing for fuzzy search.
+      exclude_re:
+          Exclude files and folders (unless ``exclude_files_only=True``) containing this regular expression.
+          Excludes files starting with a dot or underscore by default, prevent by setting to None or ''.
+      recursive: By default, sub-directories are recursively scanned. Pass False to scan only ``dir``.
+      subdirs: By default, full file paths are returned. Pass True to return (path, name) tuples instead.
+      progress: Pass True to display the progress (useful for large directories).
+      exclude_files_only:
+          By default, ``exclude_re`` excludes files and folder. Pass True to exclude only files matching the regEx.
+      return_metadata:
+          If set to True, 'metadata.tsv' are always yielded regardless of ``file_re``.
+
+    Yields:
+      Full file path or, if ``subdirs=True``, (path, file_name) pairs in random order.
+    """
+    if file_re is None:
+        file_re = r".*"
+    if folder_re is None:
+        folder_re = r".*"
+
+    def traverse(d):
+        nonlocal counter
+
+        def check_regex(reg, s, excl=exclude_re):
+            try:
+                res = re.search(reg, s) is not None and re.search(excl, s) is None
+            except Exception:
+                print(reg)
+                raise
+            return res
+
+        for dir_entry in os.scandir(d):
+            name = dir_entry.name
+            path = os.path.join(d, name)
+            if dir_entry.is_dir() and (recursive or folder_re != ".*"):
+                for res in traverse(path):
+                    yield res
+            else:
+                if pbar is not None:
+                    pbar.update()
+                if folder_re == ".*":
+                    folder_passes = True
+                else:
+                    folder_path = os.path.dirname(path)
+                    if recursive:
+                        folder_passes = check_regex(
+                            folder_re, folder_path, excl="^$"
+                        )  # passes if the folder path matches the regex
+                    else:
+                        folder = os.path.basename(folder_path)
+                        folder_passes = check_regex(
+                            folder_re, folder, excl="^$"
+                        )  # passes if the folder name itself matches the regex
+                    if (
+                        folder_passes and not exclude_files_only
+                    ):  # True if the exclude_re should also exclude folder names
+                        folder_passes = check_regex(
+                            folder_re, folder_path
+                        )  # is false if any part of the folder path matches exclude_re
+                if dir_entry.is_file() and folder_passes and check_regex(file_re, name):
+                    counter += 1
+                    if pbar is not None:
+                        pbar.set_postfix({"selected": counter})
+                    if subdirs:
+                        yield (d, name)
+                    else:
+                        yield path
+
+    if exclude_re is None or exclude_re == "":
+        exclude_re = "^$"
+    directory = resolve_path(directory)
+    counter = 0
+    if not os.path.isdir(directory):
+        raise NotADirectoryError("Not an existing directory: " + directory)
+    pbar = tqdm(desc="Scanning files", unit=" files") if progress else None
+    return traverse(directory)
 
 
 def store_datapackage(

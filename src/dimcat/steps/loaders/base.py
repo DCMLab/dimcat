@@ -12,7 +12,7 @@ import pandas as pd
 from dimcat.exceptions import DuplicateIDError, ExcludedFileExtensionError
 from dimcat.steps.base import PipelineStep
 from dimcat.steps.loaders.utils import store_datapackage
-from dimcat.utils import check_name, is_uri, make_valid_frictionless_name, resolve_path
+from dimcat.utils import is_uri, make_valid_frictionless_name, resolve_path
 
 logger = logging.getLogger(__name__)
 
@@ -34,21 +34,21 @@ class Loader(PipelineStep):
     """Base class for all loaders."""
 
     class Schema(PipelineStep.Schema):
-        source = mm.fields.Str(required=True)
+        package_name = mm.fields.Str(required=True)
         basepath = mm.fields.Str()
-        package_name = mm.fields.Str(allow_none=True)
+        source = mm.fields.Str(allow_none=True)
 
     def __init__(
         self,
-        source: str,
+        package_name: str,
         basepath: str,
-        package_name: Optional[str] = None,
+        source: Optional[str] = None,
     ):
-        self._source = None
-        self.source = source
+        self._package_name = package_name
         self._basepath = None
         self.basepath = basepath
-        self._package_name = package_name
+        self._source = None
+        self.source = source
 
     @property
     def source(self) -> str:
@@ -77,7 +77,10 @@ class Loader(PipelineStep):
 
     @package_name.setter
     def package_name(self, package_name: Optional[str]):
-        self._package_name = check_name(package_name)
+        valid_name = make_valid_frictionless_name(package_name)
+        if valid_name != package_name:
+            self.logger.info(f"Changed package name to {valid_name}.")
+        self._package_name = valid_name
 
     def check_resource(self, resource: str | Path) -> None:
         """Checks whether the resource at the given path exists."""
@@ -87,11 +90,7 @@ class Loader(PipelineStep):
     def get_package_name(self) -> str:
         """Returns :attr:`package_name` if set, otherwise a valid frictionless name generated from the
         :attr:`source`."""
-        if self.package_name is not None:
-            return self.package_name
-        new_name = os.path.basename(self.source)
-        frictionless_name = make_valid_frictionless_name(new_name)
-        return frictionless_name
+        return self.package_name
 
     def get_zip_path(self) -> str:
         package_name = self.get_package_name()
@@ -121,17 +120,19 @@ class ScoreLoader(Loader):
 
     def __init__(
         self,
-        source: str,
+        package_name: str,
         basepath: str,
-        package_name: Optional[str] = None,
+        source: Optional[str] = None,
         autoload: bool = True,
+        overwrite: bool = False,
     ):
         super().__init__(
-            source=source,
-            basepath=basepath,
             package_name=package_name,
+            basepath=basepath,
+            source=source,
         )
         self.autoload = autoload
+        self.overwrite = overwrite
         self.loaded_facets = LoadedFacets()
         self._processed_ids = set()
 
@@ -166,20 +167,21 @@ class ScoreLoader(Loader):
 
     def create_datapackage(
         self,
-        overwrite: bool = False,
+        overwrite: Optional[bool] = None,
     ):
         """
 
         Args:
             overwrite:
-                If False (default), raise FileExistsError if zip file already exists.
-                If True, overwrite existing zip file.
+                Set to a boolean to set :attr:`overwrite` to a new value.
 
         Returns:
 
         Raises:
             FileExistsError: If the zip file <basepath>/<package_name>.zip already exists.
         """
+        if overwrite is not None:
+            self.overwrite = overwrite
         zip_path = self.get_zip_path()
         if not overwrite:
             if os.path.isfile(zip_path):

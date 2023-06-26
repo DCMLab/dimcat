@@ -23,10 +23,11 @@ class MuseScoreLoader(ScoreLoader):
 
     def __init__(
         self,
-        source: str,
+        package_name: str,
         basepath: str,
-        package_name: Optional[str] = None,
+        source: Optional[str] = None,
         autoload: bool = True,
+        overwrite: bool = False,
         as_corpus: bool = False,
         only_metadata_fnames: bool = True,
         include_convertible: bool = False,
@@ -41,10 +42,11 @@ class MuseScoreLoader(ScoreLoader):
         **logger_cfg,
     ):
         super().__init__(
-            source=source,
-            basepath=basepath,
             package_name=package_name,
+            basepath=basepath,
+            source=source,
             autoload=autoload,
+            overwrite=overwrite,
         )
         self.parser: ms3.Parse | ms3.Corpus = None
         ms3_arguments = dict(
@@ -83,8 +85,7 @@ class MuseScoreLoader(ScoreLoader):
 
     def create_datapackage(
         self,
-        overwrite: bool = False,
-        reload: bool = False,
+        overwrite: Optional[bool] = None,
         view_name: Optional[str] = None,
         parsed: bool = True,
         unparsed: bool = True,
@@ -96,9 +97,6 @@ class MuseScoreLoader(ScoreLoader):
             overwrite:
                 If False (default), raise FileExistsError if zip file already exists.
                 If True, overwrite existing zip file.
-            reload:
-                If False (default), skip resources whose ID's have already been processed.
-                If True, reload all resources.
             view_name:
             parsed:
             unparsed:
@@ -116,7 +114,6 @@ class MuseScoreLoader(ScoreLoader):
                 f"Invalid value for choose: {choose}. Pass 'auto' (default) or 'ask'."
             )
         self._parse_and_extract(
-            reload=reload,
             choose=choose,
             parsed=parsed,
             unparsed=unparsed,
@@ -127,7 +124,6 @@ class MuseScoreLoader(ScoreLoader):
 
     def _parse_and_extract(
         self,
-        reload: bool = False,
         choose: Literal["auto", "ask"] = "auto",
         parsed: bool = True,
         unparsed: bool = True,
@@ -169,9 +165,6 @@ class MuseScoreLoader(ScoreLoader):
                 desc="Parsing scores...",
             )
         ):
-            if not reload and ID in self.processed_ids:
-                self.logger.debug(f"Skipping piece {ID} (already processed)")
-                continue
             path = file.full_path
             pbar.set_description(f"Parsing {file.file}")
             logger_name = logger_names[ID]

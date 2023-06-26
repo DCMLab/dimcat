@@ -4,13 +4,16 @@ import os.path
 from collections import defaultdict
 from functools import cache
 from inspect import signature
-from typing import DefaultDict, List, Tuple
+from typing import DefaultDict, Iterable, Iterator, List, Optional, Tuple
 
 import music21 as m21
 import pandas as pd
+from dimcat.exceptions import NoPathsSpecifiedError
+from dimcat.utils import is_uri, resolve_path
+from tqdm.auto import tqdm
 
 from .base import ScoreLoader
-from .utils import get_m21_input_extensions
+from .utils import get_m21_input_extensions, scan_directory
 
 logger = logging.getLogger(__name__)
 
@@ -172,6 +175,10 @@ def parse_AbstractScale(value):
     return value
 
 
+def parse_TextExpression(text_expression: m21.expressions.TextExpression) -> str:
+    return text_expression.content
+
+
 def parse_Measure(measure: m21.stream.Measure, **higher_level_info):
     """Inspired by https://github.com/MarkGotham/bar-measure/blob/5ddc7c6/Code/music21_application.py#L205"""
     end_repeat = False
@@ -254,11 +261,9 @@ class Music21Score:
         method = self._get_method(element)
         return method(element, **kwargs)
 
-    def _parse_Clef(self, clef: m21.clef.Clef, **higher_level_info):
-        clef_info = dict(
-            **higher_level_info,
-            clef=parse_Clef(clef),
-        )
+    def _parse_Clef(self, clef_object: m21.clef.Clef, **higher_level_info):
+        clef_info = dict(higher_level_info)
+        clef_info["clef"] = parse_Clef(clef_object)
         self.add_control_event(event="Clef", event_info=clef_info)
         return clef_info
 
@@ -300,6 +305,22 @@ class Music21Score:
             if isinstance(element, m21.bar.Barline):
                 measure_info["barline"] = parse_Barline(element)
                 continue
+            if isinstance(element, m21.repeat.Fine):
+                measure_info["marker"] = "fine"
+                continue
+            if isinstance(element, m21.repeat.Segno):
+                measure_info["marker"] = "segno"
+                continue
+            if isinstance(element, m21.repeat.DalSegnoAlCoda):
+                measure_info["jump_bwd"] = "segno"
+                measure_info["play_until"] = "coda"
+                measure_info["jump_fwd"] = "codab"
+                continue
+            if isinstance(element, m21.repeat.DalSegnoAlFine):
+                measure_info["jump_bwd"] = "segno"
+                measure_info["play_until"] = "fine"
+                continue
+
             if isinstance(element, m21.stream.Voice):
                 voice_count += 1
                 tmp_measure_info = dict(measure_info, voice=voice_count)
@@ -368,6 +389,9 @@ class Music21Score:
     def _parse_StaffGroup(self, staff_group: m21.layout.StaffGroup, **kwargs):
         pass  # ignore
 
+    def _parse_StaffLayout(self, staff_layout: m21.layout.StaffLayout, **kwargs):
+        pass  # ignore
+
     def _parse_SystemLayout(self, system_layout: m21.layout.SystemLayout, **kwargs):
         pass  # ignore
 
@@ -377,6 +401,15 @@ class Music21Score:
 
     def _parse_TextBox(self, text_box: m21.text.TextBox):
         self.elements.prelims.append(text_box.content)
+
+    def _parse_TextExpression(
+        self, text_expression: m21.expressions.TextExpression, **higher_level_info
+    ):
+        text_expression_info = dict(
+            higher_level_info, text=parse_TextExpression(text_expression)
+        )
+        self.add_control_event(event="TextExpression", event_info=text_expression_info)
+        return text_expression_info
 
     def _parse_TimeSignature(
         self, time_signature: m21.meter.TimeSignature, **higher_level_info
@@ -409,10 +442,134 @@ def make_metadata(metadata_dict):
     return pd.Series(metadata)
 
 
+class PathFactory(Iterable[str]):
+    def __init__(
+        self,
+        directory: str,
+        file_re: Optional[str] = None,
+        folder_re: Optional[str] = None,
+        exclude_re: str = r"^(\.|_)",
+        recursive: bool = True,
+        progress: bool = False,
+        exclude_files_only: bool = False,
+    ):
+        """Generator of filtered file paths in ``directory``.
+
+        Args:
+          directory: Directory to be scanned for files.
+          file_re, folder_re:
+              Regular expressions for filtering certain file names or folder names.
+              The regEx are checked with search(), not match(), allowing for fuzzy search.
+          exclude_re:
+              Exclude files and folders (unless ``exclude_files_only=True``) containing this regular expression.
+              Excludes files starting with a dot or underscore by default, prevent by setting to None or ''.
+          recursive: By default, sub-directories are recursively scanned. Pass False to scan only ``dir``.
+          progress: Pass True to display the progress (useful for large directories).
+          exclude_files_only:
+              By default, ``exclude_re`` excludes files and folder. Pass True to exclude only files matching the regEx.
+          return_metadata:
+              If set to True, 'metadata.tsv' are always yielded regardless of ``file_re``.
+
+        Yields:
+          Full file path or, if ``subdirs=True``, (path, file_name) pairs in random order.
+        """
+        self.directory = directory
+        self.file_re = file_re
+        self.folder_re = folder_re
+        self.exclude_re = exclude_re
+        self.recursive = recursive
+        self.progress = progress
+        self.exclude_files_only = exclude_files_only
+
+    def __iter__(self) -> Iterator[str]:
+        yield from scan_directory(
+            directory=self.directory,
+            file_re=self.file_re,
+            folder_re=self.folder_re,
+            exclude_re=self.exclude_re,
+            recursive=self.recursive,
+            subdirs=False,
+            progress=self.progress,
+            exclude_files_only=self.exclude_files_only,
+        )
+
+
 class Music21Loader(ScoreLoader):
     accepted_file_extensions = get_m21_input_extensions()
 
-    def _process_resource(self, resource: str) -> None:
+    def __init__(
+        self,
+        package_name: str,
+        basepath: str,
+        source: Optional[str] = None,
+        autoload: bool = True,
+        overwrite: bool = False,
+    ):
+        super().__init__(
+            package_name=package_name,
+            basepath=basepath,
+            source=source,
+            autoload=autoload,
+            overwrite=overwrite,
+        )
+        self._paths: Iterable[str] = []
+
+    @property
+    def paths(self) -> Iterable[str]:
+        if self._paths:
+            return self._paths
+        if self._source is None:
+            raise NoPathsSpecifiedError
+        if isinstance(self._source, str):
+            self._paths = PathFactory(self._source)
+        else:
+            self._paths = self._source
+        return self._paths
+
+    @property
+    def source(self) -> str | Iterable[str]:
+        return self._source
+
+    @source.setter
+    def source(self, source: str):
+        if is_uri(source):
+            raise NotImplementedError("Loading from remote URLs is not yet supported.")
+        if isinstance(source, str):
+            new_source = resolve_path(source)
+            if not new_source:
+                raise ValueError(f"Could not resolve {source}.")
+            self._source = new_source
+        else:
+            self._source = source
+
+    def create_datapackage(
+        self,
+        overwrite: Optional[bool] = None,
+    ) -> str:
+        super().create_datapackage(overwrite=overwrite)
+        self._parse_and_extract()
+        self.store_datapackage()
+        return self.descriptor_path
+
+    def _parse_and_extract(
+        self,
+    ):
+        paths = list(self.paths)
+        for path in (
+            pbar := tqdm(
+                paths,
+                total=len(paths),
+                desc="Parsing scores...",
+            )
+        ):
+            directory, file = os.path.split(path)
+            pbar.set_description(f"Parsing {file}")
+            self._process_resource(path)
+
+    def _process_resource(
+        self,
+        resource: str,
+    ) -> None:
         score = Music21Score(resource)
         score.parse()
         path, file = os.path.split(resource)

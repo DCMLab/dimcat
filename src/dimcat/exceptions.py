@@ -101,6 +101,12 @@ class NoMuseScoreExecutableSpecifiedError(DimcatError):
     }
 
 
+class NoPathsSpecifiedError(DimcatError):
+    nargs2message = {
+        0: "No paths have been specified.",
+    }
+
+
 class ResourceNotProcessableError(DimcatError):
     """optional args: (feature_name,)"""
 
