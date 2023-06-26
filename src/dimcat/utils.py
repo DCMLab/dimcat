@@ -8,6 +8,7 @@ from typing import Collection, Optional
 from urllib.parse import urlparse
 
 import pandas as pd
+from dimcat.base import get_setting
 
 logger = logging.getLogger(__name__)
 
@@ -201,7 +202,7 @@ def check_file_path(
 
 
 def get_default_basepath():
-    return os.getcwd()
+    return get_setting("default_output_dir")
 
 
 def check_name(name: str) -> None:

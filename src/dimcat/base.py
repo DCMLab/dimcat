@@ -614,6 +614,7 @@ def deserialize_json_file(json_file) -> DimcatObject:
 class DimcatSettings(DimcatObject):
     """Settings for the dimcat library."""
 
+    default_output_dir: str = "~/dimcat_data"
     never_store_unvalidated_data: bool = True
     """setting this to False allows for skipping mandatory validations; set to True for production"""
     recognized_piece_columns: List[str] = dataclass_field(
@@ -622,6 +623,7 @@ class DimcatSettings(DimcatObject):
     """column names that are recognized as piece identifiers and automatically renamed to 'piece' when needed"""
 
     class Schema(DimcatObject.Schema):
+        default_output_dir = mm.fields.String(required=True)
         never_store_unvalidated_data = mm.fields.Boolean(required=True)
         recognized_piece_columns = mm.fields.List(mm.fields.String(), required=True)
 
