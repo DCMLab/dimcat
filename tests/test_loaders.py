@@ -3,9 +3,7 @@ import os
 import music21 as m21
 import pytest
 from dimcat.steps import MuseScoreLoader
-
-# from dimcat.steps.loaders import Music21Loader
-from dimcat.steps.loaders.m21 import Music21Score
+from dimcat.steps.loaders import Music21Loader
 
 
 def get_score_paths(extensions=(".xml", ".musicxml", ".mxl"), n=1):
@@ -61,11 +59,9 @@ def test_musescore_loader(corpus_path, tmp_package_path):
 
 
 def test_music21_loader(corpus_path, score_path, tmp_package_path):
-    M = Music21Score(score_path)
-    M.parse()
-    # L = Music21Loader(
-    #     source=corpus_path,
-    #     basepath=tmp_package_path,
-    # )
-    # L.process_resource(score_path)
-    # assert len(L.processed_ids) == 1
+    L = Music21Loader(
+        source=corpus_path,
+        basepath=tmp_package_path,
+    )
+    L.process_resource(score_path)
+    assert len(L.processed_ids) == 1

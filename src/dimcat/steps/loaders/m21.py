@@ -1,11 +1,13 @@
 import dataclasses
 import logging
+import os.path
 from collections import defaultdict
 from functools import cache
 from inspect import signature
 from typing import DefaultDict, List, Tuple
 
 import music21 as m21
+import pandas as pd
 
 from .base import ScoreLoader
 from .utils import get_m21_input_extensions
@@ -390,8 +392,39 @@ class Music21Score:
             _ = self.parse_element(element, **higher_level_info)
 
 
+def make_dataframe(records):
+    df = pd.DataFrame.from_records(records)
+    column_is_empty = df.isna().all()
+    if column_is_empty.any():
+        logger.info(f"Empty columns:\n{column_is_empty}")
+    return df
+
+
+def make_metadata(metadata_dict):
+    metadata = {
+        k: v[0] if len(v) == 1 else ", ".join(str(e) for e in v)
+        for k, v in metadata_dict.items()
+        if v
+    }
+    return pd.Series(metadata)
+
+
 class Music21Loader(ScoreLoader):
     accepted_file_extensions = get_m21_input_extensions()
 
     def _process_resource(self, resource: str) -> None:
-        return Music21Score(resource)
+        score = Music21Score(resource)
+        score.parse()
+        path, file = os.path.split(resource)
+        ID = (os.path.basename(path), os.path.splitext(file)[0])
+        for facet_name, obj in zip(
+            ("events", "control", "structure", "annotations", "metadata"),
+            (
+                make_dataframe(score.elements.events),
+                make_dataframe(score.elements.control),
+                make_dataframe(score.elements.structure),
+                make_dataframe(score.elements.annotations),
+                make_metadata(score.elements.metadata),
+            ),
+        ):
+            self.add_piece_facet(facet_name, ID, obj)
