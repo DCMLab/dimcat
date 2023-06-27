@@ -1,33 +1,8 @@
-.. todo:: THIS IS SUPPOSED TO BE AN EXAMPLE. MODIFY IT ACCORDING TO YOUR NEEDS!
-
-   The document assumes you are using a source repository service that promotes a
-   contribution model similar to `GitHub's fork and pull request workflow`_.
-   While this is true for the majority of services (like GitHub, GitLab,
-   BitBucket), it might not be the case for private repositories (e.g., when
-   using Gerrit).
-
-   Also notice that the code examples might refer to GitHub URLs or the text
-   might use GitHub specific terminology (e.g., *Pull Request* instead of *Merge
-   Request*).
-
-   Please make sure to check the document having these assumptions in mind
-   and update things accordingly.
-
-.. todo:: Provide the correct links/replacements at the bottom of the document.
-
-.. todo:: You might want to have a look on `PyScaffold's contributor's guide`_,
-
-   especially if your project is open source. The text should be very similar to
-   this template, but there are a few extra contents that you might decide to
-   also include, like mentioning labels of your issue tracker or automated
-   releases.
-
-
 ============
 Contributing
 ============
 
-Welcome to ``dimcat`` contributor's guide.
+Welcome to ``DiMCAT`` contributor's guide.
 
 This document focuses on getting any potential contributor familiarized
 with the development processes, but `other kinds of contributions`_ are also
@@ -46,7 +21,7 @@ guidelines.
 Issue Reports
 =============
 
-If you experience bugs or general issues with ``dimcat``, please have a look
+If you experience bugs or general issues with ``DiMCAT``, please have a look
 on the `issue tracker`_. If you don't see anything useful there, please feel
 free to fire an issue report.
 
@@ -65,32 +40,30 @@ you help us to identify the root cause of the issue.
 Documentation Improvements
 ==========================
 
-You can help improve ``dimcat`` docs by making them more readable and coherent, or
+You can help improve ``DiMCAT`` docs by making them more readable and coherent, or
 by adding missing information and correcting mistakes.
 
-``dimcat`` documentation uses Sphinx_ as its main documentation compiler.
+``DiMCAT`` documentation uses Sphinx_ as its main documentation compiler.
 This means that the docs are kept in the same repository as the project code, and
 that any documentation update is done in the same way was a code contribution.
 
-.. todo:: Don't forget to mention which markup language you are using.
+Documentation pages are written in reStructuredText_ (as are the docstrings that are automatically compiled to the
+API docs) or as [MyST notebooks](https://myst-nb.readthedocs.io/en/latest/authoring/basics.html) that are run and
+rendered to HTML when building the docs (see also the syntax guide at MyST_).
 
-    e.g.,  reStructuredText_ or CommonMark_ with MyST_ extensions.
+.. tip::
+  Please notice that the `GitHub web interface`_ provides a quick way of
+  propose changes in ``DiMCAT``'s files. While this mechanism can
+  be tricky for normal code contributions, it works perfectly fine for
+  contributing to the docs, and can be quite handy.
 
-.. todo:: If your project is hosted on GitHub, you can also mention the following tip:
-
-   .. tip::
-      Please notice that the `GitHub web interface`_ provides a quick way of
-      propose changes in ``dimcat``'s files. While this mechanism can
-      be tricky for normal code contributions, it works perfectly fine for
-      contributing to the docs, and can be quite handy.
-
-      If you are interested in trying this method out, please navigate to
-      the ``docs`` folder in the source repository_, find which file you
-      would like to propose changes and click in the little pencil icon at the
-      top, to open `GitHub's code editor`_. Once you finish editing the file,
-      please write a message in the form at the bottom of the page describing
-      which changes have you made and what are the motivations behind them and
-      submit your proposal.
+  If you are interested in trying this method out, please navigate to
+  the ``docs`` folder in the source repository_, find which file you
+  would like to propose changes and click in the little pencil icon at the
+  top, to open `GitHub's code editor`_. Once you finish editing the file,
+  please write a message in the form at the bottom of the page describing
+  which changes have you made and what are the motivations behind them and
+  submit your proposal.
 
 When working on documentation changes in your local machine, you can
 compile them using |tox|_::
@@ -105,6 +78,126 @@ and use Python's built-in web server for a preview in your web browser
 
 Code Contributions
 ==================
+
+.. admonition:: TL;DR
+
+   * Fork the repository.
+   * (Create a virtual environment, :ref:`see below <virtenv>`).
+   * Head into the local clone of your fork and hit ``pip install -e ".[dev]"`` (where ``.`` is the current directory).
+   * Install the precommit hooks via ``pre-commit install``.
+   * Implement the changes and create a Pull Request against the ``development`` branch.
+   * Thank you!
+
+
+Submit an issue
+---------------
+
+Before you work on any non-trivial code contribution it's best to first create
+a report in the `issue tracker`_ to start a discussion on the subject.
+This often provides additional considerations and avoids unnecessary work.
+
+.. _virtenv:
+
+Create an environment
+---------------------
+
+Before you start coding, we recommend creating an isolated `virtual
+environment`_ to avoid any problems with your installed Python packages.
+This can easily be done via either |virtualenv|_::
+
+    virtualenv <PATH TO VENV>
+    source <PATH TO VENV>/bin/activate
+
+or Miniconda_::
+
+    conda create -n dimcat python=3 six virtualenv pytest pytest-cov
+    conda activate dimcat
+
+Clone the repository
+--------------------
+
+#. Create an user account on |the repository service| if you do not already have one.
+#. Fork the project repository_: click on the *Fork* button near the top of the
+   page. This creates a copy of the code under your account on |the repository service|.
+#. Clone this copy to your local disk::
+
+    git clone git@github.com:YourLogin/dimcat.git
+    cd dimcat
+
+#. You should run::
+
+    pip install -U pip -e ".[dev]"
+
+   to be able to import the package under development in the Python REPL.
+
+#. Install |pre-commit|_::
+
+    pip install pre-commit
+    pre-commit install
+
+   ``DiMCAT`` comes with a lot of hooks configured to automatically help the
+   developer to check the code being written.
+
+Implement your changes
+----------------------
+
+#. Create a branch to hold your changes::
+
+    git checkout -b my-feature
+
+   and start making changes. Never work on the main branch!
+
+#. Start your work on this branch. Don't forget to add docstrings_ to new
+   functions, modules and classes, especially if they are part of public APIs.
+
+#. Add yourself to the list of contributors in ``AUTHORS.rst``.
+
+#. When you’re done editing, do::
+
+    git add <MODIFIED FILES>
+    git commit
+
+   to record your changes in git_.
+
+   Please make sure to see the validation messages from |pre-commit|_ and fix
+   any eventual issues.
+   This should automatically use flake8_/black_ to check/fix the code style
+   in a way that is compatible with the project.
+
+   .. important:: Don't forget to add unit tests and documentation in case your
+      contribution adds an additional feature and is not just a bugfix.
+
+      Moreover, writing a `descriptive commit message`_ is highly recommended.
+      In case of doubt, you can check the commit history with::
+
+         git log --graph --decorate --pretty=oneline --abbrev-commit --all
+
+      to look for recurring communication patterns.
+
+#. Please check that your changes don't break any unit tests with::
+
+    tox
+
+   (after having installed |tox|_ with ``pip install tox`` or ``pipx``).
+
+   You can also use |tox|_ to run several other pre-configured tasks in the
+   repository. Try ``tox -av`` to see a list of the available checks.
+
+Submit your contribution
+------------------------
+
+#. If everything works fine, push your local branch to |the repository service| with::
+
+    git push -u origin my-feature
+
+#. Go to the web page of your fork and click |contribute button|
+   to send your changes for review.
+
+   Find more detailed information in `creating a PR`_. You might also want to open
+   the PR as a draft first and mark it as ready for review after the feedbacks
+   from the continuous integration (CI) system or any required fixes.
+
+
 
 DiMCAT architecture
 -------------------
@@ -165,6 +258,9 @@ DiMCAT architecture
 Coding Conventions
 ------------------
 
+Please make sure to run ``pre-commit install`` in your local clone of the repository. This way, many coding
+conventions are automatically applied before each commit!
+
 Internal imports
 ~~~~~~~~~~~~~~~~
 
@@ -176,9 +272,13 @@ files which, here, we call ``base``.
   are the classes :class:`dimcat.steps.base.Pipeline` and :class:`dimcat.steps.extractors.FeatureExtractor`, which
   :class:`dimcat.data.dataset.Dataset` uses explicitly. In these cases, importing from ``steps`` is circumvented using
   the :func:`dimcat.base.get_class` function.
+* All modules can import from ``dimcat.utils`` except for ``dimcat.base``.
 
-Method ordering
-~~~~~~~~~~~~~~~
+Order of attributes and methods
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Each bullet point represents an alphabetically sorted group of attributes or methods. Private attributes and methods
+are sorted as if they didn't have a leading underscore.
 
 * class members
 
@@ -195,119 +295,6 @@ Method ordering
   * magic methods
   * `@property` and setters
   * public and private methods
-
-
-Submit an issue
----------------
-
-Before you work on any non-trivial code contribution it's best to first create
-a report in the `issue tracker`_ to start a discussion on the subject.
-This often provides additional considerations and avoids unnecessary work.
-
-Create an environment
----------------------
-
-Before you start coding, we recommend creating an isolated `virtual
-environment`_ to avoid any problems with your installed Python packages.
-This can easily be done via either |virtualenv|_::
-
-    virtualenv <PATH TO VENV>
-    source <PATH TO VENV>/bin/activate
-
-or Miniconda_::
-
-    conda create -n dimcat python=3 six virtualenv pytest pytest-cov
-    conda activate dimcat
-
-Clone the repository
---------------------
-
-#. Create an user account on |the repository service| if you do not already have one.
-#. Fork the project repository_: click on the *Fork* button near the top of the
-   page. This creates a copy of the code under your account on |the repository service|.
-#. Clone this copy to your local disk::
-
-    git clone git@github.com:YourLogin/dimcat.git
-    cd dimcat
-
-#. You should run::
-
-    pip install -U pip setuptools -e .
-
-   to be able to import the package under development in the Python REPL.
-
-   .. todo:: if you are not using pre-commit, please remove the following item:
-
-#. Install |pre-commit|_::
-
-    pip install pre-commit
-    pre-commit install
-
-   ``dimcat`` comes with a lot of hooks configured to automatically help the
-   developer to check the code being written.
-
-Implement your changes
-----------------------
-
-#. Create a branch to hold your changes::
-
-    git checkout -b my-feature
-
-   and start making changes. Never work on the main branch!
-
-#. Start your work on this branch. Don't forget to add docstrings_ to new
-   functions, modules and classes, especially if they are part of public APIs.
-
-#. Add yourself to the list of contributors in ``AUTHORS.rst``.
-
-#. When you’re done editing, do::
-
-    git add <MODIFIED FILES>
-    git commit
-
-   to record your changes in git_.
-
-   .. todo:: if you are not using pre-commit, please remove the following item:
-
-   Please make sure to see the validation messages from |pre-commit|_ and fix
-   any eventual issues.
-   This should automatically use flake8_/black_ to check/fix the code style
-   in a way that is compatible with the project.
-
-   .. important:: Don't forget to add unit tests and documentation in case your
-      contribution adds an additional feature and is not just a bugfix.
-
-      Moreover, writing a `descriptive commit message`_ is highly recommended.
-      In case of doubt, you can check the commit history with::
-
-         git log --graph --decorate --pretty=oneline --abbrev-commit --all
-
-      to look for recurring communication patterns.
-
-#. Please check that your changes don't break any unit tests with::
-
-    tox
-
-   (after having installed |tox|_ with ``pip install tox`` or ``pipx``).
-
-   You can also use |tox|_ to run several other pre-configured tasks in the
-   repository. Try ``tox -av`` to see a list of the available checks.
-
-Submit your contribution
-------------------------
-
-#. If everything works fine, push your local branch to |the repository service| with::
-
-    git push -u origin my-feature
-
-#. Go to the web page of your fork and click |contribute button|
-   to send your changes for review.
-
-   .. todo:: if you are using GitHub, you can uncomment the following paragraph
-
-      Find more detailed information in `creating a PR`_. You might also want to open
-      the PR as a draft first and mark it as ready for review after the feedbacks
-      from the continuous integration (CI) system or any required fixes.
 
 
 Troubleshooting
@@ -363,14 +350,10 @@ Maintainer tasks
 Releases
 --------
 
-.. todo:: This section assumes you are using PyPI to publicly release your package.
-
-   If instead you are using a different/private package index, please update
-   the instructions accordingly.
 
 If you are part of the group of maintainers and have correct user permissions
 on PyPI_, the following steps can be used to release a new version for
-``dimcat``:
+``DiMCAT``:
 
 #. Make sure all unit tests are successful.
 #. Tag the current commit on the main branch with a release tag, e.g., ``v1.2.3``.
@@ -393,14 +376,13 @@ on PyPI_, the following steps can be used to release a new version for
    of environments, including private companies and proprietary code bases.
 
 
-.. <-- strart -->
-.. todo:: Please review and change the following definitions:
+.. <-- start -->
 
 .. |the repository service| replace:: GitHub
 .. |contribute button| replace:: "Create pull request"
 
-.. _repository: https://github.com/<USERNAME>/dimcat
-.. _issue tracker: https://github.com/<USERNAME>/dimcat/issues
+.. _repository: https://github.com/DCMLab/dimcat
+.. _issue tracker: https://github.com/DCMLab/dimcat/issues
 .. <-- end -->
 
 
