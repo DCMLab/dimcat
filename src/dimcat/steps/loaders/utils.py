@@ -194,3 +194,55 @@ def get_m21_input_extensions() -> Tuple[str, ...]:
     ext2converter = m21.converter.Converter.getSubConverterFormats()
     extensions = list(ext2converter.keys()) + [".mxl"]
     return tuple(ext if ext[0] == "." else f".{ext}" for ext in extensions)
+
+
+class PathFactory(Iterable[str]):
+    def __init__(
+        self,
+        directory: str,
+        file_re: Optional[str] = None,
+        folder_re: Optional[str] = None,
+        exclude_re: str = r"^(\.|_)",
+        recursive: bool = True,
+        progress: bool = False,
+        exclude_files_only: bool = False,
+    ):
+        """Generator of filtered file paths in ``directory``.
+
+        Args:
+          directory: Directory to be scanned for files.
+          file_re, folder_re:
+              Regular expressions for filtering certain file names or folder names.
+              The regEx are checked with search(), not match(), allowing for fuzzy search.
+          exclude_re:
+              Exclude files and folders (unless ``exclude_files_only=True``) containing this regular expression.
+              Excludes files starting with a dot or underscore by default, prevent by setting to None or ''.
+          recursive: By default, sub-directories are recursively scanned. Pass False to scan only ``dir``.
+          progress: Pass True to display the progress (useful for large directories).
+          exclude_files_only:
+              By default, ``exclude_re`` excludes files and folder. Pass True to exclude only files matching the regEx.
+          return_metadata:
+              If set to True, 'metadata.tsv' are always yielded regardless of ``file_re``.
+
+        Yields:
+          Full file path or, if ``subdirs=True``, (path, file_name) pairs in random order.
+        """
+        self.directory = directory
+        self.file_re = file_re
+        self.folder_re = folder_re
+        self.exclude_re = exclude_re
+        self.recursive = recursive
+        self.progress = progress
+        self.exclude_files_only = exclude_files_only
+
+    def __iter__(self) -> Iterator[str]:
+        yield from scan_directory(
+            directory=self.directory,
+            file_re=self.file_re,
+            folder_re=self.folder_re,
+            exclude_re=self.exclude_re,
+            recursive=self.recursive,
+            subdirs=False,
+            progress=self.progress,
+            exclude_files_only=self.exclude_files_only,
+        )
