@@ -24,9 +24,8 @@ class MuseScoreLoader(ScoreLoader):
     def __init__(
         self,
         package_name: str,
-        basepath: str,
+        basepath: Optional[str] = None,
         source: Optional[str] = None,
-        autoload: bool = True,
         overwrite: bool = False,
         as_corpus: bool = False,
         only_metadata_fnames: bool = True,
@@ -45,7 +44,6 @@ class MuseScoreLoader(ScoreLoader):
             package_name=package_name,
             basepath=basepath,
             source=source,
-            autoload=autoload,
             overwrite=overwrite,
         )
         self.parser: ms3.Parse | ms3.Corpus = None
@@ -73,8 +71,6 @@ class MuseScoreLoader(ScoreLoader):
                     "Argument 'paths' currently is only supported for as_corpus=True."
                 )
             self.parser = ms3.Parse(**ms3_arguments)
-        if self.autoload:
-            _ = self.create_datapackage()
 
     def check_resource(self, resource: str | Path) -> None:
         super().check_resource(resource)

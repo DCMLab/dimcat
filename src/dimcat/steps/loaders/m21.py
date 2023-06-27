@@ -142,6 +142,10 @@ def parse_Barline(barline: m21.bar.Barline):
     return barline.type
 
 
+def parse_Harmony(harmony: m21.harmony.Harmony) -> str:
+    return harmony.figure
+
+
 def parse_Microtone(microtone: m21.pitch.Microtone) -> float:
     return microtone.cents
 
@@ -219,12 +223,6 @@ class Music21Score:
 
     def __init__(self, source: str):
         self.score = m21.converter.parse(source, forceSource=True)
-        if isinstance(self.score, m21.stream.Opus):
-            raise NotImplementedError("Opus not yet supported")
-        if not isinstance(self.score, m21.stream.Score):
-            raise ValueError(
-                f"Music21 was expected to return a Score; got {type(self.score)} instead."
-            )
         self.elements = CollectedElements()
         self.chord_id = -1
 
@@ -237,9 +235,14 @@ class Music21Score:
             return self._parse_Spanner
         if isinstance(element, m21.clef.Clef):
             return self._parse_Clef
+        if isinstance(element, m21.harmony.Harmony):
+            return self._parse_Harmony
         raise NotImplementedError(
             f"Method {method_name} for parsing {element.__class__} not implemented."
         )
+
+    def add_annotation(self, annotation: dict):
+        self.elements.annotations.append(annotation)
 
     def add_control_event(self, event: str, event_info: dict):
         self.elements.control.append(dict(event=event, **event_info))
@@ -254,7 +257,18 @@ class Music21Score:
         self.elements.structure.append(structure)
 
     def parse(self):
-        for top_level_element in self.score:
+        if isinstance(self.score, m21.stream.Opus):
+            for score in self.score.scores:
+                self._parse_score(score)
+        elif isinstance(self.score, m21.stream.Score):
+            self._parse_score(self.score)
+        else:
+            raise NotImplementedError(
+                f"music21.converter.parse() was expected to return a Score; got {type(self.score)} instead."
+            )
+
+    def _parse_score(self, score: m21.stream.Score):
+        for top_level_element in score:
             _ = self.parse_element(top_level_element)
 
     def parse_element(self, element: m21.Music21Object, **kwargs) -> dict:
@@ -279,8 +293,13 @@ class Music21Score:
         self.add_control_event(event="Dynamic", event_info=dynamic_info)
         return dynamic_info
 
+    def _parse_Harmony(self, harmony: m21.harmony.Harmony, **higher_level_info):
+        chord_symbol_info = dict(**higher_level_info, label=parse_Harmony(harmony))
+        self.add_annotation(chord_symbol_info)
+        return chord_symbol_info
+
     def _parse_Key(self, key: m21.key.Key, **higher_level_info):
-        key_info = dict(higher_level_info, keysig=parse_Key(key))
+        key_info = dict(higher_level_info, key_signature=parse_Key(key))
         self.add_control_event(event="Key", event_info=key_info)
         return key_info
 
@@ -500,16 +519,14 @@ class Music21Loader(ScoreLoader):
     def __init__(
         self,
         package_name: str,
-        basepath: str,
+        basepath: Optional[str] = None,
         source: Optional[str] = None,
-        autoload: bool = True,
         overwrite: bool = False,
     ):
         super().__init__(
             package_name=package_name,
             basepath=basepath,
             source=source,
-            autoload=autoload,
             overwrite=overwrite,
         )
         self._paths: Iterable[str] = []

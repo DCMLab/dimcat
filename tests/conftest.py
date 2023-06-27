@@ -64,6 +64,11 @@ def corpus_path() -> str:
     return CORPUS_PATH
 
 
+@pytest.fixture(scope="session")
+def mixed_files_path(corpus_path) -> str:
+    return os.path.join(corpus_path, "mixed_files")
+
+
 def single_resource_path() -> str:
     """Returns the path to a single resource."""
     return RESOURCE_PATHS["unittest_notes.resource.yaml"]

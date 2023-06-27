@@ -8,7 +8,7 @@ from dimcat.data.dataset import Dataset
 from dimcat.data.resources import DimcatResource, FeatureSpecs
 from marshmallow import fields
 
-from .base import FeatureStep
+from .base import FeatureStep, PipelineStep
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +72,7 @@ class Pipeline(FeatureStep):
             step = DimcatConfig(step)
         if isinstance(step, DimcatConfig):
             step = step.create()
-        if not isinstance(step, FeatureStep):
+        if not isinstance(step, PipelineStep):
             raise TypeError(f"Pipeline acceppts only PipelineSteps, not {type(step)}.")
         self._steps.append(step)
 

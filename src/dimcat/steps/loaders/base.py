@@ -9,6 +9,8 @@ from typing import ClassVar, Dict, Literal, Optional, Set, Tuple, TypeAlias
 
 import marshmallow as mm
 import pandas as pd
+from dimcat import Dataset
+from dimcat.base import get_setting
 from dimcat.exceptions import DuplicateIDError, ExcludedFileExtensionError
 from dimcat.steps.base import PipelineStep
 from dimcat.steps.loaders.utils import store_datapackage
@@ -41,7 +43,7 @@ class Loader(PipelineStep):
     def __init__(
         self,
         package_name: str,
-        basepath: str,
+        basepath: Optional[str] = None,
         source: Optional[str] = None,
     ):
         self._package_name = package_name
@@ -87,6 +89,27 @@ class Loader(PipelineStep):
         if not os.path.isfile(resource):
             raise FileNotFoundError(f"Resource {resource} does not exist.")
 
+    def fit_to_dataset(self, dataset: Dataset) -> None:
+        """Fit this PipelineStep to a :class:`Dataset`."""
+        if self.basepath is None:
+            if dataset.inputs.basepath is not None:
+                self.basepath = dataset.inputs.basepath
+                self.logger.info(f"Using basepath {self.basepath} from inputs catalog.")
+            elif dataset.outputs.basepath is not None:
+                self.basepath = dataset.outputs.basepath
+                self.logger.info(
+                    f"Using basepath {self.basepath} from outputs catalog."
+                )
+            else:
+                self.basepath = get_setting("default_output_dir")
+                self.logger.info(f"Using default basepath {self.basepath}.")
+
+    def get_descriptor_path(self) -> str:
+        """Returns the path to the datapackage descriptor."""
+        zip_path = self.get_zip_path()
+        descriptor_path = zip_path[:-3] + "datapackage.json"
+        return descriptor_path
+
     def get_package_name(self) -> str:
         """Returns :attr:`package_name` if set, otherwise a valid frictionless name generated from the
         :attr:`source`."""
@@ -121,9 +144,8 @@ class ScoreLoader(Loader):
     def __init__(
         self,
         package_name: str,
-        basepath: str,
+        basepath: Optional[str] = None,
         source: Optional[str] = None,
-        autoload: bool = True,
         overwrite: bool = False,
     ):
         super().__init__(
@@ -131,7 +153,6 @@ class ScoreLoader(Loader):
             basepath=basepath,
             source=source,
         )
-        self.autoload = autoload
         self.overwrite = overwrite
         self.loaded_facets = LoadedFacets()
         self._processed_ids = set()
@@ -201,6 +222,18 @@ class ScoreLoader(Loader):
                 obj = pd.concat(id2dataframe, names=["corpus", "piece", "i"])
             facet2df[facet] = obj
         return facet2df
+
+    def _process_dataset(self, dataset: Dataset) -> Dataset:
+        """Apply this PipelineStep to a :class:`Dataset` and return a copy containing the output(s)."""
+        new_dataset = self._make_new_dataset(dataset)
+        self.fit_to_dataset(new_dataset)
+        try:
+            descriptor_path = self.create_datapackage()
+        except FileExistsError:
+            descriptor_path = self.get_descriptor_path()
+            self.logger.info(f"Using existing datapackage at {descriptor_path}.")
+        new_dataset.load_package(descriptor_path)
+        return new_dataset
 
     def store_datapackage(self) -> str:
         package_name = self.get_package_name()

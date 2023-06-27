@@ -2,8 +2,10 @@ import os
 
 import music21 as m21
 import pytest
+from dimcat import Dataset, Pipeline
 from dimcat.steps import MuseScoreLoader
 from dimcat.steps.loaders import Music21Loader
+from dimcat.steps.loaders.utils import scan_directory
 
 
 def get_music21_corpus_path():
@@ -15,17 +17,10 @@ def get_music21_corpus_path():
 def get_score_paths(extensions=(".xml", ".musicxml", ".mxl"), n=10):
     music21_corpus_path = get_music21_corpus_path()
     paths = []
-    i = 0
-    for path, subdirs, files in os.walk(music21_corpus_path):
+    for i, path in enumerate(scan_directory(music21_corpus_path)):
         if i == n:
             break
-        for file in files:
-            if i == n:
-                break
-            fname, fext = os.path.splitext(file)
-            if fext in extensions:
-                paths.append(os.path.join(path, file))
-                i += 1
+        paths.append(path)
     return paths
 
 
@@ -49,26 +44,29 @@ def tmp_package_path(request, tmp_path_factory):
     return str(tmp_path_factory.mktemp(name))
 
 
-def test_musescore_loader(corpus_path, tmp_package_path):
-    path = os.path.join(corpus_path, "mixed_files")
-    print(f"{path} => {tmp_package_path}")
+def test_musescore_loader(mixed_files_path, tmp_package_path):
+    print(f"{mixed_files_path} => {tmp_package_path}")
     L = MuseScoreLoader(
-        source=path,
+        "mixed_files",
         basepath=tmp_package_path,
+        source=mixed_files_path,
         only_metadata_fnames=False,
         exclude_re="changed",
     )
-    assert os.path.dirname(L.descriptor_path) == tmp_package_path
+    L.create_datapackage()
+    assert os.path.dirname(L.get_descriptor_path()) == tmp_package_path
     print(os.listdir(tmp_package_path))
     assert len(os.listdir(tmp_package_path)) > 1
 
 
 def test_music21_single_resource(corpus_path, score_path, tmp_package_path):
     L = Music21Loader(
-        source=corpus_path,
+        "music21_single_resource",
         basepath=tmp_package_path,
+        source=corpus_path,
     )
     L.process_resource(score_path)
+    print(tmp_package_path)
     assert len(L.processed_ids) == 1
 
 
@@ -85,5 +83,25 @@ def test_music21_list_of_paths(list_of_score_paths, tmp_package_path):
     )
     L.create_datapackage()
     assert len(L.processed_ids) == len(list_of_score_paths)
+    print(tmp_package_path)
     print(os.listdir(tmp_package_path))
     assert len(os.listdir(tmp_package_path)) > 1
+
+
+def test_loading_into_dataset(mixed_files_path, list_of_score_paths, tmp_package_path):
+    MS = MuseScoreLoader(
+        "musescore",
+        source=mixed_files_path,
+        only_metadata_fnames=False,
+        exclude_re="changed",
+    )
+    M21 = Music21Loader(
+        package_name="music21",
+        source=list_of_score_paths,
+    )
+    D = Dataset(basepath=tmp_package_path)
+    PL = Pipeline([MS, M21])
+    dataset_loaded = PL.process(D)
+    print(os.listdir(tmp_package_path))
+    assert len(os.listdir(tmp_package_path)) > 3
+    assert dataset_loaded.inputs.package_names == ["musescore", "music21"]
