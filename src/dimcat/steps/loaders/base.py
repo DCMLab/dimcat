@@ -5,7 +5,17 @@ import dataclasses
 import logging
 import os
 from pathlib import Path
-from typing import ClassVar, Dict, Iterable, Literal, Optional, Set, Tuple, TypeAlias
+from typing import (
+    ClassVar,
+    Dict,
+    Iterable,
+    Iterator,
+    Literal,
+    Optional,
+    Set,
+    Tuple,
+    TypeAlias,
+)
 
 import marshmallow as mm
 import pandas as pd
@@ -142,6 +152,10 @@ class Loader(PipelineStep):
         package_name = self.get_package_name()
         return os.path.join(self.basepath, package_name + ".zip")
 
+    def iter_package_descriptors(self) -> Iterator[str]:
+        """Create datapackage(s) and iterate over their descriptor paths."""
+        raise NotImplementedError
+
     def _process_resource(self, resource: str) -> None:
         """Parse the resource and extract the facets."""
         raise NotImplementedError
@@ -150,6 +164,14 @@ class Loader(PipelineStep):
         resource = resolve_path(resource)
         self.check_resource(resource)
         return self._process_resource(resource)
+
+    def _process_dataset(self, dataset: Dataset) -> Dataset:
+        """Apply this PipelineStep to a :class:`Dataset` and return a copy containing the output(s)."""
+        new_dataset = self._make_new_dataset(dataset)
+        self.fit_to_dataset(new_dataset)
+        for descriptor_path in self.iter_package_descriptors():
+            new_dataset.load_package(descriptor_path)
+        return new_dataset
 
 
 class ScoreLoader(Loader):
@@ -240,17 +262,14 @@ class ScoreLoader(Loader):
             facet2df[facet] = obj
         return facet2df
 
-    def _process_dataset(self, dataset: Dataset) -> Dataset:
-        """Apply this PipelineStep to a :class:`Dataset` and return a copy containing the output(s)."""
-        new_dataset = self._make_new_dataset(dataset)
-        self.fit_to_dataset(new_dataset)
+    def iter_package_descriptors(self) -> Iterator[str]:
+        """Create datapackage(s) and iterate over their descriptor paths."""
         try:
             descriptor_path = self.create_datapackage()
         except FileExistsError:
             descriptor_path = self.get_descriptor_path()
             self.logger.info(f"Using existing datapackage at {descriptor_path}.")
-        new_dataset.load_package(descriptor_path)
-        return new_dataset
+        yield from [descriptor_path]
 
     def store_datapackage(self) -> str:
         package_name = self.get_package_name()
