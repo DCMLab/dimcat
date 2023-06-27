@@ -8,12 +8,11 @@ from typing import DefaultDict, Iterable, List, Optional, Tuple
 
 import music21 as m21
 import pandas as pd
-from dimcat.exceptions import NoPathsSpecifiedError
 from dimcat.utils import is_uri, resolve_path
 from tqdm.auto import tqdm
 
 from .base import ScoreLoader
-from .utils import PathFactory, get_m21_input_extensions
+from .utils import get_m21_input_extensions
 
 logger = logging.getLogger(__name__)
 
@@ -462,6 +461,8 @@ def make_metadata(metadata_dict):
 
 
 class Music21Loader(ScoreLoader):
+    """Extracts information from scores using music21."""
+
     accepted_file_extensions = get_m21_input_extensions()
 
     def __init__(
@@ -477,19 +478,6 @@ class Music21Loader(ScoreLoader):
             source=source,
             overwrite=overwrite,
         )
-        self._paths: Iterable[str] = []
-
-    @property
-    def paths(self) -> Iterable[str]:
-        if self._paths:
-            return self._paths
-        if self._source is None:
-            raise NoPathsSpecifiedError
-        if isinstance(self._source, str):
-            self._paths = PathFactory(self._source)
-        else:
-            self._paths = self._source
-        return self._paths
 
     @property
     def source(self) -> str | Iterable[str]:

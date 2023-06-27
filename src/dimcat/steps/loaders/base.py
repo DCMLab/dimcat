@@ -5,15 +5,19 @@ import dataclasses
 import logging
 import os
 from pathlib import Path
-from typing import ClassVar, Dict, Literal, Optional, Set, Tuple, TypeAlias
+from typing import ClassVar, Dict, Iterable, Literal, Optional, Set, Tuple, TypeAlias
 
 import marshmallow as mm
 import pandas as pd
 from dimcat import Dataset
 from dimcat.base import get_setting
-from dimcat.exceptions import DuplicateIDError, ExcludedFileExtensionError
+from dimcat.exceptions import (
+    DuplicateIDError,
+    ExcludedFileExtensionError,
+    NoPathsSpecifiedError,
+)
 from dimcat.steps.base import PipelineStep
-from dimcat.steps.loaders.utils import store_datapackage
+from dimcat.steps.loaders.utils import PathFactory, store_datapackage
 from dimcat.utils import is_uri, make_valid_frictionless_name, resolve_path
 
 logger = logging.getLogger(__name__)
@@ -35,6 +39,12 @@ class LoadedFacets:
 class Loader(PipelineStep):
     """Base class for all loaders."""
 
+    accepted_file_extensions: ClassVar[Optional[Tuple[str, ...]]] = None
+    """File extensions that this loader accepts. If None, all files are accepted."""
+
+    conditionally_accepted_file_extensions: ClassVar[Optional[Tuple[str, ...]]] = None
+    """File extensions that this loader accepts conditional on whether a particular piece of software is installed."""
+
     class Schema(PipelineStep.Schema):
         package_name = mm.fields.Str(required=True)
         basepath = mm.fields.Str()
@@ -51,19 +61,7 @@ class Loader(PipelineStep):
         self.basepath = basepath
         self._source = None
         self.source = source
-
-    @property
-    def source(self) -> str:
-        return self._source
-
-    @source.setter
-    def source(self, source: str):
-        if is_uri(source):
-            raise NotImplementedError("Loading from remote URLs is not yet supported.")
-        new_source = resolve_path(source)
-        if not new_source:
-            raise ValueError(f"Could not resolve {source}.")
-        self._source = new_source
+        self._paths: Iterable[str] = []
 
     @property
     def basepath(self) -> str:
@@ -83,6 +81,31 @@ class Loader(PipelineStep):
         if valid_name != package_name:
             self.logger.info(f"Changed package name to {valid_name}.")
         self._package_name = valid_name
+
+    @property
+    def paths(self) -> Iterable[str]:
+        if self._paths:
+            return self._paths
+        if self._source is None:
+            raise NoPathsSpecifiedError
+        if isinstance(self._source, str):
+            self._paths = PathFactory(self._source)
+        else:
+            self._paths = self._source
+        return self._paths
+
+    @property
+    def source(self) -> str:
+        return self._source
+
+    @source.setter
+    def source(self, source: str):
+        if is_uri(source):
+            raise NotImplementedError("Loading from remote URLs is not yet supported.")
+        new_source = resolve_path(source)
+        if not new_source:
+            raise ValueError(f"Could not resolve {source}.")
+        self._source = new_source
 
     def check_resource(self, resource: str | Path) -> None:
         """Checks whether the resource at the given path exists."""
@@ -131,12 +154,6 @@ class Loader(PipelineStep):
 
 class ScoreLoader(Loader):
     """Base class for all loaders that parse scores and create a datapackage containing the extracted facets."""
-
-    accepted_file_extensions: ClassVar[Optional[Tuple[str, ...]]] = None
-    """File extensions that this loader accepts. If None, all files are accepted."""
-
-    conditionally_accepted_file_extensions: ClassVar[Optional[Tuple[str, ...]]] = None
-    """File extensions that this loader accepts conditional on whether a particular piece of software is installed."""
 
     class Schema(Loader.Schema):
         pass
