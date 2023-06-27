@@ -8,7 +8,7 @@ def test_settings():
     with pytest.raises(ValidationError):
         settings["non-field"] = "option"
     for setting in settings:
-        if setting == "dtype":
+        if setting in ("dtype", "default_basepath"):
             continue
         with pytest.raises(ValidationError):
             settings[setting] = "invalid option"

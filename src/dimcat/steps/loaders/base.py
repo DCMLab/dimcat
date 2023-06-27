@@ -138,7 +138,7 @@ class Loader(PipelineStep):
                     f"Using basepath {self.basepath} from outputs catalog."
                 )
             else:
-                self.basepath = get_setting("default_output_dir")
+                self.basepath = get_setting("default_basepath")
                 self.logger.info(f"Using default basepath {self.basepath}.")
 
     def get_descriptor_path(self) -> str:

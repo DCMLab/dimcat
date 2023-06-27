@@ -202,7 +202,7 @@ def check_file_path(
 
 
 def get_default_basepath():
-    return get_setting("default_output_dir")
+    return resolve_path(get_setting("default_basepath"))
 
 
 def check_name(name: str) -> None:
@@ -229,7 +229,7 @@ class AbsolutePathStr(str):
     """This is just a string but if it includes the HOME directory, it is represented with a leading '~'."""
 
     def __repr__(self):
-        return clean_basepath(self.__str__())
+        return clean_basepath(self)
 
 
 def resolve_path(path) -> Optional[AbsolutePathStr]:
