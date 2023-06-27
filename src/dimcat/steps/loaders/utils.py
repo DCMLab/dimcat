@@ -53,6 +53,19 @@ def make_datapackage_descriptor(
     return package_descriptor
 
 
+def make_extension_regex(extensions: Iterable[str]) -> re.Pattern:
+    """Turns file extensions into a regular expression."""
+    if isinstance(extensions, str):
+        extensions = [extensions]
+    else:
+        extensions = list(extensions)
+    if not extensions:
+        return re.compile(".*")
+    dot = r"\."
+    regex = f"(?:{'|'.join(dot + e.lstrip('.') for e in extensions)})$"
+    return re.compile(regex, re.IGNORECASE)
+
+
 @overload
 def scan_directory(
     directory,
@@ -83,6 +96,7 @@ def scan_directory(
 
 def scan_directory(
     directory: str,
+    extensions: Optional[str | Iterable[str]] = None,
     file_re: Optional[str] = None,
     folder_re: Optional[str] = None,
     exclude_re: str = r"^(\.|_)",
@@ -95,6 +109,7 @@ def scan_directory(
 
     Args:
       directory: Directory to be scanned for files.
+      extensions: File extensions to be included (with or without leading dot). Defaults to all extensions.
       file_re, folder_re:
           Regular expressions for filtering certain file names or folder names.
           The regEx are checked with search(), not match(), allowing for fuzzy search.
@@ -116,6 +131,7 @@ def scan_directory(
         file_re = r".*"
     if folder_re is None:
         folder_re = r".*"
+    extensions_regex = ".*" if extensions is None else make_extension_regex(extensions)
 
     def traverse(d):
         nonlocal counter
@@ -156,7 +172,12 @@ def scan_directory(
                         folder_passes = check_regex(
                             folder_re, folder_path
                         )  # is false if any part of the folder path matches exclude_re
-                if dir_entry.is_file() and folder_passes and check_regex(file_re, name):
+                if (
+                    dir_entry.is_file()
+                    and folder_passes
+                    and check_regex(file_re, name)
+                    and check_regex(extensions_regex, name)
+                ):
                     counter += 1
                     if pbar is not None:
                         pbar.set_postfix({"selected": counter})
@@ -200,6 +221,7 @@ class PathFactory(Iterable[str]):
     def __init__(
         self,
         directory: str,
+        extensions: Optional[str | Iterable[str]] = None,
         file_re: Optional[str] = None,
         folder_re: Optional[str] = None,
         exclude_re: str = r"^(\.|_)",
@@ -211,6 +233,7 @@ class PathFactory(Iterable[str]):
 
         Args:
           directory: Directory to be scanned for files.
+          extensions: File extensions to be included (with or without leading dot). Defaults to all extensions.
           file_re, folder_re:
               Regular expressions for filtering certain file names or folder names.
               The regEx are checked with search(), not match(), allowing for fuzzy search.
@@ -228,6 +251,7 @@ class PathFactory(Iterable[str]):
           Full file path or, if ``subdirs=True``, (path, file_name) pairs in random order.
         """
         self.directory = directory
+        self.extensions = extensions
         self.file_re = file_re
         self.folder_re = folder_re
         self.exclude_re = exclude_re
@@ -238,6 +262,7 @@ class PathFactory(Iterable[str]):
     def __iter__(self) -> Iterator[str]:
         yield from scan_directory(
             directory=self.directory,
+            extensions=self.extensions,
             file_re=self.file_re,
             folder_re=self.folder_re,
             exclude_re=self.exclude_re,

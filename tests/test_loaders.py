@@ -5,6 +5,7 @@ import pytest
 from dimcat import Dataset, Pipeline
 from dimcat.steps import MuseScoreLoader
 from dimcat.steps.loaders import Music21Loader
+from dimcat.steps.loaders.base import PackageLoader
 from dimcat.steps.loaders.utils import scan_directory
 
 
@@ -105,3 +106,11 @@ def test_loading_into_dataset(mixed_files_path, list_of_score_paths, tmp_package
     print(os.listdir(tmp_package_path))
     assert len(os.listdir(tmp_package_path)) > 3
     assert dataset_loaded.inputs.package_names == ["musescore", "music21"]
+
+
+def test_package_loader(corpus_path):
+    L = PackageLoader(source=corpus_path)
+    D = L.process(Dataset())
+    print(D)
+    assert len(D.inputs) == 1
+    assert D.inputs.package_names == ["unittest_metacorpus"]

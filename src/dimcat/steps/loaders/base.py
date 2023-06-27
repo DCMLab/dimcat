@@ -62,16 +62,20 @@ class Loader(PipelineStep):
 
     def __init__(
         self,
-        package_name: str,
+        package_name: Optional[str] = None,
         basepath: Optional[str] = None,
         source: Optional[str] = None,
     ):
-        self._package_name = package_name
+        self._package_name = None
         self._basepath = None
-        self.basepath = basepath
         self._source = None
-        self.source = source
         self._paths: Iterable[str] = []
+        if basepath is not None:
+            self.basepath = basepath
+        if package_name is not None:
+            self.package_name = package_name
+        if source is not None:
+            self.source = source
 
     @property
     def basepath(self) -> str:
@@ -99,7 +103,7 @@ class Loader(PipelineStep):
         if self._source is None:
             raise NoPathsSpecifiedError
         if isinstance(self._source, str):
-            self._paths = PathFactory(self._source)
+            self._paths = PathFactory(self._source, self.accepted_file_extensions)
         else:
             self._paths = self._source
         return self._paths
@@ -174,6 +178,16 @@ class Loader(PipelineStep):
         return new_dataset
 
 
+class PackageLoader(Loader):
+    """Simple loader that discovers and loads frictionless datapackages through their descriptors."""
+
+    accepted_file_extensions = (".json",)
+
+    def iter_package_descriptors(self) -> Iterator[str]:
+        """Create datapackage(s) and iterate over their descriptor paths."""
+        yield from self.paths
+
+
 class ScoreLoader(Loader):
     """Base class for all loaders that parse scores and create a datapackage containing the extracted facets."""
 
@@ -187,6 +201,7 @@ class ScoreLoader(Loader):
         source: Optional[str] = None,
         overwrite: bool = False,
     ):
+        assert package_name, "Package name must be specified for ScoreLoaders."
         super().__init__(
             package_name=package_name,
             basepath=basepath,

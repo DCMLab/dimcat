@@ -811,6 +811,9 @@ class DimcatCatalog(Data):
     def __iter__(self) -> Iterator[DimcatPackage]:
         yield from self._packages
 
+    def __len__(self) -> int:
+        return len(self._packages)
+
     def __repr__(self):
         return pformat(self.summary_dict(), sort_dicts=False)
 
