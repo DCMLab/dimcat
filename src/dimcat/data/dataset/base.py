@@ -58,6 +58,7 @@ from typing_extensions import Self
 if TYPE_CHECKING:
     from dimcat.data.resources.results import Result
     from dimcat.steps.base import FeatureProcessingStep
+    from dimcat.steps.loaders.base import Loader
     from dimcat.steps.pipelines import Pipeline
 
 logger = logging.getLogger(__name__)
@@ -1047,10 +1048,11 @@ class Dataset(Data):
         inputs: DimcatCatalog | List[DimcatPackage],
         outputs: DimcatCatalog | List[DimcatPackage],
         pipeline: Optional[Pipeline] = None,
+        basepath: Optional[str] = None,
         **kwargs,
-    ):
+    ) -> Self:
         """Instantiate by copying existing catalogs."""
-        new_dataset = cls(**kwargs)
+        new_dataset = cls(basepath=basepath, **kwargs)
         if pipeline is not None:
             new_dataset._pipeline = pipeline
         new_dataset.inputs.basepath = inputs.basepath
@@ -1060,7 +1062,7 @@ class Dataset(Data):
         return new_dataset
 
     @classmethod
-    def from_dataset(cls, dataset: Dataset, **kwargs):
+    def from_dataset(cls, dataset: Dataset, **kwargs) -> Self:
         """Instantiate from this Dataset by copying its fields, empty fields otherwise."""
         return cls.from_catalogs(
             inputs=dataset.inputs,
@@ -1068,6 +1070,11 @@ class Dataset(Data):
             pipeline=dataset.pipeline,
             **kwargs,
         )
+
+    @classmethod
+    def from_loader(cls, loader: Loader) -> Self:
+        dataset = cls() if not loader.basepath else cls(basepath=loader.basepath)
+        return loader.process_dataset(dataset)
 
     class Schema(Data.Schema):
         """Dataset serialization schema."""
