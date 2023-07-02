@@ -272,7 +272,9 @@ class FeatureProcessingStep(PipelineStep):
 
     @property
     def is_transformation(self) -> bool:
-        """True if this PipelineStep transforms features, replacing the dataset.outputs['features'] package."""
+        """True if this PipelineStep replaces the :attr:`output_package_name` in dataset.outputs rather than extending
+        it. Currently, this is the case only if :attr:`output_package_name` 'features' or None, defaulting to
+        'features')."""
         return (
             self.output_package_name is None or self.output_package_name == "features"
         )
