@@ -53,16 +53,22 @@ def make_datapackage_descriptor(
     return package_descriptor
 
 
-def make_extension_regex(extensions: Iterable[str]) -> re.Pattern:
+def make_extension_regex(
+    extensions: Iterable[str],
+    enforce_initial_dot: bool = False,
+) -> re.Pattern:
     """Turns file extensions into a regular expression."""
+    if not extensions:
+        return re.compile(".*")
     if isinstance(extensions, str):
         extensions = [extensions]
     else:
         extensions = list(extensions)
-    if not extensions:
-        return re.compile(".*")
-    dot = r"\."
-    regex = f"(?:{'|'.join(dot + e.lstrip('.') for e in extensions)})$"
+    if enforce_initial_dot:
+        dot = r"\."
+        regex = f"(?:{'|'.join(dot + e.lstrip('.') for e in extensions)})$"
+    else:
+        regex = f"(?:{'|'.join(extensions)})$"
     return re.compile(regex, re.IGNORECASE)
 
 

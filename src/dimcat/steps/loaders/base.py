@@ -56,8 +56,14 @@ class Loader(PipelineStep):
     """File extensions that this loader accepts conditional on whether a particular piece of software is installed."""
 
     class Schema(PipelineStep.Schema):
-        package_name = mm.fields.Str(required=True)
-        basepath = basepath = mm.fields.Str(
+        package_name = mm.fields.Str(
+            required=False,
+            allow_none=True,
+            metadata=dict(
+                description="The name by which the generated package will be available from the Dataset.inputs catalog."
+            ),
+        )
+        basepath = mm.fields.Str(
             required=False,
             allow_none=True,
             metadata=dict(
@@ -187,7 +193,7 @@ class Loader(PipelineStep):
 class PackageLoader(Loader):
     """Simple loader that discovers and loads frictionless datapackages through their descriptors."""
 
-    accepted_file_extensions = (".json",)
+    accepted_file_extensions = ("package.json",)
 
     def iter_package_descriptors(self) -> Iterator[str]:
         """Create datapackage(s) and iterate over their descriptor paths."""
