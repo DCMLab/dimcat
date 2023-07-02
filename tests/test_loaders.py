@@ -1,3 +1,4 @@
+import logging
 import os
 
 import music21 as m21
@@ -7,6 +8,9 @@ from dimcat.steps import MuseScoreLoader
 from dimcat.steps.loaders import Music21Loader
 from dimcat.steps.loaders.base import PackageLoader
 from dimcat.steps.loaders.utils import scan_directory
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 def get_music21_corpus_path():
@@ -46,28 +50,45 @@ def tmp_package_path(request, tmp_path_factory):
 
 
 def test_musescore_loader(mixed_files_path, tmp_package_path):
-    print(f"{mixed_files_path} => {tmp_package_path}")
     L = MuseScoreLoader(
-        "mixed_files",
+        package_name="mixed_files",
         basepath=tmp_package_path,
         source=mixed_files_path,
         only_metadata_fnames=False,
         exclude_re="changed",
     )
+    logger.info(
+        f"""
+MuseScoreLoader(
+    package_name="mixed_files",
+    basepath={tmp_package_path},
+    source={mixed_files_path},
+    only_metadata_fnames=False,
+    exclude_re="changed",
+)"""
+    )
     L.create_datapackage()
     assert os.path.dirname(L.get_descriptor_path()) == tmp_package_path
-    print(os.listdir(tmp_package_path))
+    logger.info(f"Contents of {tmp_package_path}: {os.listdir(tmp_package_path)}")
     assert len(os.listdir(tmp_package_path)) > 1
 
 
 def test_music21_single_resource(corpus_path, score_path, tmp_package_path):
     L = Music21Loader(
-        "music21_single_resource",
+        package_name="music21_single_resource",
         basepath=tmp_package_path,
         source=corpus_path,
     )
+    logger.info(
+        f"""
+Music21Loader(
+    package_name="music21_single_resource",
+    basepath={tmp_package_path},
+    source={corpus_path},
+)"""
+    )
     L.process_resource(score_path)
-    print(tmp_package_path)
+    logger.info(f"Loader.processed_ids: {L.processed_ids}")
     assert len(L.processed_ids) == 1
 
 
@@ -82,10 +103,17 @@ def test_music21_list_of_paths(list_of_score_paths, tmp_package_path):
         basepath=tmp_package_path,
         source=list_of_score_paths,
     )
+    logger.info(
+        f"""
+Music21Loader(
+    package_name="music21_corpus",
+    basepath={tmp_package_path},
+    source={list_of_score_paths},
+)"""
+    )
     L.create_datapackage()
     assert len(L.processed_ids) == len(list_of_score_paths)
-    print(tmp_package_path)
-    print(os.listdir(tmp_package_path))
+    logger.info(f"Contents of {tmp_package_path}: {os.listdir(tmp_package_path)}")
     assert len(os.listdir(tmp_package_path)) > 1
 
 
@@ -102,8 +130,16 @@ def test_loading_into_dataset(mixed_files_path, list_of_score_paths, tmp_package
     )
     D = Dataset(basepath=tmp_package_path)
     PL = Pipeline([MS, M21])
+    logger.info(
+        f"""
+Pipeline([
+    {MS},
+    {M21},
+])"""
+    )
     dataset_loaded = PL.process(D)
-    print(os.listdir(tmp_package_path))
+    logger.info(f"Dataset after applying pipeline:\n{dataset_loaded}")
+    logger.info(f"Contents of {tmp_package_path}: {os.listdir(tmp_package_path)}")
     assert len(os.listdir(tmp_package_path)) > 3
     assert dataset_loaded.inputs.package_names == ["musescore", "music21"]
 
@@ -111,6 +147,6 @@ def test_loading_into_dataset(mixed_files_path, list_of_score_paths, tmp_package
 def test_package_loader(corpus_path):
     L = PackageLoader(source=corpus_path)
     D = L.process(Dataset())
-    print(D)
+    logger.info(f"Dataset after loading package:\n{D}")
     assert len(D.inputs) == 1
     assert D.inputs.package_names == ["unittest_metacorpus"]
