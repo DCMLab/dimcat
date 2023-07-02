@@ -443,11 +443,17 @@ class Music21Score:
             _ = self.parse_element(element, **higher_level_info)
 
 
-def make_dataframe(records):
+def make_dataframe(records: List[dict], drop_empty_columns: bool = True):
     df = pd.DataFrame.from_records(records)
     column_is_empty = df.isna().all()
     if column_is_empty.any():
-        logger.info(f"Empty columns:\n{column_is_empty}")
+        if drop_empty_columns:
+            removed = df.columns[column_is_empty].tolist()
+            logger.debug(f"Removing empty columns: {removed}")
+            df = df.dropna(axis=1, how="all")
+        else:
+            logger.debug(f"Keeping empty columns:\n{column_is_empty}")
+
     return df
 
 
