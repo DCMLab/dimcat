@@ -222,7 +222,7 @@ class ScoreLoader(Loader):
         if ID in id2dataframe:
             raise DuplicateIDError(f"Duplicate ID {ID} for facet {facet_name}.")
         if df is None or len(df) == 0:
-            self.logger.debug(ID, facet_name)
+            self.logger.debug(f"Facet {facet_name} not available for ID {ID}.")
             return
         id2dataframe[ID] = df
         self._processed_ids.add(ID)
