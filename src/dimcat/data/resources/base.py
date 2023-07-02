@@ -153,6 +153,25 @@ class DimcatIndex(Generic[IX], Data):
         index = load_index_from_fl_resource(fl_resource, index_col=index_col)
         return cls(index)
 
+    @classmethod
+    def from_tuples(
+        cls,
+        tuples: Iterable[tuple],
+        names: Sequence[str],
+    ) -> Self:
+        list_of_tuples = list(tuples)
+        if len(list_of_tuples) == 0:
+            return cls()
+        first_tuple = list_of_tuples[0]
+        if not isinstance(first_tuple, tuple):
+            raise ValueError(f"Expected tuples, got {type(first_tuple)!r}.")
+        if len(first_tuple) != len(names):
+            raise ValueError(
+                f"Expected tuples of length {len(names)}, got {len(first_tuple)}."
+            )
+        multiindex = pd.MultiIndex.from_tuples(list_of_tuples, names=names)
+        return cls(multiindex)
+
     def __init__(self, index: Optional[IX] = None):
         if index is None:
             self._index = pd.MultiIndex.from_tuples([], names=["corpus", "piece"])
@@ -278,6 +297,14 @@ class PieceIndex(DimcatIndex[IX]):
             recognized_piece_columns=recognized_piece_columns,
             max_levels=max_levels,
         )
+
+    @classmethod
+    def from_tuples(
+        cls,
+        tuples: Iterable[tuple],
+        names: Sequence[str] = ("corpus", "piece"),
+    ) -> Self:
+        return super().from_tuples(tuples, names)
 
     def __init__(self, index: Optional[IX] = None):
         if index is None:

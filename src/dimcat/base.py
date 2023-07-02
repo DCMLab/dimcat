@@ -97,8 +97,8 @@ class DimcatSchema(mm.Schema):
 
 
 class DimcatObject(ABC):
-    """All DiMCAT classes derive from DimcatObject, except for the nested Schema(DimcatSchema) class that they define or
-    inherit."""
+    """All DiMCAT classes derive from DimcatObject, except for the nested Schema(DimcatSchema) class
+    that they define or inherit."""
 
     _enum_type: ClassVar[Type[Enum]] = None
     """If a class specifies an Enum, its 'dtype' property returns the Enum member corresponding to its 'name'."""
@@ -131,6 +131,10 @@ class DimcatObject(ABC):
 
     @classmethod
     def from_dict(cls, options, **kwargs) -> Self:
+        """Creates a new object from a config-like dict.
+        Concretely, the received ``options`` will be updated with the **kwargs and enriched with a
+        'dtype' key corresponding to this object, before deserializing the dict using the
+        corresponding marshmallow schema."""
         options = dict(options, **kwargs)
         if "dtype" not in options:
             cls.logger.debug(f"Added option {{'dtype': {cls.name}}}.")
@@ -147,7 +151,11 @@ class DimcatObject(ABC):
             raise ValidationError(msg)
 
     @classmethod
-    def from_config(cls, config: DimcatConfig, **kwargs):
+    def from_config(cls, config: DimcatConfig, **kwargs) -> Self:
+        """Creates a new object from a DimcatConfig.
+        Concretely, the config's ``options`` will be updated with the **kwargs and the 'dtype' key
+        will be replaced according to this object, before deserializing the dict using the
+        corresponding marshmallow schema."""
         return cls.from_dict(config._options, **kwargs)
 
     @classmethod
@@ -262,7 +270,8 @@ class DimcatObjectField(fields.Field):
 
 
 class FriendlyEnum(str, Enum):
-    """Members of this Enum can be created from and compared to strings in a case-insensitive manner."""
+    """Members of this Enum can be created from and compared to strings in a case-insensitive
+    manner."""
 
     @classmethod
     def _missing_(cls, value) -> Self:
@@ -718,7 +727,8 @@ def change_setting(key: str, value: Any) -> None:
 
 
 def reset_settings(config_filepath: Optional[str] = None) -> None:
-    """Reset the DiMCAT settings to the default or to those found in the settings.ini file at the given path."""
+    """Reset the DiMCAT settings to the default or to those found in the settings.ini file at the
+    given path."""
     global SETTINGS
     SETTINGS = load_settings(config_filepath)
 

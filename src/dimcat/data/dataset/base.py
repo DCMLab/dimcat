@@ -35,7 +35,13 @@ import frictionless as fl
 import marshmallow as mm
 from dimcat.base import DimcatConfig, DimcatObjectField, FriendlyEnum, get_class
 from dimcat.data.base import Data
-from dimcat.data.resources.base import D, DimcatResource, ResourceStatus, SomeDataframe
+from dimcat.data.resources.base import (
+    D,
+    DimcatResource,
+    PieceIndex,
+    ResourceStatus,
+    SomeDataframe,
+)
 from dimcat.data.resources.features import (
     Feature,
     FeatureName,
@@ -571,6 +577,13 @@ class DimcatPackage(Data):
         except NoMatchingResourceFoundError:
             pass
         return self.extract_feature(feature_config)
+
+    def get_piece_index(self) -> PieceIndex:
+        """Returns the piece index corresponding to a sorted union of all included resources' indices."""
+        IDs = set()
+        for resource in self:
+            IDs.update(resource.get_piece_index())
+        return PieceIndex.from_tuples(sorted(IDs))
 
     def get_metadata(self) -> SomeDataframe:
         """Returns the metadata of the package."""
