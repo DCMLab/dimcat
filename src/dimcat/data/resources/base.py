@@ -28,6 +28,7 @@ from dimcat.utils import (
     check_file_path,
     check_name,
     get_default_basepath,
+    make_valid_frictionless_name,
     replace_ext,
     resolve_path,
 )
@@ -43,6 +44,7 @@ from .utils import (
     load_fl_resource,
     load_index_from_fl_resource,
     make_boolean_mask_from_set_of_tuples,
+    make_fl_resource,
     make_index_from_grouping_dict,
     make_rel_path,
     make_tsv_resource,
@@ -70,11 +72,137 @@ IX = TypeVar("IX", bound=SomeIndex)
 
 
 class Resource(Data):
+    """A Resource is essentially a wrapper around a :obj:`frictionless.Resource` object. In its
+    simple form, it serves merely for storing a file path, but split into a basepath and a relative
+    filepath, as per the frictionless philosophy.
+    """
+
     class Schema(Data.Schema):
-        pass
+        resource = fields.Method(
+            serialize="get_resource_descriptor",
+            deserialize="raw",
+            metadata={"expose": False},
+        )
 
+        def get_resource_descriptor(self, obj: DimcatResource) -> str | dict:
+            return obj._resource.to_descriptor()
 
-# endregion Resource
+        def raw(self, data):
+            return data
+
+    def __init__(
+        self,
+        resource: Optional[str, fl.Resource] = None,
+        resource_name: Optional[str] = None,
+        basepath: Optional[str] = None,
+    ):
+        """
+
+         Args:
+             resource: An existing :obj:`frictionless.Resource` or a file path resolving to a resource descriptor.
+        resource_name:
+            Name of the resource.
+
+        """
+        self.logger.debug(f"Resource.__init__(resource={resource})")
+        self._resource: fl.Resource = self._make_empty_fl_resource()
+        super().__init__(basepath=basepath)
+        if resource is not None:
+            if isinstance(resource, fl.Resource):
+                self._resource = resource
+            elif isinstance(resource, (str, Path)):
+                self.filepath = resource
+            else:
+                raise TypeError(
+                    f"Expected resource to be a frictionless Resource or a file path, got {type(resource)}."
+                )
+        if resource_name is not None:
+            self.resource_name = resource_name
+
+    @property
+    def basepath(self) -> str:
+        return self._basepath
+
+    @basepath.setter
+    def basepath(self, basepath: str):
+        super(Resource, Resource).basepath.fset(self, basepath)
+        self._resource.basepath = self.basepath
+
+    @property
+    def filepath(self) -> str:
+        return self._resource.path
+
+    @filepath.setter
+    def filepath(self, filepath: str):
+        self._set_path(filepath)
+
+    @property
+    def innerpath(self) -> Optional[str]:
+        """If this is a zipped resource, the innerpath is the resource's filepath within the zip."""
+        return self._resource.innerpath
+
+    @property
+    def is_zipped_resource(self) -> bool:
+        """Returns True if the filepath points to a .zip file."""
+        return self.filepath.endswith(".zip")
+
+    @property
+    def normpath(self) -> str:
+        """Absolute path to the serialized or future tabular file. Raises if basepath is not set."""
+        return self._resource.normpath
+
+    @property
+    def resource(self) -> fl.Resource:
+        return self._resource
+
+    @property
+    def resource_name(self) -> str:
+        return self._resource.name
+
+    @resource_name.setter
+    def resource_name(self, resource_name: str):
+        valid_name = make_valid_frictionless_name(resource_name)
+        if valid_name != resource_name:
+            self.logger.info(f"Changed {resource_name!r} name to {valid_name!r}.")
+        self._resource.name = resource_name
+
+    def _make_empty_fl_resource(self):
+        """Create an empty frictionless resource object with a minimal descriptor."""
+        return make_fl_resource()
+
+    def _set_path(self, path: str):
+        if not os.path.isabs(path):
+            self._resource.path = path
+            return
+        # path is absolute and needs to be reconciled with basepath
+        path_arg = resolve_path(path)
+        if not self.basepath:
+            new_basepath, filepath = os.path.split(path_arg)
+            self.basepath = resolve_path(new_basepath)
+            # self._resource.basepath = self._basepath
+            self.logger.debug(
+                f"Received an absolute path and set basepath and filepath accordingly:\n"
+                f"{path_arg}"
+            )
+        else:
+            try:
+                filepath = make_rel_path(path_arg, self.basepath)
+                self.logger.debug(
+                    f"Turned the absolute path into the relative {filepath!r}."
+                )
+            except ValueError:
+                raise ValueError(
+                    f"Could not reconcile the asbolute path {path_arg!r} with basepath {self.basepath!r}."
+                )
+        self._resource.path = filepath
+        if not self.resource_name:
+            self.resource_name = make_valid_frictionless_name(
+                os.path.splitext(os.path.basename(filepath))[0]
+            )
+            self.logger.debug(f"Set resource name to {self.resource_name!r}.")
+
+    # endregion Resource
+
 
 # region DimcatIndex
 
@@ -181,7 +309,12 @@ class DimcatIndex(Generic[IX], Data):
         multiindex = pd.MultiIndex.from_tuples(list_of_tuples, names=names)
         return cls(multiindex)
 
-    def __init__(self, index: Optional[IX] = None):
+    def __init__(
+        self,
+        index: Optional[IX] = None,
+        basepath: Optional[str] = None,
+    ):
+        super().__init__(basepath=basepath)
         if index is None:
             self._index = pd.MultiIndex.from_tuples([], names=["corpus", "piece"])
         elif isinstance(index, pd.Index):
@@ -585,11 +718,6 @@ class DimcatResource(Generic[D], Resource):
         return new_object
 
     class PickleSchema(Resource.Schema):
-        resource = fields.Method(
-            serialize="get_descriptor_filepath",
-            deserialize="raw",
-            allow_none=True,
-        )
         basepath = fields.String(allow_none=True)
 
         def get_descriptor_filepath(self, obj: DimcatResource) -> str | dict:
@@ -610,9 +738,6 @@ class DimcatResource(Generic[D], Resource):
                 obj.store_dataframe()
             return obj.get_descriptor_filepath()
 
-        def raw(self, data):
-            return data
-
         @post_load
         def init_object(self, data, **kwargs):
             if isinstance(data["resource"], str) and "basepath" in data:
@@ -625,23 +750,12 @@ class DimcatResource(Generic[D], Resource):
             return super().init_object(data, **kwargs)
 
     class Schema(Resource.Schema):
-        resource = fields.Method(
-            serialize="get_resource_descriptor",
-            deserialize="raw",
-            metadata={"expose": False},
-        )
         basepath = fields.String(allow_none=True, metadata={"expose": False})
         descriptor_filepath = fields.String(allow_none=True, metadata={"expose": False})
         auto_validate = fields.Boolean(metadata={"expose": False})
         default_groupby = fields.List(
             fields.String(), allow_none=True, metadata={"expose": False}
         )
-
-        def get_resource_descriptor(self, obj: DimcatResource) -> str | dict:
-            return obj._resource.to_descriptor()
-
-        def raw(self, data):
-            return data
 
         @post_load
         def init_object(self, data, **kwargs):
@@ -707,8 +821,9 @@ class DimcatResource(Generic[D], Resource):
             f"DimcatResource.__init__(resource={resource}, resource_name={resource_name}, basepath={basepath}, "
             f"filepath={filepath}, column_schema={column_schema}, validate={auto_validate})"
         )
-        super().__init__()
-        self._resource: fl.Resource = make_tsv_resource()
+        super().__init__(
+            resource=resource, resource_name=resource_name, basepath=basepath
+        )
         self._status = ResourceStatus.EMPTY
         self._df: D = None
         self._descriptor_filepath: Optional[str] = descriptor_filepath
@@ -745,8 +860,6 @@ class DimcatResource(Generic[D], Resource):
         if basepath is not None:
             self.basepath = basepath
 
-        if resource_name is not None:
-            self.resource_name = resource_name
         if column_schema is not None:
             self.column_schema = column_schema
         if filepath is not None:
@@ -803,22 +916,22 @@ class DimcatResource(Generic[D], Resource):
 
     @basepath.setter
     def basepath(self, basepath: str):
-        basepath = resolve_path(basepath)
+        basepath_arg = resolve_path(basepath)
         if self.is_frozen:
-            if basepath == self.basepath:
+            if basepath_arg == self.basepath:
                 return
             if self.descriptor_exists:
                 tied_to = f"its descriptor at {self.get_descriptor_path()!r}"
             else:
                 tied_to = f"the data stored at {self.normpath!r}"
             raise RuntimeError(
-                f"The basepath of resource {self.name!r} ({self.basepath!r}) cannot be changed to {basepath!r} "
+                f"The basepath of resource {self.name!r} ({self.basepath!r}) cannot be changed to {basepath_arg!r} "
                 f"because it's tied to {tied_to}."
             )
         assert os.path.isdir(
-            basepath
-        ), f"Basepath {basepath!r} is not an existing directory."
-        self._resource.basepath = basepath
+            basepath_arg
+        ), f"Basepath {basepath_arg!r} is not an existing directory."
+        self._basepath = basepath_arg
         if self.auto_validate:
             _ = self.validate(raise_exception=True)
 
@@ -1034,21 +1147,6 @@ class DimcatResource(Generic[D], Resource):
         return os.path.normpath(os.path.join(self.basepath, file_path))
 
     @property
-    def resource(self) -> fl.Resource:
-        return self._resource
-
-    @property
-    def resource_name(self) -> str:
-        if not self._resource.name:
-            return self.filename_factory()
-        return self._resource.name
-
-    @resource_name.setter
-    def resource_name(self, resource_name: str):
-        check_name(resource_name)
-        self._resource.name = resource_name
-
-    @property
     def status(self) -> ResourceStatus:
         if self._status == ResourceStatus.EMPTY and self._resource.schema.fields:
             self._status = ResourceStatus.SCHEMA
@@ -1196,6 +1294,10 @@ class DimcatResource(Generic[D], Resource):
         if not self.is_loaded or force_reload:
             _ = self.df
 
+    def _make_empty_fl_resource(self):
+        """Create an empty frictionless resource object with a minimal descriptor."""
+        return make_tsv_resource()
+
     def subselect(
         self,
         tuples: DimcatIndex | Iterable[tuple],
@@ -1284,6 +1386,7 @@ class DimcatResource(Generic[D], Resource):
         return descriptor_path
 
     def to_config(self, pickle=False) -> DimcatConfig:
+        """If ``pickle`` is set to True,"""
         return DimcatConfig(self.to_dict(pickle=pickle))
 
     def to_dict(self, pickle=False) -> dict:

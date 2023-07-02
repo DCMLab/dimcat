@@ -198,6 +198,7 @@ class DimcatPackage(Data):
             raise ValueError(
                 "At least one of package_name and package needs to be specified."
             )
+        super().__init__(basepath=basepath)
         self._package = fl.Package(resources=[])
         self._status = PackageStatus.EMPTY
         self._resources: List[DimcatResource] = []
@@ -206,9 +207,6 @@ class DimcatPackage(Data):
 
         if package_name is not None:
             self.package_name = package_name
-        if basepath is not None:
-            basepath = resolve_path(basepath)
-            self.basepath = basepath
         if descriptor_filepath is not None:
             self.descriptor_filepath = descriptor_filepath
         if package is not None:
@@ -254,7 +252,7 @@ class DimcatPackage(Data):
 
     @property
     def basepath(self) -> str:
-        return self._package.basepath
+        return self._basepath
 
     @basepath.setter
     def basepath(self, basepath: str) -> None:
@@ -837,10 +835,8 @@ class DimcatCatalog(Data):
         Args:
             basepath: The basepath for all packages in the catalog.
         """
+        super().__init__(basepath=basepath)
         self._packages: List[DimcatPackage] = []
-        self._basepath: Optional[str] = None
-        if basepath is not None:
-            self.basepath = basepath
         if packages is not None:
             self.packages = packages
 
@@ -865,8 +861,6 @@ class DimcatCatalog(Data):
     @property
     def basepath(self) -> Optional[str]:
         """If specified, the basepath for all packages added to the catalog."""
-        if self._basepath is None:
-            self._basepath = get_default_basepath()
         return self._basepath
 
     @basepath.setter
@@ -1015,14 +1009,11 @@ class DimcatCatalog(Data):
         set_packages: bool = True,
     ) -> None:
         """Sets the basepath for all packages in the catalog (if set_packages=True)."""
-        basepath_arg = resolve_path(basepath)
-        if not os.path.isdir(basepath_arg):
-            raise ValueError(f"basepath {basepath_arg!r} is not an existing directory.")
-        self._basepath = basepath_arg
+        super(DimcatCatalog, DimcatCatalog).basepath.fset(self, basepath)
         if not set_packages:
             return
         for package in self._packages:
-            package.basepath = basepath_arg
+            package.basepath = self.basepath
 
     def summary_dict(self) -> dict:
         """Returns a summary of the dataset."""
@@ -1141,20 +1132,11 @@ class Dataset(Data):
         Args:
             **kwargs: Dataset is cooperative and calls super().__init__(data=dataset, **kwargs)
         """
-        if basepath is None:
-            self._inputs = InputsCatalog()
-            self._outputs = OutputsCatalog()
-        else:
-            basepath_arg = resolve_path(basepath)
-            if not os.path.isdir(basepath_arg):
-                raise NotADirectoryError(
-                    f"basepath {basepath_arg!r} is not an existing directory."
-                )
-            self._inputs = InputsCatalog(basepath=basepath_arg)
-            self._outputs = OutputsCatalog(basepath=basepath_arg)
+        self._inputs = InputsCatalog(basepath=basepath)
+        self._outputs = OutputsCatalog(basepath=basepath)
         self._pipeline = None
         self.reset_pipeline()
-        super().__init__(**kwargs)  # calls the Mixin's __init__
+        super().__init__(basepath=basepath, **kwargs)  # calls the Mixin's __init__
 
     def __repr__(self):
         return self.info(return_str=True)

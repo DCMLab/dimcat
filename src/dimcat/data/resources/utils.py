@@ -438,6 +438,19 @@ def make_rel_path(path: str, start: str):
         raise ValueError(f"Turning {path} into a relative path failed with {e}")
 
 
+def make_fl_resource(
+    name: Optional[str] = None,
+    **options,
+) -> fl.Resource:
+    """Creates a frictionless.Resource by passing the **options to the constructor."""
+    new_resource = fl.Resource(**options)
+    if name is None:
+        new_resource.name = ""  # replacing the default name "memory"
+    else:
+        new_resource.name = name
+    return new_resource
+
+
 def make_tsv_resource(name: Optional[str] = None) -> fl.Resource:
     """Returns a frictionless.Resource with the default properties of a TSV file stored to disk."""
     tsv_dialect = fl.Dialect.from_options(
@@ -454,9 +467,7 @@ def make_tsv_resource(name: Optional[str] = None) -> fl.Resource:
         "encoding": "utf-8",
         "dialect": tsv_dialect,
     }
-    if name is not None:
-        options["name"] = name
-    resource = fl.Resource(**options)
+    resource = make_fl_resource(name, **options)
     resource.type = "table"
     return resource
 

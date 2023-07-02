@@ -5,11 +5,64 @@ from dimcat.data.resources.base import (
     DimcatIndex,
     DimcatResource,
     PieceIndex,
+    Resource,
     ResourceStatus,
 )
 from dimcat.utils import get_default_basepath
 
 from .conftest import CORPUS_PATH
+
+# region Resource
+
+
+class TestBaseResource:
+    expected_basepath = None
+    expected_filepath = None
+    expected_normpath = None
+    expected_resource_name = ""
+
+    @pytest.fixture()
+    def resource_obj(self):
+        return Resource()
+
+    def test_basepath_after_init(self, resource_obj):
+        assert resource_obj.basepath == self.expected_basepath
+
+    def test_filepath_after_init(self, resource_obj):
+        assert resource_obj.filepath == self.expected_filepath
+
+    def test_normpath_after_init(self, resource_obj):
+        assert resource_obj.normpath == self.expected_normpath
+
+    def test_resource_name_after_init(self, resource_obj):
+        assert resource_obj.resource_name == self.expected_resource_name
+
+
+class TestResourceFromAbsolute(TestBaseResource):
+    expected_basepath = CORPUS_PATH
+    expected_filepath = "datapackage.json"
+    expected_normpath = os.path.join(CORPUS_PATH, "datapackage.json")
+    expected_resource_name = "datapackage"
+
+    @pytest.fixture()
+    def resource_obj(self, package_path):
+        return Resource(package_path)
+
+
+class TestResourceReconciledAbsolute(TestResourceFromAbsolute):
+    expected_basepath = os.path.split(CORPUS_PATH)[0]
+    expected_filepath = os.path.join(os.path.basename(CORPUS_PATH), "datapackage.json")
+
+    @pytest.fixture()
+    def resource_obj(self, package_path):
+        path, _ = os.path.split(package_path)
+        basepath, _ = os.path.split(path)
+        return Resource(package_path, basepath=basepath)
+
+
+# endregion Resource
+
+# region DimcatResource
 
 
 class TestEmptyResource:
@@ -202,6 +255,8 @@ class TestFromDcPackage(TestDiskResource):
     def dc_resource(self, zipped_resource_from_dc_package):
         return zipped_resource_from_dc_package
 
+
+# endregion DimcatResource
 
 #
 # @pytest.fixture(
