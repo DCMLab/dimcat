@@ -49,6 +49,12 @@ class TestDimcatPackage:
         assert copy == package_obj
         assert copy is not package_obj
 
+    def test_piece_index(self, package_obj):
+        idx1 = package_obj.get_piece_index()
+        table = package_obj.get_boolean_resource_table()
+        idx2 = table.index
+        assert idx1 == idx2
+
 
 @pytest.fixture()
 def package_from_descriptor(package_path):

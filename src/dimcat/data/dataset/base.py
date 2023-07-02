@@ -33,6 +33,7 @@ from typing import (
 
 import frictionless as fl
 import marshmallow as mm
+import pandas as pd
 from dimcat.base import DimcatConfig, DimcatObjectField, FriendlyEnum, get_class
 from dimcat.data.base import Data
 from dimcat.data.resources.base import (
@@ -577,6 +578,29 @@ class DimcatPackage(Data):
         except NoMatchingResourceFoundError:
             pass
         return self.extract_feature(feature_config)
+
+    def get_boolean_resource_table(self) -> SomeDataframe:
+        """Returns a table with this package's piece index and one boolean column per resource,
+        indicating whether the resource is available for a given piece or not."""
+        bool_masks = []
+        for resource in self:
+            piece_index = resource.get_piece_index()
+            if len(piece_index) == 0:
+                continue
+            bool_masks.append(
+                pd.Series(
+                    True,
+                    dtype="boolean",
+                    index=piece_index.index,
+                    name=resource.resource_name,
+                )
+            )
+        if len(bool_masks) == 0:
+            return pd.DataFrame([], dtype="boolean", index=PieceIndex())
+        table = pd.concat(bool_masks, axis=1).fillna(False).sort_index()
+        table.index.names = ("corpus", "piece")
+        table.columns.names = ("resource_name",)
+        return table
 
     def get_piece_index(self) -> PieceIndex:
         """Returns the piece index corresponding to a sorted union of all included resources' indices."""
