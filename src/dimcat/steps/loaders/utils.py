@@ -69,11 +69,12 @@ def make_extension_regex(extensions: Iterable[str]) -> re.Pattern:
 @overload
 def scan_directory(
     directory,
+    extensions,
     file_re,
     folder_re,
     exclude_re,
     recursive,
-    subdirs: Literal[False],
+    return_tuples: Literal[False],
     progress,
     exclude_files_only,
 ) -> Iterator[str]:
@@ -83,11 +84,12 @@ def scan_directory(
 @overload
 def scan_directory(
     directory,
+    extensions,
     file_re,
     folder_re,
     exclude_re,
     recursive,
-    subdirs: Literal[True],
+    return_tuples: Literal[True],
     progress,
     exclude_files_only,
 ) -> Iterator[Tuple[str, str]]:
@@ -101,11 +103,11 @@ def scan_directory(
     folder_re: Optional[str] = None,
     exclude_re: str = r"^(\.|_)",
     recursive: bool = True,
-    subdirs: bool = False,
+    return_tuples: bool = False,
     progress: bool = False,
     exclude_files_only: bool = False,
 ) -> Iterator[str] | Iterator[Tuple[str, str]]:
-    """Generator of filtered file paths in ``directory``.
+    """Depth-first generator of filtered file paths in ``directory``.
 
     Args:
       directory: Directory to be scanned for files.
@@ -116,16 +118,14 @@ def scan_directory(
       exclude_re:
           Exclude files and folders (unless ``exclude_files_only=True``) containing this regular expression.
           Excludes files starting with a dot or underscore by default, prevent by setting to None or ''.
-      recursive: By default, sub-directories are recursively scanned. Pass False to scan only ``dir``.
-      subdirs: By default, full file paths are returned. Pass True to return (path, name) tuples instead.
+      recursive: By default, subdirectories are recursively scanned. Pass False to scan only ``dir``.
+      return_tuples: By default, full file paths are returned. Pass True to return (path, name) tuples instead.
       progress: Pass True to display the progress (useful for large directories).
       exclude_files_only:
           By default, ``exclude_re`` excludes files and folder. Pass True to exclude only files matching the regEx.
-      return_metadata:
-          If set to True, 'metadata.tsv' are always yielded regardless of ``file_re``.
 
     Yields:
-      Full file path or, if ``subdirs=True``, (path, file_name) pairs in random order.
+      Full file path or, if ``return_tuples=True``, (path, file_name) pairs in random order.
     """
     if file_re is None:
         file_re = r".*"
@@ -138,11 +138,11 @@ def scan_directory(
 
         def check_regex(reg, s, excl=exclude_re):
             try:
-                res = re.search(reg, s) is not None and re.search(excl, s) is None
+                passing = re.search(reg, s) is not None and re.search(excl, s) is None
             except Exception:
                 print(reg)
                 raise
-            return res
+            return passing
 
         for dir_entry in os.scandir(d):
             name = dir_entry.name
@@ -181,8 +181,8 @@ def scan_directory(
                     counter += 1
                     if pbar is not None:
                         pbar.set_postfix({"selected": counter})
-                    if subdirs:
-                        yield (d, name)
+                    if return_tuples:
+                        yield d, name
                     else:
                         yield path
 
@@ -240,15 +240,13 @@ class PathFactory(Iterable[str]):
           exclude_re:
               Exclude files and folders (unless ``exclude_files_only=True``) containing this regular expression.
               Excludes files starting with a dot or underscore by default, prevent by setting to None or ''.
-          recursive: By default, sub-directories are recursively scanned. Pass False to scan only ``dir``.
+          recursive: By default, subdirectories are recursively scanned. Pass False to scan only ``dir``.
           progress: Pass True to display the progress (useful for large directories).
           exclude_files_only:
               By default, ``exclude_re`` excludes files and folder. Pass True to exclude only files matching the regEx.
-          return_metadata:
-              If set to True, 'metadata.tsv' are always yielded regardless of ``file_re``.
 
         Yields:
-          Full file path or, if ``subdirs=True``, (path, file_name) pairs in random order.
+          Full file path.
         """
         self.directory = directory
         self.extensions = extensions
@@ -267,7 +265,7 @@ class PathFactory(Iterable[str]):
             folder_re=self.folder_re,
             exclude_re=self.exclude_re,
             recursive=self.recursive,
-            subdirs=False,
+            return_tuples=False,
             progress=self.progress,
             exclude_files_only=self.exclude_files_only,
         )
