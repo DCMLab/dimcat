@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 import os
 import re
+from pathlib import Path
 from typing import Collection, Optional
 from urllib.parse import urlparse
 
@@ -236,7 +237,12 @@ def resolve_path(path) -> Optional[AbsolutePathStr]:
     """Resolves '~' to HOME directory and turns ``path`` into an absolute path."""
     if path is None:
         return None
-    path = str(path)
+    if isinstance(path, str):
+        pass
+    elif isinstance(path, Path):
+        path = str(path)
+    else:
+        raise TypeError(f"Expected str or Path, got {type(path)}")
     if "~" in path:
         return AbsolutePathStr(os.path.expanduser(path))
     return AbsolutePathStr(os.path.abspath(path))
