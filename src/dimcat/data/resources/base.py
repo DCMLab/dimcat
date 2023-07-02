@@ -66,6 +66,15 @@ D = TypeVar("D", bound=SomeDataframe)
 S = TypeVar("S", bound=SomeSeries)
 IX = TypeVar("IX", bound=SomeIndex)
 
+# region Resource
+
+
+class Resource(Data):
+    class Schema(Data.Schema):
+        pass
+
+
+# endregion Resource
 
 # region DimcatIndex
 
@@ -363,7 +372,7 @@ class ResourceStatus(IntEnum):
     PACKAGED_NOT_LOADED = auto()
 
 
-class DimcatResource(Generic[D], Data):
+class DimcatResource(Generic[D], Resource):
     """Data object wrapping a dataframe. The dataframe's metadata are stored as a :obj:`frictionless.Resource`, that
     can be used for serialization and (lazy) deserialization.
 
@@ -575,7 +584,7 @@ class DimcatResource(Generic[D], Data):
         new_object._status = resource._status
         return new_object
 
-    class PickleSchema(Data.Schema):
+    class PickleSchema(Resource.Schema):
         resource = fields.Method(
             serialize="get_descriptor_filepath",
             deserialize="raw",
@@ -615,7 +624,7 @@ class DimcatResource(Generic[D], Data):
                 data["resource"] = fl.Resource(**resource_data)
             return super().init_object(data, **kwargs)
 
-    class Schema(Data.Schema):
+    class Schema(Resource.Schema):
         resource = fields.Method(
             serialize="get_resource_descriptor",
             deserialize="raw",
