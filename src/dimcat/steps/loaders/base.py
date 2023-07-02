@@ -138,6 +138,9 @@ class Loader(PipelineStep):
         if not os.path.isfile(resource):
             raise FileNotFoundError(f"Resource {resource} does not exist.")
 
+    def create_dataset(self) -> Dataset:
+        return Dataset.from_loader(self)
+
     def fit_to_dataset(self, dataset: Dataset) -> None:
         """Fit this PipelineStep to a :class:`Dataset`."""
         if self.basepath is None:
