@@ -23,6 +23,6 @@ jobs:
       - name: Install tox
         run: pip install tox
       - name: Run tests
-        # As of now, running tox wirthout environment simplmy runs tests with the test matrix defined in
+        # As of now, running tox without environment runs the tests w.r.t the test matrix defined in
         # tox.ini.
         run: tox
