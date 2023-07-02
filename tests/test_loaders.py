@@ -22,7 +22,12 @@ def get_music21_corpus_path():
 def get_score_paths(extensions=(".xml", ".musicxml", ".mxl"), n=10):
     music21_corpus_path = get_music21_corpus_path()
     paths = []
-    for i, path in enumerate(scan_directory(music21_corpus_path)):
+    for i, path in enumerate(
+        scan_directory(
+            music21_corpus_path,
+            extensions=extensions,
+        )
+    ):
         if i == n:
             break
         paths.append(path)
@@ -34,6 +39,7 @@ def get_score_paths(extensions=(".xml", ".musicxml", ".mxl"), n=10):
         extensions=(
             ".xml",
             ".musicxml",
+            ".mxl",
         ),
     ),
     ids=os.path.basename,

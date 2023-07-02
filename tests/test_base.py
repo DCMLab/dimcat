@@ -23,10 +23,11 @@ from dimcat.data.resources.base import DimcatResource
 from dimcat.data.resources.features import Notes
 from dimcat.steps.analyzers import Analyzer, Counter
 from dimcat.steps.base import FeatureProcessingStep
+from dimcat.steps.loaders.base import Loader
 from marshmallow import ValidationError, fields
 from marshmallow.class_registry import _registry as MM_REGISTRY
 
-from .conftest import datapackage_json_path, single_resource_path
+from .conftest import CORPUS_PATH, datapackage_json_path, single_resource_path
 
 
 class TestBaseObjects:
@@ -104,6 +105,7 @@ DIMCAT_OBJECT_TEST_CASES: List[Tuple[Type[DimcatObject], dict]] = [
     (Counter, dict(features=dummy_config())),
     (DimcatPackage, dict(package=datapackage_json_path())),
     (DimcatCatalog, {}),
+    (Loader, dict(package_name="test_package", basepath=CORPUS_PATH)),
 ]
 
 
@@ -145,10 +147,10 @@ def make_test_id(params: tuple) -> str:
 def dimcat_object(request, tmp_path_factory):
     """Initializes each of the objects to be tested and injects them into the test class."""
     Constructor, options = unpack_dimcat_object_params(request.param)
-    request.cls.dtype = Constructor
+    request.cls.object_constructor = Constructor
     dimcat_object = Constructor(**options)
     if isinstance(dimcat_object, DimcatResource) and not dimcat_object.is_frozen:
-        tmp_path = tmp_path_factory.mktemp("dimcat_resource")
+        tmp_path = str(tmp_path_factory.mktemp("dimcat_resource"))
         dimcat_object.basepath = tmp_path
         options["basepath"] = tmp_path
     request.cls.dimcat_object = dimcat_object
@@ -157,7 +159,7 @@ def dimcat_object(request, tmp_path_factory):
 
 @pytest.mark.usefixtures("dimcat_object")
 class TestSerialization:
-    dtype: Type[DimcatObject]
+    object_constructor: Type[DimcatObject]
     """The class of the tested object."""
     options: dict
     """The arguments for the tested object."""
@@ -165,7 +167,7 @@ class TestSerialization:
     """The initialized object."""
 
     def test_equality_with_other(self):
-        new_object = self.dtype(**self.options)
+        new_object = self.object_constructor(**self.options)
         assert new_object == self.dimcat_object
 
     def test_equality_with_config(self):
@@ -188,10 +190,7 @@ class TestSerialization:
 
     def test_creation_from_manual_config(self):
         options = dict(self.options)
-        if "basepath" in options:
-            tmp_path = options.pop("basepath")
-            os.chdir(tmp_path)
-        config = DimcatConfig(dtype=self.dtype.name, options=options)
+        config = DimcatConfig(dtype=self.dimcat_object.name, options=options)
         new_object = config.create()
         assert new_object == self.dimcat_object
 

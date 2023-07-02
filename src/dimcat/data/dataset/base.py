@@ -136,7 +136,11 @@ class DimcatPackage(Data):
         package = mm.fields.Method(
             serialize="get_package_descriptor", deserialize="raw"
         )
-        basepath = mm.fields.String(allow_none=True)
+        basepath = mm.fields.Str(
+            required=False,
+            allow_none=True,
+            metadata=dict(description="The basepath for all resources in the package."),
+        )
 
         def get_package_descriptor(self, obj: DimcatResource):
             if obj.status == PackageStatus.FULLY_SERIALIZED:
