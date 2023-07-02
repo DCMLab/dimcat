@@ -8,7 +8,7 @@ from dimcat.base import is_subclass_of
 from dimcat.data.dataset.processed import GroupedDataset
 from dimcat.data.resources.base import DimcatIndex, DimcatResource, PieceIndex
 from dimcat.data.resources.features import Feature
-from dimcat.steps import FeatureStep
+from dimcat.steps import FeatureProcessingStep
 from dimcat.utils import check_name
 from marshmallow import fields, pre_load
 from typing_extensions import Self
@@ -16,12 +16,12 @@ from typing_extensions import Self
 logger = logging.getLogger(__name__)
 
 
-class Grouper(FeatureStep):
+class Grouper(FeatureProcessingStep):
     new_dataset_type = GroupedDataset
     new_resource_type = None
     output_package_name = None
 
-    class Schema(FeatureStep.Schema):
+    class Schema(FeatureProcessingStep.Schema):
         level_name = fields.Str()
 
     def __init__(self, level_name: str = "grouper", **kwargs):

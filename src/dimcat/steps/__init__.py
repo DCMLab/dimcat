@@ -9,7 +9,7 @@ from .analyzers import (
     PitchClassVectors,
     UnitOfAnalysis,
 )
-from .base import FeatureStep
+from .base import FeatureProcessingStep
 from .extractors import FeatureExtractor
 from .groupers import CustomPieceGrouper, Grouper
 from .loaders import MuseScoreLoader

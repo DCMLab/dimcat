@@ -11,7 +11,7 @@ from dimcat.data.dataset.processed import AnalyzedDataset
 from dimcat.data.resources.base import DimcatResource, SomeSeries
 from dimcat.data.resources.features import Feature, FeatureSpecs
 from dimcat.data.resources.results import Result
-from dimcat.steps.base import FeatureStep
+from dimcat.steps.base import FeatureProcessingStep
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ class Orientation(str, Enum):
     LONG = "LONG"
 
 
-class Analyzer(FeatureStep):
+class Analyzer(FeatureProcessingStep):
     """Analyzers are PipelineSteps that process data and store the results in Data.processed.
     The base class performs no analysis, instantiating it serves mere testing purpose.
     """
@@ -124,7 +124,7 @@ class Analyzer(FeatureStep):
     #         excluded_names = ", ".join(e.__name__ for e in excluded)
     #         raise ValueError(f"{cls.name} cannot be applied after {excluded_names}.")
 
-    class Schema(FeatureStep.Schema):
+    class Schema(FeatureProcessingStep.Schema):
         strategy = mm.fields.Enum(DispatchStrategy, metadata={"expose": False})
         smallest_unit = mm.fields.Enum(UnitOfAnalysis, metadata={"expose": False})
         orientation = mm.fields.Enum(Orientation, metadata={"expose": False})

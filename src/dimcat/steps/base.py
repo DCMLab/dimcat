@@ -207,16 +207,20 @@ class PipelineStep(DimcatObject):
         return resource.resource_name
 
 
-class FeatureStep(PipelineStep):
+class FeatureProcessingStep(PipelineStep):
     """
-    This base class unites all PipelineSteps that retrieve or extract features from a Dataset.
+    This class unites all PipelineSteps that work on one or all features that can be or have been extracted from a
+    Dataset. They can be instantiated with the ``features`` argument, with the behaviour defined by class variables.
+
     """
 
     allowed_features: Optional[ClassVar[Tuple[FeatureName]]] = None
+    """If set, this FeatureProcessingStep can only be initialized with features that are in this tuple."""
 
     output_package_name: Optional[str] = None
     """Name of the package in which to store the outputs of this step. If None, the PipeLine step will replace the
-    'features' package of the given dataset."""
+    'features' package of the given dataset. FeatureProcessingSteps that replace the 'features' packages are called
+    transformations internally."""
 
     requires_at_least_one_feature: ClassVar[bool] = False
     """If set to True, this PipelineStep cannot be initialized without specifying at least one feature."""
@@ -308,6 +312,9 @@ class FeatureStep(PipelineStep):
                 raise ResourceNotProcessableError(resource.name, self.name)
 
     def _iter_features(self, dataset: Dataset) -> Iterable[DimcatResource]:
+        """Iterate over all features that are required for this PipelineStep.
+        If :meth:`get_feature_specs` returns None, the Dataset will return an iterator over all active features.
+        """
         feature_specs = self.get_feature_specs()
         return dataset.iter_features(feature_specs)
 
@@ -316,6 +323,7 @@ class FeatureStep(PipelineStep):
         return self.features
 
     def _make_new_package(self, package_name: Optional[str] = None) -> DimcatPackage:
+        """Create a new package for the output of this PipelineStep, based on :attr:`output_package_name`."""
         if package_name is not None:
             return DimcatPackage(package_name=package_name)
         if self.output_package_name is None:

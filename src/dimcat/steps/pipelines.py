@@ -8,12 +8,12 @@ from dimcat.data.dataset import Dataset
 from dimcat.data.resources import DimcatResource, FeatureSpecs
 from marshmallow import fields
 
-from .base import FeatureStep, PipelineStep
+from .base import FeatureProcessingStep, PipelineStep
 
 logger = logging.getLogger(__name__)
 
 
-class Pipeline(FeatureStep):
+class Pipeline(FeatureProcessingStep):
     @classmethod
     def from_step_configs(cls, configs: Iterable[DimcatConfig]) -> Pipeline:
         steps = []
@@ -27,43 +27,48 @@ class Pipeline(FeatureStep):
     def from_pipeline(cls, pipeline: Pipeline) -> Pipeline:
         return cls(steps=pipeline.steps)
 
-    class Schema(FeatureStep.Schema):
+    class Schema(FeatureProcessingStep.Schema):
         steps = fields.List(DimcatObjectField())
 
     def __init__(
         self,
         steps: Optional[
-            FeatureStep | DimcatConfig | Iterable[FeatureStep | DimcatConfig]
+            FeatureProcessingStep
+            | DimcatConfig
+            | Iterable[FeatureProcessingStep | DimcatConfig]
         ] = None,
         features: Optional[FeatureSpecs | Iterable[FeatureSpecs]] = None,
         **kwargs,
     ):
         super().__init__(features=features, **kwargs)
-        self._steps: List[FeatureStep] = []
+        self._steps: List[FeatureProcessingStep] = []
         if steps is not None:
             self.steps = steps
 
-    def __iter__(self) -> Iterator[FeatureStep]:
+    def __iter__(self) -> Iterator[FeatureProcessingStep]:
         yield from self._steps
 
     def __len__(self):
         return len(self._steps)
 
     @property
-    def steps(self) -> List[FeatureStep]:
+    def steps(self) -> List[FeatureProcessingStep]:
         """The pipeline steps as a list. Modifying the list does not affect the pipeline."""
         return list(self._steps)
 
     @steps.setter
     def steps(
-        self, steps: FeatureStep | DimcatConfig | Iterable[FeatureStep | DimcatConfig]
+        self,
+        steps: FeatureProcessingStep
+        | DimcatConfig
+        | Iterable[FeatureProcessingStep | DimcatConfig],
     ) -> None:
         if isinstance(steps, (DimcatObject, dict)):
             steps = [steps]
         for step in steps:
             self.add_step(step)
 
-    def add_step(self, step: FeatureStep | DimcatConfig) -> None:
+    def add_step(self, step: FeatureProcessingStep | DimcatConfig) -> None:
         if isinstance(step, dict):
             assert "dtype" in step, (
                 "PipelineStep dict must be config-like and have a 'dtype' key mapping to the "

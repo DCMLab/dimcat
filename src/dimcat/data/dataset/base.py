@@ -57,7 +57,7 @@ from typing_extensions import Self
 
 if TYPE_CHECKING:
     from dimcat.data.resources.results import Result
-    from dimcat.steps.base import FeatureStep
+    from dimcat.steps.base import FeatureProcessingStep
     from dimcat.steps.pipelines import Pipeline
 
 logger = logging.getLogger(__name__)
@@ -1174,7 +1174,7 @@ class Dataset(Data):
 
     def apply(
         self,
-        step: FeatureStep,
+        step: FeatureProcessingStep,
     ) -> Self:
         """Applies a pipeline step to the features it is configured for or, if None, to all active features."""
         return step.process_dataset(self)

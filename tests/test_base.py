@@ -22,7 +22,7 @@ from dimcat.data.dataset.base import DimcatCatalog, DimcatPackage
 from dimcat.data.resources.base import DimcatResource
 from dimcat.data.resources.features import Notes
 from dimcat.steps.analyzers import Analyzer, Counter
-from dimcat.steps.base import FeatureStep
+from dimcat.steps.base import FeatureProcessingStep
 from marshmallow import ValidationError, fields
 from marshmallow.class_registry import _registry as MM_REGISTRY
 
@@ -30,7 +30,7 @@ from .conftest import datapackage_json_path, single_resource_path
 
 
 class TestBaseObjects:
-    @pytest.fixture(params=[DimcatObject, Data, FeatureStep, DimcatConfig])
+    @pytest.fixture(params=[DimcatObject, Data, FeatureProcessingStep, DimcatConfig])
     def dimcat_class(self, request):
         return request.param
 
@@ -93,7 +93,7 @@ def dummy_config() -> DimcatConfig:
 DIMCAT_OBJECT_TEST_CASES: List[Tuple[Type[DimcatObject], dict]] = [
     (DimcatObject, {}),
     (Data, {}),
-    (FeatureStep, {}),
+    (FeatureProcessingStep, {}),
     (DimcatConfig, dummy_config()),
     (
         DimcatResource,
