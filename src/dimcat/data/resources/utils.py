@@ -431,11 +431,15 @@ def make_index_from_grouping_dict(
 
 def make_rel_path(path: str, start: str):
     """Like os.path.relpath() but ensures that path is contained within start."""
+    if not start:
+        raise ValueError(f"start must not be empty, but is {start!r}")
     rel_path = os.path.relpath(path, start)
     try:
         return check_rel_path(rel_path, start)
     except ValueError as e:
-        raise ValueError(f"Turning {path} into a relative path failed with {e}")
+        raise ValueError(
+            f"Turning {path!r} into a relative path under {start!r} failed with {e}"
+        )
 
 
 def make_fl_resource(
@@ -445,9 +449,12 @@ def make_fl_resource(
     """Creates a frictionless.Resource by passing the **options to the constructor."""
     new_resource = fl.Resource(**options)
     if name is None:
-        new_resource.name = ""  # replacing the default name "memory"
+        new_resource.name = get_setting(
+            "default_resource_name"
+        )  # replacing the default name "memory"
     else:
         new_resource.name = name
+    new_resource.path = ""
     return new_resource
 
 

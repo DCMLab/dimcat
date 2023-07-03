@@ -76,12 +76,10 @@ class Notes(Feature):
         super().__init__(
             resource=resource,
             resource_name=resource_name,
-            basepath=basepath,
-            filepath=filepath,
-            column_schema=column_schema,
             descriptor_filepath=descriptor_filepath,
             auto_validate=auto_validate,
             default_groupby=default_groupby,
+            basepath=basepath,
         )
 
     @property

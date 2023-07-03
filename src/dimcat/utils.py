@@ -188,6 +188,10 @@ def check_file_path(
 
     Returns:
         The path turned into an absolute path.
+
+    Raises:
+        FileNotFoundError: If the file does not exist and must_exist is True.
+        ValueError: If the file does not have one of the specified extensions, if any.
     """
     path = resolve_path(filepath)
     if must_exist and not os.path.isfile(path):
@@ -224,6 +228,20 @@ def clean_basepath(path: str) -> str:
     if path.startswith(home):
         path = "~" + path[len(home) :]
     return path
+
+
+def _set_new_basepath(basepath: str, other_logger=None) -> None:
+    if basepath is None:
+        return
+    basepath_arg = resolve_path(basepath)
+    if not os.path.isdir(basepath_arg):
+        raise NotADirectoryError(
+            f"basepath {basepath_arg!r} is not an existing directory."
+        )
+    if other_logger is None:
+        other_logger = logger
+    other_logger.debug(f"The basepath been set to {basepath_arg!r}")
+    return basepath_arg
 
 
 class AbsolutePathStr(str):

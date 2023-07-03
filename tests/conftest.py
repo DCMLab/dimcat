@@ -120,8 +120,7 @@ def assembled_resource(
     dataframe_from_fl_resource, fl_resource, tmp_serialization_path
 ) -> DimcatResource:
     resource = DimcatResource(
-        basepath=tmp_serialization_path,
-        resource_name=fl_resource.name,
+        resource_name=fl_resource.name, basepath=tmp_serialization_path
     )
     resource.df = dataframe_from_fl_resource
     return resource
@@ -140,9 +139,7 @@ def empty_resource():
 
 @pytest.fixture()
 def empty_resource_with_paths(tmp_serialization_path):
-    return DimcatResource(
-        basepath=tmp_serialization_path, filepath="empty_resource.tsv"
-    )
+    return DimcatResource(basepath=tmp_serialization_path)
 
 
 @pytest.fixture()
@@ -164,7 +161,6 @@ def resource_from_dataframe(
         df=dataframe_from_fl_resource,
         resource_name=fl_resource.name,
         basepath=tmp_serialization_path,
-        column_schema=fl_resource.schema,
     )
 
 
@@ -206,7 +202,9 @@ def resource_from_memory_resource(resource_from_dataframe):
 @pytest.fixture()
 def schema_resource(fl_resource):
     """Returns a (empty) DimcatResource with a pre-set frictionless.Schema object."""
-    return DimcatResource(column_schema=fl_resource.schema)
+    resource = DimcatResource()
+    resource.column_schema = fl_resource.schema
+    return resource
 
 
 @pytest.fixture()

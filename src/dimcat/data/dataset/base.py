@@ -59,7 +59,13 @@ from dimcat.exceptions import (
     PackageNotFoundError,
     ResourceNotFoundError,
 )
-from dimcat.utils import check_file_path, check_name, get_default_basepath, resolve_path
+from dimcat.utils import (
+    _set_new_basepath,
+    check_file_path,
+    check_name,
+    get_default_basepath,
+    resolve_path,
+)
 from typing_extensions import Self
 
 if TYPE_CHECKING:
@@ -129,9 +135,11 @@ class DimcatPackage(Data):
             package_name = fl_package.name
         else:
             fl_package.name = package_name
-        if basepath is not None:
-            fl_package.basepath = basepath
-        new_package = cls(package_name=package_name, auto_validate=auto_validate)
+        if basepath is None:
+            basepath = fl_package.basepath
+        new_package = cls(
+            package_name=package_name, auto_validate=auto_validate, basepath=basepath
+        )
         new_package._package = fl_package
         if package._descriptor_filepath is not None:
             new_package._descriptor_filepath = package._descriptor_filepath
@@ -198,12 +206,12 @@ class DimcatPackage(Data):
             raise ValueError(
                 "At least one of package_name and package needs to be specified."
             )
-        super().__init__(basepath=basepath)
         self._package = fl.Package(resources=[])
         self._status = PackageStatus.EMPTY
         self._resources: List[DimcatResource] = []
         self._descriptor_filepath: Optional[str] = None
         self.auto_validate = auto_validate
+        super().__init__(basepath=basepath)
 
         if package_name is not None:
             self.package_name = package_name
@@ -256,21 +264,26 @@ class DimcatPackage(Data):
 
     @basepath.setter
     def basepath(self, basepath: str) -> None:
-        basepath = resolve_path(basepath)
+        basepath_arg = resolve_path(basepath)
+        if self._basepath is None:
+            self._basepath = _set_new_basepath(basepath_arg, self.logger)
+            self._package.basepath = basepath_arg
+            return
         if self.status > PackageStatus.NOT_SERIALIZED:
-            if basepath == self.basepath:
+            if basepath_arg == self.basepath:
                 return
             state = "partially" if PackageStatus.PARTIALLY_SERIALIZED else "fully"
             raise NotImplementedError(
                 f"Cannot change the basepath of a package that has already been {state} serialized. Attempted to "
-                f"change from {self.basepath!r} to {basepath!r}."
+                f"change from {self.basepath!r} to {basepath_arg!r}."
             )
         assert os.path.isdir(
-            basepath
-        ), f"Basepath {basepath!r} is not an existing directory."
-        self._package.basepath = basepath
+            basepath_arg
+        ), f"Basepath {basepath_arg!r} is not an existing directory."
+        self._basepath = basepath_arg
+        self._package.basepath = basepath_arg
         for resource in self._resources:
-            resource.basepath = basepath  # this is meant to fail RN
+            resource.basepath = basepath_arg  # this is meant to fail RN
 
     @property
     def descriptor_exists(self) -> bool:
@@ -684,11 +697,16 @@ class DimcatPackage(Data):
                     f"The resource {fl_resource.name!r} is stored at {fl_resource.normpath} but has no innerpath."
                 )
             if self.basepath is None:
-                self.basepath = fl_resource.basepath
-                self.logger.info(
-                    f"The missing basepath of {self.package_name!r} was set to the one from the "
-                    f"frictionless.Package {fl_resource.basepath!r}."
-                )
+                if fl_resource.basepath is not None:
+                    self.basepath = fl_resource.basepath
+                    self.logger.info(
+                        f"The missing basepath of {self.package_name!r} was set to the one from the "
+                        f"frictionless.Package {fl_resource.basepath!r}."
+                    )
+                    assert (
+                        self.basepath is not None
+                    ), f"basepath is None after setting it to {fl_resource.basepath}"
+
             if fl_resource.basepath != self.basepath:
                 new_filepath = make_rel_path(fl_resource.normpath, self.basepath)
                 self.logger.info(
@@ -703,8 +721,7 @@ class DimcatPackage(Data):
         if is_dimcat_resource:
             return resource
         dc_resource = DimcatResource(
-            resource=fl_resource,
-            descriptor_filepath=self.descriptor_filepath,
+            resource=fl_resource, descriptor_filepath=self.descriptor_filepath
         )
         return dc_resource
 
@@ -725,28 +742,22 @@ class DimcatPackage(Data):
             new_resource = DimcatResource.from_dataframe(
                 df=df,
                 resource_name=resource_name,
-                basepath=basepath,
-                filepath=filepath,
-                column_schema=column_schema,
                 auto_validate=auto_validate,
+                basepath=basepath,
             )
         elif isinstance(resource, DimcatResource):
             new_resource = DimcatResource.from_resource(
                 resource=resource,
                 resource_name=resource_name,
-                basepath=basepath,
-                filepath=filepath,
-                column_schema=column_schema,
                 auto_validate=auto_validate,
+                basepath=basepath,
             )
         elif resource is None or isinstance(resource, (fl.Resource, str)):
             new_resource = DimcatResource(
                 resource=resource,
                 resource_name=resource_name,
-                basepath=basepath,
-                filepath=filepath,
-                column_schema=column_schema,
                 auto_validate=auto_validate,
+                basepath=basepath,
             )
         else:
             raise TypeError(
@@ -835,8 +846,8 @@ class DimcatCatalog(Data):
         Args:
             basepath: The basepath for all packages in the catalog.
         """
-        super().__init__(basepath=basepath)
         self._packages: List[DimcatPackage] = []
+        super().__init__(basepath=basepath)
         if packages is not None:
             self.packages = packages
 
@@ -865,7 +876,10 @@ class DimcatCatalog(Data):
 
     @basepath.setter
     def basepath(self, basepath: str) -> None:
-        self.set_basepath(basepath, set_packages=False)
+        new_catalog = self._basepath is None
+        self._basepath = _set_new_basepath(basepath, self.logger)
+        if not new_catalog:
+            self._set_basepath(basepath, set_packages=False)
 
     @property
     def package_names(self) -> List[str]:
@@ -914,7 +928,7 @@ class DimcatCatalog(Data):
         return True
 
     def copy(self) -> Self:
-        new_object = self.__class__()
+        new_object = self.__class__(basepath=self.basepath)
         new_object.packages = self.packages
         return new_object
 
@@ -1003,13 +1017,11 @@ class DimcatCatalog(Data):
                 return
         self.add_package(package)
 
-    def set_basepath(
+    def _set_basepath(
         self,
-        basepath: str,
         set_packages: bool = True,
     ) -> None:
         """Sets the basepath for all packages in the catalog (if set_packages=True)."""
-        super(DimcatCatalog, DimcatCatalog).basepath.fset(self, basepath)
         if not set_packages:
             return
         for package in self._packages:

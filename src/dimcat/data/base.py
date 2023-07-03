@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import logging
-import os
 from typing import Optional
 
 import marshmallow as mm
 from dimcat.base import DimcatObject
-from dimcat.utils import resolve_path
+from dimcat.utils import _set_new_basepath
 
 logger = logging.getLogger(__name__)
 
@@ -38,12 +37,4 @@ class Data(DimcatObject):
 
     @basepath.setter
     def basepath(self, basepath: str):
-        basepath_arg = resolve_path(basepath)
-        if not os.path.isdir(basepath_arg):
-            raise NotADirectoryError(
-                f"basepath {basepath_arg!r} is not an existing directory."
-            )
-        self._basepath = basepath_arg
-        self.logger.debug(
-            f"The basepath of this {self.name} has been set to {basepath_arg!r}"
-        )
+        self._basepath = _set_new_basepath(basepath, self.logger)

@@ -1,6 +1,7 @@
 import os
 
 import pytest
+from dimcat.base import get_setting
 from dimcat.data.resources.base import (
     DimcatIndex,
     DimcatResource,
@@ -8,7 +9,6 @@ from dimcat.data.resources.base import (
     Resource,
     ResourceStatus,
 )
-from dimcat.utils import get_default_basepath
 
 from .conftest import CORPUS_PATH
 
@@ -17,9 +17,9 @@ from .conftest import CORPUS_PATH
 
 class TestBaseResource:
     expected_basepath = None
-    expected_filepath = None
+    expected_filepath = ""
     expected_normpath = None
-    expected_resource_name = ""
+    expected_resource_name = get_setting("default_resource_name")
 
     @pytest.fixture()
     def resource_obj(self):
@@ -80,7 +80,7 @@ class TestEmptyResource:
     @pytest.fixture()
     def expected_basepath(self):
         """The expected basepath of the resource after initialization."""
-        return get_default_basepath()
+        return None
 
     @pytest.fixture()
     def dc_resource(self, empty_resource):

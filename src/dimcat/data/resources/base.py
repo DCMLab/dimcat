@@ -25,6 +25,7 @@ import pandas as pd
 from dimcat.base import DimcatConfig, get_class, get_setting
 from dimcat.data.base import Data
 from dimcat.utils import (
+    _set_new_basepath,
     check_file_path,
     check_name,
     get_default_basepath,
@@ -38,7 +39,6 @@ from typing_extensions import Self
 
 from .utils import (
     align_with_grouping,
-    check_rel_path,
     ensure_level_named_piece,
     infer_schema_from_df,
     load_fl_resource,
@@ -124,8 +124,8 @@ class Resource(Data):
         return self._basepath
 
     @basepath.setter
-    def basepath(self, basepath: str):
-        super(Resource, Resource).basepath.fset(self, basepath)
+    def basepath(self, new_basepath: str):
+        self._basepath = _set_new_basepath(new_basepath, self.logger)
         self._resource.basepath = self.basepath
 
     @property
@@ -134,7 +134,7 @@ class Resource(Data):
 
     @filepath.setter
     def filepath(self, filepath: str):
-        self._set_path(filepath)
+        self._set_file_path(filepath)
 
     @property
     def innerpath(self) -> Optional[str]:
@@ -165,12 +165,14 @@ class Resource(Data):
         if valid_name != resource_name:
             self.logger.info(f"Changed {resource_name!r} name to {valid_name!r}.")
         self._resource.name = resource_name
+        if not self._resource.path:
+            self._resource.path = self.innerpath
 
     def _make_empty_fl_resource(self):
         """Create an empty frictionless resource object with a minimal descriptor."""
         return make_fl_resource()
 
-    def _set_path(self, path: str):
+    def _set_file_path(self, path: str):
         if not os.path.isabs(path):
             self._resource.path = path
             return
@@ -195,7 +197,9 @@ class Resource(Data):
                     f"Could not reconcile the asbolute path {path_arg!r} with basepath {self.basepath!r}."
                 )
         self._resource.path = filepath
-        if not self.resource_name:
+        if not self.resource_name or self.resource_name == get_setting(
+            "default_resource_name"
+        ):
             self.resource_name = make_valid_frictionless_name(
                 os.path.splitext(os.path.basename(filepath))[0]
             )
@@ -580,12 +584,10 @@ class DimcatResource(Generic[D], Resource):
         cls,
         df: D,
         resource_name: str,
-        basepath: Optional[str] = None,
-        filepath: Optional[str] = None,
-        column_schema: Optional[fl.Schema | str] = None,
         descriptor_filepath: Optional[str] = None,
         auto_validate: bool = False,
         default_groupby: Optional[str | list[str]] = None,
+        basepath: Optional[str] = None,
     ) -> Self:
         """Create a DimcatResource from a dataframe, specifying its name and, optionally, at what path it is to be
         serialized.
@@ -595,34 +597,11 @@ class DimcatResource(Generic[D], Resource):
             resource_name:
                 Name of the resource used for retrieving it from a DimcatPackage and as filename when the resource
                 is stored to a ZIP file.
-            basepath:
-                The absolute path on the local file system, relative to which the resource will be described when
-                written to disk. If not specified, it will default to
 
-                * the current working directory if no ``filepath`` is given or the given filepath is relative
-                * the ``filepath``'s directory if the filepath is absolute
-
-            filepath:
-                The path to the existing or future tabular resource on physical disk.
-
-                * If None it defaults to ``resource_name`` with the extension ``.tsv`` (which also serves as innerpath
-                  in case ``filepath`` points to a ZIP file).
-                * If it is a relative path, it will be appended to the ``basepath``.
-                * If it is an absolute path, the directory will be used as ``basepath``, unless a basepath is specified,
-                  in which case filepath must be contained in it, so that it can be expressed relatively to it.
-
-            column_schema:
-                If you don't pass a schema or a path or URL to one, frictionless will try to infer it. However,
-                this often leads to validation errors.
-            auto_validate:
-                By default, the DimcatResource will not be instantiated if the schema validation fails and the resource
-                is re-validated if, for example, the :attr:`column_schema` changes. Set False to prevent validation.
         """
         new_resource = cls(
             resource_name=resource_name,
             basepath=basepath,
-            filepath=filepath,
-            column_schema=column_schema,
             descriptor_filepath=descriptor_filepath,
             auto_validate=auto_validate,
             default_groupby=default_groupby,
@@ -644,12 +623,9 @@ class DimcatResource(Generic[D], Resource):
         index: DimcatIndex | SomeIndex,
         resource_name: str,
         basepath: Optional[str] = None,
-        filepath: Optional[str] = None,
-        column_schema: Optional[fl.Schema | str] = None,
         descriptor_filepath: Optional[str] = None,
         auto_validate: bool = False,
         default_groupby: Optional[str | list[str]] = None,
-        **kwargs,
     ) -> Self:
         if isinstance(index, DimcatIndex):
             index = index.index
@@ -657,12 +633,10 @@ class DimcatResource(Generic[D], Resource):
         return cls.from_dataframe(
             df=dataframe,
             resource_name=resource_name,
-            basepath=basepath,
-            filepath=filepath,
-            column_schema=column_schema,
             descriptor_filepath=descriptor_filepath,
             auto_validate=auto_validate,
             default_groupby=default_groupby,
+            basepath=basepath,
         )
 
     @classmethod
@@ -670,22 +644,18 @@ class DimcatResource(Generic[D], Resource):
         cls,
         resource: DimcatResource[D],
         resource_name: Optional[str] = None,
-        basepath: Optional[str] = None,
-        filepath: Optional[str] = None,
-        column_schema: Optional[fl.Schema | str] = None,
         descriptor_filepath: Optional[str] = None,
         auto_validate: Optional[bool] = None,
         default_groupby: Optional[str | list[str]] = None,
+        basepath: Optional[str] = None,
     ) -> Self:
-        """Create a DimcatResource from an existing DimcatResource, specifying its name and, optionally, at what path
-        it is to be serialized.
+        """Create a DimcatResource from an existing DimcatResource, specifying its name and,
+        optionally, at what path it is to be serialized.
 
         Args:
             resource:
             resource_name:
             basepath:
-            filepath:
-            column_schema:
             auto_validate:
                 By default, the DimcatResource will not be instantiated if the schema validation fails and the resource
                 is re-validated if, for example, the :attr:`column_schema` changes. Set False to prevent validation.
@@ -695,15 +665,11 @@ class DimcatResource(Generic[D], Resource):
         fl_resource = resource.resource.to_copy()
         if resource_name is not None:
             fl_resource.name = resource_name
-        if column_schema is not None:
-            fl_resource.schema = column_schema
         if basepath is not None:
             resource.basepath = basepath
         if descriptor_filepath is None:
             # if basepath stays the same, also copy the descriptor_filepath (otherwise use default)
             descriptor_filepath = resource.descriptor_filepath
-        if filepath is not None:
-            fl_resource.path = filepath
         if auto_validate is None:
             auto_validate = resource.auto_validate
         new_object = cls(
@@ -779,12 +745,10 @@ class DimcatResource(Generic[D], Resource):
         self,
         resource: Optional[str, fl.Resource] = None,
         resource_name: Optional[str] = None,
-        basepath: Optional[str] = None,
-        filepath: Optional[str] = None,
-        column_schema: Optional[fl.Schema | str] = None,
         descriptor_filepath: Optional[str] = None,
         auto_validate: bool = False,
         default_groupby: Optional[str | list[str]] = None,
+        basepath: Optional[str] = None,
     ) -> None:
         """
 
@@ -793,82 +757,70 @@ class DimcatResource(Generic[D], Resource):
             resource_name:
                 Name of the resource. Used as filename if the resource is stored to a ZIP file. Defaults to
                 :meth:`filename_factory`.
-            basepath:
-                The absolute path on the local file system, relative to which the resource will be described when
-                written to disk. If not specified, it will default to
 
-                * the current working directory if no ``filepath`` is given or the given filepath is relative
-                * the ``filepath``'s directory if the filepath is absolute
+            descriptor_filepath:
+                Relative filepath for using a different JSON/YAML descriptor filename than the default
+                :func:`get_descriptor_filepath`. Needs to end either in resource.json or resource.yaml.
 
-            filepath:
-                The path to the existing or future tabular resource on physical disk.
-
-                * If None it defaults to ``resource_name`` with the extension ``.tsv`` (which also serves as innerpath
-                  in case ``filepath`` points to a ZIP file).
-                * If it is a relative path, it will be appended to the ``basepath``.
-                * If it is an absolute path, the directory will be used as ``basepath``, unless a basepath is specified,
-                  in which case filepath must be contained in it, so that it can be expressed relatively to it.
-
-            column_schema:
-                If you don't pass a schema or a path or URL to one, frictionless will try to infer it. However,
-                this often leads to validation errors.
             auto_validate:
                 By default, the DimcatResource will not be validated upon instantiation or change (but always before
                 writing to disk). Set True to raise an exception during creation or modification of the resource,
                 e.g. replacing the the :attr:`column_schema`.
+
+            default_groupby:
+                Pass a list of column names or index levels to groupby something else than the default (by piece).
+
+            basepath:
+                The absolute path on the local file system, relative to which the resource will be described when
+                written to disk. If not specified, it will default to :func:`get_default_basepath`.
         """
         self.logger.debug(
-            f"DimcatResource.__init__(resource={resource}, resource_name={resource_name}, basepath={basepath}, "
-            f"filepath={filepath}, column_schema={column_schema}, validate={auto_validate})"
-        )
-        super().__init__(
-            resource=resource, resource_name=resource_name, basepath=basepath
+            f"""
+DimcatResource(
+    resource={resource!r},
+    resource_name={resource_name!r},
+    descriptor_filepath={descriptor_filepath!r},
+    auto_validate={auto_validate!r},
+    default_groupby={default_groupby!r},
+    basepath={basepath!r}
+)"""
         )
         self._status = ResourceStatus.EMPTY
         self._df: D = None
         self._descriptor_filepath: Optional[str] = descriptor_filepath
         self.auto_validate: bool = auto_validate
         self._default_groupby: List[str] = []
+        super().__init__(
+            resource=resource, resource_name=resource_name, basepath=basepath
+        )
         if default_groupby is not None:
             self.default_groupby = default_groupby
 
-        if basepath is not None:
-            basepath = resolve_path(basepath)
-
         if resource is not None:
             if isinstance(resource, (str, Path)):
-                descriptor_path = check_file_path(
-                    resource, extensions=("resource.json", "resource.yaml")
-                )
-                fl_resource = fl.Resource(descriptor_path)
-                descriptor_dir, descriptor_filepath = os.path.split(descriptor_path)
-                self._descriptor_filepath = descriptor_filepath
-                if basepath is not None and basepath != descriptor_dir:
-                    raise ValueError(
-                        f"basepath {basepath!r} does not match the directory of the descriptor {descriptor_path!r}"
-                    )
-                if not fl_resource.basepath:
-                    fl_resource.basepath = descriptor_dir
+                self._load_descriptor_path(resource)
             elif isinstance(resource, fl.Resource):
-                fl_resource = resource
+                self._resource = resource
+                if resource.basepath:
+                    self._basepath = resource.basepath
+                elif self._basepath:
+                    self._resource.basepath = self._basepath
             else:
                 raise TypeError(
                     f"Expected a path or a frictionless resource, got {type(resource)!r}"
                 )
-            self._resource = fl_resource
 
-        if basepath is not None:
-            self.basepath = basepath
-
-        if column_schema is not None:
-            self.column_schema = column_schema
-        if filepath is not None:
-            self.filepath = filepath
-        elif self.filepath is None:
-            self.filepath = self.get_filepath()
+        if resource_name is not None:
+            self.resource_name = resource_name
         self._update_status()
         if self.auto_validate and self.status == ResourceStatus.DATAFRAME:
             _ = self.validate(raise_exception=True)
+
+    def _load_descriptor_path(self, descriptor_path: str):
+        """This method deals with the case that the input ``resource`` argument is a path to a descriptor."""
+        self._set_descriptor_path(descriptor_path)
+        full_path = self.get_descriptor_path()
+        self._resource = fl.Resource(full_path)
 
     def __dir__(self) -> List[str]:
         """Exposes the wrapped dataframe's properties and methods to the IDE."""
@@ -912,10 +864,14 @@ class DimcatResource(Generic[D], Resource):
 
     @property
     def basepath(self) -> str:
-        return self._resource.basepath
+        return self._basepath
 
     @basepath.setter
     def basepath(self, basepath: str):
+        if not self._basepath:
+            self._basepath = _set_new_basepath(basepath, self.logger)
+            self._resource.basepath = self._basepath
+            return
         basepath_arg = resolve_path(basepath)
         if self.is_frozen:
             if basepath_arg == self.basepath:
@@ -932,6 +888,8 @@ class DimcatResource(Generic[D], Resource):
             basepath_arg
         ), f"Basepath {basepath_arg!r} is not an existing directory."
         self._basepath = basepath_arg
+        self._resource.basepath = basepath_arg
+        self.logger.debug(f"Updated basepath to {self.basepath!r}")
         if self.auto_validate:
             _ = self.validate(raise_exception=True)
 
@@ -976,7 +934,10 @@ class DimcatResource(Generic[D], Resource):
 
     @property
     def descriptor_exists(self) -> bool:
-        return os.path.isfile(self.get_descriptor_path())
+        descriptor_path = self.get_descriptor_path()
+        if descriptor_path is None:
+            return False
+        return os.path.isfile(descriptor_path)
 
     @property
     def descriptor_filepath(self) -> Optional[str]:
@@ -986,33 +947,7 @@ class DimcatResource(Generic[D], Resource):
 
     @descriptor_filepath.setter
     def descriptor_filepath(self, descriptor_filepath: str):
-        if self.descriptor_exists:
-            if (
-                descriptor_filepath == self._descriptor_filepath
-                or descriptor_filepath == self.get_descriptor_path()
-            ):
-                self.logger.info(
-                    f"Descriptor filepath for {self.name!r} was already set to {descriptor_filepath!r}."
-                )
-            else:
-                raise RuntimeError(
-                    f"Cannot set descriptor_filepath for {self.name!r} to {descriptor_filepath} because it already "
-                    f"set to the existing one at {self.get_descriptor_path()!r}."
-                )
-        if os.path.isabs(descriptor_filepath):
-            filepath = check_file_path(
-                descriptor_filepath,
-                extensions=("resource.json", "resource.yaml"),
-                must_exist=False,
-            )
-            if self.basepath is None:
-                basepath, rel_path = os.path.dirname(filepath)
-                self.basepath = basepath
-            else:
-                rel_path = make_rel_path(filepath, self.basepath)
-            self._descriptor_filepath = rel_path
-        else:
-            self._descriptor_filepath = descriptor_filepath
+        self._set_descriptor_path(descriptor_filepath)
 
     @property
     def df(self) -> D:
@@ -1063,23 +998,7 @@ class DimcatResource(Generic[D], Resource):
             raise RuntimeError(
                 "Cannot set filepath on a resource whose valid descriptor has been written to disk."
             )
-        if os.path.isabs(filepath):
-            if self.basepath is None:
-                basepath, filepath = os.path.split(filepath)
-                self.basepath = basepath
-                self.logger.info(
-                    f"Filepath split into basepath {self.basepath} and filepath {filepath}"
-                )
-            else:
-                filepath = make_rel_path(filepath, self.basepath)
-        else:
-            if self.basepath is None:
-                self.basepath = get_default_basepath()
-                self.logger.info(
-                    f"Basepath set to current working directory {self.basepath}"
-                )
-            filepath = check_rel_path(filepath, self.basepath)
-        self._resource.path = filepath
+        self._set_file_path(filepath)
 
     @property
     def innerpath(self) -> str:
@@ -1110,6 +1029,8 @@ class DimcatResource(Generic[D], Resource):
         """Returns True if the resource is serialized (i.e. its dataframe has been written to disk)."""
         if self.basepath is None:
             return False
+        if not self.normpath:
+            return False
         if not os.path.isfile(self.normpath):
             return False
         if not self.is_zipped_resource:
@@ -1138,13 +1059,13 @@ class DimcatResource(Generic[D], Resource):
             return False
         return self.filepath.endswith(".zip")
 
-    @property
-    def normpath(self) -> str:
-        """Absolute path to the serialized or future tabular file. Raises if basepath is not set."""
-        if self.basepath is None:
-            raise RuntimeError(f"DimcatResource {self.resource_name} has no basepath.")
-        file_path = self.get_filepath()
-        return os.path.normpath(os.path.join(self.basepath, file_path))
+    # @property
+    # def normpath(self) -> str:
+    #     """Absolute path to the serialized or future tabular file. Raises if basepath is not set."""
+    #     if self.basepath is None:
+    #         raise RuntimeError(f"DimcatResource {self.resource_name} has no basepath.")
+    #     file_path = self.get_filepath()
+    #     return os.path.normpath(os.path.join(self.basepath, file_path))
 
     @property
     def status(self) -> ResourceStatus:
@@ -1194,7 +1115,7 @@ class DimcatResource(Generic[D], Resource):
                 if self._df is None:
                     self.logger.warning(
                         f"The serialized data exists at {self.normpath} but no descriptor was found at "
-                        f"{self.get_descriptor_path(only_if_exists=False)}. Consider passing the "
+                        f"{self.get_descriptor_path()}. Consider passing the "
                         f"descriptor_filepath argument upon initialization."
                     )
                     return ResourceStatus.STANDALONE_NOT_LOADED
@@ -1227,14 +1148,17 @@ class DimcatResource(Generic[D], Resource):
             return self.get_grouping_levels()
         return self.default_groupby
 
-    def get_descriptor_path(self, create_if_necessary: bool = False) -> Optional[str]:
+    def get_descriptor_path(
+        self,
+        fallback_to_default: bool = False,
+    ) -> Optional[str]:
         """Returns the full path to the existing or future descriptor file."""
-        descriptor_path = os.path.join(
-            self.get_basepath(), self.get_descriptor_filepath()
-        )
-        if not os.path.isfile(descriptor_path) and create_if_necessary:
-            self._store_descriptor(descriptor_path)
-        return descriptor_path
+        try:
+            return os.path.join(self.basepath, self.descriptor_filepath)
+        except Exception:
+            if fallback_to_default:
+                return os.path.join(self.get_basepath(), self.get_descriptor_filepath())
+            return
 
     def get_descriptor_filepath(self) -> str:
         """Like :attr:`descriptor_filepath` but returning a default value if None."""
@@ -1263,6 +1187,11 @@ class DimcatResource(Generic[D], Resource):
     def get_level_names(self) -> List[str]:
         """Returns the level names of the resource's index."""
         return self.get_index().names
+
+    def get_normpath(self) -> str:
+        if self.normpath is None:
+            return os.path.join(self.get_basepath(), self.get_filepath())
+        return self.normpath
 
     def get_path_dict(self) -> Dict[str, str]:
         """Returns a dictionary with the paths to the resource's data and descriptor."""
@@ -1297,6 +1226,76 @@ class DimcatResource(Generic[D], Resource):
     def _make_empty_fl_resource(self):
         """Create an empty frictionless resource object with a minimal descriptor."""
         return make_tsv_resource()
+
+    def _set_descriptor_path(self, descriptor_filepath: str):
+        if self.descriptor_exists:
+            if (
+                descriptor_filepath == self._descriptor_filepath
+                or descriptor_filepath == self.get_descriptor_path()
+            ):
+                self.logger.info(
+                    f"Descriptor filepath for {self.name!r} was already set to {descriptor_filepath!r}."
+                )
+                return
+            else:
+                raise RuntimeError(
+                    f"Cannot set descriptor_filepath for {self.name!r} to {descriptor_filepath} because it already "
+                    f"set to the existing one at {self.get_descriptor_path()!r}."
+                )
+        if not os.path.isabs(descriptor_filepath):
+            # check if the relative path has an accepted extension
+            if not (
+                descriptor_filepath.endswith("resource.json")
+                or descriptor_filepath.endswith("resource.yaml")
+            ):
+                raise ValueError(
+                    f"Descriptor filepath {descriptor_filepath!r} must end with 'resource.json' or 'resource.yaml'."
+                )
+            # warn if an existing descriptor_filepath is overwritten
+            if (
+                self._descriptor_filepath is not None
+                and self._descriptor_filepath != descriptor_filepath
+            ):
+                self.logger.warning(
+                    f"Overwriting descriptor_filepath {self._descriptor_filepath!r} with "
+                    f"{descriptor_filepath!r}."
+                )
+            self._descriptor_filepath = descriptor_filepath
+            return
+        filepath = check_file_path(
+            descriptor_filepath,
+            extensions=("resource.json", "resource.yaml"),
+            must_exist=False,
+        )
+        if self.basepath is None:
+            basepath, rel_path = os.path.split(filepath)
+            resolved_path = resolve_path(basepath)
+            print(f"BASEPATH AFTER RESOLVING: {resolved_path}")
+            self.basepath = resolved_path
+            print(f"BASEPATH AFTER REPLACING via {filepath}: {self.basepath}")
+            self.logger.debug(
+                f"Received an absolute path and set basepath and descriptor_filepath accordingly:\n"
+                f"{filepath}"
+            )
+        else:
+            try:
+                rel_path = make_rel_path(filepath, self.basepath)
+                self.logger.debug(
+                    f"Turned the absolute path into the relative {rel_path!r}."
+                )
+            except ValueError:
+                raise ValueError(
+                    f"Could not reconcile the asbolute path {filepath!r} with basepath {self.basepath!r}."
+                )
+        if (
+            self._descriptor_filepath is not None
+            and self._descriptor_filepath != rel_path
+        ):
+            self.logger.warning(
+                f"Overwriting descriptor_filepath {self._descriptor_filepath!r} with "
+                f"{rel_path!r}."
+            )
+        self._descriptor_filepath = rel_path
 
     def subselect(
         self,
@@ -1333,7 +1332,7 @@ class DimcatResource(Generic[D], Resource):
         if self.status < ResourceStatus.DATAFRAME:
             raise RuntimeError(f"This {self.name} does not contain a dataframe.")
 
-        full_path = self.normpath
+        full_path = self.get_normpath()
         if os.path.isfile(full_path):
             raise RuntimeError(
                 f"File exists already on disk and will not be overwritten: {full_path}"
@@ -1368,7 +1367,7 @@ class DimcatResource(Generic[D], Resource):
             The path to the descriptor file on disk.
         """
         if descriptor_path is None:
-            descriptor_path = self.get_descriptor_path()
+            descriptor_path = self.get_descriptor_path(fallback_to_default=True)
         if not overwrite and os.path.isfile(descriptor_path):
             self.logger.info(
                 f"Descriptor exists already and will not be overwritten: {descriptor_path}"
