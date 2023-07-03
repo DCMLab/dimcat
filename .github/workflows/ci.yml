@@ -8,9 +8,6 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python: ["3.10"]
 
     steps:
       - uses: actions/checkout@v3
@@ -19,10 +16,12 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: ${{ matrix.python }}
+          python-version: |
+            3.10
+            3.11
       - name: Install tox
         run: pip install tox
       - name: Run tests
-        # As of now, running tox wirthout environment simplmy runs tests with the test matrix defined in
+        # As of now, running tox without environment runs the tests w.r.t the test matrix defined in
         # tox.ini.
         run: tox
