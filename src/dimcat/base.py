@@ -624,6 +624,7 @@ class DimcatSettings(DimcatObject):
     """Settings for the dimcat library."""
 
     default_basepath: str = "~/dimcat_data"
+    default_resource_name = "unnamed"
     never_store_unvalidated_data: bool = True
     """setting this to False allows for skipping mandatory validations; set to True for production"""
     recognized_piece_columns: List[str] = dataclass_field(
@@ -633,6 +634,7 @@ class DimcatSettings(DimcatObject):
 
     class Schema(DimcatObject.Schema):
         default_basepath = mm.fields.String(required=True)
+        default_resource_name = mm.fields.String(required=True)
         never_store_unvalidated_data = mm.fields.Boolean(required=True)
         recognized_piece_columns = mm.fields.List(mm.fields.String(), required=True)
 
@@ -670,7 +672,14 @@ def make_settings_from_config_parser(config: ConfigParser) -> DimcatConfig:
             if len(split_value) > 1:
                 settings[key] = split_value
             else:
-                setting_field = setting_fields[key]
+                try:
+                    setting_field = setting_fields[key]
+                except KeyError:
+                    logger.warning(
+                        f"Ignoring unrecognized setting '{key}'. In order to add it to the library, "
+                        f"it needs to be added to the DimcatSettings dataclass and to its Schema."
+                    )
+                    continue
                 if isinstance(setting_field, mm.fields.Boolean):
                     value = value in setting_field.truthy
                 settings[key] = value
