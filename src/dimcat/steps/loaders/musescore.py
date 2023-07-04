@@ -184,4 +184,4 @@ class MuseScoreLoader(ScoreLoader):
                 ms3.metadata2series(score.mscx.metadata),
             ),
         ):
-            self.add_piece_facet(facet_name, ID, obj)
+            self.add_piece_facet_dataframe(facet_name, ID, obj)

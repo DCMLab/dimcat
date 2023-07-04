@@ -230,7 +230,7 @@ class ScoreLoader(Loader):
     def processed_ids(self) -> Set[tuple]:
         return set(self._processed_ids)
 
-    def add_piece_facet(
+    def add_piece_facet_dataframe(
         self, facet_name: FacetName, ID: tuple, df: pd.DataFrame
     ) -> None:
         id2dataframe = getattr(self.loaded_facets, facet_name)

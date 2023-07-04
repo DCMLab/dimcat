@@ -543,4 +543,4 @@ class Music21Loader(ScoreLoader):
                 make_metadata(score.elements.metadata),
             ),
         ):
-            self.add_piece_facet(facet_name, ID, obj)
+            self.add_piece_facet_dataframe(facet_name, ID, obj)
