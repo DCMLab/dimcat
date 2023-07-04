@@ -102,14 +102,16 @@ class PackageStatus(IntEnum):
 
 
 class DimcatPackage(Data):
-    """Wrapper for a :obj:`frictionless.Package`. The purpose of a Package is to create, load, and store a collection
-    of :obj:`DimcatResource` objects. The default way of storing a package is a ``[name.]datapackage.json``
-    descriptor and a .zip file containing one .tsv file per DimcatResource contained in the package.
+    """Wrapper for a :obj:`frictionless.Package`. The purpose of a Package is to create, load, and
+    store a collection of :obj:`Resource` objects. The default way of storing a
+    :obj:`DimcatResource` package is a ``[name.]datapackage.json`` descriptor and a .zip file
+    containing one .tsv file per DimcatResource contained in the package.
 
     Attributes
     ----------
 
-    * ``package`` (:obj:`frictionless.Package`) - The frictionless Package object that is wrapped by this class.
+    * ``package`` (:obj:`frictionless.Package`) - The frictionless Package object that is wrapped
+      by this class.
     * ``package_name`` (:obj:`str`) - The name of the package that can be used to access it.
     * ``basepath`` (:obj:`str`) - The basepath where the package and its .json descriptor are stored.
     """
@@ -145,10 +147,10 @@ class DimcatPackage(Data):
         auto_validate: bool = False,
         basepath: Optional[str] = None,
     ) -> Self:
-        """Create a new DimcatPackage from an iterable of :class:`DimcatResource`.
+        """Create a new DimcatPackage from an iterable of filepaths.
 
         Args:
-            filepaths: The filepaths that are to be turned into :class:`DimcatResource` objects and packaged.
+            filepaths: The filepaths that are to be turned into :class:`Resource` objects and packaged.
             package_name: The name of the new package. If None, the name of the original package is used.
             reosurce_names:
                 By default, resources descriptors are loaded and come with a name, for all other paths the filename is
@@ -218,10 +220,10 @@ class DimcatPackage(Data):
         auto_validate: bool = False,
         basepath: Optional[str] = None,
     ) -> Self:
-        """Create a new DimcatPackage from an iterable of :class:`DimcatResource`.
+        """Create a new DimcatPackage from an iterable of :class:`Resource`.
 
         Args:
-            resources: The DimcatResources to package.
+            resources: The Resources to package.
             package_name: The name of the new package.
             auto_validate: Set True to validate the new package after copying it.
             basepath: The basepath where the new package will be stored. If None, the basepath of the original package
@@ -243,7 +245,7 @@ class DimcatPackage(Data):
             metadata=dict(description="The basepath for all resources in the package."),
         )
 
-        def get_package_descriptor(self, obj: DimcatResource):
+        def get_package_descriptor(self, obj: Resource):
             if obj.status == PackageStatus.FULLY_SERIALIZED:
                 return obj.get_descriptor_filepath()
             descriptor = obj._package.to_descriptor()
@@ -293,7 +295,7 @@ class DimcatPackage(Data):
             )
         self._package = fl.Package(resources=[])
         self._status = PackageStatus.EMPTY
-        self._resources: List[DimcatResource] = []
+        self._resources: List[Resource] = []
         self._descriptor_filepath: Optional[str] = None
         self.auto_validate = auto_validate
         super().__init__(basepath=basepath)
@@ -325,13 +327,13 @@ class DimcatPackage(Data):
         if auto_validate:
             self.validate(raise_exception=True)
 
-    def __getitem__(self, item: str) -> DimcatResource:
+    def __getitem__(self, item: str) -> Resource:
         try:
             return self.get_resource(item)
         except Exception as e:
             raise KeyError(str(e)) from e
 
-    def __iter__(self) -> Iterator[DimcatResource]:
+    def __iter__(self) -> Iterator[Resource]:
         yield from self._resources
 
     def __len__(self):
@@ -548,7 +550,7 @@ class DimcatPackage(Data):
             )
 
     @property
-    def resources(self) -> List[DimcatResource]:
+    def resources(self) -> List[Resource]:
         return self._resources
 
     @property
@@ -563,9 +565,51 @@ class DimcatPackage(Data):
     def zip_file_exists(self) -> bool:
         return os.path.isfile(self.get_zip_path())
 
+    def add_new_dimcat_resource(
+        self,
+        resource: Optional[DimcatResource | fl.Resource | str] = None,
+        resource_name: Optional[str] = None,
+        df: Optional[D] = None,
+        basepath: Optional[str] = None,
+        auto_validate: bool = False,
+    ) -> None:
+        """Adds a resource to the package. Parameters are passed to :class:`DimcatResource`."""
+        if sum(x is not None for x in (resource, df)) == 2:
+            raise ValueError("Pass either a DimcatResource or a dataframe, not both.")
+        if df is not None:
+            new_resource = DimcatResource.from_dataframe(
+                df=df,
+                resource_name=resource_name,
+                auto_validate=auto_validate,
+                basepath=basepath,
+            )
+        elif isinstance(resource, DimcatResource):
+            new_resource = DimcatResource.from_resource(
+                resource=resource,
+                resource_name=resource_name,
+                auto_validate=auto_validate,
+                basepath=basepath,
+            )
+        elif resource is None or isinstance(resource, (fl.Resource, str)):
+            new_resource = DimcatResource(
+                resource=resource,
+                resource_name=resource_name,
+                auto_validate=auto_validate,
+                basepath=basepath,
+            )
+        else:
+            raise TypeError(
+                f"resource is expected to be a resource or a path to a descriptor, not {type(resource)!r}"
+            )
+        if new_resource.resource_name in self.resource_names:
+            raise ValueError(
+                f"A DimcatResource {new_resource.resource_name!r} already exists in package {self.package_name!r}."
+            )
+        return self.add_resource(new_resource)
+
     def add_resource(
         self,
-        resource: DimcatResource,
+        resource: Resource,
         how: AddingBehaviour = AddingBehaviour.RAISE,
     ) -> None:
         """Adds a resource to the package."""
@@ -628,7 +672,7 @@ class DimcatPackage(Data):
         """Returns a copy of the package."""
         return self.from_package(self)
 
-    def extend(self, resources: Iterable[DimcatResource]) -> None:
+    def extend(self, resources: Iterable[Resource]) -> None:
         """Adds multiple resources to the package."""
         status_before = self.status
         resources = tuple(resources)
@@ -741,7 +785,7 @@ class DimcatPackage(Data):
         """Returns the metadata of the package."""
         return self.get_resource("metadata").df
 
-    def get_resource_by_config(self, config: DimcatConfig) -> DimcatResource:
+    def get_resource_by_config(self, config: DimcatConfig) -> Resource:
         """Returns the first resource that matches the given config."""
         for resource in self.resources:
             resource_config = resource.to_config()
@@ -768,8 +812,8 @@ class DimcatPackage(Data):
         zip_filename = self.get_zip_filepath()
         return os.path.join(self.get_basepath(), zip_filename)
 
-    def get_resource(self, name: Optional[str] = None) -> DimcatResource:
-        """Returns the DimcatResource with the given name. If no name is given, returns the last resource.
+    def get_resource(self, name: Optional[str] = None) -> Resource:
+        """Returns the Resource with the given name. If no name is given, returns the last resource.
 
         Raises:
             EmptyPackageError: If the package is empty.
@@ -788,7 +832,7 @@ class DimcatPackage(Data):
         self,
         resource: DimcatResource | fl.Resource,
         how: AddingBehaviour = AddingBehaviour.RAISE,
-    ) -> DimcatResource:
+    ) -> Resource:
         """If package paths haven't been set, use those from this resource that is to be added to the package.
         Otherwise, make sure the resource paths are compatible.
         """
@@ -798,8 +842,12 @@ class DimcatPackage(Data):
         is_dimcat_resource = isinstance(resource, DimcatResource)
         if is_dimcat_resource:
             fl_resource = resource.resource
-        else:
+        elif isinstance(resource, fl.Resource):
             fl_resource = resource
+        else:
+            raise TypeError(
+                f"Expected a frictionless.Resource or a dimcat.Resource, but got {type(resource)!r}."
+            )
         resource_is_serialized = fl_resource.basepath and os.path.isfile(
             fl_resource.normpath
         )
@@ -842,50 +890,6 @@ class DimcatPackage(Data):
         )
         return dc_resource
 
-    def make_new_resource(
-        self,
-        resource: Optional[DimcatResource | fl.Resource | str] = None,
-        resource_name: Optional[str] = None,
-        df: Optional[D] = None,
-        basepath: Optional[str] = None,
-        filepath: Optional[str] = None,
-        column_schema: Optional[fl.Schema | str] = None,
-        auto_validate: bool = False,
-    ) -> DimcatResource:
-        """Adds a resource to the package. Parameters are passed to :class:`DimcatResource`."""
-        if sum(x is not None for x in (resource, df)) == 2:
-            raise ValueError("Pass either a DimcatResource or a dataframe, not both.")
-        if df is not None:
-            new_resource = DimcatResource.from_dataframe(
-                df=df,
-                resource_name=resource_name,
-                auto_validate=auto_validate,
-                basepath=basepath,
-            )
-        elif isinstance(resource, DimcatResource):
-            new_resource = DimcatResource.from_resource(
-                resource=resource,
-                resource_name=resource_name,
-                auto_validate=auto_validate,
-                basepath=basepath,
-            )
-        elif resource is None or isinstance(resource, (fl.Resource, str)):
-            new_resource = DimcatResource(
-                resource=resource,
-                resource_name=resource_name,
-                auto_validate=auto_validate,
-                basepath=basepath,
-            )
-        else:
-            raise TypeError(
-                f"resource is expected to be a resource or a path to a descriptor, not {type(resource)!r}"
-            )
-        if new_resource.resource_name in self.resource_names:
-            raise ValueError(
-                f"A DimcatResource {new_resource.resource_name!r} already exists in package {self.package_name!r}."
-            )
-        return self.add_resource(new_resource)
-
     def _store_descriptor(
         self, descriptor_path: Optional[str] = None, overwrite=True
     ) -> str:
@@ -916,7 +920,7 @@ class DimcatPackage(Data):
                 else f"package {self.package_name}"
             )
             raise ValueError(
-                f"Number of DimcatResources in {name} ({self.n_resources}) does not match number of resources in "
+                f"Number of Resources in {name} ({self.n_resources}) does not match number of resources in "
                 f"the wrapped frictionless.Package ({len(self._package.resource_names)})."
             )
         report = self._package.validate()
@@ -1033,7 +1037,7 @@ class DimcatCatalog(Data):
 
     def add_resource(
         self,
-        resource: DimcatResource,
+        resource: Resource,
         package_name: Optional[str] = None,
     ):
         """Adds a resource to the catalog. If package_name is given, adds the resource to the package with that name."""
