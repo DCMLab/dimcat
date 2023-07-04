@@ -60,6 +60,7 @@ RESOURCE_PATHS = {
     for file in os.listdir(CORPUS_PATH)
     if file.endswith(".resource.yaml")
 }
+TEST_N_SCORES = 10
 
 
 @pytest.fixture(scope="session")
@@ -305,7 +306,7 @@ def get_music21_corpus_path():
 
 
 def get_score_paths(
-    directory, extensions: Optional[str] = None, n: int | float = 10
+    directory, extensions: Optional[str] = None, n: int | float = TEST_N_SCORES
 ) -> List[str]:
     paths = []
     for i, path in enumerate(
@@ -320,32 +321,36 @@ def get_score_paths(
     return paths
 
 
-def get_m21_score_paths(extensions=(".xml", ".musicxml", ".mxl"), n=10) -> List[str]:
+def get_m21_score_paths(
+    extensions=(".xml", ".musicxml", ".mxl"), n: int | float = TEST_N_SCORES
+) -> List[str]:
     music21_corpus_path = get_music21_corpus_path()
     return get_score_paths(music21_corpus_path, extensions=extensions, n=n)
 
 
 @pytest.fixture(scope="session")
 def list_of_m21_score_paths() -> List[str]:
-    return get_m21_score_paths(extensions=(".xml", ".musicxml", ".mxl"), n=10)
+    return get_m21_score_paths()
 
 
-def get_musescore_score_paths(extensions=(".mscz", ".mscx"), n=10) -> List[str]:
+def get_musescore_score_paths(
+    extensions=(".mscz", ".mscx"), n: int | float = TEST_N_SCORES
+) -> List[str]:
     return get_score_paths(CORPUS_PATH, extensions=extensions, n=n)
 
 
 @pytest.fixture(scope="session")
 def list_of_musescore_score_paths() -> List[str]:
-    return get_musescore_score_paths(extensions=(".mscz", ".mscx"), n=10)
+    return get_musescore_score_paths()
 
 
-def get_mixed_score_paths(n=10) -> List[str]:
+def get_mixed_score_paths(n=TEST_N_SCORES) -> List[str]:
     return get_m21_score_paths(n=n / 2) + get_musescore_score_paths(n=n / 2)
 
 
 @pytest.fixture(scope="session")
 def list_of_mixed_score_paths() -> List[str]:
-    return get_mixed_score_paths(n=10)
+    return get_mixed_score_paths()
 
 
 # region deprecated
