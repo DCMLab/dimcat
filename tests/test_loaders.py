@@ -7,14 +7,14 @@ from dimcat.steps import MuseScoreLoader
 from dimcat.steps.loaders import Music21Loader
 from dimcat.steps.loaders.base import Loader, PackageLoader
 
-from .conftest import get_score_paths
+from .conftest import get_m21_score_paths
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
 @pytest.fixture(
-    params=get_score_paths(
+    params=get_m21_score_paths(
         extensions=(
             ".xml",
             ".musicxml",
@@ -77,32 +77,29 @@ Music21Loader(
     assert len(L.processed_ids) == 1
 
 
-@pytest.fixture()
-def list_of_score_paths():
-    return get_score_paths()
-
-
-def test_music21_list_of_paths(list_of_score_paths, tmp_package_path):
+def test_music21_list_of_paths(list_of_m21_score_paths, tmp_package_path):
     L = Music21Loader(
         package_name="music21_corpus",
         basepath=tmp_package_path,
-        source=list_of_score_paths,
+        source=list_of_m21_score_paths,
     )
     logger.info(
         f"""
 Music21Loader(
     package_name="music21_corpus",
     basepath={tmp_package_path},
-    source={list_of_score_paths},
+    source={list_of_m21_score_paths},
 )"""
     )
     L.create_datapackage()
-    assert len(L.processed_ids) == len(list_of_score_paths)
+    assert len(L.processed_ids) == len(list_of_m21_score_paths)
     logger.info(f"Contents of {tmp_package_path}: {os.listdir(tmp_package_path)}")
     assert len(os.listdir(tmp_package_path)) > 1
 
 
-def test_loading_into_dataset(mixed_files_path, list_of_score_paths, tmp_package_path):
+def test_loading_into_dataset(
+    mixed_files_path, list_of_m21_score_paths, tmp_package_path
+):
     MS = MuseScoreLoader(
         "musescore",
         source=mixed_files_path,
@@ -111,7 +108,7 @@ def test_loading_into_dataset(mixed_files_path, list_of_score_paths, tmp_package
     )
     M21 = Music21Loader(
         package_name="music21",
-        source=list_of_score_paths,
+        source=list_of_m21_score_paths,
     )
     D = Dataset(basepath=tmp_package_path)
     PL = Pipeline([MS, M21])
@@ -137,7 +134,7 @@ def test_package_loader(corpus_path):
     assert D.inputs.package_names == ["unittest_metacorpus"]
 
 
-def test_base_loader(list_of_score_paths):
+def test_base_loader(list_of_m21_score_paths):
     L = Loader(package_name="test_package")
     L_config = L.to_config()
     logger.info(f"Serialized Loader: {L_config!r}")

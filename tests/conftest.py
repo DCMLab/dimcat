@@ -297,6 +297,36 @@ def dataset_from_single_package(package_path):
     return dataset
 
 
+def get_music21_corpus_path():
+    m21_path = m21.__path__[0]
+    music21_corpus_path = os.path.join(m21_path, "corpus")
+    return music21_corpus_path
+
+
+def get_score_paths(directory, extensions=(".xml", ".musicxml", ".mxl"), n=10):
+    paths = []
+    for i, path in enumerate(
+        scan_directory(
+            directory,
+            extensions=extensions,
+        )
+    ):
+        if i == n:
+            break
+        paths.append(path)
+    return paths
+
+
+def get_m21_score_paths(extensions=(".xml", ".musicxml", ".mxl"), n=10):
+    music21_corpus_path = get_music21_corpus_path()
+    return get_score_paths(music21_corpus_path, extensions=extensions, n=n)
+
+
+@pytest.fixture()
+def list_of_m21_score_paths():
+    return get_m21_score_paths(extensions=(".xml", ".musicxml", ".mxl"), n=10)
+
+
 # region deprecated
 
 # OLD TEST SETUP FROM v0.3.0
@@ -521,22 +551,3 @@ def dataset_from_single_package(package_path):
 
 
 # endregion deprecated
-def get_music21_corpus_path():
-    m21_path = m21.__path__[0]
-    music21_corpus_path = os.path.join(m21_path, "corpus")
-    return music21_corpus_path
-
-
-def get_score_paths(extensions=(".xml", ".musicxml", ".mxl"), n=10):
-    music21_corpus_path = get_music21_corpus_path()
-    paths = []
-    for i, path in enumerate(
-        scan_directory(
-            music21_corpus_path,
-            extensions=extensions,
-        )
-    ):
-        if i == n:
-            break
-        paths.append(path)
-    return paths
