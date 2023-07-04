@@ -33,20 +33,22 @@
 |
 
 ======
-dimcat
+DiMCAT
 ======
 
 
     DIgital Musicology Corpus Analysis Toolkit
 
 
-Library and commandline tool for analyzing symbolic music corpora.
+Library and commandline tool for for processing and analyzing notated music on a very large scale
 
 
-.. _pyscaffold-notes:
+Acknowledgements
+================
 
-Note
-====
+Development of this software tool was supported by the Swiss National Science Foundation within the
+project “Distant Listening – The Development of Harmony over Three Centuries (1700–2000)”
+(Grant no. 182811). This project is being conducted at the Latour Chair in Digital and Cognitive
+Musicology, generously funded by Mr. Claude Latour.
 
-This project has been set up using PyScaffold 4.2.1. For details and usage
-information on PyScaffold see https://pyscaffold.org/.
+The software project has been set up using PyScaffold 4.2.1.
