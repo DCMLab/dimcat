@@ -19,7 +19,7 @@ from dimcat.base import (
 )
 from dimcat.data.base import Data
 from dimcat.data.dataset.base import DimcatCatalog, DimcatPackage
-from dimcat.data.resources.base import DimcatResource
+from dimcat.data.resources.base import DimcatResource, Resource
 from dimcat.data.resources.features import Notes
 from dimcat.steps.analyzers import Analyzer, Counter
 from dimcat.steps.base import FeatureProcessingStep
@@ -96,6 +96,7 @@ DIMCAT_OBJECT_TEST_CASES: List[Tuple[Type[DimcatObject], dict]] = [
     (Data, {}),
     (FeatureProcessingStep, {}),
     (DimcatConfig, dummy_config()),
+    (Resource, {}),
     (
         DimcatResource,
         dict(resource=fl.Resource(name="empty_resource", path="empty_resource.tsv")),
