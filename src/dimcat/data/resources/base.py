@@ -20,6 +20,7 @@ from typing import (
 )
 
 import frictionless as fl
+import marshmallow as mm
 import ms3
 import pandas as pd
 from dimcat.base import DimcatConfig, get_class, get_setting
@@ -34,7 +35,6 @@ from dimcat.utils import (
     resolve_path,
 )
 from frictionless import FrictionlessException
-from marshmallow import fields, post_load
 from typing_extensions import Self
 
 from .utils import (
@@ -78,7 +78,7 @@ class Resource(Data):
     """
 
     class Schema(Data.Schema):
-        resource = fields.Method(
+        resource = mm.fields.Method(
             serialize="get_resource_descriptor",
             deserialize="raw",
             metadata={"expose": False},
@@ -89,6 +89,24 @@ class Resource(Data):
 
         def raw(self, data):
             return data
+
+        @mm.post_load
+        def init_object(self, data, **kwargs):
+            if "resource" not in data or data["resource"] is None:
+                return super().init_object(data, **kwargs)
+            if isinstance(data["resource"], str) and "descriptor_filepath" not in data:
+                if os.path.isabs(data["resource"]):
+                    if "basepath" in data:
+                        filepath = make_rel_path(data["resource"], data["basepath"])
+                    else:
+                        basepath, filepath = os.path.split(data["resource"])
+                        data["basepath"] = basepath
+                else:
+                    filepath = data["resource"]
+                data["descriptor_filepath"] = filepath
+            if not isinstance(data["resource"], fl.Resource):
+                data["resource"] = fl.Resource.from_descriptor(data["resource"])
+            return super().init_object(data, **kwargs)
 
     def __init__(
         self,
@@ -211,7 +229,7 @@ class Resource(Data):
 # region DimcatIndex
 
 
-class IndexField(fields.Field):
+class IndexField(mm.fields.Field):
     def _serialize(self, value, attr, obj, **kwargs):
         return value.to_list()
 
@@ -231,9 +249,9 @@ class DimcatIndex(Generic[IX], Data):
 
     class Schema(Data.Schema):
         index = IndexField(required=True)
-        names = fields.List(fields.Str(), required=True)
+        names = mm.fields.List(mm.fields.Str(), required=True)
 
-        @post_load
+        @mm.post_load
         def init_object(self, data, **kwargs) -> pd.MultiIndex:
             return pd.MultiIndex.from_tuples(data["index"], names=data["names"])
 
@@ -684,7 +702,7 @@ class DimcatResource(Generic[D], Resource):
         return new_object
 
     class PickleSchema(Resource.Schema):
-        basepath = fields.String(allow_none=True)
+        basepath = mm.fields.String(allow_none=True)
 
         def get_descriptor_filepath(self, obj: DimcatResource) -> str | dict:
             if obj.is_zipped_resource:
@@ -704,7 +722,7 @@ class DimcatResource(Generic[D], Resource):
                 obj.store_dataframe()
             return obj.get_descriptor_filepath()
 
-        @post_load
+        @mm.post_load
         def init_object(self, data, **kwargs):
             if isinstance(data["resource"], str) and "basepath" in data:
                 descriptor_path = os.path.join(data["basepath"], data["resource"])
@@ -716,30 +734,14 @@ class DimcatResource(Generic[D], Resource):
             return super().init_object(data, **kwargs)
 
     class Schema(Resource.Schema):
-        basepath = fields.String(allow_none=True, metadata={"expose": False})
-        descriptor_filepath = fields.String(allow_none=True, metadata={"expose": False})
-        auto_validate = fields.Boolean(metadata={"expose": False})
-        default_groupby = fields.List(
-            fields.String(), allow_none=True, metadata={"expose": False}
+        basepath = mm.fields.String(allow_none=True, metadata={"expose": False})
+        descriptor_filepath = mm.fields.String(
+            allow_none=True, metadata={"expose": False}
         )
-
-        @post_load
-        def init_object(self, data, **kwargs):
-            if "resource" not in data or data["resource"] is None:
-                return super().init_object(data, **kwargs)
-            if isinstance(data["resource"], str) and "descriptor_filepath" not in data:
-                if os.path.isabs(data["resource"]):
-                    if "basepath" in data:
-                        filepath = make_rel_path(data["resource"], data["basepath"])
-                    else:
-                        basepath, filepath = os.path.split(data["resource"])
-                        data["basepath"] = basepath
-                else:
-                    filepath = data["resource"]
-                data["descriptor_filepath"] = filepath
-            if not isinstance(data["resource"], fl.Resource):
-                data["resource"] = fl.Resource.from_descriptor(data["resource"])
-            return super().init_object(data, **kwargs)
+        auto_validate = mm.fields.Boolean(metadata={"expose": False})
+        default_groupby = mm.fields.List(
+            mm.fields.String(), allow_none=True, metadata={"expose": False}
+        )
 
     def __init__(
         self,
