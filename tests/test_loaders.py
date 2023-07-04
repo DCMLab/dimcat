@@ -1,37 +1,16 @@
 import logging
 import os
 
-import music21 as m21
 import pytest
 from dimcat import Dataset, Pipeline
 from dimcat.steps import MuseScoreLoader
 from dimcat.steps.loaders import Music21Loader
-from dimcat.steps.loaders.base import PackageLoader
-from dimcat.steps.loaders.utils import scan_directory
+from dimcat.steps.loaders.base import Loader, PackageLoader
+
+from .conftest import get_score_paths
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-
-
-def get_music21_corpus_path():
-    m21_path = m21.__path__[0]
-    music21_corpus_path = os.path.join(m21_path, "corpus")
-    return music21_corpus_path
-
-
-def get_score_paths(extensions=(".xml", ".musicxml", ".mxl"), n=10):
-    music21_corpus_path = get_music21_corpus_path()
-    paths = []
-    for i, path in enumerate(
-        scan_directory(
-            music21_corpus_path,
-            extensions=extensions,
-        )
-    ):
-        if i == n:
-            break
-        paths.append(path)
-    return paths
 
 
 @pytest.fixture(
@@ -156,3 +135,13 @@ def test_package_loader(corpus_path):
     logger.info(f"Dataset after loading package:\n{D}")
     assert len(D.inputs) == 1
     assert D.inputs.package_names == ["unittest_metacorpus"]
+
+
+def test_base_loader(list_of_score_paths):
+    L = Loader(package_name="test_package")
+    L_config = L.to_config()
+    logger.info(f"Serialized Loader: {L_config!r}")
+    L_copy1 = Loader.from_config(L_config)
+    L_copy2 = L_config.create()
+    logger.info(f"assert: {L_copy1} == {L_copy2}")
+    assert L_copy1 == L_copy2

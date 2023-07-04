@@ -6,12 +6,14 @@ import os
 import platform
 
 import frictionless as fl
+import music21 as m21
 import pytest
 from _pytest.terminal import TerminalReporter
 from dimcat.data.dataset import Dataset
 from dimcat.data.dataset.base import DimcatPackage
 from dimcat.data.resources.base import DimcatResource
 from dimcat.data.resources.utils import load_fl_resource
+from dimcat.steps.loaders.utils import scan_directory
 from git import Repo
 
 logger = logging.getLogger(__name__)
@@ -519,3 +521,22 @@ def dataset_from_single_package(package_path):
 
 
 # endregion deprecated
+def get_music21_corpus_path():
+    m21_path = m21.__path__[0]
+    music21_corpus_path = os.path.join(m21_path, "corpus")
+    return music21_corpus_path
+
+
+def get_score_paths(extensions=(".xml", ".musicxml", ".mxl"), n=10):
+    music21_corpus_path = get_music21_corpus_path()
+    paths = []
+    for i, path in enumerate(
+        scan_directory(
+            music21_corpus_path,
+            extensions=extensions,
+        )
+    ):
+        if i == n:
+            break
+        paths.append(path)
+    return paths
