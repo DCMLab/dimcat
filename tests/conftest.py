@@ -4,6 +4,7 @@ Configuring the test suite.
 import logging
 import os
 import platform
+from typing import List, Optional
 
 import frictionless as fl
 import music21 as m21
@@ -37,7 +38,7 @@ logger.debug(f"CORPUS_DIR: {CORPUS_DIR!r}. Contents: {os.listdir(CORPUS_DIR)}")
 # region test directories and files
 
 
-def corpus_path():
+def retrieve_and_check_corpus_path():
     """Compose the paths for the test corpora."""
     print("Path was requested")
     repo_name, test_commit = ("unittest_metacorpus", "680c20a")
@@ -53,7 +54,7 @@ def corpus_path():
     return path
 
 
-CORPUS_PATH = corpus_path()
+CORPUS_PATH = retrieve_and_check_corpus_path()
 RESOURCE_PATHS = {
     file: os.path.join(CORPUS_PATH, file)
     for file in os.listdir(CORPUS_PATH)
@@ -93,7 +94,7 @@ def resource_path(request):
 
 
 @pytest.fixture(scope="session")
-def package_path():
+def score_path():
     return os.path.join(CORPUS_PATH, "datapackage.json")
 
 
@@ -279,9 +280,9 @@ def resource_object(
 
 
 @pytest.fixture()
-def fl_package(package_path) -> fl.Package:
+def fl_package(score_path) -> fl.Package:
     """Returns a frictionless package object."""
-    return fl.Package(package_path)
+    return fl.Package(score_path)
 
 
 @pytest.fixture()
@@ -291,9 +292,9 @@ def package_from_fl_package(fl_package) -> DimcatPackage:
 
 
 @pytest.fixture()
-def dataset_from_single_package(package_path):
+def dataset_from_single_package(score_path):
     dataset = Dataset()
-    dataset.load_package(package_path)
+    dataset.load_package(score_path)
     return dataset
 
 
@@ -303,7 +304,9 @@ def get_music21_corpus_path():
     return music21_corpus_path
 
 
-def get_score_paths(directory, extensions=(".xml", ".musicxml", ".mxl"), n=10):
+def get_score_paths(
+    directory, extensions: Optional[str] = None, n: int | float = 10
+) -> List[str]:
     paths = []
     for i, path in enumerate(
         scan_directory(
@@ -311,20 +314,38 @@ def get_score_paths(directory, extensions=(".xml", ".musicxml", ".mxl"), n=10):
             extensions=extensions,
         )
     ):
-        if i == n:
+        if i >= n:
             break
         paths.append(path)
     return paths
 
 
-def get_m21_score_paths(extensions=(".xml", ".musicxml", ".mxl"), n=10):
+def get_m21_score_paths(extensions=(".xml", ".musicxml", ".mxl"), n=10) -> List[str]:
     music21_corpus_path = get_music21_corpus_path()
     return get_score_paths(music21_corpus_path, extensions=extensions, n=n)
 
 
-@pytest.fixture()
-def list_of_m21_score_paths():
+@pytest.fixture(scope="session")
+def list_of_m21_score_paths() -> List[str]:
     return get_m21_score_paths(extensions=(".xml", ".musicxml", ".mxl"), n=10)
+
+
+def get_musescore_score_paths(extensions=(".mscz", ".mscx"), n=10) -> List[str]:
+    return get_score_paths(CORPUS_PATH, extensions=extensions, n=n)
+
+
+@pytest.fixture(scope="session")
+def list_of_musescore_score_paths() -> List[str]:
+    return get_musescore_score_paths(extensions=(".mscz", ".mscx"), n=10)
+
+
+def get_mixed_score_paths(n=10) -> List[str]:
+    return get_m21_score_paths(n=n / 2) + get_musescore_score_paths(n=n / 2)
+
+
+@pytest.fixture(scope="session")
+def list_of_mixed_score_paths() -> List[str]:
+    return get_mixed_score_paths(n=10)
 
 
 # region deprecated

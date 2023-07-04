@@ -9,55 +9,95 @@ from dimcat.data.resources.base import (
     Resource,
     ResourceStatus,
 )
+from dimcat.utils import make_valid_frictionless_name
 
-from .conftest import CORPUS_PATH
+from .conftest import CORPUS_PATH, get_mixed_score_paths
 
 # region Resource
 
 
 class TestBaseResource:
-    expected_basepath = None
-    expected_filepath = ""
-    expected_normpath = None
-    expected_resource_name = get_setting("default_resource_name")
-
     @pytest.fixture()
     def resource_obj(self):
         return Resource()
 
-    def test_basepath_after_init(self, resource_obj):
-        assert resource_obj.basepath == self.expected_basepath
+    @pytest.fixture()
+    def expected_basepath(self):
+        return None
 
-    def test_filepath_after_init(self, resource_obj):
-        assert resource_obj.filepath == self.expected_filepath
+    @pytest.fixture()
+    def expected_filepath(self):
+        return ""
 
-    def test_normpath_after_init(self, resource_obj):
-        assert resource_obj.normpath == self.expected_normpath
+    @pytest.fixture()
+    def expected_normpath(self):
+        return None
 
-    def test_resource_name_after_init(self, resource_obj):
-        assert resource_obj.resource_name == self.expected_resource_name
+    @pytest.fixture()
+    def expected_resource_name(self):
+        return get_setting("default_resource_name")
+
+    def test_basepath_after_init(self, resource_obj, expected_basepath):
+        assert resource_obj.basepath == expected_basepath
+
+    def test_filepath_after_init(self, resource_obj, expected_filepath):
+        assert resource_obj.filepath == expected_filepath
+
+    def test_normpath_after_init(self, resource_obj, expected_normpath):
+        assert resource_obj.normpath == expected_normpath
+
+    def test_resource_name_after_init(self, resource_obj, expected_resource_name):
+        assert resource_obj.resource_name == expected_resource_name
 
 
 class TestResourceFromAbsolute(TestBaseResource):
-    expected_basepath = CORPUS_PATH
-    expected_filepath = "datapackage.json"
-    expected_normpath = os.path.join(CORPUS_PATH, "datapackage.json")
-    expected_resource_name = "datapackage"
+    @pytest.fixture(
+        params=get_mixed_score_paths(),
+        ids=os.path.basename,
+    )
+    def score_path(self, request):
+        return request.param
 
     @pytest.fixture()
-    def resource_obj(self, package_path):
-        return Resource(package_path)
+    def resource_obj(self, score_path):
+        return Resource(score_path)
+
+    @pytest.fixture()
+    def expected_basepath(self, score_path):
+        return os.path.split(score_path)[0]
+
+    @pytest.fixture()
+    def expected_filepath(self, score_path):
+        return os.path.split(score_path)[1]
+
+    @pytest.fixture()
+    def expected_normpath(self, score_path):
+        return score_path
+
+    @pytest.fixture()
+    def expected_resource_name(self, score_path):
+        file_name, _ = os.path.splitext(os.path.basename(score_path))
+        return make_valid_frictionless_name(file_name)
 
 
 class TestResourceReconciledAbsolute(TestResourceFromAbsolute):
-    expected_basepath = os.path.split(CORPUS_PATH)[0]
-    expected_filepath = os.path.join(os.path.basename(CORPUS_PATH), "datapackage.json")
+    @pytest.fixture()
+    def basepath(self, score_path):
+        path, _ = os.path.split(score_path)
+        basepath, _ = os.path.split(path)
+        return basepath
 
     @pytest.fixture()
-    def resource_obj(self, package_path):
-        path, _ = os.path.split(package_path)
-        basepath, _ = os.path.split(path)
-        return Resource(package_path, basepath=basepath)
+    def resource_obj(self, score_path, basepath):
+        return Resource(score_path, basepath=basepath)
+
+    @pytest.fixture()
+    def expected_basepath(self, basepath):
+        return basepath
+
+    @pytest.fixture()
+    def expected_filepath(self, score_path, expected_basepath):
+        return os.path.relpath(score_path, expected_basepath)
 
 
 # endregion Resource
@@ -233,9 +273,9 @@ class TestFromConfig(TestDiskResource):
 
 
 @pytest.fixture(scope="session")
-def package_descriptor_filepath(package_path) -> str:
+def package_descriptor_filepath(score_path) -> str:
     """Returns the path to the descriptor file."""
-    return os.path.relpath(package_path, CORPUS_PATH)
+    return os.path.relpath(score_path, CORPUS_PATH)
 
 
 class TestFromFlPackage(TestDiskResource):
