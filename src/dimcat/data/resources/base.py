@@ -77,6 +77,30 @@ class Resource(Data):
     filepath, as per the frictionless philosophy.
     """
 
+    @classmethod
+    def from_resource(
+        cls,
+        resource: resource,
+        resource_name: Optional[str] = None,
+        basepath: Optional[str] = None,
+    ):
+        """
+
+        Args:
+            resource: An existing :obj:`frictionless.Resource` or a filepath.
+            resource_name: Name of the resource.
+            basepath: Where the file would be serialized. If ``resource`` is a filepyth, its directory is used.
+        """
+        if not isinstance(resource, Resource):
+            raise TypeError(f"Expected a Resource, got {type(resource)!r}.")
+        fl_resource = resource.resource.to_copy()
+        new_object = cls(
+            resource=fl_resource,
+            resource_name=resource_name,
+            basepath=basepath,
+        )
+        return new_object
+
     class Schema(Data.Schema):
         resource = mm.fields.Method(
             serialize="get_resource_descriptor",
@@ -116,11 +140,10 @@ class Resource(Data):
     ):
         """
 
-         Args:
-             resource: An existing :obj:`frictionless.Resource` or a file path resolving to a resource descriptor.
-        resource_name:
-            Name of the resource.
-
+        Args:
+            resource: An existing :obj:`frictionless.Resource` or a filepath.
+            resource_name: Name of the resource.
+            basepath: Where the file would be serialized. If ``resource`` is a filepyth, its directory is used.
         """
         self.logger.debug(f"Resource.__init__(resource={resource})")
         self._resource: fl.Resource = self._make_empty_fl_resource()
@@ -130,6 +153,8 @@ class Resource(Data):
                 self._resource = resource
             elif isinstance(resource, (str, Path)):
                 self.filepath = resource
+                self._resource.scheme = "file"
+                self._resource.format = os.path.splitext(self.filepath)[1][1:]
             else:
                 raise TypeError(
                     f"Expected resource to be a frictionless Resource or a file path, got {type(resource)}."
@@ -185,6 +210,10 @@ class Resource(Data):
         self._resource.name = resource_name
         if not self._resource.path:
             self._resource.path = self.innerpath
+
+    def copy(self) -> Self:
+        """Returns a copy of the resource."""
+        return self.from_resource(self)
 
     def _make_empty_fl_resource(self):
         """Create an empty frictionless resource object with a minimal descriptor."""
@@ -660,14 +689,14 @@ class DimcatResource(Generic[D], Resource):
     @classmethod
     def from_resource(
         cls,
-        resource: DimcatResource[D],
+        resource: Resource,
         resource_name: Optional[str] = None,
         descriptor_filepath: Optional[str] = None,
         auto_validate: Optional[bool] = None,
         default_groupby: Optional[str | list[str]] = None,
         basepath: Optional[str] = None,
     ) -> Self:
-        """Create a DimcatResource from an existing DimcatResource, specifying its name and,
+        """Create a DimcatResource from an existing :obj:`Resource`, specifying its name and,
         optionally, at what path it is to be serialized.
 
         Args:
@@ -678,8 +707,8 @@ class DimcatResource(Generic[D], Resource):
                 By default, the DimcatResource will not be instantiated if the schema validation fails and the resource
                 is re-validated if, for example, the :attr:`column_schema` changes. Set False to prevent validation.
         """
-        if not isinstance(resource, DimcatResource):
-            raise TypeError(f"Expected a DimcatResource, got {type(resource)!r}.")
+        if not isinstance(resource, Resource):
+            raise TypeError(f"Expected a Resource, got {type(resource)!r}.")
         fl_resource = resource.resource.to_copy()
         if resource_name is not None:
             fl_resource.name = resource_name
@@ -1090,10 +1119,6 @@ DimcatResource(
             self.logger.warning(f"Resource {self.name} is empty.")
             return pd.DataFrame(index=grouping)
         return align_with_grouping(self.df, grouping, sort_index=sort_index)
-
-    def copy(self) -> Self:
-        """Returns a copy of the resource."""
-        return self.from_resource(self)
 
     def get_basepath(self) -> str:
         """Get the basepath of the resource. If not specified, the default basepath is returned."""

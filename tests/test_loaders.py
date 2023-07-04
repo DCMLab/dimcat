@@ -14,13 +14,7 @@ logger.setLevel(logging.INFO)
 
 
 @pytest.fixture(
-    params=get_m21_score_paths(
-        extensions=(
-            ".xml",
-            ".musicxml",
-            ".mxl",
-        ),
-    ),
+    params=get_m21_score_paths(),
     ids=os.path.basename,
 )
 def score_path(request):

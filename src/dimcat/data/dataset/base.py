@@ -20,6 +20,7 @@ from enum import IntEnum, auto
 from pprint import pformat
 from typing import (
     TYPE_CHECKING,
+    Callable,
     Iterable,
     Iterator,
     List,
@@ -40,6 +41,7 @@ from dimcat.data.resources.base import (
     D,
     DimcatResource,
     PieceIndex,
+    Resource,
     ResourceStatus,
     SomeDataframe,
 )
@@ -93,6 +95,7 @@ class AddingBehaviour(FriendlyEnum):
 
 class PackageStatus(IntEnum):
     EMPTY = 0
+    PATHS_ONLY = 1
     NOT_SERIALIZED = auto()
     PARTIALLY_SERIALIZED = auto()
     FULLY_SERIALIZED = auto()
@@ -111,22 +114,81 @@ class DimcatPackage(Data):
     * ``basepath`` (:obj:`str`) - The basepath where the package and its .json descriptor are stored.
     """
 
+    @staticmethod
+    def _make_new_resource(
+        filepath: str,
+        resource_name: Optional[str] = None,
+    ) -> Resource:
+        """Create a new Resource from a filepath.
+
+        Args:
+            filepath: The filepath of the new resource.
+            resource_name: The name of the new resource. If None, the filename is used.
+
+        Returns:
+            The new Resource.
+        """
+        if filepath.endswith("resource.json") or filepath.endswith("resource.yaml"):
+            new_resource = DimcatResource.from_descriptor(filepath)
+            if resource_name:
+                new_resource.resource_name = resource_name
+        else:
+            new_resource = Resource(resource=filepath, resource_name=resource_name)
+        return new_resource
+
+    @classmethod
+    def from_filepaths(
+        cls,
+        filepaths: Iterable[str],
+        package_name: str,
+        resource_names: Optional[Iterable[str] | Callable[[str], str]] = None,
+        auto_validate: bool = False,
+        basepath: Optional[str] = None,
+    ) -> Self:
+        """Create a new DimcatPackage from an iterable of :class:`DimcatResource`.
+
+        Args:
+            filepaths: The filepaths that are to be turned into :class:`DimcatResource` objects and packaged.
+            package_name: The name of the new package. If None, the name of the original package is used.
+            reosurce_names:
+                By default, resources descriptors are loaded and come with a name, for all other paths the filename is
+                used. To override this behaviour you can pass an iterable of names or a callable that takes a filepath
+                and returns a name. Whatever the name value is, if will always be turned into a valid frictionless name
+                via :func:`make_valid_frictionless_name`.
+            auto_validate: Set True to validate the new package after copying it.
+            basepath: The basepath where the new package will be stored. If None, the basepath of the original package
+        """
+        if not resource_names:
+            new_resources = [cls._make_new_resource(fp) for fp in filepaths]
+        else:
+            if callable(resource_names):
+                resource_names = [resource_names(fp) for fp in filepaths]
+            new_resources = [
+                cls._make_new_resource(fp, name)
+                for fp, name in zip(filepaths, resource_names)
+            ]
+        return cls.from_resources(
+            new_resources,
+            package_name=package_name,
+            auto_validate=auto_validate,
+            basepath=basepath,
+        )
+
     @classmethod
     def from_package(
         cls,
         package: DimcatPackage,
         package_name: Optional[str] = None,
-        basepath: Optional[str] = None,
         auto_validate: bool = False,
+        basepath: Optional[str] = None,
     ) -> Self:
-        """Create a new DimcatPackage from an existing DimcatPackage.
+        """Create a new DimcatPackage from an existing DimcatPackage by copying all resources.
 
         Args:
-            package:
-            package_name:
-            basepath:
-            auto_validate:
-
+            package: The DimcatPackage to copy.
+            package_name: The name of the new package. If None, the name of the original package is used.
+            auto_validate: Set True to validate the new package after copying it.
+            basepath: The basepath where the new package will be stored. If None, the basepath of the original package
         """
         if not isinstance(package, DimcatPackage):
             raise TypeError(f"Expected a DimcatPackage, got {type(package)!r}")
@@ -146,6 +208,29 @@ class DimcatPackage(Data):
         for resource in package._resources:
             new_package._resources.append(resource.copy())
         new_package._status = package._status
+        return new_package
+
+    @classmethod
+    def from_resources(
+        cls,
+        resources: Iterable[Resource],
+        package_name: str,
+        auto_validate: bool = False,
+        basepath: Optional[str] = None,
+    ) -> Self:
+        """Create a new DimcatPackage from an iterable of :class:`DimcatResource`.
+
+        Args:
+            resources: The DimcatResources to package.
+            package_name: The name of the new package.
+            auto_validate: Set True to validate the new package after copying it.
+            basepath: The basepath where the new package will be stored. If None, the basepath of the original package
+        """
+        new_package = cls(
+            package_name=package_name, auto_validate=auto_validate, basepath=basepath
+        )
+        for resource in resources:
+            new_package.add_resource(resource)
         return new_package
 
     class Schema(Data.Schema):
@@ -180,9 +265,9 @@ class DimcatPackage(Data):
         self,
         package: Optional[fl.Package | str] = None,
         package_name: Optional[str] = None,
-        basepath: Optional[str] = None,
         descriptor_filepath: Optional[str] = None,
         auto_validate: bool = False,
+        basepath: Optional[str] = None,
     ) -> None:
         """
 
@@ -225,14 +310,18 @@ class DimcatPackage(Data):
                 "package_name needs to specified, otherwise the DimcatPackage cannot be retrieved"
             )
         if self.basepath is None:
-            if self.n_resources > 0:
+            if self.status > PackageStatus.PATHS_ONLY:
+                print(self.status)
                 raise ValueError(
                     "basepath needs to specified in order to serialize the package and its resources."
                 )
-            else:
+            elif self.status == PackageStatus.EMPTY:
                 self.logger.info(
                     "Basepath of empty DimcatPackage will be set based on the first resource added."
                 )
+            else:
+                # status is PATHS_ONLY
+                pass
         if auto_validate:
             self.validate(raise_exception=True)
 
@@ -427,14 +516,23 @@ class DimcatPackage(Data):
         self._package = fl_package
         if self.basepath is not None:
             self.descriptor_filepath = fl_package.metadata_descriptor_path
+        dimcat_resource_or_not = []
         for resource in self._package.resources:
-            dc_resource = self._handle_resource_paths(resource)
-            self.logger.info(
-                f"New resource {dc_resource.resource_name!r} has status {dc_resource.status!r}"
-            )
-            self._resources.append(dc_resource)
-        if self.n_resources > 0:
-            self._status = PackageStatus.FULLY_SERIALIZED
+            is_dimcat_resource = isinstance(resource, DimcatResource)
+            dimcat_resource_or_not.append(is_dimcat_resource)
+            if is_dimcat_resource:
+                resource = self._handle_resource_paths(resource)
+                self.logger.info(
+                    f"New resource {resource.resource_name!r} has status {resource.status!r}"
+                )
+            self._resources.append(resource)
+        if len(dimcat_resource_or_not) > 0:
+            if all(dimcat_resource_or_not):
+                self._status = PackageStatus.FULLY_SERIALIZED
+            elif any(dimcat_resource_or_not):
+                self._status = PackageStatus.PARTIALLY_SERIALIZED
+            else:
+                self._status = PackageStatus.PATHS_ONLY
 
     @property
     def package_name(self) -> str:
@@ -471,31 +569,36 @@ class DimcatPackage(Data):
         how: AddingBehaviour = AddingBehaviour.RAISE,
     ) -> None:
         """Adds a resource to the package."""
-        if not isinstance(resource, DimcatResource):
-            raise TypeError(f"Expected a DimcatResource, not {type(resource)!r}")
-        if resource.resource_name in self.resource_names:
-            raise ValueError(
-                f"Resource with name {resource.resource_name!r} already exists."
-            )
-        resource = self._handle_resource_paths(resource, how=how)
-        if resource.is_loaded:
-            resource._status = ResourceStatus.PACKAGED_LOADED
-            self.logger.debug(
-                f"Status of resource {resource.resource_name!r} was set to {resource.status!r}."
-            )
-        else:
-            resource._status = ResourceStatus.PACKAGED_NOT_LOADED
-            self.logger.debug(
-                f"Status of resource {resource.resource_name!r} was set to {resource.status!r}."
-            )
+        self.check_resource(resource)
+        is_dimcat_resource = isinstance(resource, DimcatResource)
+        if is_dimcat_resource:
+            # A DimcatResource is expected to be part of a .zip file in this package's basepath or a subfolder
+            resource = self._handle_resource_paths(resource, how=how)
+            if resource.is_loaded:
+                resource._status = ResourceStatus.PACKAGED_LOADED
+                self.logger.debug(
+                    f"Status of resource {resource.resource_name!r} was set to {resource.status!r}."
+                )
+            else:
+                resource._status = ResourceStatus.PACKAGED_NOT_LOADED
+                self.logger.debug(
+                    f"Status of resource {resource.resource_name!r} was set to {resource.status!r}."
+                )
         self._resources.append(resource)
         self._package.add_resource(resource.resource)
+        if not is_dimcat_resource:
+            if self.status == PackageStatus.EMPTY:
+                self._status = PackageStatus.PATHS_ONLY
+            return
         if self.status == PackageStatus.PARTIALLY_SERIALIZED:
             return
         if resource.is_serialized:
             if self.status in (PackageStatus.EMPTY, PackageStatus.FULLY_SERIALIZED):
                 self._status = PackageStatus.FULLY_SERIALIZED
-            elif self.status == PackageStatus.NOT_SERIALIZED:
+            elif self.status in (
+                PackageStatus.NOT_SERIALIZED,
+                PackageStatus.PATHS_ONLY,
+            ):
                 self._status = PackageStatus.PARTIALLY_SERIALIZED
             else:
                 raise NotImplementedError(f"Unexpected status {self.status!r}")
@@ -506,6 +609,20 @@ class DimcatPackage(Data):
                 self._status = PackageStatus.PARTIALLY_SERIALIZED
             else:
                 raise NotImplementedError(f"Unexpected status {self.status!r}")
+
+    def check_resource(self, resource):
+        """Checks if the given resource can be added.
+
+        Raises:
+            TypeError: If the given resource is not a :obj:`Resource` object.
+            ValueError: If the given resource has a name that already exists in the package.
+        """
+        if not isinstance(resource, Resource):
+            raise TypeError(f"Expected a Resource, not {type(resource)!r}")
+        if resource.resource_name in self.resource_names:
+            raise ValueError(
+                f"Resource with name {resource.resource_name!r} already exists."
+            )
 
     def copy(self) -> Self:
         """Returns a copy of the package."""
@@ -994,8 +1111,8 @@ class DimcatCatalog(Data):
         if package is None or isinstance(package, (fl.Package, str)):
             package = DimcatPackage(
                 package_name=package_name,
-                basepath=basepath,
                 auto_validate=auto_validate,
+                basepath=basepath,
             )
         elif not isinstance(package, DimcatPackage):
             msg = f"{self.name} takes a Package, not {type(package)!r}."
