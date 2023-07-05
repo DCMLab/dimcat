@@ -14,6 +14,7 @@ from typing import (
     List,
     Optional,
     Sequence,
+    Tuple,
     TypeAlias,
     TypeVar,
     Union,
@@ -77,9 +78,32 @@ class Resource(Data):
     """
 
     @classmethod
+    def from_descriptor(
+        cls,
+        descriptor_path: str,
+        basepath: Optional[str] = None,
+    ) -> Self:
+        """Create a DimcatResource by loading its frictionless descriptor is loaded from disk.
+        The descriptor's directory is used as ``basepath``. ``descriptor_path`` is expected to end in
+        ``.resource.json``.
+
+        Args:
+            descriptor_path: Needs to be an absolute path and is expected to end in "resource.json"
+            or "resource.yaml"
+        """
+        descriptor_filepath = (
+            make_rel_path(descriptor_path, basepath) if basepath else None
+        )
+        return cls(
+            resource=descriptor_path,
+            descriptor_filepath=descriptor_filepath,
+            basepath=basepath,
+        )
+
+    @classmethod
     def from_resource(
         cls,
-        resource: resource,
+        resource: Resource,
         resource_name: Optional[str] = None,
         basepath: Optional[str] = None,
     ):
@@ -98,6 +122,7 @@ class Resource(Data):
             resource_name=resource_name,
             basepath=basepath,
         )
+        new_object._corpus_name = resource._corpus_name
         return new_object
 
     class Schema(Data.Schema):
@@ -152,6 +177,7 @@ class Resource(Data):
         self.logger.debug(f"Resource.__init__(resource={resource})")
         self._resource: fl.Resource = self._make_empty_fl_resource()
         self._descriptor_filepath: Optional[str] = descriptor_filepath
+        self._corpus_name: Optional[str] = None
         super().__init__(basepath=basepath)
         if resource is not None:
             if isinstance(resource, fl.Resource):
@@ -177,6 +203,18 @@ class Resource(Data):
         self._resource.basepath = self.basepath
 
     @property
+    def corpus_name(self) -> Optional[str]:
+        """The name of the corpus this resource belongs to."""
+        return self._corpus_name
+
+    @corpus_name.setter
+    def corpus_name(self, corpus_name: str):
+        valid_name = make_valid_frictionless_name(corpus_name)
+        if valid_name != corpus_name:
+            self.logger.info(f"Changed {corpus_name!r} name to {valid_name!r}.")
+        self._corpus_name = corpus_name
+
+    @property
     def descriptor_filepath(self) -> Optional[str]:
         """The path to the descriptor file on disk, relative to the basepath. If you need to fall back to a default
         value, use :meth:`get_descriptor_filepath` instead."""
@@ -189,7 +227,7 @@ class Resource(Data):
     @property
     def descriptor_exists(self) -> bool:
         descriptor_path = self.get_descriptor_path()
-        if descriptor_path is None:
+        if not descriptor_path:
             return False
         return os.path.isfile(descriptor_path)
 
@@ -200,6 +238,19 @@ class Resource(Data):
     @filepath.setter
     def filepath(self, filepath: str):
         self._set_file_path(filepath)
+
+    @property
+    def ID(self) -> Tuple[str, str]:
+        """The resource's unique ID."""
+        if not self.resource_name:
+            raise ValueError("Resource name not set.")
+        corpus_name = self.get_corpus_name()
+        return (corpus_name, self.resource_name)
+
+    @ID.setter
+    def ID(self, ID: Tuple[str, str]):
+        self.corpus_name, self.resource_name = ID
+        self.logger.debug(f"Resource ID updated to {self.ID!r}.")
 
     @property
     def innerpath(self) -> Optional[str]:
@@ -236,6 +287,32 @@ class Resource(Data):
     def copy(self) -> Self:
         """Returns a copy of the resource."""
         return self.from_resource(self)
+
+    def get_corpus_name(self) -> str:
+        """Returns the value of :attr:`corpus_name` or, if not set, a name derived from the
+        resource's filepath.
+
+        Raises:
+            ValueError: If neither :attr:`corpus_name` nor :attr:`filepath` are set.
+        """
+
+        def return_basepath_name() -> str:
+            if self.basepath is None:
+                raise ValueError("Cannot derive corpus name from empty basepath.")
+            return make_valid_frictionless_name(os.path.basename(self.basepath))
+
+        if self.corpus_name:
+            return self.corpus_name
+        if self.filepath is None:
+            return return_basepath_name()
+        folder, _ = os.path.split(self.filepath)
+        folder = folder.rstrip(os.sep)
+        if not folder or folder == ".":
+            return return_basepath_name()
+        folder_split = folder.split(os.sep)
+        if len(folder_split) > 1:
+            return make_valid_frictionless_name(folder_split[-1])
+        return make_valid_frictionless_name(folder)
 
     def get_descriptor_filepath(self) -> str:
         """Like :attr:`descriptor_filepath` but returning a default value if None."""
@@ -707,7 +784,7 @@ class DimcatResource(Generic[D], Resource):
     - ``DimcatResource()``: Creates an empty DimcatResource for setting the .df attribute later. If no ``basepath``
       is specified, the current working directory is used if the resource is to be serialized.
     - ``DimcatResource.from_descriptor(descriptor_path)``: The frictionless descriptor is loaded from disk.
-      Its directory is used as ``basepath``. ``descriptor_path`` is expected to end in ``.resource.json``.
+      Its directory is used as ``basepath``. ``descriptor_path`` is expected to end in "resource.[json|yaml]".
     - ``DimcatResource.from_dataframe(df=df, resource_name, basepath)``: Creates a new DimcatResource from a dataframe.
       If ``basepath`` is not specified, the current working directory is used if the resource is to be serialized.
     - ``DimcatResource.from_resource(resource=DimcatResource)``: Creates a DimcatResource from an existing one
@@ -732,7 +809,7 @@ class DimcatResource(Generic[D], Resource):
         ``.resource.json``.
 
         Args:
-            descriptor_path: Needs to be an absolute path and is expected to end in ``.resource.json``.
+            descriptor_path: Needs to be an absolute path and is expected to end in "resource.[json|yaml]".
             auto_validate:
                 By default, the DimcatResource will not be instantiated if the schema validation fails and the resource
                 is re-validated if, for example, the :attr:`column_schema` changes. Set False to prevent validation.
