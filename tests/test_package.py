@@ -61,6 +61,24 @@ class TestPackageFromFilePaths(TestDimcatPackage):
         return package
 
 
+class TestPackageFromFileDirectory(TestDimcatPackage):
+    expected_package_status: ResourceStatus = PackageStatus.FULLY_SERIALIZED
+
+    @pytest.fixture()
+    def package_obj(self, corpus_path):
+        """For each subclass of TestDimcatPackage, this fixture should be overridden and yield the
+        tested DimcatPackage object."""
+        package = DimcatPackage.from_directory(
+            corpus_path, package_name="unittest_corpus"
+        )
+        return package
+
+    @pytest.fixture()
+    def expected_basepath(self, corpus_path):
+        """The expected basepath of the resource after initialization."""
+        return corpus_path
+
+
 # region PackageFromDescriptor
 
 
