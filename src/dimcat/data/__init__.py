@@ -13,6 +13,7 @@ from .dataset import (
     OutputsCatalog,
     PackageSpecs,
     PackageStatus,
+    ScorePackage,
     SlicedAnalyzedDataset,
     SlicedDataset,
     SlicedGroupedAnalyzedDataset,

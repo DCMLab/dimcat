@@ -117,6 +117,8 @@ class Resource(Data):
         if not isinstance(resource, Resource):
             raise TypeError(f"Expected a Resource, got {type(resource)!r}.")
         fl_resource = resource.resource.to_copy()
+        resource_name = resource_name if resource_name else resource.resource_name
+        basepath = basepath if basepath else resource.basepath
         new_object = cls(
             resource=fl_resource,
             resource_name=resource_name,
@@ -908,25 +910,24 @@ class DimcatResource(Generic[D], Resource):
         if not isinstance(resource, Resource):
             raise TypeError(f"Expected a Resource, got {type(resource)!r}.")
         fl_resource = resource.resource.to_copy()
-        if resource_name is not None:
-            fl_resource.name = resource_name
-        if basepath is not None:
-            resource.basepath = basepath
-        if descriptor_filepath is None:
-            # if basepath stays the same, also copy the descriptor_filepath (otherwise use default)
-            descriptor_filepath = resource.descriptor_filepath
-        if auto_validate is None and hasattr(resource, "auto_validate"):
-            auto_validate = resource.auto_validate
-        new_object = cls(
+        init_args = dict(
             resource=fl_resource,
-            descriptor_filepath=descriptor_filepath,
-            auto_validate=auto_validate,
-            default_groupby=default_groupby,
+            resource_name=resource_name if resource_name else resource.resource_name,
+            descriptor_filepath=descriptor_filepath
+            if descriptor_filepath
+            else resource.descriptor_filepath,
+            basepath=basepath if basepath else resource.basepath,
         )
-        if hasattr(resource, "_df") and resource._df is not None:
-            new_object._df = resource._df.copy()
-        if hasattr(resource, "_status"):
-            new_object._status = resource._status
+        for attr in ("auto_validate", "default_groupby"):
+            if hasattr(resource, attr):
+                init_args[attr] = getattr(resource, attr)
+        new_object = cls(init_args)
+        for attr in ("_df", "_status", "_corpus_name"):
+            if (
+                hasattr(resource, attr)
+                and (value := getattr(resource, attr)) is not None
+            ):
+                setattr(new_object, attr, value)
         return new_object
 
     class PickleSchema(Resource.Schema):

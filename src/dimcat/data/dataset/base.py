@@ -151,22 +151,31 @@ class DimcatPackage(Data):
     def _make_new_resource(
         filepath: str,
         resource_name: Optional[str] = None,
+        corpus_name: Optional[str] = None,
+        basepath: Optional[str] = None,
     ) -> Resource:
         """Create a new Resource from a filepath.
 
         Args:
             filepath: The filepath of the new resource.
             resource_name: The name of the new resource. If None, the filename is used.
+            corpus_name: The name of the new resource. If None, the default is used.
 
         Returns:
             The new Resource.
         """
         if filepath.endswith("resource.json") or filepath.endswith("resource.yaml"):
-            new_resource = DimcatResource.from_descriptor(filepath)
+            new_resource = Resource.from_descriptor(filepath, basepath=basepath)
             if resource_name:
                 new_resource.resource_name = resource_name
         else:
-            new_resource = Resource(resource=filepath, resource_name=resource_name)
+            new_resource = Resource(
+                resource=filepath,
+                resource_name=resource_name,
+                basepath=basepath,
+            )
+        if corpus_name:
+            new_resource.corpus_name = corpus_name
         return new_resource
 
     @classmethod
@@ -174,7 +183,10 @@ class DimcatPackage(Data):
         cls,
         filepaths: Iterable[str],
         package_name: str,
-        resource_names: Optional[Iterable[str] | Callable[[str], str]] = None,
+        resource_names: Optional[Iterable[str] | Callable[[str], Optional[str]]] = None,
+        corpus_names: Optional[
+            Iterable[str] | Callable[[str], Optional[str]] | str
+        ] = None,
         auto_validate: bool = False,
         basepath: Optional[str] = None,
     ) -> Self:
@@ -184,22 +196,52 @@ class DimcatPackage(Data):
             filepaths: The filepaths that are to be turned into :class:`Resource` objects and packaged.
             package_name: The name of the new package. If None, the name of the original package is used.
             resource_names:
-                By default, resources descriptors are loaded and come with a name, for all other paths the filename is
-                used. To override this behaviour you can pass an iterable of names or a callable that takes a filepath
-                and returns a name. Whatever the name value is, it will always be turned into a valid frictionless name
-                via :func:`make_valid_frictionless_name`.
+                Names of (or name factory for) the created resources serving as piece identifiers.
+                By default, the filename is used. To override this behaviour you can pass an iterable
+                of names corresponding to paths, or a callable that takes a path and returns a name.
+                When the callable returns None, the default is used (i.e., the filename).
+                Whatever the name turns out to be, it will always be turned into a valid
+                frictionless name via :func:`make_valid_frictionless_name`.
+            corpus_names:
+                Names of (or name factory for) the corpus that each resource (=piece) belongs to
+                and that is used in the ('corpus', 'piece') ID.
+                By default, the name of the package is used. To override this behaviour you can pass
+                an iterable of names corresponding to paths, or a callable that takes a path and
+                returns a name. When the callable returns None, the default is used  (i.e., the
+                package_name).
+                Whatever the name turns out to be, it will always be turned into a valid
+                frictionless name via :func:`make_valid_frictionless_name`.
             auto_validate: Set True to validate the new package after copying it.
             basepath: The basepath where the new package will be stored. If None, the basepath of the original package
         """
-        if not resource_names:
-            new_resources = [cls._make_new_resource(fp) for fp in filepaths]
-        else:
+        resource_creation_kwargs = [dict(filepath=fp) for fp in filepaths]
+        if resource_names:
             if callable(resource_names):
                 resource_names = [resource_names(fp) for fp in filepaths]
-            new_resources = [
-                cls._make_new_resource(fp, name)
-                for fp, name in zip(filepaths, resource_names)
+            resource_creation_kwargs = [
+                dict(kwargs, resource_name=name)
+                for kwargs, name in zip(resource_creation_kwargs, resource_names)
             ]
+        if corpus_names:
+            if callable(corpus_names):
+                corpus_names = [corpus_names(fp) for fp in filepaths]
+            elif isinstance(corpus_names, str):
+                corpus_names = [corpus_names] * len(resource_creation_kwargs)
+            corpus_names = [
+                corpus_name if corpus_name else package_name
+                for corpus_name in corpus_names
+            ]
+            resource_creation_kwargs = [
+                dict(kwargs, corpus_name=name)
+                for kwargs, name in zip(resource_creation_kwargs, corpus_names)
+            ]
+        if basepath:
+            resource_creation_kwargs = [
+                dict(kwargs, basepath=basepath) for kwargs in resource_creation_kwargs
+            ]
+        new_resources = [
+            cls._make_new_resource(**kwargs) for kwargs in resource_creation_kwargs
+        ]
         return cls.from_resources(
             new_resources,
             package_name=package_name,
@@ -214,7 +256,8 @@ class DimcatPackage(Data):
         package_name: Optional[str] = None,
         extensions: Iterable[str] = (".resource.json", ".resource.yaml"),
         file_re: Optional[str] = None,
-        resource_names: Optional[Callable[[str], str]] = None,
+        resource_names: Optional[Callable[[str], Optional[str]]] = None,
+        corpus_names: Optional[Callable[[str], Optional[str]]] = None,
         auto_validate: bool = False,
         basepath: Optional[str] = None,
     ) -> Self:
@@ -224,23 +267,44 @@ class DimcatPackage(Data):
             directory: The directory that is to be scanned for files with particular extensions.
             package_name:
                 The name of the new package. If None, the base of the directory is used.
+            extensions:
+                The extensions of the files to be discovered under ``directory`` and which are to be turned into
+                :class:`Resource` objects via :meth:`from_filepaths`.
             resource_names:
-                By default, resources descriptors are loaded and come with a name, for all other
-                paths the filename is used. To override this behaviour you can pass a callable that
-                takes a filepath and returns a name. Whatever the name value is, it will always be
-                turned into a valid frictionless name via :func:`make_valid_frictionless_name`.
+                Name factory for the resources created from the paths. Names also serve as piece
+                identifiers.
+                By default, the filename is used. To override this behaviour you can pass a callable
+                that takes a filepath and returns a name. When the callable returns None, the
+                default is used (i.e., the filename).
+                Whatever the name turns out to be, it will always be turned into a valid
+                frictionless name via :func:`make_valid_frictionless_name`.
+            file_re:
+                Pass a regular expression in order to select only files that (partially) match it.
+            corpus_names:
+                Names of (or name factory for) the corpus that each resource (=piece) belongs to
+                and that is used in the ('corpus', 'piece') ID.
+                By default, the name of the package is used. To override this behaviour you can pass
+                a callable that takes a path and returns a name. When the callable returns None,
+                the default is used  (i.e., the package_name).
+                Whatever the name turns out to be, it will always be turned into a valid
+                frictionless name via :func:`make_valid_frictionless_name`.
             auto_validate: Set True to validate the new package after copying it.
             basepath:
                 The basepath where the new package will be stored. If None, the basepath of the
                 original package
         """
-        paths = scan_directory(directory, extensions=extensions, file_re=file_re)
+        directory = resolve_path(directory)
+        paths = list(scan_directory(directory, extensions=extensions, file_re=file_re))
+        cls.logger.info(f"Found {len(paths)} files in {directory}.")
         if not package_name:
-            package_name = os.path.basename(directory.rstrip("/\\"))
+            package_name = os.path.basename(directory)
+        if basepath is None:
+            basepath = directory
         return cls.from_filepaths(
             paths,
             package_name=package_name,
             resource_names=resource_names,
+            corpus_names=corpus_names,
             auto_validate=auto_validate,
             basepath=basepath,
         )
@@ -250,7 +314,8 @@ class DimcatPackage(Data):
         cls,
         package: DimcatPackage,
         package_name: Optional[str] = None,
-        auto_validate: bool = False,
+        descriptor_filepath: Optional[str] = None,
+        auto_validate: Optional[bool] = None,
         basepath: Optional[str] = None,
     ) -> Self:
         """Create a new DimcatPackage from an existing DimcatPackage by copying all resources.
@@ -258,24 +323,33 @@ class DimcatPackage(Data):
         Args:
             package: The DimcatPackage to copy.
             package_name: The name of the new package. If None, the name of the original package is used.
-            auto_validate: Set True to validate the new package after copying it.
+            descriptor_filepath:
+                Pass a JSON or YAML filename or relative filepath to override the default (``<package_name>.json``).
+                Following frictionless specs it should end on ".datapackage.[json|yaml]".
+            auto_validate: Set a value to override the value set in ``package``.
             basepath: The basepath where the new package will be stored. If None, the basepath of the original package
         """
         if not isinstance(package, DimcatPackage):
             raise TypeError(f"Expected a DimcatPackage, got {type(package)!r}")
-        fl_package = package._package
+        fl_package = package._package.to_copy()
         if package_name is None:
-            package_name = fl_package.name
-        else:
-            fl_package.name = package_name
+            package_name = package.package_name
         if basepath is None:
-            basepath = fl_package.basepath
+            basepath = package.basepath
+        if descriptor_filepath is None:
+            descriptor_filepath = package.descriptor_filepath
+        if auto_validate is not None:
+            if package.auto_validate is not None:
+                auto_validate = package.auto_validate
+            else:
+                auto_validate = False
         new_package = cls(
-            package_name=package_name, auto_validate=auto_validate, basepath=basepath
+            package_name=package_name,
+            descriptor_filepath=descriptor_filepath,
+            auto_validate=auto_validate,
+            basepath=basepath,
         )
         new_package._package = fl_package
-        if package._descriptor_filepath is not None:
-            new_package._descriptor_filepath = package._descriptor_filepath
         for resource in package._resources:
             new_package._resources.append(resource.copy())
         new_package._status = package._status
@@ -286,6 +360,7 @@ class DimcatPackage(Data):
         cls,
         resources: Iterable[Resource],
         package_name: str,
+        descriptor_filepath: Optional[str] = None,
         auto_validate: bool = False,
         basepath: Optional[str] = None,
     ) -> Self:
@@ -294,11 +369,17 @@ class DimcatPackage(Data):
         Args:
             resources: The Resources to package.
             package_name: The name of the new package.
+            descriptor_filepath:
+                Pass a JSON or YAML filename or relative filepath to override the default (``<package_name>.json``).
+                Following frictionless specs it should end on ".datapackage.[json|yaml]".
             auto_validate: Set True to validate the new package after copying it.
             basepath: The basepath where the new package will be stored. If None, the basepath of the original package
         """
         new_package = cls(
-            package_name=package_name, auto_validate=auto_validate, basepath=basepath
+            package_name=package_name,
+            descriptor_filepath=descriptor_filepath,
+            auto_validate=auto_validate,
+            basepath=basepath,
         )
         for resource in resources:
             new_package.add_resource(resource)
@@ -331,6 +412,9 @@ class DimcatPackage(Data):
                 If not specified, a new package is created and ``package_name`` needs to be specified.
             package_name:
                 Name of the package that can be used to retrieve it. Can be None only if ``package`` is not None.
+            descriptor_filepath:
+                Pass a JSON or YAML filename or relative filepath to override the default (``<package_name>.json``).
+                Following frictionless specs it should end on ".datapackage.[json|yaml]".
             basepath:
                 The absolute path on the local file system where the package descriptor and all contained resources
                  are stored. If not specified, it will default to
@@ -349,7 +433,7 @@ class DimcatPackage(Data):
         self._status = PackageStatus.EMPTY
         self._resources: List[Resource] = []
         self._descriptor_filepath: Optional[str] = None
-        self.auto_validate = auto_validate
+        self.auto_validate = True if auto_validate else False  # catches None
         super().__init__(basepath=basepath)
 
         if package_name is not None:
@@ -440,7 +524,10 @@ class DimcatPackage(Data):
 
     @property
     def descriptor_exists(self) -> bool:
-        return os.path.isfile(self.get_descriptor_path())
+        descriptor_path = self.get_descriptor_path()
+        if not descriptor_path:
+            return False
+        return os.path.isfile(descriptor_path)
 
     @property
     def descriptor_filepath(self) -> str:
@@ -1112,7 +1199,7 @@ class DimcatCatalog(Data):
         package: PackageSpecs,
         basepath: Optional[str] = None,
     ):
-        """Adds a package to the catalog."""
+        """Adds a :obj:`DimcatPackage` to the catalog."""
         if isinstance(package, (str, fl.Package)):
             dc_package = DimcatPackage(package=package)
         elif isinstance(package, DimcatPackage):
@@ -1194,6 +1281,12 @@ class DimcatCatalog(Data):
             if package.package_name == name:
                 return True
         return False
+
+    def iter_resources(self):
+        """Iterates over all resources in all packages."""
+        for package in self:
+            for resource in package:
+                yield resource
 
     def make_new_package(
         self,

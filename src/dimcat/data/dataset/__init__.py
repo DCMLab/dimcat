@@ -10,6 +10,7 @@ from .base import (
     PackageSpecs,
     PackageStatus,
 )
+from .packages import ScorePackage
 from .processed import (
     AnalyzedDataset,
     GroupedAnalyzedDataset,
