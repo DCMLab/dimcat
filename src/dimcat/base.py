@@ -169,6 +169,12 @@ class DimcatObject(ABC):
             json_data = f.read()
         return cls.from_json(json_data)
 
+    class PickleSchema:
+        def __init__(self):
+            raise NotImplementedError(
+                "This object does not support automatic pickling to a basepath (yet)."
+            )
+
     class Schema(DimcatSchema):
         @mm.post_load()
         def init_object(self, data, **kwargs) -> DimcatObject:
@@ -579,6 +585,16 @@ def is_subclass_of(name: str, parent: str | Type[DimcatObject]) -> bool:
     if isinstance(parent, str):
         parent = get_class(parent)
     return issubclass(cls, parent)
+
+
+@cache
+def get_pickle_schema(name, init=True):
+    """Caches the intialized schema for each class. Pass init=False to retrieve the schema constructor."""
+    dc_class = get_class(name)
+    dc_schema = dc_class.PickleSchema
+    if init:
+        return dc_schema()
+    return dc_schema
 
 
 @cache

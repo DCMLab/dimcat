@@ -14,7 +14,7 @@ from dimcat.data.dataset import Dataset
 from dimcat.data.dataset.base import DimcatPackage
 from dimcat.data.resources.base import DimcatResource
 from dimcat.data.resources.utils import load_fl_resource
-from dimcat.steps.loaders.utils import scan_directory
+from dimcat.utils import scan_directory
 from git import Repo
 
 logger = logging.getLogger(__name__)

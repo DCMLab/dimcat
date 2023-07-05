@@ -7,7 +7,6 @@ from .base import (
     PieceIndex,
     ResourceSpecs,
     ResourceStatus,
-    get_pickle_schema,
     resource_specs2resource,
 )
 from .features import (

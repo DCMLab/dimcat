@@ -40,7 +40,6 @@ from .resources import (  # .resources.base; .resources.features; .resources.res
     features_argument2config_list,
     fl_fields2pandas_params,
     get_existing_normpath,
-    get_pickle_schema,
     infer_piece_col_position,
     infer_schema_from_df,
     load_fl_resource,

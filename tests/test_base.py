@@ -106,7 +106,7 @@ DIMCAT_OBJECT_TEST_CASES: List[Tuple[Type[DimcatObject], dict]] = [
     (Counter, dict(features=dummy_config())),
     (DimcatPackage, dict(package=datapackage_json_path())),
     (DimcatCatalog, {}),
-    (Loader, dict(package_name="test_package", basepath=CORPUS_PATH)),
+    (Loader, dict(basepath=CORPUS_PATH)),
 ]
 
 
@@ -185,8 +185,8 @@ class TestSerialization:
         new_object = config.create()
         a = self.dimcat_object.to_dict()
         b = new_object.to_dict()
-        print(a, type(a))
-        print(b, type(b))
+        pprint(a, sort_dicts=False)
+        pprint(b, sort_dicts=False)
         assert new_object == self.dimcat_object
 
     def test_creation_from_manual_config(self):
