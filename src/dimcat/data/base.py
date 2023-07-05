@@ -36,8 +36,11 @@ def resolve_path(path) -> Optional[AbsolutePathStr]:
     else:
         raise TypeError(f"Expected str or Path, got {type(path)}")
     if "~" in path:
-        return AbsolutePathStr(os.path.expanduser(path))
-    return AbsolutePathStr(os.path.abspath(path))
+        path = os.path.expanduser(path)
+    else:
+        path = os.path.abspath(path)
+    path = path.rstrip("/\\")
+    return AbsolutePathStr(path)
 
 
 class Data(DimcatObject):
