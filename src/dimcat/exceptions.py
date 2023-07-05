@@ -36,6 +36,8 @@ class DimcatError(Exception):
 
 
 class BasePathNotDefinedError(DimcatError):
+    """No optional args."""
+
     nargs2message = {
         0: "The base path is not defined.",
     }
@@ -48,6 +50,15 @@ class DuplicateIDError(DimcatError):
         0: "An ID was already in use.",
         1: lambda id: f"The ID {id!r} is already in use.",
         2: lambda id, facet: f"The ID {id!r} is already in use for facet {facet!r}.",
+    }
+
+
+class DuplicatePackageNameError(DimcatError):
+    """optional args: (package_name,)"""
+
+    nargs2message = {
+        0: "A package with the same name already exists.",
+        1: lambda name: f"A package with the name {name!r} already exists.",
     }
 
 
@@ -96,14 +107,18 @@ class ExcludedFileExtensionError(DimcatError):
 
 
 class NoMuseScoreExecutableSpecifiedError(DimcatError):
+    """No optional args."""
+
     nargs2message = {
         0: "No MuseScore executable specified.",
     }
 
 
 class NoPathsSpecifiedError(DimcatError):
+    """No optional args."""
+
     nargs2message = {
-        0: "No paths have been specified.",
+        0: "No valid paths have been specified.",
     }
 
 
@@ -127,6 +142,8 @@ class FeatureUnavailableError(DimcatError):
 
 
 class NoFeaturesActiveError(DimcatError):
+    """No optional args."""
+
     nargs2message = {
         0: "No features are currently active and none have been requested. Apply a FeatureExtractor first or "
         "pass specs for at least one feature to be extracted.",

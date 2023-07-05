@@ -725,6 +725,7 @@ class DimcatResource(Generic[D], Resource):
         cls,
         descriptor_path: str,
         auto_validate: bool = False,
+        basepath: Optional[str] = None,
     ) -> Self:
         """Create a DimcatResource by loading its frictionless descriptor is loaded from disk.
         The descriptor's directory is used as ``basepath``. ``descriptor_path`` is expected to end in
@@ -736,7 +737,15 @@ class DimcatResource(Generic[D], Resource):
                 By default, the DimcatResource will not be instantiated if the schema validation fails and the resource
                 is re-validated if, for example, the :attr:`column_schema` changes. Set False to prevent validation.
         """
-        return cls(resource=descriptor_path, auto_validate=auto_validate)
+        descriptor_filepath = (
+            make_rel_path(descriptor_path, basepath) if basepath else None
+        )
+        return cls(
+            resource=descriptor_path,
+            descriptor_filepath=descriptor_filepath,
+            auto_validate=auto_validate,
+            basepath=basepath,
+        )
 
     @classmethod
     def from_dataframe(

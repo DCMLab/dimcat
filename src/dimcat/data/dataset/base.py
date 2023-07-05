@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import warnings
 from enum import IntEnum, auto
 from pprint import pformat
 from typing import (
@@ -56,6 +57,7 @@ from dimcat.data.resources.features import (
 )
 from dimcat.data.resources.utils import make_rel_path
 from dimcat.exceptions import (
+    DuplicatePackageNameError,
     EmptyCatalogError,
     EmptyPackageError,
     NoFeaturesActiveError,
@@ -70,6 +72,7 @@ from dimcat.utils import (
     resolve_path,
     scan_directory,
 )
+from frictionless import FrictionlessException
 from typing_extensions import Self
 
 if TYPE_CHECKING:
@@ -338,7 +341,7 @@ class DimcatPackage(Data):
             auto_validate:
                 By default, the package is validated everytime a resource is added. Set to False to disable this.
         """
-        if sum(arg is None for arg in (package_name, package)) == 2:
+        if all(arg is None for arg in (package_name, package)):
             raise ValueError(
                 "At least one of package_name and package needs to be specified."
             )
@@ -352,7 +355,17 @@ class DimcatPackage(Data):
         if package_name is not None:
             self.package_name = package_name
         if descriptor_filepath is not None:
-            self.descriptor_filepath = descriptor_filepath
+            if os.path.isabs(descriptor_filepath):
+                raise ValueError(
+                    "descriptor_filepath needs to be a relative to the basepath."
+                )
+            _, ext = os.path.splitext(descriptor_filepath)
+            if ext not in (".json", ".yaml"):
+                warnings.warning(
+                    f"You've set a descriptor_filepath with extension {ext!r} but "
+                    f"frictionless allows only '.json' and '.yaml'."
+                )
+            self._descriptor_filepath = descriptor_filepath
         if package is not None:
             self.package = package
 
@@ -771,6 +784,7 @@ class DimcatPackage(Data):
         raise ResourceNotFoundError(name, self.package_name)
 
     def _handle_package_argument(self, package: PackageSpecs) -> fl.Package:
+        descriptor_path = None
         if isinstance(package, str):
             descriptor_path = check_file_path(
                 package,
@@ -824,6 +838,13 @@ class DimcatPackage(Data):
                     f"The missing basepath of {self.package_name!r} was set to the one from the "
                     f"frictionless.Package {fl_basepath!r}."
                 )
+        if descriptor_path:
+            if self.basepath:
+                descriptor_filepath = make_rel_path(descriptor_path, self.basepath)
+            else:
+                basepath, descriptor_filepath = os.path.split(descriptor_path)
+                self.basepath = basepath
+            self._descriptor_filepath = descriptor_filepath
         return fl_package
 
     def _handle_resource_argument(
@@ -1081,23 +1102,29 @@ class DimcatCatalog(Data):
         if isinstance(packages, (DimcatPackage, fl.Package, str)):
             packages = [packages]
         for package in packages:
-            self.add_package(package.copy())
+            try:
+                self.add_package(package)
+            except FrictionlessException as e:
+                self.logger.error(f"Adding the package {package!r} failed with\n{e!r}")
 
     def add_package(
         self,
-        package: DimcatPackage,
+        package: PackageSpecs,
         basepath: Optional[str] = None,
     ):
         """Adds a package to the catalog."""
-        if not isinstance(package, DimcatPackage):
-            msg = f"{self.name}.add_package() takes a DimcatPackage, not {type(package)!r}."
-            raise ValueError(msg)
-        if package.package_name in self.package_names:
-            msg = f"Package name {package.package_name!r} already exists in DimcatCatalog."
-            raise ValueError(msg)
+        if isinstance(package, (str, fl.Package)):
+            dc_package = DimcatPackage(package=package)
+        elif isinstance(package, DimcatPackage):
+            dc_package = package.copy()
+        else:
+            msg = f"{self.name}.add_package() takes a package, not {type(package)!r}."
+            raise TypeError(msg)
+        if dc_package.package_name in self.package_names:
+            raise DuplicatePackageNameError(dc_package.package_name)
         if basepath is not None:
-            package.basepath = basepath
-        self._packages.append(package)
+            dc_package.basepath = basepath
+        self._packages.append(dc_package)
 
     def add_resource(
         self,
