@@ -1,7 +1,8 @@
+import logging
 import os
 
 import pytest
-from dimcat.base import get_setting
+from dimcat.base import deserialize_json_file, get_setting
 from dimcat.data.resources.base import (
     DimcatIndex,
     DimcatResource,
@@ -9,21 +10,32 @@ from dimcat.data.resources.base import (
     Resource,
     ResourceStatus,
 )
+from dimcat.exceptions import BasePathNotDefinedError, FilePathNotDefinedError
 from dimcat.utils import make_valid_frictionless_name
 
 from .conftest import CORPUS_PATH, get_mixed_score_paths
 
+logger = logging.getLogger(__name__)
 # region Resource
 
 
 class TestBaseResource:
-    @pytest.fixture()
-    def resource_obj(self):
-        return Resource()
+    @pytest.fixture(params=[None, -1, -2], ids=["no_bp", "bp-1", "bp-2"])
+    def init_basepath(self, request, score_path):
+        """Different basepath arguments for initilizing objects."""
+        if request.param is None:
+            return None
+        basepath, _ = os.path.split(score_path)
+        init_basepath = os.sep.join(basepath.split(os.sep)[: request.param])
+        return init_basepath
 
     @pytest.fixture()
-    def expected_basepath(self):
-        return None
+    def resource_obj(self, init_basepath):
+        return Resource(basepath=init_basepath)
+
+    @pytest.fixture()
+    def expected_basepath(self, init_basepath):
+        return init_basepath
 
     @pytest.fixture()
     def expected_filepath(self):
@@ -43,11 +55,40 @@ class TestBaseResource:
     def test_filepath_after_init(self, resource_obj, expected_filepath):
         assert resource_obj.filepath == expected_filepath
 
-    def test_normpath_after_init(self, resource_obj, expected_normpath):
-        assert resource_obj.normpath == expected_normpath
+    def test_normpath_after_init(self, resource_obj, init_basepath):
+        if init_basepath is None:
+            with pytest.raises(BasePathNotDefinedError):
+                resource_obj.normpath
+        else:
+            with pytest.raises(FilePathNotDefinedError):
+                resource_obj.normpath
 
     def test_resource_name_after_init(self, resource_obj, expected_resource_name):
         assert resource_obj.resource_name == expected_resource_name
+
+    def test_copying(self, resource_obj):
+        copy = resource_obj.copy()
+        assert copy == resource_obj
+        assert copy is not resource_obj
+
+    def test_serialization_via_json(self, resource_obj, tmp_serialization_path):
+        json_path = os.path.join(tmp_serialization_path, f"{resource_obj.name}.json")
+        logger.warning(f"json_path: {json_path}")
+        resource_obj.to_json_file(json_path)
+        copy = deserialize_json_file(json_path)
+        assert copy == resource_obj
+
+    def test_pickle_schema(self, resource_obj, tmp_serialization_path):
+        resource_obj.basepath = tmp_serialization_path
+        json_path = resource_obj.get_descriptor_path(fallback_to_default=True)
+        config = resource_obj.to_config(pickle=True)
+        copy1 = config.create()
+        copy2 = deserialize_json_file(json_path)
+        assert resource_obj == copy1
+        assert copy1 == copy2
+
+    def test_validating(self, resource_obj):
+        resource_obj.validate(raise_exception=True)
 
 
 class TestResourceFromAbsolute(TestBaseResource):
@@ -59,45 +100,107 @@ class TestResourceFromAbsolute(TestBaseResource):
         return request.param
 
     @pytest.fixture()
-    def resource_obj(self, score_path):
-        return Resource(score_path)
+    def resource_obj(self, score_path, init_basepath):
+        return Resource.from_resource_path(
+            score_path,
+            basepath=init_basepath,
+        )
 
     @pytest.fixture()
-    def expected_basepath(self, score_path):
-        return os.path.split(score_path)[0]
+    def expected_basepath(self, init_basepath, score_path):
+        """If init_basepath is None, we expect the directory where the score is located."""
+        if init_basepath is None:
+            basepath, _ = os.path.split(score_path)
+            return basepath
+        return init_basepath
 
     @pytest.fixture()
-    def expected_filepath(self, score_path):
-        return os.path.split(score_path)[1]
+    def expected_filepath(self, score_path, expected_basepath):
+        return os.path.relpath(score_path, expected_basepath)
 
     @pytest.fixture()
     def expected_normpath(self, score_path):
         return score_path
 
     @pytest.fixture()
-    def expected_resource_name(self, score_path):
-        file_name, _ = os.path.splitext(os.path.basename(score_path))
-        return make_valid_frictionless_name(file_name)
+    def expected_resource_name(self, expected_filepath):
+        resource_name, _ = os.path.splitext(expected_filepath)
+        return make_valid_frictionless_name(resource_name)
+
+    def test_normpath_after_init(self, resource_obj, expected_normpath):
+        assert resource_obj.normpath == expected_normpath
 
 
-class TestResourceReconciledAbsolute(TestResourceFromAbsolute):
-    @pytest.fixture()
-    def basepath(self, score_path):
-        path, _ = os.path.split(score_path)
-        basepath, _ = os.path.split(path)
-        return basepath
-
-    @pytest.fixture()
-    def resource_obj(self, score_path, basepath):
-        return Resource(score_path, basepath=basepath)
-
-    @pytest.fixture()
-    def expected_basepath(self, basepath):
-        return basepath
+class TestResourceFromDescriptorPath(TestBaseResource):
+    @pytest.fixture(params=[None, -1, -2], ids=["no_bp", "bp-1", "bp-2"])
+    def init_basepath(self, request, resource_path):
+        """Different basepath arguments for initializing objects."""
+        if request.param is None:
+            return None
+        basepath, _ = os.path.split(resource_path)
+        init_basepath = os.sep.join(basepath.split(os.sep)[: request.param])
+        return init_basepath
 
     @pytest.fixture()
-    def expected_filepath(self, score_path, expected_basepath):
-        return os.path.relpath(score_path, expected_basepath)
+    def resource_obj(self, resource_path, init_basepath):
+        return Resource.from_descriptor_path(
+            descriptor_path=resource_path,
+            basepath=init_basepath,
+        )
+
+    @pytest.fixture()
+    def expected_basepath(self, init_basepath, resource_path):
+        """If init_basepath is None, we expect the directory where the score is located."""
+        if init_basepath is None:
+            basepath, _ = os.path.split(resource_path)
+            return basepath
+        return init_basepath
+
+    @pytest.fixture()
+    def expected_filepath(self, expected_basepath, expected_normpath):
+        return os.path.relpath(expected_normpath, expected_basepath)
+
+    @pytest.fixture()
+    def expected_resource_name(self, fl_resource):
+        return fl_resource.name
+
+    @pytest.fixture()
+    def expected_normpath(self, fl_resource):
+        return fl_resource.normpath
+
+    def test_normpath_after_init(self, resource_obj, expected_normpath):
+        assert resource_obj.normpath == expected_normpath
+
+
+class TestResourceFromDescriptor(TestResourceFromDescriptorPath):
+    @pytest.fixture()
+    def resource_obj(self, fl_resource, init_basepath):
+        descriptor = fl_resource.to_dict()
+        return Resource.from_descriptor(
+            descriptor=descriptor,
+            basepath=init_basepath,
+        )
+
+    @pytest.fixture()
+    def expected_basepath(self, init_basepath):
+        return init_basepath
+
+    @pytest.fixture()
+    def expected_filepath(self, fl_resource):
+        return fl_resource.path
+
+    @pytest.fixture()
+    def expected_normpath(self, init_basepath, expected_filepath):
+        if init_basepath is None:
+            return
+        return os.path.join(init_basepath, expected_filepath)
+
+    def test_normpath_after_init(self, resource_obj, init_basepath, expected_normpath):
+        if init_basepath is None:
+            with pytest.raises(BasePathNotDefinedError):
+                resource_obj.normpath
+        else:
+            assert resource_obj.normpath == expected_normpath
 
 
 # endregion Resource

@@ -24,6 +24,7 @@ from dimcat.data.resources import (
     ResourceSpecs,
     features_argument2config_list,
 )
+from dimcat.data.resources.base import Resource
 from dimcat.exceptions import (
     EmptyDatasetError,
     EmptyResourceError,
@@ -191,7 +192,7 @@ class PipelineStep(DimcatObject):
         self.check_dataset(dataset)
         return self._process_dataset(dataset)
 
-    def _process_resource(self, resource: DimcatResource) -> DimcatResource:
+    def _process_resource(self, resource: Resource) -> Resource:
         """Apply this PipelineStep to a :class:`Resource` and return a copy containing the output(s)."""
         resource = self._pre_process_resource(resource)
         result = self._make_new_resource(resource)

@@ -37,6 +37,7 @@ from dimcat.utils import (
 from frictionless import FrictionlessException
 from typing_extensions import Self
 
+from ...exceptions import BasePathNotDefinedError, FilePathNotDefinedError
 from .utils import (
     align_with_grouping,
     ensure_level_named_piece,
@@ -48,6 +49,7 @@ from .utils import (
     make_index_from_grouping_dict,
     make_rel_path,
     make_tsv_resource,
+    store_json,
 )
 
 try:
@@ -71,6 +73,76 @@ IX = TypeVar("IX", bound=SomeIndex)
 # region Resource
 
 
+def reconcile_base_and_file(
+    basepath: Optional[str],
+    filepath: str,
+) -> Tuple[str, str]:
+    """The result is a tuple of an absolute basepath (or None) and a relative filepath."""
+    assert filepath is not None, "filepath must not be None"
+    if not basepath:
+        if os.path.isabs(filepath):
+            base, file = os.path.split(filepath)
+        else:
+            base, file = os.getcwd(), filepath
+    else:
+        if os.path.isabs(filepath):
+            base = basepath
+            file = make_rel_path(filepath, basepath)
+        else:
+            base = basepath
+            file = filepath
+    return resolve_path(base), file
+
+
+class ResourceSchema(Data.Schema):
+    basepath = mm.fields.Str(
+        required=False,
+        allow_none=True,
+        metadata=dict(
+            description="The directory where the resource is or would be stored."
+        ),
+    )
+    descriptor_filepath = mm.fields.String(allow_none=True, metadata={"expose": False})
+    resource = mm.fields.Method(
+        serialize="get_resource_descriptor",
+        deserialize="raw",
+        metadata={"expose": False},
+    )
+
+    def get_resource_descriptor(self, obj: Resource) -> dict:
+        return obj.get_frictionless_descriptor()
+
+    def raw(self, data):
+        return data
+
+    @mm.pre_load
+    def unsquash_data_if_necessary(self, data, **kwargs):
+        """Data serialized with this schema usually has 'resource' field that contains the frictionless descriptor.
+        However, if it has been serialized with the PickleSchema variant, this descriptor has become the top level
+        and all other fields have been squashed into it, effectively flattening the dictionary. This method
+        reverses this flattening, if necessary.
+        """
+        if "resource" in data:
+            return data
+        if isinstance(data, fl.Resource):
+            fl_resource = data
+        else:
+            fl_resource = fl.Resource.from_descriptor(data)
+        unsquashed_data = dict(fl_resource.custom)
+        fl_resource.custom = {}
+        unsquashed_data["resource"] = fl_resource
+        return unsquashed_data
+
+    @mm.post_load
+    def init_object(self, data, **kwargs):
+        if "resource" not in data or data["resource"] is None:
+            # probably manually compiled data
+            return super().init_object(data, **kwargs)
+        if not isinstance(data["resource"], fl.Resource):
+            data["resource"] = fl.Resource.from_descriptor(data["resource"])
+        return super().init_object(data, **kwargs)
+
+
 class Resource(Data):
     """A Resource is essentially a wrapper around a :obj:`frictionless.Resource` object. In its
     simple form, it serves merely for storing a file path, but split into a basepath and a relative
@@ -80,22 +152,72 @@ class Resource(Data):
     @classmethod
     def from_descriptor(
         cls,
+        descriptor: dict,
+        descriptor_filepath: Optional[str] = None,
+        basepath: Optional[str] = None,
+    ) -> Self:
+        """Create a DimcatResource from a frictionless descriptor dictionary.
+
+        Args:
+            descriptor:
+            descriptor_filepath:
+            basepath:
+
+        Returns:
+
+        """
+        fl_resource = fl.Resource(descriptor)
+        return cls(
+            resource=fl_resource,
+            descriptor_filepath=descriptor_filepath,
+            basepath=basepath,
+        )
+
+    @classmethod
+    def from_descriptor_path(
+        cls,
         descriptor_path: str,
         basepath: Optional[str] = None,
     ) -> Self:
-        """Create a DimcatResource by loading its frictionless descriptor is loaded from disk.
-        The descriptor's directory is used as ``basepath``. ``descriptor_path`` is expected to end in
-        ``.resource.json``.
+        """
 
         Args:
-            descriptor_path: Needs to be an absolute path and is expected to end in "resource.json"
-            or "resource.yaml"
+            descriptor_path:
+            basepath:
+
+        Returns:
+
         """
-        descriptor_filepath = (
-            make_rel_path(descriptor_path, basepath) if basepath else None
+        basepath, descriptor_filepath = reconcile_base_and_file(
+            basepath, descriptor_path
         )
+        fl_resource = fl.Resource.from_descriptor(descriptor_path)
+        fl_resource.path = make_rel_path(
+            fl_resource.normpath, basepath
+        )  # adapt the relative path to the basepath
         return cls(
-            resource=descriptor_path,
+            resource=fl_resource,
+            descriptor_filepath=descriptor_filepath,
+            basepath=basepath,
+        )
+
+    @classmethod
+    def from_filepath(
+        cls,
+        filepath: str,
+        resource_name: Optional[str] = None,
+        descriptor_filepath: Optional[str] = None,
+        basepath: Optional[str] = None,
+    ) -> Self:
+        """Create a Resource from a file on disk, be it a JSON/YAML resource descriptor, or a simple path resource."""
+        if filepath.endswith("resource.json") or filepath.endswith("resource.yaml"):
+            return cls.from_descriptor_path(
+                descriptor_path=descriptor_filepath,
+                basepath=basepath,
+            )
+        return cls.from_resource_path(
+            filepath=filepath,
+            resource_name=resource_name,
             descriptor_filepath=descriptor_filepath,
             basepath=basepath,
         )
@@ -117,83 +239,103 @@ class Resource(Data):
         if not isinstance(resource, Resource):
             raise TypeError(f"Expected a Resource, got {type(resource)!r}.")
         fl_resource = resource.resource.to_copy()
-        resource_name = resource_name if resource_name else resource.resource_name
+        descriptor_filepath = resource.descriptor_filepath
         basepath = basepath if basepath else resource.basepath
         new_object = cls(
             resource=fl_resource,
-            resource_name=resource_name,
+            descriptor_filepath=descriptor_filepath,
             basepath=basepath,
         )
+        if resource_name:
+            new_object.resource_name = resource_name
         new_object._corpus_name = resource._corpus_name
         return new_object
 
-    class Schema(Data.Schema):
-        basepath = mm.fields.Str(
-            required=False,
-            allow_none=True,
-            metadata=dict(
-                description="The directory where the resource is or would be stored."
-            ),
+    @classmethod
+    def from_resource_path(
+        cls,
+        filepath: str,
+        resource_name: Optional[str] = None,
+        descriptor_filepath: Optional[str] = None,
+        basepath: Optional[str] = None,
+    ) -> Self:
+        """Create a Resource from a file on disk, be it a JSON/YAML resource descriptor, or a simple path resource."""
+        basepath, filepath = reconcile_base_and_file(basepath, filepath)
+        fname, extension = os.path.splitext(filepath)
+        if not resource_name:
+            resource_name = make_valid_frictionless_name(fname)
+        options = dict(
+            name=resource_name,
+            path=filepath,
+            scheme="file",
+            format=extension[1:],
         )
-        descriptor_filepath = mm.fields.String(
-            allow_none=True, metadata={"expose": False}
-        )
-        resource = mm.fields.Method(
-            serialize="get_resource_descriptor",
-            deserialize="raw",
-            metadata={"expose": False},
+        fl_resource = make_fl_resource(**options)
+        return cls(
+            resource=fl_resource,
+            descriptor_filepath=descriptor_filepath,
+            basepath=basepath,
         )
 
-        def get_resource_descriptor(self, obj: DimcatResource) -> str | dict:
-            return obj._resource.to_descriptor()
+    class PickleSchema(ResourceSchema):
+        @mm.post_dump(pass_original=True)
+        def squash_data_for_frictionless(self, data, resource_obj, **kwargs):
+            squashed_data = data.pop("resource")
+            squashed_data.update(data)
+            json_path = resource_obj.get_descriptor_path(fallback_to_default=True)
+            if json_path:
+                store_json(squashed_data, json_path)
+            return squashed_data
 
-        def raw(self, data):
-            return data
-
-        @mm.post_load
-        def init_object(self, data, **kwargs):
-            if "resource" not in data or data["resource"] is None:
-                return super().init_object(data, **kwargs)
-            if not isinstance(data["resource"], fl.Resource):
-                data["resource"] = fl.Resource.from_descriptor(data["resource"])
-            return super().init_object(data, **kwargs)
+    class Schema(ResourceSchema):
+        pass
 
     def __init__(
         self,
         resource: Optional[str, fl.Resource] = None,
-        resource_name: Optional[str] = None,
         descriptor_filepath: Optional[str] = None,
         basepath: Optional[str] = None,
     ):
         """
 
         Args:
-            resource: An existing :obj:`frictionless.Resource` or a filepath.
-            resource_name: Name of the resource.
+            resource: An existing :obj:`frictionless.Resource`.
             descriptor_filepath:
                 Relative filepath for using a different JSON/YAML descriptor filename than the default
                 :func:`get_descriptor_filepath`. Needs to end either in resource.json or resource.yaml.
-
-            basepath: Where the file would be serialized. If ``resource`` is a filepyth, its directory is used.
+            basepath: Where the file would be serialized.
         """
-        self.logger.debug(f"Resource.__init__(resource={resource})")
+        self.logger.debug(
+            f"""
+Resource.__init__(
+    resource={resource},
+    descriptor_filepath={descriptor_filepath},
+    basepath={basepath},
+)"""
+        )
         self._resource: fl.Resource = self._make_empty_fl_resource()
-        self._descriptor_filepath: Optional[str] = descriptor_filepath
         self._corpus_name: Optional[str] = None
         super().__init__(basepath=basepath)
-        if resource is not None:
-            if isinstance(resource, fl.Resource):
-                self._resource = resource
-            elif isinstance(resource, (str, Path)):
-                self.filepath = resource
-                self._resource.scheme = "file"
-                self._resource.format = os.path.splitext(self.filepath)[1][1:]
-            else:
-                raise TypeError(
-                    f"Expected resource to be a frictionless Resource or a file path, got {type(resource)}."
-                )
-        if resource_name is not None:
-            self.resource_name = resource_name
+        if resource is None:
+            pass
+        elif isinstance(resource, fl.Resource):
+            self._resource = resource
+        else:
+            raise TypeError(
+                f"Expected resource to be a frictionless Resource or a file path, got {type(resource)}."
+            )
+        if descriptor_filepath:
+            self.descriptor_filepath = descriptor_filepath
+        self.logger.debug(
+            f"""
+Resource(
+    basepath={self.basepath},
+    filepath={self.filepath},
+    corpus_name={self.get_corpus_name()},
+    resource_name={self.resource_name},
+    descriptor_filepath={self.descriptor_filepath},
+)"""
+        )
 
     @property
     def basepath(self) -> str:
@@ -220,11 +362,14 @@ class Resource(Data):
     def descriptor_filepath(self) -> Optional[str]:
         """The path to the descriptor file on disk, relative to the basepath. If you need to fall back to a default
         value, use :meth:`get_descriptor_filepath` instead."""
-        return self._descriptor_filepath
+        return self._resource.metadata_descriptor_path
 
     @descriptor_filepath.setter
     def descriptor_filepath(self, descriptor_filepath: str):
-        self._set_descriptor_path(descriptor_filepath)
+        if os.path.isabs(descriptor_filepath):
+            raise ValueError(f"Filepath must be relative, got {descriptor_filepath!r}.")
+        self._resource.metadata_descriptor_path = descriptor_filepath
+        # self._set_descriptor_path(descriptor_filepath)
 
     @property
     def descriptor_exists(self) -> bool:
@@ -239,7 +384,9 @@ class Resource(Data):
 
     @filepath.setter
     def filepath(self, filepath: str):
-        self._set_file_path(filepath)
+        if os.path.isabs(filepath):
+            raise ValueError(f"Filepath must be relative, got {filepath!r}.")
+        self._resource.path = filepath
 
     @property
     def ID(self) -> Tuple[str, str]:
@@ -267,7 +414,11 @@ class Resource(Data):
     @property
     def normpath(self) -> str:
         """Absolute path to the serialized or future tabular file. Raises if basepath is not set."""
-        return self._resource.normpath
+        if not self.basepath:
+            raise BasePathNotDefinedError
+        if not self.filepath:
+            raise FilePathNotDefinedError
+        return os.path.join(self.basepath, self.filepath)
 
     @property
     def resource(self) -> fl.Resource:
@@ -300,7 +451,7 @@ class Resource(Data):
 
         def return_basepath_name() -> str:
             if self.basepath is None:
-                raise ValueError("Cannot derive corpus name from empty basepath.")
+                return
             return make_valid_frictionless_name(os.path.basename(self.basepath))
 
         if self.corpus_name:
@@ -338,10 +489,9 @@ class Resource(Data):
                 return os.path.join(self.get_basepath(), self.get_descriptor_filepath())
             return
 
-    def make_descriptor(self) -> dict:
+    def get_frictionless_descriptor(self) -> dict:
         """Returns a descriptor for the resource."""
         descriptor = self._resource.to_dict()
-        descriptor["dtype"] = self.name
         return descriptor
 
     def _make_empty_fl_resource(self):
@@ -424,24 +574,39 @@ class Resource(Data):
             return
         # path is absolute and needs to be reconciled with basepath
         path_arg = resolve_path(path)
-        if not self.basepath:
-            new_basepath, filepath = os.path.split(path_arg)
-            self.basepath = resolve_path(new_basepath)
-            # self._resource.basepath = self._basepath
-            self.logger.debug(
-                f"Received an absolute path and set basepath and filepath accordingly:\n"
-                f"{path_arg}"
-            )
-        else:
+        assert path_arg, path
+        print(
+            f"BEFORE Resource._set_file_path: basepath {self.basepath} "
+            f"filepath {self.filepath}"
+        )
+        filepath = None
+        if self.basepath:
             try:
                 filepath = make_rel_path(path_arg, self.basepath)
                 self.logger.debug(
                     f"Turned the absolute path into the relative {filepath!r}."
                 )
             except ValueError:
-                raise ValueError(
-                    f"Could not reconcile the asbolute path {path_arg!r} with basepath {self.basepath!r}."
+                pass
+        if not filepath:
+            # basepath is either not set or not reconcilable, so it needs to be changed
+            # Here in the base class that's OK, the DimcatResource overrides this methods
+            new_basepath, filepath = os.path.split(path_arg)
+            new_basepath = resolve_path(new_basepath)
+            if self.basepath:
+                self.logger.debug(
+                    f"Current basepath {self.basepath!r} is not reconcilable with {path_arg!r}, so it is changed to "
+                    f"{new_basepath!r}."
                 )
+            else:
+                self.logger.debug(
+                    f"Basepath was not set, so it is set to {new_basepath!r}."
+                )
+            self.basepath = new_basepath
+        print(
+            f"AFTER Resource._set_file_path: basepath {self.basepath} "
+            f"filepath {self.filepath}"
+        )
         self._resource.path = filepath
         if not self.resource_name or self.resource_name == get_setting(
             "default_resource_name"
@@ -450,6 +615,17 @@ class Resource(Data):
                 os.path.splitext(os.path.basename(filepath))[0]
             )
             self.logger.debug(f"Set resource name to {self.resource_name!r}.")
+
+    def validate(
+        self,
+        raise_exception: bool = False,
+    ) -> Optional[fl.Report]:
+        report = self._resource.validate()
+        if not report.valid:
+            errors = [err.message for task in report.tasks for err in task.errors]
+            if get_setting("never_store_unvalidated_data") and raise_exception:
+                raise fl.FrictionlessException("\n".join(errors))
+        return report
 
     # endregion Resource
 
@@ -921,7 +1097,7 @@ class DimcatResource(Generic[D], Resource):
         for attr in ("auto_validate", "default_groupby"):
             if hasattr(resource, attr):
                 init_args[attr] = getattr(resource, attr)
-        new_object = cls(init_args)
+        new_object = cls(**init_args)
         for attr in ("_df", "_status", "_corpus_name"):
             if (
                 hasattr(resource, attr)
@@ -1036,7 +1212,6 @@ DimcatResource(
         self._default_groupby: List[str] = []
         super().__init__(
             resource=resource,
-            resource_name=resource_name,
             descriptor_filepath=descriptor_filepath,
             basepath=basepath,
         )
@@ -1218,17 +1393,18 @@ DimcatResource(
         """The names of the fields in the resource's schema."""
         return self.column_schema.field_names
 
-    @property
-    def filepath(self) -> str:
-        return self._resource.path
-
-    @filepath.setter
-    def filepath(self, filepath: str):
-        if self.is_frozen:
-            raise RuntimeError(
-                "Cannot set filepath on a resource whose valid descriptor has been written to disk."
-            )
-        self._set_file_path(filepath)
+    # @property
+    # def filepath(self) -> str:
+    #     if self._resource.path is None:
+    #         return ""
+    #
+    # @filepath.setter
+    # def filepath(self, filepath: str):
+    #     if self.is_frozen:
+    #         raise RuntimeError(
+    #             "Cannot set filepath on a resource whose valid descriptor has been written to disk."
+    #         )
+    #     self._set_file_path(filepath)
 
     @property
     def innerpath(self) -> str:
@@ -1370,7 +1546,7 @@ DimcatResource(
 
     def get_filepath(self) -> str:
         """Returns the relative path to the data (:attr:`filepath`) if specified, :attr:`innerpath` otherwise."""
-        if self.filepath is None:
+        if not self.filepath:
             return self.innerpath
         return self.filepath
 
@@ -1424,6 +1600,50 @@ DimcatResource(
     def _make_empty_fl_resource(self):
         """Create an empty frictionless resource object with a minimal descriptor."""
         return make_tsv_resource()
+
+    def _set_file_path(self, path: str):
+        if not os.path.isabs(path):
+            self._resource.path = path
+            return
+        # path is absolute and needs to be reconciled with basepath
+        path_arg = resolve_path(path)
+        print(
+            f"BEFORE DimcatResource._set_file_path: basepath {self.basepath} "
+            f"filepath {self.filepath}"
+        )
+        assert path_arg, path
+        if not self.basepath:
+            new_basepath, filepath = os.path.split(path_arg)
+            self.basepath = resolve_path(new_basepath)
+            # self._resource.basepath = self._basepath
+            self.logger.debug(
+                f"Received an absolute path and set basepath and filepath accordingly:\n"
+                f"{path_arg}"
+            )
+        else:
+            try:
+                filepath = make_rel_path(path_arg, self.basepath)
+                self.logger.debug(
+                    f"Turned the absolute path into the relative {filepath!r}."
+                )
+            except ValueError:
+                raise ValueError(
+                    f"Could not reconcile the absolute path {path_arg!r} with basepath {self.basepath!r}."
+                )
+        if not filepath:
+            raise ValueError
+        self._resource.path = filepath
+        print(
+            f"BEFORE DimcatResource._set_file_path: basepath {self.basepath} "
+            f"filepath {self.filepath}"
+        )
+        if not self.resource_name or self.resource_name == get_setting(
+            "default_resource_name"
+        ):
+            self.resource_name = make_valid_frictionless_name(
+                os.path.splitext(os.path.basename(filepath))[0]
+            )
+            self.logger.debug(f"Set resource name to {self.resource_name!r}.")
 
     def subselect(
         self,

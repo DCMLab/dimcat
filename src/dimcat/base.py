@@ -253,12 +253,11 @@ class DimcatObject(ABC):
             filepath: Path to the text file to (over)write.
             indent: Prettify the JSON layout. Default indentation: 2 spaces
             **kwargs: Keyword arguments passed to :meth:`json.dumps`.
-
-        Returns:
-
         """
         as_dict = self.to_dict()
         as_dict.update(**kwargs)
+        # ToDo: the filepath should NOT end on resource.json or package.json; introduce a new
+        #       boolean setting that, by default, prevents such filenames
         with open(filepath, "w", encoding="utf-8") as f:
             json.dump(as_dict, f, indent=indent, **kwargs)
 

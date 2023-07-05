@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 import os
 from collections import Counter
@@ -454,7 +455,8 @@ def make_fl_resource(
         )  # replacing the default name "memory"
     else:
         new_resource.name = name
-    new_resource.path = ""
+    if "path" not in options:
+        new_resource.path = ""
     return new_resource
 
 
@@ -558,3 +560,23 @@ def resolve_recognized_piece_columns_argument(
         return get_setting("recognized_piece_columns")
     else:
         return list(recognized_piece_columns)
+
+
+def store_json(
+    data: dict, filepath: str, indent: int = 2, make_dirs: bool = True, **kwargs
+):
+    """Serialize object to file.
+
+    Args:
+        data: Nested structure of dicts and lists.
+        filepath: Path to the text file to (over)write.
+        indent: Prettify the JSON layout. Default indentation: 2 spaces
+        make_dirs: If True (default), create the directory if it does not exist.
+        **kwargs: Keyword arguments passed to :meth:`json.dumps`.
+    """
+    kwargs = dict(indent=indent, **kwargs)
+    if make_dirs:
+        directory = os.path.dirname(filepath)
+        os.makedirs(directory, exist_ok=True)
+    with open(filepath, "w", encoding="utf-8") as f:
+        json.dump(data, f, **kwargs)

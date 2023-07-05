@@ -53,6 +53,15 @@ class DuplicateIDError(DimcatError):
     }
 
 
+class DuplicateResourceIDsError(DimcatError):
+    """optional args: (id_counter,)"""
+
+    nargs2message = {
+        0: "Resource IDs are not unique.",
+        1: lambda id_counter: f"Several resources have the same ID: {id_counter!r}.",
+    }
+
+
 class DuplicatePackageNameError(DimcatError):
     """optional args: (package_name,)"""
 
@@ -103,6 +112,14 @@ class ExcludedFileExtensionError(DimcatError):
         1: lambda extension: f"File extension {extension!r} is excluded.",
         2: lambda extension, permissible_extensions: f"File extension {extension!r} is excluded. "
         f"Pass one of {permissible_extensions!r}.",
+    }
+
+
+class FilePathNotDefinedError(DimcatError):
+    """No optional args."""
+
+    nargs2message = {
+        0: "No filepath has been defined.",
     }
 
 
