@@ -32,7 +32,6 @@ from dimcat.exceptions import (
     ResourceIsFrozenError,
 )
 from dimcat.utils import (
-    check_file_path,
     check_name,
     make_valid_frictionless_name,
     replace_ext,
@@ -559,124 +558,6 @@ Resource(
     def _make_empty_fl_resource(self):
         """Create an empty frictionless resource object with a minimal descriptor."""
         return make_fl_resource()
-
-    def _set_descriptor_path(self, descriptor_filepath: str):
-        if self.descriptor_exists:
-            if (
-                descriptor_filepath == self._descriptor_filepath
-                or descriptor_filepath == self.get_descriptor_path()
-            ):
-                self.logger.info(
-                    f"Descriptor filepath for {self.name!r} was already set to {descriptor_filepath!r}."
-                )
-                return
-            else:
-                raise RuntimeError(
-                    f"Cannot set descriptor_filepath for {self.name!r} to {descriptor_filepath} because it already "
-                    f"set to the existing one at {self.get_descriptor_path()!r}."
-                )
-        if not os.path.isabs(descriptor_filepath):
-            # check if the relative path has an accepted extension
-            if not (
-                descriptor_filepath.endswith("resource.json")
-                or descriptor_filepath.endswith("resource.yaml")
-            ):
-                raise ValueError(
-                    f"Descriptor filepath {descriptor_filepath!r} must end with 'resource.json' or 'resource.yaml'."
-                )
-            # warn if an existing descriptor_filepath is overwritten
-            if (
-                self._descriptor_filepath is not None
-                and self._descriptor_filepath != descriptor_filepath
-            ):
-                self.logger.warning(
-                    f"Overwriting descriptor_filepath {self._descriptor_filepath!r} with "
-                    f"{descriptor_filepath!r}."
-                )
-            self._descriptor_filepath = descriptor_filepath
-            return
-        filepath = check_file_path(
-            descriptor_filepath,
-            extensions=("resource.json", "resource.yaml"),
-            must_exist=False,
-        )
-        if self.basepath is None:
-            basepath, rel_path = os.path.split(filepath)
-            resolved_path = resolve_path(basepath)
-            print(f"BASEPATH AFTER RESOLVING: {resolved_path}")
-            self.basepath = resolved_path
-            print(f"BASEPATH AFTER REPLACING via {filepath}: {self.basepath}")
-            self.logger.debug(
-                f"Received an absolute path and set basepath and descriptor_filepath accordingly:\n"
-                f"{filepath}"
-            )
-        else:
-            try:
-                rel_path = make_rel_path(filepath, self.basepath)
-                self.logger.debug(
-                    f"Turned the absolute path into the relative {rel_path!r}."
-                )
-            except ValueError:
-                raise ValueError(
-                    f"Could not reconcile the asbolute path {filepath!r} with basepath {self.basepath!r}."
-                )
-        if (
-            self._descriptor_filepath is not None
-            and self._descriptor_filepath != rel_path
-        ):
-            self.logger.warning(
-                f"Overwriting descriptor_filepath {self._descriptor_filepath!r} with "
-                f"{rel_path!r}."
-            )
-        self._descriptor_filepath = rel_path
-
-    def _set_file_path(self, path: str):
-        if not os.path.isabs(path):
-            self._resource.path = path
-            return
-        # path is absolute and needs to be reconciled with basepath
-        path_arg = resolve_path(path)
-        assert path_arg, path
-        print(
-            f"BEFORE Resource._set_file_path: basepath {self.basepath} "
-            f"filepath {self.filepath}"
-        )
-        filepath = None
-        if self.basepath:
-            try:
-                filepath = make_rel_path(path_arg, self.basepath)
-                self.logger.debug(
-                    f"Turned the absolute path into the relative {filepath!r}."
-                )
-            except ValueError:
-                pass
-        if not filepath:
-            # basepath is either not set or not reconcilable, so it needs to be changed
-            # Here in the base class that's OK, the DimcatResource overrides this methods
-            new_basepath, filepath = os.path.split(path_arg)
-            new_basepath = resolve_path(new_basepath)
-            if self.basepath:
-                self.logger.debug(
-                    f"Current basepath {self.basepath!r} is not reconcilable with {path_arg!r}, so it is changed to "
-                    f"{new_basepath!r}."
-                )
-            else:
-                self.logger.debug(
-                    f"Basepath was not set, so it is set to {new_basepath!r}."
-                )
-            self.basepath = new_basepath
-        print(
-            f"AFTER Resource._set_file_path: basepath {self.basepath} "
-            f"filepath {self.filepath}"
-        )
-        self._resource.path = filepath
-        if not self.resource_name or self.resource_name == get_setting(
-            "default_resource_name"
-        ):
-            self.resource_name = make_valid_frictionless_name(
-                os.path.splitext(os.path.basename(filepath))[0]
-            )
-            self.logger.debug(f"Set resource name to {self.resource_name!r}.")
 
     def validate(
         self,
@@ -1698,50 +1579,6 @@ DimcatResource.__init__(
     def _make_empty_fl_resource(self):
         """Create an empty frictionless resource object with a minimal descriptor."""
         return make_tsv_resource()
-
-    def _set_file_path(self, path: str):
-        if not os.path.isabs(path):
-            self._resource.path = path
-            return
-        # path is absolute and needs to be reconciled with basepath
-        path_arg = resolve_path(path)
-        print(
-            f"BEFORE DimcatResource._set_file_path: basepath {self.basepath} "
-            f"filepath {self.filepath}"
-        )
-        assert path_arg, path
-        if not self.basepath:
-            new_basepath, filepath = os.path.split(path_arg)
-            self.basepath = resolve_path(new_basepath)
-            # self._resource.basepath = self._basepath
-            self.logger.debug(
-                f"Received an absolute path and set basepath and filepath accordingly:\n"
-                f"{path_arg}"
-            )
-        else:
-            try:
-                filepath = make_rel_path(path_arg, self.basepath)
-                self.logger.debug(
-                    f"Turned the absolute path into the relative {filepath!r}."
-                )
-            except ValueError:
-                raise ValueError(
-                    f"Could not reconcile the absolute path {path_arg!r} with basepath {self.basepath!r}."
-                )
-        if not filepath:
-            raise ValueError
-        self._resource.path = filepath
-        print(
-            f"BEFORE DimcatResource._set_file_path: basepath {self.basepath} "
-            f"filepath {self.filepath}"
-        )
-        if not self.resource_name or self.resource_name == get_setting(
-            "default_resource_name"
-        ):
-            self.resource_name = make_valid_frictionless_name(
-                os.path.splitext(os.path.basename(filepath))[0]
-            )
-            self.logger.debug(f"Set resource name to {self.resource_name!r}.")
 
     def subselect(
         self,
