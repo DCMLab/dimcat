@@ -193,3 +193,19 @@ class ResourceNotFoundError(DimcatError):
         1: lambda name: f"Resource {name!r} not found.",
         2: lambda name, package: f"Resource {name!r} not found in {package!r}.",
     }
+
+
+class ResourceIsFrozenError(DimcatError):
+    """optional args: (resource_name, current_basepath, new_basepath)"""
+
+    nargs2message = {
+        0: "Resource is frozen, i.e. tied to data stored on disk, so you would need to copy it for the relative paths "
+        "ro remain valid.",
+        1: lambda name: f"Resource {name!r} is frozen, i.e. tied to data stored on disk, so you would need to copy "
+        f"it for the relative paths to remain valid.",
+        2: lambda name, current_basepath: f"Resource {name!r} is frozen, i.e. tied to data stored on disk at basepath "
+        f"{current_basepath!r}, so you would need to copy it for the relative paths to remain valid.",
+        3: lambda name, current_basepath, new_basepath: f"Resource {name!r} is frozen, i.e. tied to data stored on "
+        f"disk at basepath {current_basepath!r}. Changing it to {new_basepath!r} would invalidate the "
+        f"relative paths, so you would need to copy the resource (and its descriptor).",
+    }

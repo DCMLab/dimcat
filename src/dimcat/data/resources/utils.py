@@ -189,6 +189,7 @@ def infer_schema_from_df(df: SomeDataframe) -> fl.Schema:
 
 def load_fl_resource(
     fl_resource: fl.Resource,
+    normpath: Optional[str] = None,
     index_col: Optional[int | str | List[int | str]] = None,
     usecols: Optional[int | str | List[int | str]] = None,
 ) -> SomeDataframe:
@@ -196,6 +197,9 @@ def load_fl_resource(
 
     Args:
         fl_resource: The resource whose normpath points to a file on the local file system.
+        normpath:
+            If not specified, the normpath of the resource is used, which is not always reliable because its
+            own basepath property is half-heartedly maintained.
         index_col: Column(s) to be used as index levels, overriding the primary key specified in the resource's schema.
         usecols: If only a subset of the specified fields is to be loaded, the names or positions of the subset.
 
@@ -203,7 +207,8 @@ def load_fl_resource(
         The loaded dataframe loaded with the dtypes resulting from converting the schema fields via
         :func:`fl_fields2pandas_params`.
     """
-    normpath = get_existing_normpath(fl_resource)
+    if not normpath:
+        normpath = get_existing_normpath(fl_resource)
     field_names = fl_resource.schema.field_names
     index_col_names = resolve_columns_argument(index_col, field_names)
     usecols_names = resolve_columns_argument(usecols, field_names)

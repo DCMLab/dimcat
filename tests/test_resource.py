@@ -20,6 +20,10 @@ logger = logging.getLogger(__name__)
 
 
 class TestBaseResource:
+    @pytest.fixture(params=[Resource, DimcatResource])
+    def object_constructor(self, request):
+        return request.param
+
     @pytest.fixture(params=[None, -1, -2], ids=["no_bp", "bp-1", "bp-2"])
     def init_basepath(self, request, score_path):
         """Different basepath arguments for initilizing objects."""
@@ -30,8 +34,8 @@ class TestBaseResource:
         return init_basepath
 
     @pytest.fixture()
-    def resource_obj(self, init_basepath):
-        return Resource(basepath=init_basepath)
+    def resource_obj(self, object_constructor, init_basepath):
+        return object_constructor(basepath=init_basepath)
 
     @pytest.fixture()
     def expected_basepath(self, init_basepath):

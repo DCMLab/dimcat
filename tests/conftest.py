@@ -123,9 +123,7 @@ def fl_resource(resource_path):
 def assembled_resource(
     dataframe_from_fl_resource, fl_resource, tmp_serialization_path
 ) -> DimcatResource:
-    resource = DimcatResource(
-        resource_name=fl_resource.name, basepath=tmp_serialization_path
-    )
+    resource = DimcatResource(basepath=tmp_serialization_path)
     resource.df = dataframe_from_fl_resource
     return resource
 
@@ -138,7 +136,7 @@ def dataframe_from_fl_resource(fl_resource):
 
 @pytest.fixture()
 def empty_resource():
-    return DimcatResource(resource_name="empty_resource")
+    return DimcatResource()
 
 
 @pytest.fixture()
@@ -171,7 +169,7 @@ def resource_from_dataframe(
 @pytest.fixture()
 def resource_from_descriptor(resource_path):
     """Returns a DimcatResource object created from the descriptor on disk."""
-    return DimcatResource.from_descriptor(descriptor_path=resource_path)
+    return DimcatResource.from_descriptor_path(descriptor_path=resource_path)
 
 
 @pytest.fixture()
@@ -222,9 +220,7 @@ def zipped_resource_from_dc_package(
     package_from_fl_package, package_descriptor_filepath
 ) -> DimcatResource:
     dc_resource = package_from_fl_package.get_resource("notes")
-    return DimcatResource.from_resource(
-        dc_resource, descriptor_filepath=package_descriptor_filepath
-    )
+    return DimcatResource.from_resource(dc_resource)
 
 
 @pytest.fixture()
