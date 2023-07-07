@@ -1,8 +1,8 @@
 from dimcat.base import DimcatConfig
-from dimcat.data.resources import PieceIndex
-from dimcat.steps import FeatureProcessingStep
+from dimcat.data.resources.base import PieceIndex
+from dimcat.steps.base import FeatureProcessingStep
 from dimcat.steps.extractors import FeatureExtractor
-from dimcat.steps.groupers import CustomPieceGrouper
+from dimcat.steps.groupers.base import CustomPieceGrouper
 from dimcat.steps.pipelines import Pipeline
 
 

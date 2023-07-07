@@ -4,7 +4,7 @@ import logging
 from typing import Iterable
 
 from dimcat.base import DimcatConfig
-from dimcat.data.dataset import Dataset
+from dimcat.data.dataset.base import Dataset
 from dimcat.data.resources.base import DimcatResource
 from marshmallow import fields, validate
 

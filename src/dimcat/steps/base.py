@@ -15,16 +15,20 @@ from typing import (
 )
 
 from dimcat.base import DimcatConfig, DimcatObject, get_class
-from dimcat.data import FeatureName, ensure_level_named_piece, resource_specs2resource
 from dimcat.data.base import Data
 from dimcat.data.dataset.base import Dataset, DimcatPackage
-from dimcat.data.resources import (
+from dimcat.data.resources.base import (
     DimcatResource,
-    FeatureSpecs,
+    Resource,
     ResourceSpecs,
+    resource_specs2resource,
+)
+from dimcat.data.resources.features import (
+    FeatureName,
+    FeatureSpecs,
     features_argument2config_list,
 )
-from dimcat.data.resources.base import Resource
+from dimcat.data.resources.utils import ensure_level_named_piece
 from dimcat.exceptions import (
     EmptyDatasetError,
     EmptyResourceError,

@@ -3,12 +3,12 @@ from collections import defaultdict
 from typing import Dict, Iterable, List, MutableMapping, Sequence
 
 import pandas as pd
-from dimcat import Dataset
 from dimcat.base import is_subclass_of
+from dimcat.data.dataset.base import Dataset
 from dimcat.data.dataset.processed import GroupedDataset
 from dimcat.data.resources.base import DimcatIndex, DimcatResource, PieceIndex
 from dimcat.data.resources.features import Feature
-from dimcat.steps import FeatureProcessingStep
+from dimcat.steps.base import FeatureProcessingStep
 from dimcat.utils import check_name
 from marshmallow import fields, pre_load
 from typing_extensions import Self

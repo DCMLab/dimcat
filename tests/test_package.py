@@ -1,7 +1,8 @@
 import logging
 
 import pytest
-from dimcat.data import DimcatPackage, PackageStatus, ResourceStatus
+from dimcat.data.dataset.base import DimcatPackage, PackageStatus
+from dimcat.data.resources.base import ResourceStatus
 
 from tests.conftest import CORPUS_PATH
 
@@ -62,7 +63,7 @@ class TestPackageFromFilePaths(TestDimcatPackage):
 
 
 class TestPackageFromFileDirectory(TestDimcatPackage):
-    expected_package_status: ResourceStatus = PackageStatus.FULLY_SERIALIZED
+    expected_package_status: ResourceStatus = PackageStatus.PATHS_ONLY
 
     @pytest.fixture()
     def package_obj(self, corpus_path):
@@ -92,7 +93,7 @@ class TestPackageFromDescriptor(TestDimcatPackage):
 
     @pytest.fixture()
     def package_obj(self, score_path):
-        return DimcatPackage(score_path)
+        return DimcatPackage.from_descriptor_path(score_path)
 
 
 class TestPackageFromFL(TestPackageFromDescriptor):

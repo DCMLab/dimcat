@@ -4,10 +4,10 @@ import logging
 from typing import Iterable, Iterator, List, Literal, Optional, overload
 
 from dimcat.base import DimcatConfig, DimcatObject, DimcatObjectField
-from dimcat.data.dataset import Dataset
-from dimcat.data.resources import DimcatResource
 from marshmallow import fields
 
+from ..data.dataset.base import Dataset
+from ..data.resources.base import DimcatResource
 from .base import PipelineStep
 
 logger = logging.getLogger(__name__)

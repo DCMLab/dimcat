@@ -10,8 +10,7 @@ import frictionless as fl
 import music21 as m21
 import pytest
 from _pytest.terminal import TerminalReporter
-from dimcat.data.dataset import Dataset
-from dimcat.data.dataset.base import DimcatPackage
+from dimcat.data.dataset.base import Dataset, DimcatPackage
 from dimcat.data.resources.base import DimcatResource
 from dimcat.data.resources.utils import load_fl_resource, make_rel_path
 from dimcat.utils import scan_directory

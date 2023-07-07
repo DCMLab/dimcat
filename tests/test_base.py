@@ -5,7 +5,7 @@ import os
 import tempfile
 from itertools import product
 from pprint import pprint
-from typing import List, Tuple, Type
+from typing import Counter, List, Tuple, Type
 
 import frictionless as fl
 import pandas as pd
@@ -21,7 +21,7 @@ from dimcat.data.base import Data
 from dimcat.data.dataset.base import DimcatCatalog, DimcatPackage
 from dimcat.data.resources.base import DimcatResource, Resource
 from dimcat.data.resources.features import Notes
-from dimcat.steps.analyzers import Analyzer, Counter
+from dimcat.steps.analyzers.base import Analyzer
 from dimcat.steps.base import FeatureProcessingStep
 from dimcat.steps.loaders.base import Loader
 from marshmallow import ValidationError, fields
