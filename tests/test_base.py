@@ -18,7 +18,8 @@ from dimcat.base import (
     deserialize_json_str,
 )
 from dimcat.data.base import Data
-from dimcat.data.dataset.base import DimcatCatalog, DimcatPackage
+from dimcat.data.catalog.base import DimcatCatalog
+from dimcat.data.package.dimcat import DimcatPackage
 from dimcat.data.resources.base import DimcatResource, Resource
 from dimcat.data.resources.features import Notes
 from dimcat.steps.analyzers.base import Analyzer

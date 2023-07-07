@@ -1,7 +1,8 @@
 import logging
 
 import pytest
-from dimcat.data.dataset.base import DimcatPackage, PackageStatus
+from dimcat.data.package.base import PackageStatus
+from dimcat.data.package.dimcat import DimcatPackage
 from dimcat.data.resources.base import ResourceStatus
 
 from tests.conftest import CORPUS_PATH
