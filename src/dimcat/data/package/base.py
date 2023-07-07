@@ -10,25 +10,23 @@ import frictionless as fl
 import marshmallow as mm
 import pandas as pd
 import yaml
-from dimcat import DimcatConfig, get_class
-from dimcat.base import FriendlyEnum
+from dimcat.base import DimcatConfig, FriendlyEnum, get_class
 from dimcat.data.base import Data
-from dimcat.data.resources.base import (
+from dimcat.data.resource.base import (
     D,
-    DimcatResource,
-    PieceIndex,
     Resource,
-    ResourceStatus,
     SomeDataframe,
     reconcile_base_and_file,
 )
-from dimcat.data.resources.features import (
+from dimcat.data.resource.dc import DimcatResource, PieceIndex
+from dimcat.data.resource.features import (
     Feature,
     FeatureName,
     FeatureSpecs,
     feature_specs2config,
 )
-from dimcat.data.resources.utils import (
+from dimcat.data.resource.utils import (
+    ResourceStatus,
     check_descriptor_filepath_argument,
     make_rel_path,
 )
@@ -185,8 +183,23 @@ class Package(Data):
         else:
             fl_package = fl.Package.from_descriptor(descriptor)
         package_name = fl_package.name
+        if dtype := fl_package.custom.get("dtype"):
+            # the descriptor.custom dict contains serialization data for a DiMCAT object so we will deserialize
+            # it with the appropriate dtype class constructor
+            Constructor = get_class(dtype)
+            if not issubclass(Constructor, cls):
+                raise TypeError(
+                    f"The descriptor specifies dtype {dtype!r} which is not a subclass of {cls.name}."
+                )
+            descriptor = dict(
+                descriptor,
+                descriptor_filepath=descriptor_filepath,
+                auto_validate=auto_validate,
+                basepath=basepath,
+            )
+            return Constructor.schema.load(descriptor)
         resources = [
-            DimcatResource.from_descriptor(
+            Resource.from_descriptor(
                 descriptor=resource.to_dict(),
                 basepath=basepath,
                 descriptor_filepath=descriptor_filepath,
@@ -391,6 +404,11 @@ class Package(Data):
             basepath: The basepath where the new package will be stored. If None, the basepath of the original package
         """
         if not isinstance(package, Package):
+            if isinstance(package, fl.Package):
+                cls.logger.debug(
+                    f"Received a frictionless.Package, passing it on to {cls.name}.from_descriptor()."
+                )
+                return cls.from_descriptor(package)
             raise TypeError(f"Expected a Package, got {type(package)!r}")
         fl_package = package._package.to_copy()
         if package_name is None:

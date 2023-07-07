@@ -1,16 +1,12 @@
 from __future__ import annotations
 
-import logging
 from typing import Iterable, Iterator, List, Literal, Optional, overload
 
-from dimcat.base import DimcatConfig, DimcatObject, DimcatObjectField
+from dimcat import Dataset, DimcatConfig
+from dimcat.base import DimcatObject, DimcatObjectField
+from dimcat.data.resource.dc import DimcatResource
+from dimcat.steps.base import PipelineStep
 from marshmallow import fields
-
-from ..data.dataset.base import Dataset
-from ..data.resources.base import DimcatResource
-from .base import PipelineStep
-
-logger = logging.getLogger(__name__)
 
 
 class Pipeline(PipelineStep):

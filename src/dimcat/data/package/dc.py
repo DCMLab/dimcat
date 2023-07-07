@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Iterable, Optional
 
 from dimcat.data.package.base import Package
-from dimcat.data.resources.base import Resource
+from dimcat.data.resource.base import Resource
 
 
 class DimcatPackage(Package):

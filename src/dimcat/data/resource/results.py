@@ -7,7 +7,7 @@ from dimcat.base import ObjectEnum
 from plotly import express as px
 from plotly import graph_objs as go
 
-from .base import DimcatResource
+from .dc import DimcatResource
 from .plotting import tpc_bubbles
 
 logger = logging.getLogger(__name__)

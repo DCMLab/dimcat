@@ -2,7 +2,7 @@ from random import sample
 
 import pytest
 from dimcat.data.dataset.processed import GroupedDataset
-from dimcat.steps.groupers.base import CustomPieceGrouper
+from dimcat.steps.grouper.base import CustomPieceGrouper
 
 
 @pytest.fixture()

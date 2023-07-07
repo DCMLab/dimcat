@@ -8,9 +8,10 @@ from typing import Any, ClassVar, Iterable, Optional, Type, TypeVar
 import marshmallow as mm
 from dimcat.base import ObjectEnum
 from dimcat.data.dataset.processed import AnalyzedDataset
-from dimcat.data.resources.base import DimcatResource, SomeSeries
-from dimcat.data.resources.features import Feature, FeatureSpecs
-from dimcat.data.resources.results import Result
+from dimcat.data.resource.base import SomeSeries
+from dimcat.data.resource.dc import DimcatResource
+from dimcat.data.resource.features import Feature, FeatureSpecs
+from dimcat.data.resource.results import Result
 from dimcat.steps.base import FeatureProcessingStep
 
 logger = logging.getLogger(__name__)

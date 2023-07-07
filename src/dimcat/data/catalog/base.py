@@ -7,9 +7,9 @@ import frictionless as fl
 import marshmallow as mm
 from dimcat.data.base import Data
 from dimcat.data.package.base import PackageSpecs
-from dimcat.data.package.dimcat import DimcatPackage
-from dimcat.data.resources.base import Resource
-from dimcat.data.resources.features import FeatureSpecs
+from dimcat.data.package.dc import DimcatPackage
+from dimcat.data.resource.base import Resource
+from dimcat.data.resource.features import FeatureSpecs
 from dimcat.exceptions import (
     DuplicatePackageNameError,
     EmptyCatalogError,

@@ -43,6 +43,17 @@ class BasePathNotDefinedError(DimcatError):
     }
 
 
+class BaseFilePathMismatchError(DimcatError):
+    """optional args: (basepath, filepath)"""
+
+    nargs2message = {
+        0: "The (relative) filepath needs to be located beneath the basepath, not above or next to it.",
+        1: "The (relative) filepath needs to be located beneath the basepath {basepath!r}, not above or next to it.",
+        2: "The (relative) filepath {filepath!r} needs to be located beneath the basepath {basepath!r}, not above or "
+        "next to it.",
+    }
+
+
 class DuplicateIDError(DimcatError):
     """optional args: (id, facet)"""
 

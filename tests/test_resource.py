@@ -3,14 +3,9 @@ import os
 
 import pytest
 from dimcat.base import deserialize_dict, deserialize_json_file, get_setting
-from dimcat.data.resources.base import (
-    DimcatIndex,
-    DimcatResource,
-    PieceIndex,
-    Resource,
-    ResourceStatus,
-)
-from dimcat.data.resources.utils import make_rel_path
+from dimcat.data.resource.base import Resource
+from dimcat.data.resource.dc import DimcatIndex, DimcatResource, PieceIndex
+from dimcat.data.resource.utils import ResourceStatus, make_rel_path
 from dimcat.exceptions import BasePathNotDefinedError, FilePathNotDefinedError
 from dimcat.utils import make_valid_frictionless_name
 
@@ -22,21 +17,21 @@ logger = logging.getLogger(__name__)
 
 class TestBaseResource:
     @pytest.fixture(params=[Resource, DimcatResource])
-    def object_constructor(self, request):
+    def resource_constructor(self, request):
         return request.param
 
     @pytest.fixture(params=[None, -1, -2], ids=["no_bp", "bp-1", "bp-2"])
-    def init_basepath(self, request, score_path):
+    def init_basepath(self, request, corpus_path):
         """Different basepath arguments for initilizing objects."""
         if request.param is None:
             return None
-        basepath, _ = os.path.split(score_path)
+        basepath, _ = os.path.split(corpus_path)
         init_basepath = os.sep.join(basepath.split(os.sep)[: request.param])
         return init_basepath
 
     @pytest.fixture()
-    def resource_obj(self, object_constructor, init_basepath):
-        return object_constructor(basepath=init_basepath)
+    def resource_obj(self, resource_constructor, init_basepath):
+        return resource_constructor(basepath=init_basepath)
 
     @pytest.fixture()
     def expected_basepath(self, init_basepath):
@@ -104,8 +99,21 @@ class TestResourceFromAbsolute(TestBaseResource):
     def score_path(self, request):
         return request.param
 
+    @pytest.fixture(params=[None, -2], ids=["no_bp", "bp-2"])
+    def init_basepath(self, request, corpus_path):
+        """Different basepath arguments for initilizing objects.
+        In the case of absolute path resources this works only if basepath is None or -2;
+        in the latter case, the unittest_corpus path, two levels up, is "site-packages" so it
+        works as a common ancestor for the music21 score paths"""
+        if request.param is None:
+            return None
+        basepath, _ = os.path.split(corpus_path)
+        init_basepath = os.sep.join(basepath.split(os.sep)[: request.param])
+        return init_basepath
+
     @pytest.fixture()
-    def resource_obj(self, score_path, init_basepath):
+    def resource_obj(self, request, score_path, init_basepath):
+        # if request.node.callspec.params["init_basepath"] != -1:
         return Resource.from_resource_path(
             score_path,
             basepath=init_basepath,

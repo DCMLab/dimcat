@@ -21,6 +21,8 @@ FRICTIONLESS_INVERSE = r"[^-a-z0-9._/]"
 
 
 def make_valid_frictionless_name(name: str, replace_char="_") -> str:
+    if not isinstance(name, str):
+        raise TypeError(f"Name must be a string, not {type(name)}")
     name = name.lower()
     if not re.match(FRICTIONLESS_NAME_PATTERN, name):
         name = re.sub(FRICTIONLESS_INVERSE, replace_char, name)

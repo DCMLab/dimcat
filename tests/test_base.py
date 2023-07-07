@@ -19,16 +19,21 @@ from dimcat.base import (
 )
 from dimcat.data.base import Data
 from dimcat.data.catalog.base import DimcatCatalog
-from dimcat.data.package.dimcat import DimcatPackage
-from dimcat.data.resources.base import DimcatResource, Resource
-from dimcat.data.resources.features import Notes
-from dimcat.steps.analyzers.base import Analyzer
+from dimcat.data.package.dc import DimcatPackage
+from dimcat.data.resource.base import Resource
+from dimcat.data.resource.dc import DimcatResource
+from dimcat.data.resource.features import Notes
+from dimcat.steps.analyzer.base import Analyzer
 from dimcat.steps.base import FeatureProcessingStep
 from dimcat.steps.loaders.base import Loader
 from marshmallow import ValidationError, fields
 from marshmallow.class_registry import _registry as MM_REGISTRY
 
-from .conftest import CORPUS_PATH, datapackage_json_path, single_resource_path
+from .conftest import (
+    CORPUS_PATH,
+    datapackage_json_path,
+    single_resource_descriptor_path,
+)
 
 
 class TestBaseObjects:
@@ -102,7 +107,7 @@ DIMCAT_OBJECT_TEST_CASES: List[Tuple[Type[DimcatObject], dict]] = [
         DimcatResource,
         dict(resource=fl.Resource(name="empty_resource", path="empty_resource.tsv")),
     ),
-    (Notes, dict(resource=single_resource_path())),
+    (Notes, dict(resource=single_resource_descriptor_path())),
     (Analyzer, dict(features=dummy_config())),
     (Counter, dict(features=dummy_config())),
     (DimcatPackage, dict(package=datapackage_json_path())),
@@ -149,7 +154,7 @@ def make_test_id(params: tuple) -> str:
 def dimcat_object(request, tmp_path_factory):
     """Initializes each of the objects to be tested and injects them into the test class."""
     Constructor, options = unpack_dimcat_object_params(request.param)
-    request.cls.object_constructor = Constructor
+    request.cls.resource_constructor = Constructor
     dimcat_object = Constructor(**options)
     if isinstance(dimcat_object, DimcatResource) and not dimcat_object.is_frozen:
         tmp_path = str(tmp_path_factory.mktemp("dimcat_resource"))

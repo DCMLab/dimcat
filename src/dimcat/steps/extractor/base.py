@@ -1,16 +1,12 @@
 from __future__ import annotations
 
-import logging
 from typing import Iterable
 
 from dimcat.base import DimcatConfig
 from dimcat.data.dataset.base import Dataset
-from dimcat.data.resources.base import DimcatResource
+from dimcat.data.resource.dc import DimcatResource
+from dimcat.steps.base import FeatureProcessingStep
 from marshmallow import fields, validate
-
-from .base import FeatureProcessingStep
-
-logger = logging.getLogger(__name__)
 
 
 class FeatureExtractor(FeatureProcessingStep):

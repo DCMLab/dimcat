@@ -5,6 +5,7 @@ import logging
 import os
 import warnings
 from collections import Counter
+from enum import IntEnum, auto
 from operator import itemgetter
 from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Set, Tuple
 from zipfile import ZipFile
@@ -14,11 +15,13 @@ import ms3
 import pandas as pd
 import yaml
 from dimcat.base import get_setting
+from dimcat.exceptions import BaseFilePathMismatchError
 
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from .base import DimcatIndex, SomeDataframe, SomeIndex
+    from .base import SomeDataframe, SomeIndex
+    from .dc import DimcatIndex
 
 
 def align_with_grouping(
@@ -445,7 +448,7 @@ def make_rel_path(path: str, start: str):
     try:
         return check_rel_path(rel_path, start)
     except ValueError as e:
-        raise ValueError(
+        raise BaseFilePathMismatchError(
             f"Turning {path!r} into a relative path under {start!r} failed with {e}"
         )
 
@@ -613,3 +616,45 @@ def store_as_json_or_yaml(descriptor_dict: dict, descriptor_path: str):
         raise ValueError(
             f"Descriptor path must end with .resource.yaml or .resource.json: {descriptor_path}"
         )
+
+
+class ResourceStatus(IntEnum):
+    """Expresses the status of a DimcatResource with respect to it being described, valid, and serialized to disk,
+    with or without its descriptor file.
+
+    +-----------------------+---------------+-------------------+-----------+
+    | ResourceStatus        | is_serialized | descriptor_exists | is_loaded |
+    +=======================+===============+===================+===========+
+    | EMPTY                 | False         | ?                 | False     |
+    +-----------------------+---------------+-------------------+-----------+
+    | SCHEMA                | False         | ?                 | False     |
+    +-----------------------+---------------+-------------------+-----------+
+    | DATAFRAME             | False         | False             | True      |
+    +-----------------------+---------------+-------------------+-----------+
+    | VALIDATED             | False         | False             | True      |
+    +-----------------------+---------------+-------------------+-----------+
+    | SERIALIZED            | True          | False             | True      |
+    +-----------------------+---------------+-------------------+-----------+
+    | STANDALONE_LOADED     | True          | True              | True      |
+    +-----------------------+---------------+-------------------+-----------+
+    | PACKAGED_LOADED       | True          | True              | True      |
+    +-----------------------+---------------+-------------------+-----------+
+    | STANDALONE_NOT_LOADED | True          | True              | False     |
+    +-----------------------+---------------+-------------------+-----------+
+    | PACKAGED_NOT_LOADED   | True          | True              | False     |
+    +-----------------------+---------------+-------------------+-----------+
+    """
+
+    EMPTY = 0
+    SCHEMA = auto()  # column_schema available but no dataframe has been loaded
+    DATAFRAME = (
+        auto()
+    )  # dataframe available in memory but not yet validated against the column_schema
+    VALIDATED = auto()  # validated dataframe available in memory
+    SERIALIZED = (
+        auto()
+    )  # dataframe serialized to disk but not its descriptor (shouldn't happen) -> can be changed or overwritten
+    STANDALONE_LOADED = auto()
+    PACKAGED_LOADED = auto()
+    STANDALONE_NOT_LOADED = auto()
+    PACKAGED_NOT_LOADED = auto()

@@ -11,9 +11,9 @@ import music21 as m21
 import pytest
 from _pytest.terminal import TerminalReporter
 from dimcat.data.dataset.base import Dataset
-from dimcat.data.package.dimcat import DimcatPackage
-from dimcat.data.resources.base import DimcatResource
-from dimcat.data.resources.utils import load_fl_resource, make_rel_path
+from dimcat.data.package.dc import DimcatPackage
+from dimcat.data.resource.dc import DimcatResource
+from dimcat.data.resource.utils import load_fl_resource, make_rel_path
 from dimcat.utils import scan_directory
 from git import Repo
 
@@ -55,7 +55,7 @@ def retrieve_and_check_corpus_path():
 
 
 CORPUS_PATH = retrieve_and_check_corpus_path()
-RESOURCE_PATHS = {
+RESOURCE_DESCRIPTOR_PATHS = {
     file: os.path.join(CORPUS_PATH, file)
     for file in os.listdir(CORPUS_PATH)
     if file.endswith(".resource.yaml")
@@ -73,9 +73,9 @@ def mixed_files_path(corpus_path) -> str:
     return os.path.join(corpus_path, "mixed_files")
 
 
-def single_resource_path() -> str:
+def single_resource_descriptor_path() -> str:
     """Returns the path to a single resource."""
-    return RESOURCE_PATHS["unittest_notes.resource.yaml"]
+    return RESOURCE_DESCRIPTOR_PATHS["unittest_notes.resource.yaml"]
 
 
 def datapackage_json_path() -> str:
@@ -89,13 +89,17 @@ def resource_descriptor_filepath(resource_path) -> str:
     return make_rel_path(resource_path, CORPUS_PATH)
 
 
-@pytest.fixture(scope="session", params=RESOURCE_PATHS.values(), ids=RESOURCE_PATHS)
+@pytest.fixture(
+    scope="session",
+    params=RESOURCE_DESCRIPTOR_PATHS.values(),
+    ids=RESOURCE_DESCRIPTOR_PATHS,
+)
 def resource_path(request):
     return request.param
 
 
 @pytest.fixture(scope="session")
-def score_path():
+def package_descriptor_path():
     return os.path.join(CORPUS_PATH, "datapackage.json")
 
 
@@ -277,21 +281,21 @@ def resource_object(
 
 
 @pytest.fixture()
-def fl_package(score_path) -> fl.Package:
+def fl_package(package_descriptor_path) -> fl.Package:
     """Returns a frictionless package object."""
-    return fl.Package(score_path)
+    return fl.Package(package_descriptor_path)
 
 
 @pytest.fixture()
 def package_from_fl_package(fl_package) -> DimcatPackage:
     """Returns a DimcatPackage object."""
-    return DimcatPackage.from_descriptor(fl_package)
+    return DimcatPackage.from_package(fl_package)
 
 
 @pytest.fixture()
-def dataset_from_single_package(score_path):
+def dataset_from_single_package(package_descriptor_path):
     dataset = Dataset()
-    dataset.load_package(score_path)
+    dataset.load_package(package_descriptor_path)
     return dataset
 
 

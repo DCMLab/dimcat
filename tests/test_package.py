@@ -2,8 +2,8 @@ import logging
 
 import pytest
 from dimcat.data.package.base import PackageStatus
-from dimcat.data.package.dimcat import DimcatPackage
-from dimcat.data.resources.base import ResourceStatus
+from dimcat.data.package.dc import DimcatPackage
+from dimcat.data.resource.utils import ResourceStatus
 
 from tests.conftest import CORPUS_PATH
 
@@ -93,8 +93,8 @@ class TestPackageFromDescriptor(TestDimcatPackage):
         return CORPUS_PATH
 
     @pytest.fixture()
-    def package_obj(self, score_path):
-        return DimcatPackage.from_descriptor_path(score_path)
+    def package_obj(self, package_descriptor_path):
+        return DimcatPackage.from_descriptor_path(package_descriptor_path)
 
 
 class TestPackageFromFL(TestPackageFromDescriptor):

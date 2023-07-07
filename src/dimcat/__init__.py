@@ -13,8 +13,9 @@ finally:
 
 
 from .base import DimcatConfig, get_class, get_schema
-from .data.dataset import Dataset
-from .steps.pipelines import Pipeline
+from .data.dataset.base import Dataset
+
+# from .steps.pipeline.base import Pipeline
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(

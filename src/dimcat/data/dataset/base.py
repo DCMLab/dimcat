@@ -26,9 +26,10 @@ from dimcat.data.catalog.base import DimcatCatalog
 from dimcat.data.catalog.inputs import InputsCatalog
 from dimcat.data.catalog.outputs import OutputsCatalog
 from dimcat.data.package.base import Package, PackageSpecs
-from dimcat.data.package.dimcat import DimcatPackage
-from dimcat.data.resources.base import DimcatResource, SomeDataframe
-from dimcat.data.resources.features import (
+from dimcat.data.package.dc import DimcatPackage
+from dimcat.data.resource.base import SomeDataframe
+from dimcat.data.resource.dc import DimcatResource
+from dimcat.data.resource.features import (
     Feature,
     FeatureSpecs,
     feature_specs2config,
@@ -42,10 +43,10 @@ from dimcat.exceptions import (
 from typing_extensions import Self
 
 if TYPE_CHECKING:
-    from dimcat.data.resources.results import Result
+    from dimcat.data.resource.results import Result
     from dimcat.steps.base import FeatureProcessingStep
     from dimcat.steps.loaders.base import Loader
-    from dimcat.steps.pipelines import Pipeline
+    from dimcat.steps.pipeline import Pipeline
 
 logger = logging.getLogger(__name__)
 
