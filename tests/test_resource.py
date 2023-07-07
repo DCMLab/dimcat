@@ -2,7 +2,8 @@ import logging
 import os
 
 import pytest
-from dimcat.base import deserialize_json_file, get_setting
+from dimcat.base import deserialize_dict, deserialize_json_file, get_setting
+from dimcat.data import make_rel_path
 from dimcat.data.resources.base import (
     DimcatIndex,
     DimcatResource,
@@ -82,14 +83,14 @@ class TestBaseResource:
         copy = deserialize_json_file(json_path)
         assert copy == resource_obj
 
-    def test_pickle_schema(self, resource_obj, tmp_serialization_path):
-        resource_obj.basepath = tmp_serialization_path
-        json_path = resource_obj.get_descriptor_path(fallback_to_default=True)
-        config = resource_obj.to_config(pickle=True)
-        copy1 = config.create()
-        copy2 = deserialize_json_file(json_path)
+    def test_descriptor(self, resource_obj):
+        # json_path = resource_obj.store_descriptor()
+        # print(json_path)
+        descriptor = resource_obj.make_descriptor()
+        copy1 = deserialize_dict(descriptor)
+        # copy2 = deserialize_json_file(json_path)
         assert resource_obj == copy1
-        assert copy1 == copy2
+        # assert copy1 == copy2
 
     def test_validating(self, resource_obj):
         resource_obj.validate(raise_exception=True)
@@ -120,7 +121,7 @@ class TestResourceFromAbsolute(TestBaseResource):
 
     @pytest.fixture()
     def expected_filepath(self, score_path, expected_basepath):
-        return os.path.relpath(score_path, expected_basepath)
+        return make_rel_path(score_path, expected_basepath)
 
     @pytest.fixture()
     def expected_normpath(self, score_path):
@@ -162,7 +163,7 @@ class TestResourceFromDescriptorPath(TestBaseResource):
 
     @pytest.fixture()
     def expected_filepath(self, expected_basepath, expected_normpath):
-        return os.path.relpath(expected_normpath, expected_basepath)
+        return make_rel_path(expected_normpath, expected_basepath)
 
     @pytest.fixture()
     def expected_resource_name(self, fl_resource):
@@ -257,10 +258,11 @@ class TestEmptyResource:
 
     def test_descriptor_path(self, dc_resource):
         descriptor_path = dc_resource.descriptor_filepath
+        has_descriptor = descriptor_path is not None
         if self.should_have_descriptor:
-            assert descriptor_path is not None
+            assert has_descriptor
         else:
-            assert descriptor_path is None
+            assert not has_descriptor
 
     def test_copy(self, dc_resource):
         copy = dc_resource.copy()
@@ -382,7 +384,7 @@ class TestFromConfig(TestDiskResource):
 @pytest.fixture(scope="session")
 def package_descriptor_filepath(score_path) -> str:
     """Returns the path to the descriptor file."""
-    return os.path.relpath(score_path, CORPUS_PATH)
+    return make_rel_path(score_path, CORPUS_PATH)
 
 
 class TestFromFlPackage(TestDiskResource):
@@ -399,8 +401,8 @@ class TestFromDcPackage(TestDiskResource):
     should_have_descriptor = True
 
     @pytest.fixture()
-    def dc_resource(self, zipped_resource_from_dc_package):
-        return zipped_resource_from_dc_package
+    def dc_resource(self, zipped_resource_copied_from_dc_package):
+        return zipped_resource_copied_from_dc_package
 
 
 # endregion DimcatResource

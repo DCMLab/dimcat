@@ -123,6 +123,27 @@ class FilePathNotDefinedError(DimcatError):
     }
 
 
+class InvalidBasePathError(DimcatError):
+    """optional args: (basepath, filepath)"""
+
+    nargs2message = {
+        0: "The given basepath is invalid.",
+        1: lambda basepath: f"Cannot set basepath {basepath!r}.",
+        2: lambda basepath, filepath: f"Setting basepath {basepath!r} would invalidate the filepath {filepath!r}.",
+    }
+
+
+class InvalidResourcePathError(DimcatError):
+    """optional args: (filepath, basepath)"""
+
+    nargs2message = {
+        0: "The resource path is invalid.",
+        1: lambda filepath: f"The resource path {filepath!r} is invalid.",
+        2: lambda filepath, basepath: f"In combination with the basepath {basepath!r}, the resource path {filepath!r} "
+        f"is invalid.",
+    }
+
+
 class NoMuseScoreExecutableSpecifiedError(DimcatError):
     """No optional args."""
 

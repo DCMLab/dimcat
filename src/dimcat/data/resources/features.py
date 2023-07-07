@@ -62,12 +62,9 @@ class Notes(Feature):
         format: NotesFormat = NotesFormat.NAME,
         merge_ties: bool = True,
         weight_grace_notes: float = 0.0,
-        resource_name: Optional[str] = None,
         resource: Optional[fl.Resource | str] = None,
-        column_schema: Optional[fl.Schema | str] = None,
-        basepath: Optional[str] = None,
-        filepath: Optional[str] = None,
         descriptor_filepath: Optional[str] = None,
+        basepath: Optional[str] = None,
         auto_validate: bool = True,
         default_groupby: Optional[str | list[str]] = None,
     ) -> None:
@@ -75,11 +72,10 @@ class Notes(Feature):
         self._weight_grace_notes: float = weight_grace_notes
         super().__init__(
             resource=resource,
-            resource_name=resource_name,
             descriptor_filepath=descriptor_filepath,
+            basepath=basepath,
             auto_validate=auto_validate,
             default_groupby=default_groupby,
-            basepath=basepath,
         )
 
     @property

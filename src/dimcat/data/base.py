@@ -7,6 +7,7 @@ from typing import Optional
 
 import marshmallow as mm
 from dimcat.base import DimcatConfig, DimcatObject, get_pickle_schema, get_setting
+from dimcat.exceptions import InvalidBasePathError
 
 logger = logging.getLogger(__name__)
 
@@ -49,12 +50,17 @@ class Data(DimcatObject):
     """
 
     @staticmethod
-    def treat_new_basepath(basepath: str, other_logger=None) -> AbsolutePathStr:
+    def treat_new_basepath(
+        basepath: str, filepath=None, other_logger=None
+    ) -> AbsolutePathStr:
         basepath_arg = resolve_path(basepath)
         if not os.path.isdir(basepath_arg):
             raise NotADirectoryError(
                 f"basepath {basepath_arg!r} is not an existing directory."
             )
+        if filepath and not os.path.isfile(os.path.join(basepath_arg, filepath)):
+            # this would result in a normpath that does not exist
+            raise InvalidBasePathError(basepath_arg, filepath)
         if other_logger is None:
             other_logger = logger
         other_logger.debug(f"The basepath been set to {basepath_arg!r}")
@@ -90,7 +96,7 @@ class Data(DimcatObject):
 
     @basepath.setter
     def basepath(self, basepath: str):
-        self._basepath = self.treat_new_basepath(basepath, self.logger)
+        self._basepath = self.treat_new_basepath(basepath, other_logger=self.logger)
 
     def get_basepath(self) -> str:
         """Get the basepath of the resource. If not specified, the default basepath is returned."""

@@ -96,6 +96,19 @@ class DimcatSchema(mm.Schema):
 # region DimcatObject
 
 
+def check_if_default_descriptor_path(filepath: str) -> bool:
+    default_descriptor_endings = [
+        "resource.json",
+        "resource.yaml",
+        "package.json",
+        "package.yaml",
+    ]
+    for ending in default_descriptor_endings:
+        if filepath.endswith(ending):
+            return True
+    return False
+
+
 class DimcatObject(ABC):
     """All DiMCAT classes derive from DimcatObject, except for the nested Schema(DimcatSchema) class
     that they define or inherit."""
@@ -247,7 +260,7 @@ class DimcatObject(ABC):
         return self.schema.dumps(self)
 
     def to_json_file(self, filepath: str, indent: int = 2, **kwargs):
-        """Serialize object to file.
+        """Serialize object to JSON file.
 
         Args:
             filepath: Path to the text file to (over)write.
@@ -256,10 +269,20 @@ class DimcatObject(ABC):
         """
         as_dict = self.to_dict()
         as_dict.update(**kwargs)
-        # ToDo: the filepath should NOT end on resource.json or package.json; introduce a new
-        #       boolean setting that, by default, prevents such filenames
+        if check_if_default_descriptor_path(filepath):
+            frictionless = (
+                ""
+                if not hasattr(self, "store_descriptor")
+                else f" Use {self.name}.store_descriptor() "
+                f"to store a frictionless descriptor."
+            )
+            raise ValueError(
+                f"The JSON path {filepath!r} corresponds to the name of frictionless descriptor and "
+                f"mustn't be used for a 'normal' DiMCAT serialization.{frictionless}"
+            )
         with open(filepath, "w", encoding="utf-8") as f:
             json.dump(as_dict, f, indent=indent, **kwargs)
+        self.logger.info(f"{self.name} has been serialized to {filepath!r}")
 
 
 class DimcatObjectField(fields.Field):

@@ -13,7 +13,7 @@ from _pytest.terminal import TerminalReporter
 from dimcat.data.dataset import Dataset
 from dimcat.data.dataset.base import DimcatPackage
 from dimcat.data.resources.base import DimcatResource
-from dimcat.data.resources.utils import load_fl_resource
+from dimcat.data.resources.utils import load_fl_resource, make_rel_path
 from dimcat.utils import scan_directory
 from git import Repo
 
@@ -86,7 +86,7 @@ def datapackage_json_path() -> str:
 @pytest.fixture(scope="session")
 def resource_descriptor_filepath(resource_path) -> str:
     """Returns the path to the descriptor file."""
-    return os.path.relpath(resource_path, CORPUS_PATH)
+    return make_rel_path(resource_path, CORPUS_PATH)
 
 
 @pytest.fixture(scope="session", params=RESOURCE_PATHS.values(), ids=RESOURCE_PATHS)
@@ -216,7 +216,7 @@ def serialized_resource(resource_from_dataframe) -> DimcatResource:
 
 
 @pytest.fixture()
-def zipped_resource_from_dc_package(
+def zipped_resource_copied_from_dc_package(
     package_from_fl_package, package_descriptor_filepath
 ) -> DimcatResource:
     dc_resource = package_from_fl_package.get_resource("notes")
@@ -267,7 +267,7 @@ def resource_object(
     resource_from_memory_resource,
     schema_resource,
     serialized_resource,
-    zipped_resource_from_dc_package,
+    zipped_resource_copied_from_dc_package,
     zipped_resource_from_fl_package,
 ):
     yield request.getfixturevalue(request.param)
@@ -285,7 +285,7 @@ def fl_package(score_path) -> fl.Package:
 @pytest.fixture()
 def package_from_fl_package(fl_package) -> DimcatPackage:
     """Returns a DimcatPackage object."""
-    return DimcatPackage(fl_package)
+    return DimcatPackage.from_descriptor(fl_package)
 
 
 @pytest.fixture()

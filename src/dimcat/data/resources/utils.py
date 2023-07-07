@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import warnings
 from collections import Counter
 from operator import itemgetter
 from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Set, Tuple
@@ -11,6 +12,7 @@ from zipfile import ZipFile
 import frictionless as fl
 import ms3
 import pandas as pd
+import yaml
 from dimcat.base import get_setting
 
 logger = logging.getLogger(__name__)
@@ -585,3 +587,29 @@ def store_json(
         os.makedirs(directory, exist_ok=True)
     with open(filepath, "w", encoding="utf-8") as f:
         json.dump(data, f, **kwargs)
+
+
+def check_descriptor_filepath_argument(descriptor_filepath):
+    if os.path.isabs(descriptor_filepath):
+        raise ValueError(
+            f"descriptor_filepath needs to be a relative to the basepath, got {descriptor_filepath!r}"
+        )
+    _, ext = os.path.splitext(descriptor_filepath)
+    if ext not in (".json", ".yaml"):
+        warnings.warning(
+            f"You've set a descriptor_filepath with extension {ext!r} but "
+            f"frictionless allows only '.json' and '.yaml'."
+        )
+
+
+def store_as_json_or_yaml(descriptor_dict: dict, descriptor_path: str):
+    if descriptor_path.endswith(".resource.yaml"):
+        with open(descriptor_path, "w") as f:
+            yaml.dump(descriptor_dict, f)
+    elif descriptor_path.endswith(".resource.json"):
+        with open(descriptor_path, "w") as f:
+            json.dump(descriptor_dict, f, indent=2)
+    else:
+        raise ValueError(
+            f"Descriptor path must end with .resource.yaml or .resource.json: {descriptor_path}"
+        )
