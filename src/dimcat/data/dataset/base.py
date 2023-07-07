@@ -17,8 +17,8 @@ from __future__ import annotations
 import json
 import logging
 import os
-import warnings
 from enum import IntEnum, auto
+from pathlib import Path
 from pprint import pformat
 from typing import (
     TYPE_CHECKING,
@@ -47,6 +47,7 @@ from dimcat.data.resources.base import (
     Resource,
     ResourceStatus,
     SomeDataframe,
+    reconcile_base_and_file,
 )
 from dimcat.data.resources.features import (
     Feature,
@@ -55,7 +56,10 @@ from dimcat.data.resources.features import (
     feature_specs2config,
     features_argument2config_list,
 )
-from dimcat.data.resources.utils import make_rel_path
+from dimcat.data.resources.utils import (
+    check_descriptor_filepath_argument,
+    make_rel_path,
+)
 from dimcat.exceptions import (
     DuplicatePackageNameError,
     EmptyCatalogError,
@@ -107,32 +111,54 @@ class PackageStatus(IntEnum):
 
 
 class PackageSchema(Data.Schema):
-    package = mm.fields.Method(serialize="get_package_descriptor", deserialize="raw")
+    resources = mm.fields.List(
+        mm.fields.Nested(DimcatResource.PickleSchema),
+        metadata=dict(description="The resources contained in the package."),
+    )
+    package_name = mm.fields.Str(
+        required=True,
+        metadata=dict(description="The name of the package."),
+    )
     basepath = mm.fields.Str(
         required=False,
         allow_none=True,
-        metadata=dict(description="The basepath for all resources in the package."),
+        metadata=dict(
+            description="The basepath where the package is or would be stored."
+        ),
     )
     descriptor_filepath = mm.fields.String(allow_none=True, metadata={"expose": False})
     auto_validate = mm.fields.Boolean(metadata={"expose": False})
 
-    def get_package_descriptor(self, obj: DimcatPackage):
-        return obj.make_descriptor()
+    # def get_package_descriptor(self, obj: DimcatPackage):
+    #     return obj.make_descriptor()
+    #
+    # def raw(self, data):
+    #     return data
+    #
+    # @mm.post_load
+    # def init_object(self, data, **kwargs):
+    #     print(f"DATA BEFORE: {data}")
+    #     if isinstance(data["package"], str) and "basepath" in data:
+    #         descriptor_path = os.path.join(data["basepath"], data["package"])
+    #         data["package"] = descriptor_path
+    #     elif isinstance(data["package"], dict):
+    #         resources = data["package"].pop("resources", [])
+    #         deserialized_resources = []
+    #         for resource in resources:
+    #             deserialized = deserialize_dict(resource)
+    #             deserialized_resources.append(deserialized)
+    #         dtype = data.pop("dtype")
+    #         package_constructor = get_class(dtype)
+    #         deserialized_package = package_constructor.from_resources(
+    #             resources = deserialized_resources,
+    #             **data["package"]
+    #         )
+    #         data["package"] = deserialized_package
+    #     print(f"DATA AFTER: {data}")
+    #     return super().init_object(data, **kwargs)
 
-    def raw(self, data):
-        return data
 
-    @mm.post_load
-    def init_object(self, data, **kwargs):
-        if isinstance(data["package"], str) and "basepath" in data:
-            descriptor_path = os.path.join(data["basepath"], data["package"])
-            data["package"] = descriptor_path
-        elif isinstance(data["package"], dict):
-            data["package"] = fl.Package(data["package"])
-        return super().init_object(data, **kwargs)
-
-
-class DimcatPackage(Data):
+class Package(Data):
     """Wrapper for a :obj:`frictionless.Package`. The purpose of a Package is to create, load, and
     store a collection of :obj:`Resource` objects. The default way of storing a
     :obj:`DimcatResource` package is a ``[name.]datapackage.json`` descriptor and a .zip file
@@ -165,12 +191,14 @@ class DimcatPackage(Data):
             The new Resource.
         """
         if filepath.endswith("resource.json") or filepath.endswith("resource.yaml"):
-            new_resource = Resource.from_descriptor(filepath, basepath=basepath)
+            new_resource = Resource.from_descriptor_path(
+                descriptor_path=filepath, basepath=basepath
+            )
             if resource_name:
                 new_resource.resource_name = resource_name
         else:
-            new_resource = Resource(
-                resource=filepath,
+            new_resource = Resource.from_resource_path(
+                resource_path=filepath,
                 resource_name=resource_name,
                 basepath=basepath,
             )
@@ -179,9 +207,80 @@ class DimcatPackage(Data):
         return new_resource
 
     @classmethod
+    def from_descriptor(
+        cls,
+        descriptor: dict,
+        descriptor_filepath: Optional[str] = None,
+        auto_validate: Optional[bool] = None,
+        basepath: Optional[str] = None,
+    ) -> Self:
+        """Create a new DimcatPackage from a frictionless descriptor dictionary.
+
+        Args:
+            descriptor: Dictionary corresponding to a frictionless descriptor.
+            basepath: The basepath for all resources in the package.
+            auto_validate: Whether to automatically validate the package.
+
+        Returns:
+            The new DimcatPackage.
+        """
+        if isinstance(descriptor, fl.Package):
+            fl_package = descriptor
+        else:
+            fl_package = fl.Package.from_descriptor(descriptor)
+        package_name = fl_package.name
+        resources = [
+            DimcatResource.from_descriptor(
+                descriptor=resource.to_dict(),
+                basepath=basepath,
+                descriptor_filepath=descriptor_filepath,
+                auto_validate=auto_validate,
+            )
+            for resource in fl_package.resources
+        ]
+        return cls(
+            package_name=package_name,
+            resources=resources,
+            descriptor_filepath=descriptor_filepath,
+            basepath=basepath,
+            auto_validate=auto_validate,
+        )
+
+    @classmethod
+    def from_descriptor_path(
+        cls,
+        descriptor_path: str,
+        basepath: Optional[str] = None,
+        auto_validate: bool = False,
+    ) -> Self:
+        """Create a new DimcatPackage from a descriptor path.
+
+        Args:
+            descriptor_path: The path to the descriptor file.
+            basepath: The basepath for all resources in the package.
+            auto_validate: Whether to automatically validate the package.
+
+        Returns:
+            The new DimcatPackage.
+        """
+        if basepath is None:
+            basepath, descriptor_filepath = os.path.split(descriptor_path)
+        else:
+            basepath, descriptor_filepath = reconcile_base_and_file(
+                basepath, descriptor_path
+            )
+        fl_package = fl.Package.from_descriptor(descriptor_path)
+        return cls.from_descriptor(
+            fl_package,
+            descriptor_filepath=descriptor_filepath,
+            auto_validate=auto_validate,
+            basepath=basepath,
+        )
+
+    @classmethod
     def from_filepaths(
         cls,
-        filepaths: Iterable[str],
+        filepaths: Iterable[str] | str,
         package_name: str,
         resource_names: Optional[Iterable[str] | Callable[[str], Optional[str]]] = None,
         corpus_names: Optional[
@@ -214,6 +313,10 @@ class DimcatPackage(Data):
             auto_validate: Set True to validate the new package after copying it.
             basepath: The basepath where the new package will be stored. If None, the basepath of the original package
         """
+        if isinstance(filepaths, str):
+            filepaths = [filepaths]
+        else:
+            filepaths = list(filepaths)
         resource_creation_kwargs = [dict(filepath=fp) for fp in filepaths]
         if resource_names:
             if callable(resource_names):
@@ -294,6 +397,8 @@ class DimcatPackage(Data):
                 original package
         """
         directory = resolve_path(directory)
+        if isinstance(extensions, str):
+            extensions = (extensions,)
         paths = list(scan_directory(directory, extensions=extensions, file_re=file_re))
         cls.logger.info(f"Found {len(paths)} files in {directory}.")
         if not package_name:
@@ -398,78 +503,44 @@ class DimcatPackage(Data):
 
     def __init__(
         self,
-        package: Optional[fl.Package | str] = None,
-        package_name: Optional[str] = None,
+        package_name: str,
+        resources: Iterable[Resource] = None,
+        basepath: Optional[str] = None,
         descriptor_filepath: Optional[str] = None,
         auto_validate: bool = False,
-        basepath: Optional[str] = None,
     ) -> None:
         """
 
         Args:
-            package:
-                Can be another DimcatPackage, a frictionless.Package (descriptor), or path to a package descriptor.
-                If not specified, a new package is created and ``package_name`` needs to be specified.
             package_name:
-                Name of the package that can be used to retrieve it. Can be None only if ``package`` is not None.
+                Name of the package that can be used to retrieve it.
+            resources:
+                An iterable of :class:`Resource` objects to add to the package.
             descriptor_filepath:
                 Pass a JSON or YAML filename or relative filepath to override the default (``<package_name>.json``).
                 Following frictionless specs it should end on ".datapackage.[json|yaml]".
             basepath:
                 The absolute path on the local file system where the package descriptor and all contained resources
-                 are stored. If not specified, it will default to
-
-                 * the directory where the package descriptor is located if ``package`` is a path to a package
-                 * the current working directory otherwise
-
+                are stored. The filepaths of all included :class:`DimcatResource` objects need to be relative to the
+                basepath and DiMCAT does its best to ensure this.
             auto_validate:
                 By default, the package is validated everytime a resource is added. Set to False to disable this.
         """
-        if all(arg is None for arg in (package_name, package)):
-            raise ValueError(
-                "At least one of package_name and package needs to be specified."
-            )
+        if not package_name:
+            raise ValueError("package_name cannot be empty")
         self._package = fl.Package(resources=[])
         self._status = PackageStatus.EMPTY
         self._resources: List[Resource] = []
         self._descriptor_filepath: Optional[str] = None
         self.auto_validate = True if auto_validate else False  # catches None
         super().__init__(basepath=basepath)
-
-        if package_name is not None:
-            self.package_name = package_name
+        self.package_name = package_name
         if descriptor_filepath is not None:
-            if os.path.isabs(descriptor_filepath):
-                raise ValueError(
-                    "descriptor_filepath needs to be a relative to the basepath."
-                )
-            _, ext = os.path.splitext(descriptor_filepath)
-            if ext not in (".json", ".yaml"):
-                warnings.warning(
-                    f"You've set a descriptor_filepath with extension {ext!r} but "
-                    f"frictionless allows only '.json' and '.yaml'."
-                )
-            self._descriptor_filepath = descriptor_filepath
-        if package is not None:
-            self.package = package
+            self.descriptor_filepath = descriptor_filepath
 
-        if self.package_name is None:
-            raise ValueError(
-                "package_name needs to specified, otherwise the DimcatPackage cannot be retrieved"
-            )
-        if self.basepath is None:
-            if self.status > PackageStatus.PATHS_ONLY:
-                print(self.status)
-                raise ValueError(
-                    "basepath needs to specified in order to serialize the package and its resources."
-                )
-            elif self.status == PackageStatus.EMPTY:
-                self.logger.info(
-                    "Basepath of empty DimcatPackage will be set based on the first resource added."
-                )
-            else:
-                # status is PATHS_ONLY
-                pass
+        if resources is not None:
+            self.extend(resources)
+
         if auto_validate:
             self.validate(raise_exception=True)
 
@@ -487,7 +558,7 @@ class DimcatPackage(Data):
 
     def __repr__(self):
         result = self.to_dict()
-        result = dict(package_name=self.package_name, **result)
+        # result = dict(package_name=self.package_name, **result)
         return pformat(result, sort_dicts=False)
 
     def __str__(self):
@@ -537,7 +608,8 @@ class DimcatPackage(Data):
     @descriptor_filepath.setter
     def descriptor_filepath(self, descriptor_filepath: str) -> None:
         """The path to the descriptor file on disk, relative to the basepath."""
-        self._set_descriptor_filepath(descriptor_filepath)
+        check_descriptor_filepath_argument(descriptor_filepath)
+        self._descriptor_filepath = descriptor_filepath
 
     @property
     def n_resources(self) -> int:
@@ -631,29 +703,38 @@ class DimcatPackage(Data):
                 auto_validate=auto_validate,
                 basepath=basepath,
             )
-        elif isinstance(resource, DimcatResource):
+            self.add_resource(new_resource)
+            return
+        if isinstance(resource, Resource):
             new_resource = DimcatResource.from_resource(
                 resource=resource,
                 resource_name=resource_name,
-                auto_validate=auto_validate,
                 basepath=basepath,
+                auto_validate=auto_validate,
             )
-        elif resource is None or isinstance(resource, (fl.Resource, str)):
+            self.add_resource(new_resource)
+            return
+        if isinstance(resource, str):
+            new_resource = DimcatResource.from_descriptor_path(
+                descriptor_path=resource,
+                basepath=basepath,
+                auto_validate=auto_validate,
+            )
+            self.add_resource(new_resource)
+            return
+        if resource is None or isinstance(resource, fl.Resource):
             new_resource = DimcatResource(
                 resource=resource,
-                resource_name=resource_name,
-                auto_validate=auto_validate,
                 basepath=basepath,
+                auto_validate=auto_validate,
             )
-        else:
-            raise TypeError(
-                f"resource is expected to be a resource or a path to a descriptor, not {type(resource)!r}"
-            )
-        if new_resource.resource_name in self.resource_names:
-            raise ValueError(
-                f"A DimcatResource {new_resource.resource_name!r} already exists in package {self.package_name!r}."
-            )
-        return self.add_resource(new_resource)
+            if resource_name is not None:
+                new_resource.resource_name = resource_name
+            self.add_resource(new_resource)
+            return
+        raise TypeError(
+            f"resource is expected to be a resource or a path to a descriptor, not {type(resource)!r}"
+        )
 
     def add_resource(
         self,
@@ -728,7 +809,7 @@ class DimcatPackage(Data):
             self.logger.debug("Nothing to add.")
             return
         for n_added, resource in enumerate(resources, 1):
-            self.add_resource(resource.copy())
+            self.add_resource(resource)
         self.logger.info(
             f"Package {self.package_name!r} was extended with {n_added} resources to a total "
             f"of {self.n_resources}."
@@ -1014,7 +1095,13 @@ class DimcatPackage(Data):
     def make_descriptor(self) -> dict:
         descriptor = dict(name=self.package_name, resources=[])
         for resource in self.resources:
-            descriptor["resources"].append(resource.make_descriptor())
+            descriptor["resources"].append(resource.to_dict())
+        return descriptor
+
+    def make_fl_descriptor(self) -> dict:
+        descriptor = dict(name=self.package_name, resources=[])
+        for resource in self.resources:
+            descriptor["resources"].append(resource.get_frictionless_descriptor())
         return descriptor
 
     def _set_descriptor_filepath(self, descriptor_filepath):
@@ -1082,6 +1169,8 @@ class DimcatPackage(Data):
             "After storing the descriptor, the field _descriptor_filepath "
             "should be set."
         )
+        if self.auto_validate:
+            _ = self.validate(raise_exception=True)
         return descriptor_path
 
     def validate(self, raise_exception: bool = False) -> fl.Report:
@@ -1100,6 +1189,41 @@ class DimcatPackage(Data):
             errors = [err.message for task in report.tasks for err in task.errors]
             raise fl.FrictionlessException("\n".join(errors))
         return report
+
+
+class DimcatPackage(Package):
+    def __init__(
+        self,
+        package_name: str,
+        resources: Iterable[Resource] = None,
+        basepath: Optional[str] = None,
+        descriptor_filepath: Optional[str] = None,
+        auto_validate: bool = False,
+    ) -> None:
+        """
+
+        Args:
+            package_name:
+                Name of the package that can be used to retrieve it.
+            resources:
+                An iterable of :class:`Resource` objects to add to the package.
+            descriptor_filepath:
+                Pass a JSON or YAML filename or relative filepath to override the default (``<package_name>.json``).
+                Following frictionless specs it should end on ".datapackage.[json|yaml]".
+            basepath:
+                The absolute path on the local file system where the package descriptor and all contained resources
+                are stored. The filepaths of all included :class:`DimcatResource` objects need to be relative to the
+                basepath and DiMCAT does its best to ensure this.
+            auto_validate:
+                By default, the package is validated everytime a resource is added. Set to False to disable this.
+        """
+        super().__init__(
+            package_name=package_name,
+            resources=resources,
+            basepath=basepath,
+            descriptor_filepath=descriptor_filepath,
+            auto_validate=auto_validate,
+        )
 
 
 PackageSpecs: TypeAlias = Union[DimcatPackage, fl.Package, str]
@@ -1201,7 +1325,7 @@ class DimcatCatalog(Data):
     ):
         """Adds a :obj:`DimcatPackage` to the catalog."""
         if isinstance(package, (str, fl.Package)):
-            dc_package = DimcatPackage(package=package)
+            dc_package = DimcatPackage(None, resources=package)
         elif isinstance(package, DimcatPackage):
             dc_package = package.copy()
         else:
@@ -1299,8 +1423,8 @@ class DimcatCatalog(Data):
         if package is None or isinstance(package, (fl.Package, str)):
             package = DimcatPackage(
                 package_name=package_name,
-                auto_validate=auto_validate,
                 basepath=basepath,
+                auto_validate=auto_validate,
             )
         elif not isinstance(package, DimcatPackage):
             msg = f"{self.name} takes a Package, not {type(package)!r}."
@@ -1656,7 +1780,14 @@ class Dataset(Data):
         Returns:
 
         """
-        package = DimcatPackage(package=package, **options)
+        if isinstance(package, (str, Path)):
+            package = DimcatPackage.from_descriptor(package, **options)
+        elif isinstance(package, Package):
+            pass
+        else:
+            raise TypeError(
+                f"Package must be a path to a descriptor or a Package instance, not {type(package)}."
+            )
         if package_name is None:
             package_name = package.name
             assert (
