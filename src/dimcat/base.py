@@ -96,19 +96,6 @@ class DimcatSchema(mm.Schema):
 # region DimcatObject
 
 
-def check_if_default_descriptor_path(filepath: str) -> bool:
-    default_descriptor_endings = [
-        "resource.json",
-        "resource.yaml",
-        "package.json",
-        "package.yaml",
-    ]
-    for ending in default_descriptor_endings:
-        if filepath.endswith(ending):
-            return True
-    return False
-
-
 class DimcatObject(ABC):
     """All DiMCAT classes derive from DimcatObject, except for the nested Schema(DimcatSchema) class
     that they define or inherit."""
@@ -134,7 +121,7 @@ class DimcatObject(ABC):
     @classmethod
     @property
     def name(cls) -> str:
-        return cls.__name__
+        return str(cls.__name__)
 
     @classmethod
     @property
@@ -269,7 +256,7 @@ class DimcatObject(ABC):
         """
         as_dict = self.to_dict()
         as_dict.update(**kwargs)
-        if check_if_default_descriptor_path(filepath):
+        if is_default_descriptor_path(filepath):
             frictionless = (
                 ""
                 if not hasattr(self, "store_descriptor")
@@ -659,22 +646,71 @@ def deserialize_json_file(json_file) -> DimcatObject:
 
 @dataclass
 class DimcatSettings(DimcatObject):
-    """Settings for the dimcat library."""
+    """This is a dataclass that stores the default settings for the dimcat library.
+    The current settings can be loaded anywhere in the code by calling :func:`get_setting`.
+    Defining a new setting means adding it in three places:
+
+    1. as a class attribute with type annotation (=dataclass field)  and default (factory)
+    2. as a marshmallow field in the Schema with the same name and corresponding type, which
+       gives access to marshmallow's full serialization and validation functionality. By default,
+       we add ``required=True`` to all settings.
+    3. to the file ``settings.ini``, using Python's config file syntax
+    """
 
     default_basepath: str = "~/dimcat_data"
-    default_resource_name = "unnamed"
+    """where to serialize data if no other basepath is specified"""
+    default_resource_name: str = "unnamed"
     never_store_unvalidated_data: bool = True
     """setting this to False allows for skipping mandatory validations; set to True for production"""
     recognized_piece_columns: List[str] = dataclass_field(
         default_factory=lambda: ["piece", "pieces", "fname", "fnames"]
     )
     """column names that are recognized as piece identifiers and automatically renamed to 'piece' when needed"""
+    package_descriptor_endings: List[str] = dataclass_field(
+        default_factory=lambda: ["package.json", "package.yaml"]
+    )
+    resource_descriptor_endings: List[str] = dataclass_field(
+        default_factory=lambda: ["resource.json", "resource.yaml"]
+    )
+    """file endings that are recognized as frictionless resource descriptors"""
 
     class Schema(DimcatObject.Schema):
-        default_basepath = mm.fields.String(required=True)
+        default_basepath = mm.fields.String(
+            required=True,
+            metadata={
+                "description": "where to serialize data if no other basepath is specified"
+            },
+        )
         default_resource_name = mm.fields.String(required=True)
-        never_store_unvalidated_data = mm.fields.Boolean(required=True)
-        recognized_piece_columns = mm.fields.List(mm.fields.String(), required=True)
+        never_store_unvalidated_data = mm.fields.Boolean(
+            required=True,
+            metadata={
+                "description": "setting this to False allows for "
+                "skipping mandatory validations; set to True for production"
+            },
+        )
+        recognized_piece_columns = mm.fields.List(
+            mm.fields.String(),
+            required=True,
+            metadata={
+                "description": "column names that are recognized as piece "
+                "identifiers and automatically renamed to 'piece' when needed"
+            },
+        )
+        package_descriptor_endings = mm.fields.List(
+            mm.fields.String(),
+            required=True,
+            metadata={
+                "description": "file endings that are recognized as frictionless package descriptors"
+            },
+        )
+        resource_descriptor_endings = mm.fields.List(
+            mm.fields.String(),
+            required=True,
+            metadata={
+                "description": "file endings that are recognized as frictionless resource descriptors"
+            },
+        )
 
 
 def parse_config_file(config_filepath: str) -> ConfigParser:
@@ -724,11 +760,16 @@ def make_settings_from_config_parser(config: ConfigParser) -> DimcatConfig:
     return settings
 
 
-def make_settings_from_config_file(config_filepath: str) -> DimcatConfig:
+def make_settings_from_config_file(
+    config_filepath: str,
+    fallback_to_default: bool = True,
+) -> DimcatConfig:
     """Make a DimcatSettings object from a config file."""
     try:
         config = parse_config_file(config_filepath)
     except FileNotFoundError:
+        if not fallback_to_default:
+            raise
         logger.error(
             f"Config file '{config_filepath}' not found. Falling back to default settings."
         )
@@ -736,28 +777,43 @@ def make_settings_from_config_file(config_filepath: str) -> DimcatConfig:
     try:
         return make_settings_from_config_parser(config)
     except Exception as e:
+        if not fallback_to_default:
+            raise
         logger.error(
             f"Error while parsing config file '{config_filepath}': {e}. Falling back to default settings."
         )
         return make_default_settings()
 
 
-def load_settings(config_filepath: Optional[str] = None) -> DimcatConfig:
+def load_settings(
+    config_filepath: Optional[str] = None,
+    raise_exception: bool = False,
+) -> DimcatConfig:
     """Get the DimcatSettings object."""
+    fallback_to_default = not raise_exception
     if config_filepath is None:
         dir_path = os.path.dirname(os.path.realpath(__file__))
         config_filepath = os.path.join(dir_path, "settings.ini")
         if os.path.isfile(config_filepath):
-            settings = make_settings_from_config_file(config_filepath)
+            settings = make_settings_from_config_file(
+                config_filepath, fallback_to_default=fallback_to_default
+            )
             logger.info(f"Loaded default config file at '{config_filepath}'.")
             return settings
-        else:
+        elif fallback_to_default:
             logger.warning(
                 f"No config file path was provided and the default config file was not found: "
                 f"{config_filepath}. Falling back to default."
             )
             return make_default_settings()
-    settings = make_settings_from_config_file(config_filepath)
+        else:
+            raise FileNotFoundError(
+                f"No config file path was provided and the default config file was not found: "
+                f"{config_filepath}. Falling back to default."
+            )
+    settings = make_settings_from_config_file(
+        config_filepath, fallback_to_default=fallback_to_default
+    )
     logger.info(f"Loaded config file at '{config_filepath}'.")
     return settings
 
@@ -781,3 +837,17 @@ def reset_settings(config_filepath: Optional[str] = None) -> None:
 
 
 # endregion DimcatSettings
+# region helper function
+
+
+def is_default_descriptor_path(filepath: str) -> bool:
+    rde = get_setting("resource_descriptor_endings")
+    pde = get_setting("package_descriptor_endings")
+    default_descriptor_endings = rde + pde
+    for ending in default_descriptor_endings:
+        if filepath.endswith(ending):
+            return True
+    return False
+
+
+# endregion helper function

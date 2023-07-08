@@ -5,7 +5,6 @@ import logging
 import os
 import warnings
 from collections import Counter
-from enum import IntEnum, auto
 from operator import itemgetter
 from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Set, Tuple
 from zipfile import ZipFile
@@ -601,60 +600,45 @@ def check_descriptor_filepath_argument(descriptor_filepath):
     if ext not in (".json", ".yaml"):
         warnings.warning(
             f"You've set a descriptor_filepath with extension {ext!r} but "
-            f"frictionless allows only '.json' and '.yaml'."
+            f"frictionless allows only '.json' and '.yaml'.",
+            RuntimeWarning,
         )
 
 
 def store_as_json_or_yaml(descriptor_dict: dict, descriptor_path: str):
-    if descriptor_path.endswith(".resource.yaml"):
+    if descriptor_path.endswith(".yaml"):
         with open(descriptor_path, "w") as f:
             yaml.dump(descriptor_dict, f)
-    elif descriptor_path.endswith(".resource.json"):
+    elif descriptor_path.endswith(".json"):
         with open(descriptor_path, "w") as f:
             json.dump(descriptor_dict, f, indent=2)
     else:
         raise ValueError(
-            f"Descriptor path must end with .resource.yaml or .resource.json: {descriptor_path}"
+            f"Descriptor path must end with .yaml or .json: {descriptor_path}"
         )
 
 
-class ResourceStatus(IntEnum):
-    """Expresses the status of a DimcatResource with respect to it being described, valid, and serialized to disk,
-    with or without its descriptor file.
+def is_default_package_descriptor_path(filepath: str) -> bool:
+    endings = get_setting("package_descriptor_endings")
+    if len(endings) == 0:
+        warnings.warn(
+            "No default file endings for package descriptors are defined in the current settings.",
+            RuntimeWarning,
+        )
+    for ending in endings:
+        if filepath.endswith(ending):
+            return True
+    return False
 
-    +-----------------------+---------------+-------------------+-----------+
-    | ResourceStatus        | is_serialized | descriptor_exists | is_loaded |
-    +=======================+===============+===================+===========+
-    | EMPTY                 | False         | ?                 | False     |
-    +-----------------------+---------------+-------------------+-----------+
-    | SCHEMA                | False         | ?                 | False     |
-    +-----------------------+---------------+-------------------+-----------+
-    | DATAFRAME             | False         | False             | True      |
-    +-----------------------+---------------+-------------------+-----------+
-    | VALIDATED             | False         | False             | True      |
-    +-----------------------+---------------+-------------------+-----------+
-    | SERIALIZED            | True          | False             | True      |
-    +-----------------------+---------------+-------------------+-----------+
-    | STANDALONE_LOADED     | True          | True              | True      |
-    +-----------------------+---------------+-------------------+-----------+
-    | PACKAGED_LOADED       | True          | True              | True      |
-    +-----------------------+---------------+-------------------+-----------+
-    | STANDALONE_NOT_LOADED | True          | True              | False     |
-    +-----------------------+---------------+-------------------+-----------+
-    | PACKAGED_NOT_LOADED   | True          | True              | False     |
-    +-----------------------+---------------+-------------------+-----------+
-    """
 
-    EMPTY = 0
-    SCHEMA = auto()  # column_schema available but no dataframe has been loaded
-    DATAFRAME = (
-        auto()
-    )  # dataframe available in memory but not yet validated against the column_schema
-    VALIDATED = auto()  # validated dataframe available in memory
-    SERIALIZED = (
-        auto()
-    )  # dataframe serialized to disk but not its descriptor (shouldn't happen) -> can be changed or overwritten
-    STANDALONE_LOADED = auto()
-    PACKAGED_LOADED = auto()
-    STANDALONE_NOT_LOADED = auto()
-    PACKAGED_NOT_LOADED = auto()
+def is_default_resource_descriptor_path(filepath: str) -> bool:
+    endings = get_setting("resource_descriptor_endings")
+    if len(endings) == 0:
+        warnings.warn(
+            "No default file endings for resource descriptors are defined in the current settings.",
+            RuntimeWarning,
+        )
+    for ending in endings:
+        if filepath.endswith(ending):
+            return True
+    return False

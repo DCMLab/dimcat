@@ -3,9 +3,9 @@ import os
 
 import pytest
 from dimcat.base import deserialize_dict, deserialize_json_file, get_setting
-from dimcat.data.resource.base import Resource
+from dimcat.data.resource.base import PathResource, Resource, ResourceStatus
 from dimcat.data.resource.dc import DimcatIndex, DimcatResource, PieceIndex
-from dimcat.data.resource.utils import ResourceStatus, make_rel_path
+from dimcat.data.resource.utils import make_rel_path
 from dimcat.exceptions import BasePathNotDefinedError, FilePathNotDefinedError
 from dimcat.utils import make_valid_frictionless_name
 
@@ -49,6 +49,10 @@ class TestBaseResource:
     def expected_resource_name(self):
         return get_setting("default_resource_name")
 
+    @pytest.fixture()
+    def expected_status(self):
+        return ResourceStatus.EMPTY
+
     def test_basepath_after_init(self, resource_obj, expected_basepath):
         assert resource_obj.basepath == expected_basepath
 
@@ -65,6 +69,9 @@ class TestBaseResource:
 
     def test_resource_name_after_init(self, resource_obj, expected_resource_name):
         assert resource_obj.resource_name == expected_resource_name
+
+    def test_status_after_init(self, resource_obj, expected_status):
+        assert resource_obj.status == expected_status
 
     def test_copying(self, resource_obj):
         copy = resource_obj.copy()
@@ -91,12 +98,16 @@ class TestBaseResource:
         resource_obj.validate(raise_exception=True)
 
 
-class TestResourceFromAbsolute(TestBaseResource):
+class TestResourceFromScorePath(TestBaseResource):
     @pytest.fixture(
         params=get_mixed_score_paths(),
         ids=os.path.basename,
     )
     def score_path(self, request):
+        return request.param
+
+    @pytest.fixture(params=[Resource, PathResource])
+    def resource_constructor(self, request):
         return request.param
 
     @pytest.fixture(params=[None, -2], ids=["no_bp", "bp-2"])
@@ -112,9 +123,9 @@ class TestResourceFromAbsolute(TestBaseResource):
         return init_basepath
 
     @pytest.fixture()
-    def resource_obj(self, request, score_path, init_basepath):
+    def resource_obj(self, resource_constructor, score_path, init_basepath):
         # if request.node.callspec.params["init_basepath"] != -1:
-        return Resource.from_resource_path(
+        return resource_constructor.from_resource_path(
             score_path,
             basepath=init_basepath,
         )
@@ -139,6 +150,10 @@ class TestResourceFromAbsolute(TestBaseResource):
     def expected_resource_name(self, expected_filepath):
         resource_name, _ = os.path.splitext(expected_filepath)
         return make_valid_frictionless_name(resource_name)
+
+    @pytest.fixture()
+    def expected_status(self):
+        return ResourceStatus.PATH_ONLY
 
     def test_normpath_after_init(self, resource_obj, expected_normpath):
         assert resource_obj.normpath == expected_normpath
@@ -178,6 +193,10 @@ class TestResourceFromDescriptorPath(TestBaseResource):
         return fl_resource.name
 
     @pytest.fixture()
+    def expected_status(self):
+        return ResourceStatus.PATH_ONLY
+
+    @pytest.fixture()
     def expected_normpath(self, fl_resource):
         return fl_resource.normpath
 
@@ -208,6 +227,10 @@ class TestResourceFromDescriptor(TestResourceFromDescriptorPath):
             return
         return os.path.join(init_basepath, expected_filepath)
 
+    @pytest.fixture()
+    def expected_status(self):
+        return ResourceStatus.PATH_ONLY
+
     def test_normpath_after_init(self, resource_obj, init_basepath, expected_normpath):
         if init_basepath is None:
             with pytest.raises(BasePathNotDefinedError):
@@ -221,7 +244,7 @@ class TestResourceFromDescriptor(TestResourceFromDescriptorPath):
 # region DimcatResource
 
 
-class TestEmptyResource:
+class TestEmptyDimcatResource:
     expected_resource_status: ResourceStatus = ResourceStatus.EMPTY
     """The expected status of the resource after initialization."""
     should_be_frozen: bool = False
@@ -279,7 +302,7 @@ class TestEmptyResource:
         assert copy.status == dc_resource.status
 
 
-class TestDiskResource(TestEmptyResource):
+class TestDiskDimcatResource(TestEmptyDimcatResource):
     expected_resource_status = ResourceStatus.STANDALONE_NOT_LOADED
     should_be_frozen: bool = True
     should_be_serialized = True
@@ -294,13 +317,13 @@ class TestDiskResource(TestEmptyResource):
         return resource_from_descriptor
 
 
-class TestResourceFromFrozen(TestDiskResource):
+class TestResourceFromFrozen(TestDiskDimcatResource):
     @pytest.fixture()
     def dc_resource(self, resource_from_frozen_resource):
         return resource_from_frozen_resource
 
 
-class TestMemoryResource(TestEmptyResource):
+class TestMemoryDimcatResource(TestEmptyDimcatResource):
     """MemoryResources are those instantiated from a dataframe. They have in common that, in this
     test suite, their basepath is a temporary path where they can be serialized."""
 
@@ -321,15 +344,15 @@ class TestMemoryResource(TestEmptyResource):
         pass
 
 
-class TestSchemaResource(TestEmptyResource):
-    expected_resource_status = ResourceStatus.SCHEMA
+class TestSchemaDimcatResource(TestEmptyDimcatResource):
+    expected_resource_status = ResourceStatus.SCHEMA_ONLY
 
     @pytest.fixture()
     def dc_resource(self, schema_resource) -> DimcatResource:
         return schema_resource
 
 
-class TestFromDataFrame(TestMemoryResource):
+class TestFromDataFrame(TestMemoryDimcatResource):
     expected_resource_status = ResourceStatus.DATAFRAME
     should_be_loaded = True
 
@@ -344,7 +367,7 @@ class TestResourceFromMemoryResource(TestFromDataFrame):
         return resource_from_memory_resource
 
 
-class TestAssembledResource(TestMemoryResource):
+class TestAssembledResource(TestMemoryDimcatResource):
     expected_resource_status = ResourceStatus.DATAFRAME
     should_be_loaded = True
 
@@ -353,7 +376,7 @@ class TestAssembledResource(TestMemoryResource):
         return assembled_resource
 
 
-class TestSerializedResource(TestMemoryResource):
+class TestSerializedResource(TestMemoryDimcatResource):
     expected_resource_status = ResourceStatus.STANDALONE_LOADED
     should_be_frozen: bool = True
     should_be_serialized = True
@@ -365,7 +388,7 @@ class TestSerializedResource(TestMemoryResource):
         return serialized_resource
 
 
-class TestFromFrictionless(TestDiskResource):
+class TestFromFrictionless(TestDiskDimcatResource):
     expected_resource_status = ResourceStatus.STANDALONE_NOT_LOADED
 
     @pytest.fixture()
@@ -373,7 +396,7 @@ class TestFromFrictionless(TestDiskResource):
         return resource_from_fl_resource
 
 
-class TestFromDict(TestDiskResource):
+class TestFromDict(TestDiskDimcatResource):
     expected_resource_status = ResourceStatus.STANDALONE_NOT_LOADED
 
     @pytest.fixture()
@@ -381,7 +404,7 @@ class TestFromDict(TestDiskResource):
         return resource_from_dict
 
 
-class TestFromConfig(TestDiskResource):
+class TestFromConfig(TestDiskDimcatResource):
     expected_resource_status = ResourceStatus.STANDALONE_NOT_LOADED
 
     @pytest.fixture()
@@ -390,12 +413,12 @@ class TestFromConfig(TestDiskResource):
 
 
 @pytest.fixture(scope="session")
-def package_descriptor_filepath(score_path) -> str:
+def package_descriptor_filepath(package_descriptor_path) -> str:
     """Returns the path to the descriptor file."""
-    return make_rel_path(score_path, CORPUS_PATH)
+    return make_rel_path(package_descriptor_path, CORPUS_PATH)
 
 
-class TestFromFlPackage(TestDiskResource):
+class TestFromFlPackage(TestDiskDimcatResource):
     expected_resource_status = ResourceStatus.PACKAGED_NOT_LOADED
     should_have_descriptor = True
 
@@ -404,7 +427,7 @@ class TestFromFlPackage(TestDiskResource):
         return zipped_resource_from_fl_package
 
 
-class TestFromDcPackage(TestDiskResource):
+class TestFromDcPackage(TestDiskDimcatResource):
     expected_resource_status = ResourceStatus.PACKAGED_NOT_LOADED
     should_have_descriptor = True
 

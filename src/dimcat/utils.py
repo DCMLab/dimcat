@@ -29,6 +29,12 @@ def make_valid_frictionless_name(name: str, replace_char="_") -> str:
     return name
 
 
+def make_valid_frictionless_name_from_filepath(path: str, replace_char="_") -> str:
+    file = os.path.basename(path)
+    name, _ = os.path.splitext(file)
+    return make_valid_frictionless_name(name, replace_char=replace_char)
+
+
 def nest_level(obj, include_tuples=False):
     """Recursively calculate the depth of a nested list."""
     if obj.__class__ != list:

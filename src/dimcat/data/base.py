@@ -7,7 +7,7 @@ from typing import Optional
 
 import marshmallow as mm
 from dimcat.base import DimcatConfig, DimcatObject, get_pickle_schema, get_setting
-from dimcat.exceptions import InvalidBasePathError
+from dimcat.exceptions import BaseFilePathMismatchError
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +60,7 @@ class Data(DimcatObject):
             )
         if filepath and not os.path.isfile(os.path.join(basepath_arg, filepath)):
             # this would result in a normpath that does not exist
-            raise InvalidBasePathError(basepath_arg, filepath)
+            raise BaseFilePathMismatchError(basepath_arg, filepath)
         if other_logger is None:
             other_logger = logger
         other_logger.debug(f"The basepath been set to {basepath_arg!r}")

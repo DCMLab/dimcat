@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-import zipfile
+import warnings
 from functools import cache
 from pprint import pformat
 from typing import Dict, Generic, Iterable, List, Optional, Sequence
@@ -12,9 +12,15 @@ import ms3
 import pandas as pd
 from dimcat.base import get_setting
 from dimcat.data.base import Data
-from dimcat.data.resource.base import IX, D, Resource, SomeDataframe, SomeIndex
-from dimcat.data.resource.utils import (
+from dimcat.data.resource.base import (
+    IX,
+    D,
+    Resource,
     ResourceStatus,
+    SomeDataframe,
+    SomeIndex,
+)
+from dimcat.data.resource.utils import (
     align_with_grouping,
     ensure_level_named_piece,
     infer_schema_from_df,
@@ -24,8 +30,7 @@ from dimcat.data.resource.utils import (
     make_index_from_grouping_dict,
     make_tsv_resource,
 )
-from dimcat.exceptions import ResourceIsFrozenError
-from dimcat.utils import check_name, resolve_path
+from dimcat.utils import check_name
 from frictionless import FrictionlessException
 from typing_extensions import Self
 
@@ -347,7 +352,6 @@ DimcatResource.__init__(
     default_groupby={default_groupby!r},
 )"""
         )
-        self._status = ResourceStatus.EMPTY
         self._df: D = None
         self.auto_validate = True if auto_validate else False  # catches None
         self._default_groupby: List[str] = []
@@ -359,7 +363,6 @@ DimcatResource.__init__(
         if default_groupby is not None:
             self.default_groupby = default_groupby
 
-        self._update_status()
         if self.auto_validate and self.status == ResourceStatus.DATAFRAME:
             _ = self.validate(raise_exception=True)
 
@@ -404,32 +407,6 @@ DimcatResource.__init__(
         return f"ResourceStatus={self.status.name}\n{return_str}"
 
     @property
-    def basepath(self) -> str:
-        return self._basepath
-
-    @basepath.setter
-    def basepath(self, basepath: str):
-        if not self._basepath:
-            self._basepath = Data.treat_new_basepath(
-                basepath, self.filepath, other_logger=self.logger
-            )
-            self._resource.basepath = self.basepath
-            return
-        basepath_arg = resolve_path(basepath)
-        if self.is_frozen:
-            if basepath_arg == self.basepath:
-                return
-            raise ResourceIsFrozenError(self.name, self.basepath, basepath_arg)
-        assert os.path.isdir(
-            basepath_arg
-        ), f"Basepath {basepath_arg!r} is not an existing directory."
-        self._basepath = basepath_arg
-        self._resource.basepath = basepath_arg
-        self.logger.debug(f"Updated basepath to {self.basepath!r}")
-        if self.auto_validate:
-            _ = self.validate(raise_exception=True)
-
-    @property
     def column_schema(self) -> fl.Schema:
         return self._resource.schema
 
@@ -440,8 +417,8 @@ DimcatResource.__init__(
                 "Cannot set schema on a resource whose valid descriptor has been written to disk."
             )
         self._resource.schema = new_schema
-        if self.status < ResourceStatus.SCHEMA:
-            self._status = ResourceStatus.SCHEMA
+        if self.status < ResourceStatus.SCHEMA_ONLY:
+            self._status = ResourceStatus.SCHEMA_ONLY
         elif self.status >= ResourceStatus.VALIDATED:
             self._status = ResourceStatus.DATAFRAME
         if self.auto_validate:
@@ -516,52 +493,21 @@ DimcatResource.__init__(
 
     @property
     def is_empty(self) -> bool:
+        """Whether this resource holds data available or not (yet)."""
         return self.status < ResourceStatus.DATAFRAME
 
     @property
-    def is_frozen(self) -> bool:
-        """Whether the resource is frozen (i.e. its valid descriptor has been written to disk) or not."""
-        return self.resource_exists or self.descriptor_exists
-
-    @property
     def is_loaded(self) -> bool:
-        return (
-            ResourceStatus.DATAFRAME
-            <= self.status
-            < ResourceStatus.STANDALONE_NOT_LOADED
-        )
-
-    @property
-    def is_serialized(self) -> bool:
-        """Returns True if the resource is serialized (i.e. its dataframe has been written to disk)."""
-        if not self.resource_exists:
-            return False
-        if self.is_zipped_resource:
-            with zipfile.ZipFile(self.normpath) as zip_file:
-                return self.innerpath in zip_file.namelist()
-        return True
+        return self._df is not None
 
     @property
     def is_valid(self) -> bool:
-        report = self.validate(raise_exception=False, only_if_necessary=True)
-        if report is None:
+        """Returns the result of a previous validation or, if the resource has not been validated
+        before, do it now. Importantly, this property assumes serialized resoures to be valid. If
+        you want to actively validate the resource, use :meth:`validate` instead."""
+        if self.is_serialized:
             return True
-        return report.valid
-
-    @property
-    def is_zipped_resource(self) -> bool:
-        """Returns True if the filepath points to a .zip file. This means that the resource is part of a package
-        and serializes to a dict instead of a descriptor file.
-        """
-        if not self.filepath:
-            return False
-        return self.filepath.endswith(".zip")
-
-    @property
-    def status(self) -> ResourceStatus:
-        if self._status == ResourceStatus.EMPTY and self._resource.schema.fields:
-            self._status = ResourceStatus.SCHEMA
-        return self._status
+        return super().is_valid
 
     def align_with_grouping(
         self,
@@ -580,32 +526,56 @@ DimcatResource.__init__(
         return align_with_grouping(self.df, grouping, sort_index=sort_index)
 
     def _get_current_status(self) -> ResourceStatus:
-        if self.is_zipped_resource:
-            if self._df is None:
-                return ResourceStatus.PACKAGED_NOT_LOADED
-            else:
+        if self.is_packaged:
+            if self.is_loaded:
                 return ResourceStatus.PACKAGED_LOADED
-        if self.is_serialized:
-            if self.descriptor_exists:
-                if self._df is None:
-                    return ResourceStatus.STANDALONE_NOT_LOADED
-                else:
-                    return ResourceStatus.STANDALONE_LOADED
             else:
-                if self._df is None:
-                    self.logger.warning(
-                        f"The serialized data exists at {self.normpath} but no descriptor was found at "
-                        f"{self.get_descriptor_path()}. Consider passing the "
-                        f"descriptor_filepath argument upon initialization."
+                return ResourceStatus.PACKAGED_NOT_LOADED
+        match (self.is_serialized, self.descriptor_exists, self.is_loaded):
+            case (True, True, True):
+                return ResourceStatus.STANDALONE_LOADED
+            case (True, True, False):
+                return ResourceStatus.STANDALONE_NOT_LOADED
+            case (True, False, True):
+                return ResourceStatus.SERIALIZED
+            case (True, False, False):
+                warnings.warn(
+                    f"The serialized data exists at {self.normpath!r} but no descriptor was found at "
+                    f"{self.get_descriptor_path()!r}. You can create on using .store_descriptor(), set the "
+                    f"descriptor_filepath pointing to one (should be done upon instantiation), or, if this is supposed "
+                    f"to be a PathResource only, it should not be instantiated as DimcatResource at all.",
+                    RuntimeWarning,
+                )
+                return ResourceStatus.PATH_ONLY
+            case (False, _, True):
+                if self.descriptor_exists:
+                    if not self.filepath:
+                        raise RuntimeError(
+                            f"The resource points to an existing descriptor at {self.get_descriptor_path()!r} but "
+                            f"no filepath has been set. This should not have happened. Please consider filing an issue."
+                        )
+                    warnings.warn(
+                        f"The resource is loaded and the there exists a descriptor at {self.get_descriptor_path()!r}, "
+                        f"but the normpath {self.normpath} does not exist. This could signify a mismatch between the "
+                        f"loaded dataframe and the data described by the descriptor. This could result in data loss if "
+                        f"the dataframe is serialized to disk, overwriting the descriptor that was actually describing "
+                        f"something else.",
+                        RuntimeWarning,
                     )
-                    return ResourceStatus.STANDALONE_NOT_LOADED
-                else:
-                    return ResourceStatus.SERIALIZED
-        elif self._df is not None:
-            return ResourceStatus.DATAFRAME
-        elif self.column_schema.fields:
-            return ResourceStatus.SCHEMA
-        return ResourceStatus.EMPTY
+                if self._is_valid:  # using the property could trigger validation
+                    return ResourceStatus.VALIDATED
+                return ResourceStatus.DATAFRAME
+            case _:
+                if self.descriptor_exists:
+                    warnings.warn(
+                        f"The resource points to an existing descriptor at {self.get_descriptor_path()!r} but it "
+                        f"hasn't been loaded. If it was instantiated via .from_descriptor_path(), "
+                        f"this is likely a bug, please consider filing an issue.",
+                        RuntimeWarning,
+                    )
+                if self.column_schema.fields:
+                    return ResourceStatus.SCHEMA_ONLY
+                return ResourceStatus.EMPTY
 
     @cache
     def get_dataframe(self) -> D:
@@ -685,6 +655,11 @@ DimcatResource.__init__(
         """Create an empty frictionless resource object with a minimal descriptor."""
         return make_tsv_resource()
 
+    def set_basepath(self, basepath: str):
+        super().set_basepath(basepath)
+        if self.auto_validate:
+            _ = self.validate(raise_exception=True)
+
     def subselect(
         self,
         tuples: DimcatIndex | Iterable[tuple],
@@ -760,18 +735,32 @@ DimcatResource.__init__(
             )
         self.default_groupby = new_default_value
 
-    def _update_status(self) -> None:
-        self._status = self._get_current_status()
-
     def validate(
         self,
         raise_exception: bool = False,
         only_if_necessary: bool = False,
     ) -> Optional[fl.Report]:
-        if self.status < ResourceStatus.DATAFRAME:
+        """Validate the resource's data against its descriptor.
+
+        Args:
+            raise_exception: (default False) Pass True to raise if the resource is not valid.
+            only_if_necessary:
+                (default False) Pass True to skip validation if the resource has already been validated or is
+                assumed to be valid because it exists on disk.
+
+        Returns:
+            None if no validation took place (e.g. because resource is empty or ``only_if_necessary`` was True).
+            Otherwise, frictionless report resulting from validating the data against the :attr:`column_schema`.
+
+        Raises:
+            FrictionlessException: If the resource is not valid and ``raise_exception`` is True.
+        """
+        if self.is_empty:
             self.logger.info("Nothing to validate.")
             return
-        if only_if_necessary and self.status >= ResourceStatus.VALIDATED:
+        if only_if_necessary and (
+            self._is_valid is not None or self.status >= ResourceStatus.VALIDATED
+        ):
             self.logger.info("Already validated.")
             return
         if self.is_serialized:

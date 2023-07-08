@@ -48,9 +48,10 @@ class BaseFilePathMismatchError(DimcatError):
 
     nargs2message = {
         0: "The (relative) filepath needs to be located beneath the basepath, not above or next to it.",
-        1: "The (relative) filepath needs to be located beneath the basepath {basepath!r}, not above or next to it.",
-        2: "The (relative) filepath {filepath!r} needs to be located beneath the basepath {basepath!r}, not above or "
-        "next to it.",
+        1: lambda bp: f"The (relative) filepath needs to be located beneath the basepath {bp!r}, not above or "
+        f"next to it.",
+        2: lambda bp, fp: f"The (relative) filepath {fp!r} needs to be located beneath the basepath {bp!r}, not above "
+        f"or next to it.",
     }
 
 
@@ -131,16 +132,6 @@ class FilePathNotDefinedError(DimcatError):
 
     nargs2message = {
         0: "No filepath has been defined.",
-    }
-
-
-class InvalidBasePathError(DimcatError):
-    """optional args: (basepath, filepath)"""
-
-    nargs2message = {
-        0: "The given basepath is invalid.",
-        1: lambda basepath: f"Cannot set basepath {basepath!r}.",
-        2: lambda basepath, filepath: f"Setting basepath {basepath!r} would invalidate the filepath {filepath!r}.",
     }
 
 

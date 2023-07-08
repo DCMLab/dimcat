@@ -1,9 +1,9 @@
 import logging
 
 import pytest
-from dimcat.data.package.base import PackageStatus
+from dimcat.data.package.base import Package, PackageStatus, PathPackage
 from dimcat.data.package.dc import DimcatPackage
-from dimcat.data.resource.utils import ResourceStatus
+from dimcat.data.resource.base import ResourceStatus
 
 from tests.conftest import CORPUS_PATH
 
@@ -14,16 +14,20 @@ class TestDimcatPackage:
     expected_package_status: ResourceStatus = PackageStatus.EMPTY
     """The expected status of the package after initialization."""
 
+    @pytest.fixture(params=[Package, PathPackage, DimcatPackage])
+    def package_constructor(self, request):
+        return request.param
+
     @pytest.fixture()
     def expected_basepath(self):
         """The expected basepath of the resource after initialization."""
         return None
 
     @pytest.fixture()
-    def package_obj(self):
+    def package_obj(self, package_constructor):
         """For each subclass of TestDimcatPackage, this fixture should be overridden and yield the
         tested DimcatPackage object."""
-        return DimcatPackage(package_name="empty_package")
+        return package_constructor(package_name="empty_package")
 
     def test_basepath_after_init(self, package_obj, expected_basepath):
         assert package_obj.basepath == expected_basepath
@@ -53,11 +57,18 @@ class TestDimcatPackage:
 class TestPackageFromFilePaths(TestDimcatPackage):
     expected_package_status: ResourceStatus = PackageStatus.PATHS_ONLY
 
+    @pytest.fixture(params=[Package, PathPackage])
+    def package_constructor(self, request):
+        return request.param
+
     @pytest.fixture()
-    def package_obj(self, list_of_mixed_score_paths):
+    def package_obj(self, package_constructor, list_of_mixed_score_paths):
         """For each subclass of TestDimcatPackage, this fixture should be overridden and yield the
         tested DimcatPackage object."""
-        package = DimcatPackage.from_filepaths(
+        print(
+            f"{package_constructor.name}.from_filepaths({list_of_mixed_score_paths!r})"
+        )
+        package = package_constructor.from_filepaths(
             filepaths=list_of_mixed_score_paths, package_name="mixed_files"
         )
         return package
@@ -66,11 +77,15 @@ class TestPackageFromFilePaths(TestDimcatPackage):
 class TestPackageFromFileDirectory(TestDimcatPackage):
     expected_package_status: ResourceStatus = PackageStatus.PATHS_ONLY
 
+    @pytest.fixture(params=[Package, PathPackage])
+    def package_constructor(self, request):
+        return request.param
+
     @pytest.fixture()
-    def package_obj(self, corpus_path):
+    def package_obj(self, package_constructor, corpus_path):
         """For each subclass of TestDimcatPackage, this fixture should be overridden and yield the
         tested DimcatPackage object."""
-        package = DimcatPackage.from_directory(
+        package = package_constructor.from_directory(
             corpus_path, package_name="unittest_corpus"
         )
         return package
@@ -93,8 +108,11 @@ class TestPackageFromDescriptor(TestDimcatPackage):
         return CORPUS_PATH
 
     @pytest.fixture()
-    def package_obj(self, package_descriptor_path):
-        return DimcatPackage.from_descriptor_path(package_descriptor_path)
+    def package_obj(self, package_constructor, package_descriptor_path):
+        print(
+            f"{package_constructor.name}.from_descriptor_path({package_descriptor_path!r})"
+        )
+        return package_constructor.from_descriptor_path(package_descriptor_path)
 
 
 class TestPackageFromFL(TestPackageFromDescriptor):

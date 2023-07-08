@@ -253,7 +253,7 @@ def zipped_resource_from_fl_package(
         "resource_from_memory_resource",
         "schema_resource",
         "serialized_resource",
-        "zipped_resource_from_dc_package",
+        "zipped_resource_copied_from_dc_package",
         "zipped_resource_from_fl_package",
     ]
 )
