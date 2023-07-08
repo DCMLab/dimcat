@@ -74,31 +74,48 @@ def reconcile_base_and_file(
 
 class ResourceStatus(IntEnum):
     """Expresses the status of a DimcatResource with respect to it being described, valid, and serialized to disk,
-    with or without its descriptor file.
+    with or without its descriptor file. The enum members have increasing integer values starting with EMPTY == 0.
+    Statuses > PATH_ONLY (1) are currently only relevant for DimcatResources. The current status is determined
+    by the boolean state of the first three attributes in the table below:
 
-    +-----------------------+---------------+-------------------+-----------+---------------+
-    | ResourceStatus        | is_serialized | descriptor_exists | is_loaded | assumed valid |
-    +=======================+===============+===================+===========+===============+
-    | EMPTY                 | False         | ?                 | False     | no            |
-    +-----------------------+---------------+-------------------+-----------+---------------+
-    | PATH_ONLY             | True          | ?                 | False     | no            |
-    +-----------------------+---------------+-------------------+-----------+---------------+
-    | SCHEMA_ONLY           | False         | ?                 | False     | no            |
-    +-----------------------+---------------+-------------------+-----------+---------------+
-    | DATAFRAME             | False         | False             | True      | no            |
-    +-----------------------+---------------+-------------------+-----------+---------------+
-    | VALIDATED             | False         | False             | True      | guaranteed    |
-    +-----------------------+---------------+-------------------+-----------+---------------+
-    | SERIALIZED            | True          | False             | True      | yes           |
-    +-----------------------+---------------+-------------------+-----------+---------------+
-    | STANDALONE_LOADED     | True          | True              | True      | yes           |
-    +-----------------------+---------------+-------------------+-----------+---------------+
-    | PACKAGED_LOADED       | True          | True              | True      | yes           |
-    +-----------------------+---------------+-------------------+-----------+---------------+
-    | STANDALONE_NOT_LOADED | True          | True              | False     | yes           |
-    +-----------------------+---------------+-------------------+-----------+---------------+
-    | PACKAGED_NOT_LOADED   | True          | True              | False     | yes           |
-    +-----------------------+---------------+-------------------+-----------+---------------+
+    * is_serialized: True if the resource can be located physically on disk.
+    * descriptor_exists: True if a descriptor file (JSON/YAML) is physically present on disk.
+    * is_loaded: True if the resource is currently loaded into memory.
+
+    The remaining attributes are derived from the first three and are not used to determine the current status:
+
+    * assumed valid: True if the resource is assumed to be valid, which is the case for all serialized resources.
+    * standalone: True if the resource is not part of a package. For "free" (not serialized) resources, it depends
+      on the value :attr:`Resource.descriptor_filepath` (whether it corresponds to a package or resource descriptor).
+    * empty: True if the resource is empty, i.e. it does not data. A DimcatResource that is PATH_ONLY is considered
+      empty, whereas a Resource/PathResource is not (they only have status 0 or 1).
+
+    +-----------------------+---------------+-------------------+-----------+---------------+------------+-------+
+    | ResourceStatus        | is_serialized | descriptor_exists | is_loaded | assumed valid | standalone | empty |
+    +=======================+===============+===================+===========+===============+============+=======+
+    | EMPTY                 | False         | ?                 | False     |       no      |      ?     |  yes  |
+    +-----------------------+---------------+-------------------+-----------+---------------+------------+-------+
+    | PATH_ONLY             | True          | ?                 | False     |       no      |      ?     |  yes  |
+    +-----------------------+---------------+-------------------+-----------+---------------+------------+-------+
+    | SCHEMA_ONLY           | False         | ?                 | False     |       no      |      ?     |  yes  |
+    +-----------------------+---------------+-------------------+-----------+---------------+------------+-------+
+    | DATAFRAME             | False         | False             | True      |       no      |      ?     |   no  |
+    +-----------------------+---------------+-------------------+-----------+---------------+------------+-------+
+    | VALIDATED             | False         | False             | True      |   guaranteed  |      ?     |   no  |
+    +-----------------------+---------------+-------------------+-----------+---------------+------------+-------+
+    | SERIALIZED            | True          | False             | True      |      yes      |     yes    |   no  |
+    +-----------------------+---------------+-------------------+-----------+---------------+------------+-------+
+    | STANDALONE_LOADED     | True          | True              | True      |      yes      |     yes    |   no  |
+    +-----------------------+---------------+-------------------+-----------+---------------+------------+-------+
+    | PACKAGED_LOADED       | True          | True              | True      |      yes      |     no     |   no  |
+    +-----------------------+---------------+-------------------+-----------+---------------+------------+-------+
+    | STANDALONE_NOT_LOADED | True          | True              | False     |      yes      |     yes    |   no  |
+    +-----------------------+---------------+-------------------+-----------+---------------+------------+-------+
+    | PACKAGED_NOT_LOADED   | True          | True              | False     |      yes      |     no     |   no  |
+    +-----------------------+---------------+-------------------+-----------+---------------+------------+-------+
+
+    The status of a resource is set at the end of :meth:`Resource.__init__` by
+    calling :meth:`Resource._update_status` which, in return calls :meth:`Resource._get_status`.
     """
 
     EMPTY = 0
