@@ -657,6 +657,7 @@ class DimcatSettings(DimcatObject):
     3. to the file ``settings.ini``, using Python's config file syntax
     """
 
+    auto_make_dirs: bool = True
     default_basepath: str = "~/dimcat_data"
     """where to serialize data if no other basepath is specified"""
     default_resource_name: str = "unnamed"
@@ -675,6 +676,12 @@ class DimcatSettings(DimcatObject):
     """file endings that are recognized as frictionless resource descriptors"""
 
     class Schema(DimcatObject.Schema):
+        auto_make_dirs = mm.fields.Boolean(
+            required=True,
+            metadata={
+                "description": "whether to automatically create directories, e.g. when indicating basepaths"
+            },
+        )
         default_basepath = mm.fields.String(
             required=True,
             metadata={

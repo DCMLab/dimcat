@@ -84,7 +84,7 @@ def datapackage_json_path() -> str:
 
 
 @pytest.fixture(scope="session")
-def resource_descriptor_filepath(resource_path) -> str:
+def resource_descriptor_filename(resource_path) -> str:
     """Returns the path to the descriptor file."""
     return make_rel_path(resource_path, CORPUS_PATH)
 
@@ -160,7 +160,7 @@ def resource_from_dataframe(
     dataframe_from_fl_resource,
     fl_resource,
     tmp_serialization_path,
-    resource_descriptor_filepath,
+    resource_descriptor_filename,
 ) -> DimcatResource:
     """Returns a DimcatResource object created from the dataframe."""
     return DimcatResource.from_dataframe(
@@ -185,11 +185,11 @@ def resource_from_dict(resource_from_descriptor):
 
 @pytest.fixture()
 def resource_from_fl_resource(
-    fl_resource, resource_descriptor_filepath
+    fl_resource, resource_descriptor_filename
 ) -> DimcatResource:
     """Returns a Dimcat resource object created from the frictionless.Resource object."""
     return DimcatResource(
-        resource=fl_resource, descriptor_filepath=resource_descriptor_filepath
+        resource=fl_resource, descriptor_filename=resource_descriptor_filename
     )
 
 
@@ -202,6 +202,7 @@ def resource_from_frozen_resource(resource_from_descriptor):
 @pytest.fixture()
 def resource_from_memory_resource(resource_from_dataframe):
     """Returns a DimcatResource object created from a frozen resource."""
+    assert resource_from_dataframe._resource.path
     return DimcatResource.from_resource(resource_from_dataframe)
 
 
@@ -221,7 +222,7 @@ def serialized_resource(resource_from_dataframe) -> DimcatResource:
 
 @pytest.fixture()
 def zipped_resource_copied_from_dc_package(
-    package_from_fl_package, package_descriptor_filepath
+    package_from_fl_package, package_descriptor_filename
 ) -> DimcatResource:
     dc_resource = package_from_fl_package.get_resource("notes")
     return DimcatResource.from_resource(dc_resource)
@@ -230,12 +231,12 @@ def zipped_resource_copied_from_dc_package(
 @pytest.fixture()
 def zipped_resource_from_fl_package(
     fl_package,
-    package_descriptor_filepath,
+    package_descriptor_filename,
 ) -> DimcatResource:
     """Returns a DimcatResource object created from the dataframe."""
     fl_resource = fl_package.get_resource("notes")
     return DimcatResource(
-        resource=fl_resource, descriptor_filepath=package_descriptor_filepath
+        resource=fl_resource, descriptor_filename=package_descriptor_filename
     )
 
 
@@ -303,6 +304,11 @@ def get_music21_corpus_path():
     m21_path = m21.__path__[0]
     music21_corpus_path = os.path.join(m21_path, "corpus")
     return music21_corpus_path
+
+
+@pytest.fixture()
+def music21_corpus_path():
+    return get_music21_corpus_path()
 
 
 def get_score_paths(

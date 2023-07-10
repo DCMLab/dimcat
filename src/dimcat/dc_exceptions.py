@@ -1,4 +1,5 @@
 import logging
+from pprint import pformat
 from typing import Callable, ClassVar, Dict, Optional
 
 logger = logging.getLogger(__name__)
@@ -172,6 +173,18 @@ class ResourceNotProcessableError(DimcatError):
     }
 
 
+class ResourceIsPackagedError(DimcatError):
+    """optional args: (name, new_path, path_type)"""
+
+    nargs2message = {
+        0: "The resource is packaged can cannot store its own descriptor.",
+        1: lambda name: f"Resource {name!r} is packaged and its paths cannot be modified.",
+        2: lambda name, new_path: f"Resource {name!r} is packaged so {new_path!r} cannot be set.",
+        3: lambda name, new_path, path_type: f"Resource {name!r} is packaged so {new_path!r} cannot be set as the new "
+        f"{path_type!r}.",
+    }
+
+
 class FeatureUnavailableError(DimcatError):
     """optional args: (feature_name,)"""
 
@@ -208,6 +221,69 @@ class PackageNotFoundError(DimcatError):
     }
 
 
+class PackageNotFullySerializedError(DimcatError):
+    """optional args: (error_message,)"""
+
+    nargs2message = {
+        0: "All resources contained in the package have not been serialized.",
+        1: lambda error_message: error_message,
+    }
+
+
+class PackageInconsistentlySerializedError(DimcatError):
+    """optional args: (package_name, existing_path)"""
+
+    nargs2message = {
+        0: "The package has been serialized in an inconsistent way, found only ZIP or descriptor, not both.",
+        1: lambda package_name: f"The package {package_name!r} has been serialized in an inconsistent way, found "
+        f"only ZIP or descriptor, not both.",
+        2: lambda package_name, existing_path: f"The package {package_name!r} has been serialized in an "
+        f"inconsistent way, expected ZIP and descriptor, found only {existing_path!r}.",
+    }
+
+
+class PackagePathsNotAlignedError(DimcatError):
+    """optional args: (error_message,)"""
+
+    nargs2message = {
+        0: "Package paths are not aligned.",
+        1: lambda error_message: error_message,
+    }
+
+
+class PotentiallyUnrelatedDescriptorError(DimcatError):
+    """optional args: (name, path)"""
+
+    nargs2message = {
+        0: "There is a potentially unrelated descriptor on disk. You can load it via .from_descriptor_path().",
+        1: lambda name: f"There is a potentially unrelated descriptor for {name!r} on disk. You can load it via "
+        f".from_descriptor_path().",
+        2: lambda name, path: f"There is a potentially unrelated descriptor for {name!r} on disk. You can "
+        f"load it via .from_descriptor_path({path!r}).",
+    }
+
+
+class ResourceNamesNonUniqueError(DimcatError):
+    """optional args: (names_or_paths,)"""
+
+    nargs2message = {
+        0: "The resulting resource names are not unique.",
+        1: lambda names_or_paths: f"Resulting resource names are not unique: {pformat(names_or_paths)}.",
+    }
+
+
+class ResourceNeedsToBeCopiedError(DimcatError):
+    """optional args: (path_type, new_path,)"""
+
+    nargs2message = {
+        0: "Resource would need copying.",
+        1: lambda path_type: f"Cannot set the new {path_type} without copying the resource. Consider using "
+        f"copy_to_new_location().",
+        2: lambda path_type, new_path: f"Cannot set the new {path_type} to {new_path!r} without copying the "
+        f"resource.",
+    }
+
+
 class ResourceNotFoundError(DimcatError):
     """optional args: (resource_name, package_name)"""
 
@@ -230,5 +306,5 @@ class ResourceIsFrozenError(DimcatError):
         f"{current_basepath!r}, so you would need to copy it for the relative paths to remain valid.",
         3: lambda name, current_basepath, new_basepath: f"Resource {name!r} is frozen, i.e. tied to data stored on "
         f"disk at basepath {current_basepath!r}. Changing it to {new_basepath!r} would invalidate the "
-        f"relative paths, so you would need to copy the resource (and its descriptor).",
+        f"relative paths. Consider using copy_to_new_location().",
     }

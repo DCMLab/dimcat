@@ -1,4 +1,7 @@
 import logging
+import os.path
+from pprint import pformat
+from typing import Type
 
 import pytest
 from dimcat.data.package.base import Package, PackageStatus, PathPackage
@@ -10,7 +13,7 @@ from tests.conftest import CORPUS_PATH
 logging.basicConfig(level=logging.DEBUG)
 
 
-class TestDimcatPackage:
+class TestPackage:
     expected_package_status: ResourceStatus = PackageStatus.EMPTY
     """The expected status of the package after initialization."""
 
@@ -54,7 +57,7 @@ class TestDimcatPackage:
         assert idx1 == idx2
 
 
-class TestPackageFromFilePaths(TestDimcatPackage):
+class TestPackageFromFilePaths(TestPackage):
     expected_package_status: ResourceStatus = PackageStatus.PATHS_ONLY
 
     @pytest.fixture(params=[Package, PathPackage])
@@ -66,7 +69,10 @@ class TestPackageFromFilePaths(TestDimcatPackage):
         """For each subclass of TestDimcatPackage, this fixture should be overridden and yield the
         tested DimcatPackage object."""
         print(
-            f"{package_constructor.name}.from_filepaths({list_of_mixed_score_paths!r})"
+            f"""{package_constructor.name}.from_filepaths(
+{pformat(list_of_mixed_score_paths)},
+package_name="mixed_files"
+)"""
         )
         package = package_constructor.from_filepaths(
             filepaths=list_of_mixed_score_paths, package_name="mixed_files"
@@ -74,7 +80,7 @@ class TestPackageFromFilePaths(TestDimcatPackage):
         return package
 
 
-class TestPackageFromFileDirectory(TestDimcatPackage):
+class TestPackageFromFileDirectory(TestPackage):
     expected_package_status: ResourceStatus = PackageStatus.PATHS_ONLY
 
     @pytest.fixture(params=[Package, PathPackage])
@@ -82,11 +88,21 @@ class TestPackageFromFileDirectory(TestDimcatPackage):
         return request.param
 
     @pytest.fixture()
-    def package_obj(self, package_constructor, corpus_path):
+    def package_obj(self, package_constructor: Type[Package], corpus_path):
         """For each subclass of TestDimcatPackage, this fixture should be overridden and yield the
         tested DimcatPackage object."""
+        print(
+            f"""{package_constructor.name}.from_directory(
+    {corpus_path!r},
+    package_name="unittest_corpus"
+)"""
+        )
+
+        def resource_names(path):
+            return os.sep.join(path.split(os.sep)[-2:])
+
         package = package_constructor.from_directory(
-            corpus_path, package_name="unittest_corpus"
+            corpus_path, package_name="unittest_corpus", resource_names=resource_names
         )
         return package
 
@@ -99,7 +115,7 @@ class TestPackageFromFileDirectory(TestDimcatPackage):
 # region PackageFromDescriptor
 
 
-class TestPackageFromDescriptor(TestDimcatPackage):
+class TestPackageFromDescriptor(TestPackage):
     expected_package_status = PackageStatus.FULLY_SERIALIZED
 
     @pytest.fixture()

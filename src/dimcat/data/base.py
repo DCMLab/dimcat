@@ -7,7 +7,7 @@ from typing import Optional
 
 import marshmallow as mm
 from dimcat.base import DimcatConfig, DimcatObject, get_pickle_schema, get_setting
-from dimcat.exceptions import BaseFilePathMismatchError
+from dimcat.dc_exceptions import BaseFilePathMismatchError
 
 logger = logging.getLogger(__name__)
 
@@ -55,9 +55,12 @@ class Data(DimcatObject):
     ) -> AbsolutePathStr:
         basepath_arg = resolve_path(basepath)
         if not os.path.isdir(basepath_arg):
-            raise NotADirectoryError(
-                f"basepath {basepath_arg!r} is not an existing directory."
-            )
+            if get_setting("auto_make_dirs"):
+                os.makedirs(basepath_arg)
+            else:
+                raise NotADirectoryError(
+                    f"basepath {basepath_arg!r} is not an existing directory."
+                )
         if filepath and not os.path.isfile(os.path.join(basepath_arg, filepath)):
             # this would result in a normpath that does not exist
             raise BaseFilePathMismatchError(basepath_arg, filepath)
@@ -98,10 +101,23 @@ class Data(DimcatObject):
     def basepath(self, basepath: str):
         self._basepath = self.treat_new_basepath(basepath, other_logger=self.logger)
 
-    def get_basepath(self) -> str:
-        """Get the basepath of the resource. If not specified, the default basepath is returned."""
+    def get_basepath(
+        self,
+        set_default_if_missing: bool = False,
+    ) -> str:
+        """Get the basepath of the resource. If not specified, the default basepath is returned.
+        If ``set_default_if_missing`` is set to True and no basepath has been set (e.g. during initialization),
+        the :attr:`basepath` is permanently set to the  default basepath.
+        """
         if not self.basepath:
-            return resolve_path(get_setting("default_basepath"))
+            default_basepath = resolve_path(get_setting("default_basepath"))
+            if set_default_if_missing:
+                self._basepath = default_basepath
+                raise RuntimeError
+                self.logger.debug(
+                    f"The {self.name}'s basepath has been set to the default {default_basepath!r}"
+                )
+            return default_basepath
         return self.basepath
 
     def to_config(self, pickle=False) -> DimcatConfig:

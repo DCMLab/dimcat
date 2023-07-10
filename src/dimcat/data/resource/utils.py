@@ -14,7 +14,9 @@ import ms3
 import pandas as pd
 import yaml
 from dimcat.base import get_setting
-from dimcat.exceptions import BaseFilePathMismatchError
+from dimcat.dc_exceptions import BaseFilePathMismatchError
+
+from ...dc_warnings import PotentiallyUnrelatedDescriptorUserWarning
 
 logger = logging.getLogger(__name__)
 
@@ -447,9 +449,7 @@ def make_rel_path(path: str, start: str):
     try:
         return check_rel_path(rel_path, start)
     except ValueError as e:
-        raise BaseFilePathMismatchError(
-            f"Turning {path!r} into a relative path under {start!r} failed with {e}"
-        )
+        raise BaseFilePathMismatchError(start, path) from e
 
 
 def make_fl_resource(
@@ -591,17 +591,43 @@ def store_json(
         json.dump(data, f, **kwargs)
 
 
-def check_descriptor_filepath_argument(descriptor_filepath):
-    if os.path.isabs(descriptor_filepath):
+def check_descriptor_filename_argument(
+    descriptor_filename,
+) -> str:
+    """Check if the descriptor_filename is a filename  (not path) and warn if it doesn't have the
+    extension .json or .yaml.
+
+    Args:
+        descriptor_filename:
+
+    Raises:
+        ValueError: If the descriptor_filename is absolute.
+    """
+    subfolder, filepath = os.path.split(descriptor_filename)
+    if subfolder not in (".", ""):
         raise ValueError(
-            f"descriptor_filepath needs to be a relative to the basepath, got {descriptor_filepath!r}"
+            f"descriptor_filename needs to be a filename in the basepath, got {descriptor_filename!r}"
         )
-    _, ext = os.path.splitext(descriptor_filepath)
+    _, ext = os.path.splitext(filepath)
     if ext not in (".json", ".yaml"):
         warnings.warning(
-            f"You've set a descriptor_filepath with extension {ext!r} but "
+            f"You've set a descriptor_filename with extension {ext!r} but "
             f"frictionless allows only '.json' and '.yaml'.",
             RuntimeWarning,
+        )
+    return filepath
+
+
+def warn_about_potentially_unrelated_descriptor(
+    basepath: str,
+    descriptor_filename: str,
+):
+    descriptor_path = os.path.join(basepath, descriptor_filename)
+    if os.path.isfile(descriptor_path):
+        warnings.warn(
+            f"Another descriptor already exists at {descriptor_path!r} which may lead to it being "
+            f"overwritten.",
+            PotentiallyUnrelatedDescriptorUserWarning,
         )
 
 

@@ -6,7 +6,7 @@ from dimcat.base import deserialize_dict, deserialize_json_file, get_setting
 from dimcat.data.resource.base import PathResource, Resource, ResourceStatus
 from dimcat.data.resource.dc import DimcatIndex, DimcatResource, PieceIndex
 from dimcat.data.resource.utils import make_rel_path
-from dimcat.exceptions import BasePathNotDefinedError, FilePathNotDefinedError
+from dimcat.dc_exceptions import BasePathNotDefinedError, FilePathNotDefinedError
 from dimcat.utils import make_valid_frictionless_name
 
 from .conftest import CORPUS_PATH, get_mixed_score_paths
@@ -125,10 +125,7 @@ class TestResourceFromScorePath(TestBaseResource):
     @pytest.fixture()
     def resource_obj(self, resource_constructor, score_path, init_basepath):
         # if request.node.callspec.params["init_basepath"] != -1:
-        return resource_constructor.from_resource_path(
-            score_path,
-            basepath=init_basepath,
-        )
+        return resource_constructor.from_resource_path(score_path)
 
     @pytest.fixture()
     def expected_basepath(self, init_basepath, score_path):
@@ -173,16 +170,13 @@ class TestResourceFromDescriptorPath(TestBaseResource):
     def resource_obj(self, resource_path, init_basepath):
         return Resource.from_descriptor_path(
             descriptor_path=resource_path,
-            basepath=init_basepath,
         )
 
     @pytest.fixture()
-    def expected_basepath(self, init_basepath, resource_path):
+    def expected_basepath(self, resource_path):
         """If init_basepath is None, we expect the directory where the score is located."""
-        if init_basepath is None:
-            basepath, _ = os.path.split(resource_path)
-            return basepath
-        return init_basepath
+        basepath, _ = os.path.split(resource_path)
+        return basepath
 
     @pytest.fixture()
     def expected_filepath(self, expected_basepath, expected_normpath):
@@ -273,7 +267,7 @@ class TestEmptyDimcatResource:
     def test_status_after_init(self, dc_resource):
         assert dc_resource.status == self.expected_resource_status
 
-    def test_frozen(self, dc_resource):
+    def test_frozen_after_init(self, dc_resource):
         assert dc_resource.is_frozen == self.should_be_frozen
 
     def test_valid(self, dc_resource):
@@ -288,7 +282,7 @@ class TestEmptyDimcatResource:
         assert dc_resource.is_loaded == self.should_be_loaded
 
     def test_descriptor_path(self, dc_resource):
-        descriptor_path = dc_resource.descriptor_filepath
+        descriptor_path = dc_resource.descriptor_filename
         has_descriptor = descriptor_path is not None
         if self.should_have_descriptor:
             assert has_descriptor
@@ -413,7 +407,7 @@ class TestFromConfig(TestDiskDimcatResource):
 
 
 @pytest.fixture(scope="session")
-def package_descriptor_filepath(package_descriptor_path) -> str:
+def package_descriptor_filename(package_descriptor_path) -> str:
     """Returns the path to the descriptor file."""
     return make_rel_path(package_descriptor_path, CORPUS_PATH)
 

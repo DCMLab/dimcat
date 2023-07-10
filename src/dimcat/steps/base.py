@@ -26,7 +26,7 @@ from dimcat.data.resource.features import (
     features_argument2config_list,
 )
 from dimcat.data.resource.utils import ensure_level_named_piece
-from dimcat.exceptions import (
+from dimcat.dc_exceptions import (
     EmptyDatasetError,
     EmptyResourceError,
     FeatureUnavailableError,

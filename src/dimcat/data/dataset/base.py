@@ -35,7 +35,7 @@ from dimcat.data.resource.features import (
     feature_specs2config,
     features_argument2config_list,
 )
-from dimcat.exceptions import (
+from dimcat.dc_exceptions import (
     NoFeaturesActiveError,
     NoMatchingResourceFoundError,
     PackageNotFoundError,

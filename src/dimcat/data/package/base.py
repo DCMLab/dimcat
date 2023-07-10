@@ -1,19 +1,32 @@
 from __future__ import annotations
 
-import json
 import os
+import warnings
+from collections import defaultdict
 from enum import IntEnum, auto
+from inspect import isclass
+from pathlib import Path
 from pprint import pformat
-from typing import Callable, Iterable, Iterator, List, Optional, TypeAlias, Union
+from typing import (
+    Callable,
+    ClassVar,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    TypeAlias,
+    Union,
+)
 
 import frictionless as fl
 import marshmallow as mm
 import pandas as pd
-import yaml
-from dimcat.base import DimcatConfig, FriendlyEnum, get_class
+from dimcat.base import DimcatConfig, FriendlyEnum, get_class, get_setting
 from dimcat.data.base import Data
 from dimcat.data.resource.base import (
-    D,
+    PathResource,
     Resource,
     SomeDataframe,
     reconcile_base_and_file,
@@ -26,40 +39,74 @@ from dimcat.data.resource.features import (
     feature_specs2config,
 )
 from dimcat.data.resource.utils import (
-    ResourceStatus,
-    check_descriptor_filepath_argument,
+    check_descriptor_filename_argument,
     make_rel_path,
+    store_as_json_or_yaml,
 )
-from dimcat.exceptions import (
+from dimcat.dc_exceptions import (
+    BasePathNotDefinedError,
     EmptyPackageError,
+    FilePathNotDefinedError,
     NoMatchingResourceFoundError,
+    PackageInconsistentlySerializedError,
+    PackageNotFullySerializedError,
+    PackagePathsNotAlignedError,
+    ResourceIsFrozenError,
+    ResourceIsPackagedError,
+    ResourceNamesNonUniqueError,
     ResourceNotFoundError,
 )
 from dimcat.utils import (
     _set_new_basepath,
     check_file_path,
     make_valid_frictionless_name,
+    make_valid_frictionless_name_from_filepath,
     resolve_path,
     scan_directory,
 )
 from typing_extensions import Self
 
 
-class AddingBehaviour(FriendlyEnum):
+class PackageMode(FriendlyEnum):
     """The behaviour of a Package when adding a resource with incompatible paths."""
 
     RAISE = "RAISE"
     """Raises an error when adding a resource with an incompatible path."""
-    LOAD = "LOAD"
-    """Loads the resource from the given path, detaching it from the physical source."""
-    SERIALIZE = "SERIALIZE"
-    """Load the resource and add a physical copy to the package ZIP."""
+    RECONCILE_SAFELY = "RECONCILE_SAFELY"
+    """Copies newly added resources to the package's basepath if necessary but without overwriting existing files."""
+    RECONCILE_EVERYTHING = "RECONCILE_EVERYTHING"
+    """Copies newly added resources to the package's basepath if necessary, overwriting existing files."""
+    ALLOW_MISALIGNMENT = "ALLOW_MISALIGNMENT"
+    """Reconcile the resource and add a physical copy to the package ZIP."""
 
 
 class PackageStatus(IntEnum):
+    """Expresses the status of a :clas:`Package` with respect to the paths of the included resources being aligned
+    with the package's basepath and serialized to the package's ZIP file or not. The enum members have increasing
+    integer values starting with EMPTY == 0.
+
+    +----------------------+------------+---------------------+---------------+----------------+
+    | PackageStatus        | is_aligned | package_exists      | R.is_packaged | Resource types |
+    |                      |            | & descriptor_exists |               |                |
+    +======================+============+=====================+===============+================+
+    | EMPTY                | True       | ?                   | True          | any            |
+    +----------------------+------------+---------------------+---------------+----------------+
+    | PATHS_ONLY           | ?          | ?                   | ?             | PathResource   |
+    +----------------------+------------+---------------------+---------------+----------------+
+    | MISALIGNED           | False      | ?                   | False         | any            |
+    +----------------------+------------+---------------------+---------------+----------------+
+    | ALIGNED              | True       | False               | True          | any            |
+    +----------------------+------------+---------------------+---------------+----------------+
+    | PARTIALLY_SERIALIZED | True       | True                | True          | any            |
+    +----------------------+------------+---------------------+---------------+----------------+
+    | FULLY_SERIALIZED     | True       | True                | True          | any            |
+    +----------------------+------------+---------------------+---------------+----------------+
+    """
+
     EMPTY = 0
-    PATHS_ONLY = 1
-    NOT_SERIALIZED = auto()
+    PATHS_ONLY = auto()
+    MISALIGNED = auto()
+    ALIGNED = auto()
     PARTIALLY_SERIALIZED = auto()
     FULLY_SERIALIZED = auto()
 
@@ -72,6 +119,7 @@ class PackageSchema(Data.Schema):
     package_name = mm.fields.Str(
         required=True,
         metadata=dict(description="The name of the package."),
+        data_key="name",
     )
     basepath = mm.fields.Str(
         required=False,
@@ -80,7 +128,7 @@ class PackageSchema(Data.Schema):
             description="The basepath where the package is or would be stored."
         ),
     )
-    descriptor_filepath = mm.fields.String(allow_none=True, metadata={"expose": False})
+    descriptor_filename = mm.fields.String(allow_none=True, metadata={"expose": False})
     auto_validate = mm.fields.Boolean(metadata={"expose": False})
 
     # def get_package_descriptor(self, obj: Package):
@@ -127,13 +175,28 @@ class Package(Data):
     * ``basepath`` (:obj:`str`) - The basepath where the package and its .json descriptor are stored.
     """
 
-    @staticmethod
+    accepted_resource_types: ClassVar[Tuple[Type[Resource], ...]] = (Resource,)
+    """:meth:`add_resource` if a given resource is not an instance of one of these. The first one
+    is used as default constructor in :meth:`create_and_add_resource`.
+    """
+    detects_extensions: ClassVar[Iterable[str]] = get_setting(
+        "resource_descriptor_endings"
+    )
+    """Determines which files are detected by :meth:`from_directory` if ``extensions`` is not specified.
+    Subclasses where this is set to None will detect all files.
+    """
+    default_mode: ClassVar[PackageMode] = PackageMode.RECONCILE_EVERYTHING
+    """How the class deals with newly added resources. See :class:`PackageMode` for details."""
+    store_zipped: ClassVar[bool] = False
+
+    @classmethod
     def _make_new_resource(
+        cls,
         filepath: str,
         resource_name: Optional[str] = None,
         corpus_name: Optional[str] = None,
         basepath: Optional[str] = None,
-    ) -> Resource:
+    ) -> PathResource:
         """Create a new Resource from a filepath.
 
         Args:
@@ -144,27 +207,19 @@ class Package(Data):
         Returns:
             The new Resource.
         """
-        if filepath.endswith("resource.json") or filepath.endswith("resource.yaml"):
-            new_resource = Resource.from_descriptor_path(
-                descriptor_path=filepath, basepath=basepath
-            )
-            if resource_name:
-                new_resource.resource_name = resource_name
-        else:
-            new_resource = Resource.from_resource_path(
-                resource_path=filepath,
-                resource_name=resource_name,
-                basepath=basepath,
-            )
+        Constructor = cls.accepted_resource_types[0]
+        new_resource = Constructor.from_filepath(
+            filepath=filepath, resource_name=resource_name
+        )
         if corpus_name:
-            new_resource.corpus_name = corpus_name
+            new_resource.corpus_name = make_valid_frictionless_name(corpus_name)
         return new_resource
 
     @classmethod
     def from_descriptor(
         cls,
         descriptor: dict,
-        descriptor_filepath: Optional[str] = None,
+        descriptor_filename: Optional[str] = None,
         auto_validate: Optional[bool] = None,
         basepath: Optional[str] = None,
     ) -> Self:
@@ -193,7 +248,7 @@ class Package(Data):
                 )
             descriptor = dict(
                 descriptor,
-                descriptor_filepath=descriptor_filepath,
+                descriptor_filename=descriptor_filename,
                 auto_validate=auto_validate,
                 basepath=basepath,
             )
@@ -202,7 +257,7 @@ class Package(Data):
             Resource.from_descriptor(
                 descriptor=resource.to_dict(),
                 basepath=basepath,
-                descriptor_filepath=descriptor_filepath,
+                descriptor_filename=descriptor_filename,
                 auto_validate=auto_validate,
             )
             for resource in fl_package.resources
@@ -210,7 +265,7 @@ class Package(Data):
         return cls(
             package_name=package_name,
             resources=resources,
-            descriptor_filepath=descriptor_filepath,
+            descriptor_filename=descriptor_filename,
             basepath=basepath,
             auto_validate=auto_validate,
         )
@@ -233,15 +288,15 @@ class Package(Data):
             The new Package.
         """
         if basepath is None:
-            basepath, descriptor_filepath = os.path.split(descriptor_path)
+            basepath, descriptor_filename = os.path.split(descriptor_path)
         else:
-            basepath, descriptor_filepath = reconcile_base_and_file(
+            basepath, descriptor_filename = reconcile_base_and_file(
                 basepath, descriptor_path
             )
         fl_package = fl.Package.from_descriptor(descriptor_path)
         return cls.from_descriptor(
             fl_package,
-            descriptor_filepath=descriptor_filepath,
+            descriptor_filename=descriptor_filename,
             auto_validate=auto_validate,
             basepath=basepath,
         )
@@ -249,7 +304,7 @@ class Package(Data):
     @classmethod
     def from_filepaths(
         cls,
-        filepaths: Iterable[str] | str,
+        filepaths: Iterable[str],
         package_name: str,
         resource_names: Optional[Iterable[str] | Callable[[str], Optional[str]]] = None,
         corpus_names: Optional[
@@ -282,18 +337,29 @@ class Package(Data):
             auto_validate: Set True to validate the new package after copying it.
             basepath: The basepath where the new package will be stored. If None, the basepath of the original package
         """
-        if isinstance(filepaths, str):
-            filepaths = [filepaths]
-        else:
-            filepaths = list(filepaths)
+        if isinstance(filepaths, (str, Path)):
+            raise TypeError(f"Expecting an iterable of paths, got {filepaths!r}")
         resource_creation_kwargs = [dict(filepath=fp) for fp in filepaths]
-        if resource_names:
-            if callable(resource_names):
-                resource_names = [resource_names(fp) for fp in filepaths]
-            resource_creation_kwargs = [
-                dict(kwargs, resource_name=name)
-                for kwargs, name in zip(resource_creation_kwargs, resource_names)
-            ]
+        if not resource_names:
+            resource_names = make_valid_frictionless_name_from_filepath
+        if callable(resource_names):
+            resource_names = [resource_names(fp) for fp in filepaths]
+        resource_creation_kwargs = (
+            []
+        )  # dicts with kwargs to be passed to :meth:`_make_new_resource`
+        name2paths = defaultdict(list)  # gather {name -> [paths]} for error reporting
+        for filepath, resource_name in zip(filepaths, resource_names):
+            if resource_name is None:
+                name = make_valid_frictionless_name_from_filepath(filepath)
+            else:
+                name = resource_name
+            name2paths[name].append(filepath)
+            resource_creation_kwargs.append(dict(filepath=filepath, resource_name=name))
+        show_paths = {
+            name: paths for name, paths in name2paths.items() if len(paths) > 1
+        }
+        if len(show_paths) > 1:
+            raise ResourceNamesNonUniqueError(show_paths)
         if corpus_names:
             if callable(corpus_names):
                 corpus_names = [corpus_names(fp) for fp in filepaths]
@@ -326,7 +392,7 @@ class Package(Data):
         cls,
         directory: str,
         package_name: Optional[str] = None,
-        extensions: Iterable[str] = (".resource.json", ".resource.yaml"),
+        extensions: Optional[Iterable[str]] = None,
         file_re: Optional[str] = None,
         resource_names: Optional[Callable[[str], Optional[str]]] = None,
         corpus_names: Optional[Callable[[str], Optional[str]]] = None,
@@ -366,7 +432,9 @@ class Package(Data):
                 original package
         """
         directory = resolve_path(directory)
-        if isinstance(extensions, str):
+        if extensions is None and cls.detects_extensions:
+            extensions = cls.detects_extensions
+        elif isinstance(extensions, str):
             extensions = (extensions,)
         paths = list(scan_directory(directory, extensions=extensions, file_re=file_re))
         cls.logger.info(f"Found {len(paths)} files in {directory}.")
@@ -388,7 +456,7 @@ class Package(Data):
         cls,
         package: Package,
         package_name: Optional[str] = None,
-        descriptor_filepath: Optional[str] = None,
+        descriptor_filename: Optional[str] = None,
         auto_validate: Optional[bool] = None,
         basepath: Optional[str] = None,
     ) -> Self:
@@ -397,7 +465,7 @@ class Package(Data):
         Args:
             package: The Package to copy.
             package_name: The name of the new package. If None, the name of the original package is used.
-            descriptor_filepath:
+            descriptor_filename:
                 Pass a JSON or YAML filename or relative filepath to override the default (``<package_name>.json``).
                 Following frictionless specs it should end on ".datapackage.[json|yaml]".
             auto_validate: Set a value to override the value set in ``package``.
@@ -415,8 +483,8 @@ class Package(Data):
             package_name = package.package_name
         if basepath is None:
             basepath = package.basepath
-        if descriptor_filepath is None:
-            descriptor_filepath = package.descriptor_filepath
+        if descriptor_filename is None:
+            descriptor_filename = package.descriptor_filename
         if auto_validate is not None:
             if package.auto_validate is not None:
                 auto_validate = package.auto_validate
@@ -424,7 +492,7 @@ class Package(Data):
                 auto_validate = False
         new_package = cls(
             package_name=package_name,
-            descriptor_filepath=descriptor_filepath,
+            descriptor_filename=descriptor_filename,
             auto_validate=auto_validate,
             basepath=basepath,
         )
@@ -439,7 +507,7 @@ class Package(Data):
         cls,
         resources: Iterable[Resource],
         package_name: str,
-        descriptor_filepath: Optional[str] = None,
+        descriptor_filename: Optional[str] = None,
         auto_validate: bool = False,
         basepath: Optional[str] = None,
     ) -> Self:
@@ -448,7 +516,7 @@ class Package(Data):
         Args:
             resources: The Resources to package.
             package_name: The name of the new package.
-            descriptor_filepath:
+            descriptor_filename:
                 Pass a JSON or YAML filename or relative filepath to override the default (``<package_name>.json``).
                 Following frictionless specs it should end on ".datapackage.[json|yaml]".
             auto_validate: Set True to validate the new package after copying it.
@@ -456,10 +524,12 @@ class Package(Data):
         """
         new_package = cls(
             package_name=package_name,
-            descriptor_filepath=descriptor_filepath,
+            descriptor_filename=descriptor_filename,
             auto_validate=auto_validate,
             basepath=basepath,
         )
+        if isinstance(resources, Resource):
+            resources = (resources,)
         for resource in resources:
             new_package.add_resource(resource)
         return new_package
@@ -467,7 +537,7 @@ class Package(Data):
     class PickleSchema(PackageSchema):
         def get_package_descriptor(self, obj: Package):
             obj.store_descriptor()
-            return obj.get_descriptor_filepath()
+            return obj.get_descriptor_filename()
 
         def raw(self, data):
             return data
@@ -480,7 +550,7 @@ class Package(Data):
         package_name: str,
         resources: Iterable[Resource] = None,
         basepath: Optional[str] = None,
-        descriptor_filepath: Optional[str] = None,
+        descriptor_filename: Optional[str] = None,
         auto_validate: bool = False,
     ) -> None:
         """
@@ -490,7 +560,7 @@ class Package(Data):
                 Name of the package that can be used to retrieve it.
             resources:
                 An iterable of :class:`Resource` objects to add to the package.
-            descriptor_filepath:
+            descriptor_filename:
                 Pass a JSON or YAML filename or relative filepath to override the default (``<package_name>.json``).
                 Following frictionless specs it should end on ".datapackage.[json|yaml]".
             basepath:
@@ -505,12 +575,12 @@ class Package(Data):
         self._package = fl.Package(resources=[])
         self._status = PackageStatus.EMPTY
         self._resources: List[Resource] = []
-        self._descriptor_filepath: Optional[str] = None
+        self._descriptor_filename: Optional[str] = None
         self.auto_validate = True if auto_validate else False  # catches None
         super().__init__(basepath=basepath)
         self.package_name = package_name
-        if descriptor_filepath is not None:
-            self.descriptor_filepath = descriptor_filepath
+        if descriptor_filename is not None:
+            self.descriptor_filename = descriptor_filename
 
         if resources is not None:
             self.extend(resources)
@@ -518,7 +588,9 @@ class Package(Data):
         if auto_validate:
             self.validate(raise_exception=True)
 
-    def __getitem__(self, item: str) -> Resource:
+    def __getitem__(self, item: str | int) -> Resource:
+        if isinstance(item, int):
+            return self._resources[item]
         try:
             return self.get_resource(item)
         except Exception as e:
@@ -551,7 +623,7 @@ class Package(Data):
             self._basepath = _set_new_basepath(basepath_arg, self.logger)
             self._package.basepath = basepath_arg
             return
-        if self.status > PackageStatus.NOT_SERIALIZED:
+        if self.status > PackageStatus.MISALIGNED:
             if basepath_arg == self.basepath:
                 return
             state = "partially" if PackageStatus.PARTIALLY_SERIALIZED else "fully"
@@ -575,62 +647,145 @@ class Package(Data):
         return os.path.isfile(descriptor_path)
 
     @property
-    def descriptor_filepath(self) -> str:
+    def descriptor_filename(self) -> str:
         """The path to the descriptor file on disk, relative to the basepath."""
-        return self._descriptor_filepath
+        return self._descriptor_filename
 
-    @descriptor_filepath.setter
-    def descriptor_filepath(self, descriptor_filepath: str) -> None:
+    @descriptor_filename.setter
+    def descriptor_filename(self, descriptor_filename: str) -> None:
         """The path to the descriptor file on disk, relative to the basepath."""
-        check_descriptor_filepath_argument(descriptor_filepath)
-        self._descriptor_filepath = descriptor_filepath
+        check_descriptor_filename_argument(descriptor_filename)
+        self._descriptor_filename = descriptor_filename
+
+    @property
+    def descriptor_is_complete(self) -> bool:
+        """Returns True when the package has a descriptor on disk that contains all resources."""
+        if not self.descriptor_exists:
+            return False
+        descriptor_path = self.get_descriptor_path()
+        resource_names_in_descriptor = fl.Package.from_descriptor(
+            descriptor_path
+        ).resource_names
+        for resource in self._resources:
+            if resource.name not in resource_names_in_descriptor:
+                return False
+        return True
+
+    @property
+    def filepath(self) -> str:
+        """The filename of the package's ZIP file on disk, corresponding to ``<package_name>.zip``"""
+        return f"{self.package_name}.zip"
+
+    @property
+    def is_aligned(self) -> bool:
+        """Returns True when the basepaths, filepaths, and descriptor_filenames of all resources are aligned with the
+        package."""
+        if self.is_empty:
+            return True
+        if not self.basepath:
+            warnings.warn(
+                "Package is not empty but no basepath had been set.", RuntimeWarning
+            )
+        basepath = self.get_basepath(set_default_if_missing=True)
+        descriptor_filename = self.get_descriptor_filename()
+        for resource in self._resources:
+            if resource.basepath != basepath:
+                return False
+            if resource.descriptor_filename != descriptor_filename:
+                return False
+        return True
+
+    @property
+    def is_empty(self) -> bool:
+        """Returns True when the package contains no resources."""
+        return len(self._resources) == 0
+
+    @property
+    def is_fully_serialized(self) -> bool:
+        """Returns True when the package has been fully serialized."""
+        if not self.is_aligned:
+            return False
+        return all(resource.is_serialized for resource in self._resources)
+
+    @property
+    def is_partially_serialized(self) -> bool:
+        """Returns True when both the resource and descriptor exist on disk but raises if only
+        on of them exists."""
+        if not self.is_aligned:
+            return False
+        n_exist = self.descriptor_exists + self.package_exists
+        if n_exist == 2:
+            return True
+        if n_exist == 0:
+            return False
+        existing_path = (
+            self.get_descriptor_path() if self.descriptor_exists else self.normpath
+        )
+        raise PackageInconsistentlySerializedError(self.package_name, existing_path)
+
+    @property
+    def is_paths_only(self) -> bool:
+        """Returns True when the package has a basepath but no resources."""
+        for resource in self._resources:
+            if isinstance(resource, DimcatResource):
+                return False
+            if isinstance(resource, PathResource):
+                continue
+            if isinstance(resource, Resource):
+                if resource.resource.schema.to_dict() != {}:
+                    return False
+                continue
+            raise TypeError(f"Unknown resource type: {type(resource)}")
+        return True
 
     @property
     def n_resources(self) -> int:
         return len(self._resources)
 
     @property
-    def package(self) -> fl.Package:
-        return self._package
+    def normpath(self) -> str:
+        """Absolute path to the serialized or future tabular file. Raises if basepath is not set."""
+        if not self.basepath:
+            raise BasePathNotDefinedError
+        if not self.filepath:
+            raise FilePathNotDefinedError
+        return os.path.join(self.basepath, self.filepath)
 
-    @package.setter
-    def package(self, package: str | fl.Package) -> None:
-        if isinstance(package, Package):
-            raise TypeError(
-                f"To create a {self.name} from a {package.name}, use {self.name}.from_package()."
-            )
-        fl_package = self._handle_package_argument(package)
-        # fl_package_dp = fl_package.metadata_descriptor_path
-        # package_dp = self.get_descriptor_path()
-        # if fl_package_dp and os.path.isfile(fl_package_dp):
-        #     # reconcile this Package's default descriptor path with the descriptor from the frictionless.Package
-        #     # that exists on disk
-        #     if os.path.isfile(package_dp):
-        #         fl_package.metadata_descriptor_path = package_dp
-        #     else:
-        #         # the descriptor path of this Package does not exist on disk but
-        #         self.descriptor_filepath = fl_package_dp
-        #         self.logger.info(
-        #             f"The descriptor filepath of {self.package_name!r} is to be set to the one from "
-        #             f"the frictionless.Package {fl_package_dp!r}."
-        #         )
-        #         fl_package.metadata_descriptor_path = fl_package_dp
+    # @property
+    # def package(self) -> fl.Package:
+    #     return self._package
+    #
+    # @package.setter
+    # def package(self, package: str | fl.Package) -> None:
+    #     if isinstance(package, Package):
+    #         raise TypeError(
+    #             f"To create a {self.name} from a {package.name}, use {self.name}.from_package()."
+    #         )
+    #     fl_package = self._handle_package_argument(package)
+    #
+    #     self._package = fl_package
+    #     dimcat_resource_or_not = []
+    #     for fl_resource in self._package.resources:
+    #         fl_resource: fl.Resource
+    #         dc_resource = self._handle_resource_argument(fl_resource)
+    #         is_dimcat_resource = isinstance(dc_resource, DimcatResource)
+    #         dimcat_resource_or_not.append(is_dimcat_resource)
+    #         self._resources.append(dc_resource)
+    #     if len(dimcat_resource_or_not) > 0:
+    #         if all(dimcat_resource_or_not):
+    #             self._status = PackageStatus.FULLY_SERIALIZED
+    #         elif any(dimcat_resource_or_not):
+    #             self._status = PackageStatus.PARTIALLY_SERIALIZED
+    #         else:
+    #             self._status = PackageStatus.PATHS_ONLY
 
-        self._package = fl_package
-        dimcat_resource_or_not = []
-        for fl_resource in self._package.resources:
-            fl_resource: fl.Resource
-            dc_resource = self._handle_resource_argument(fl_resource)
-            is_dimcat_resource = isinstance(dc_resource, DimcatResource)
-            dimcat_resource_or_not.append(is_dimcat_resource)
-            self._resources.append(dc_resource)
-        if len(dimcat_resource_or_not) > 0:
-            if all(dimcat_resource_or_not):
-                self._status = PackageStatus.FULLY_SERIALIZED
-            elif any(dimcat_resource_or_not):
-                self._status = PackageStatus.PARTIALLY_SERIALIZED
-            else:
-                self._status = PackageStatus.PATHS_ONLY
+    @property
+    def package_exists(self) -> bool:
+        """Returns True if the package's normpath exists on disk."""
+        try:
+            return os.path.isfile(self.normpath)
+        except (BasePathNotDefinedError, FilePathNotDefinedError):
+            return False
 
     @property
     def package_name(self) -> str:
@@ -645,7 +800,10 @@ class Package(Data):
 
     @property
     def resources(self) -> List[Resource]:
-        return self._resources
+        """Returns a list of the resources in the package.
+        Mutating the list will not affect the package but mutating one of the resources would.
+        """
+        return [r for r in self._resources]
 
     @property
     def resource_names(self) -> List[str]:
@@ -659,28 +817,24 @@ class Package(Data):
     def zip_file_exists(self) -> bool:
         return os.path.isfile(self.get_zip_path())
 
-    def add_new_dimcat_resource(
+    def _verify_creationist_arguments(
         self,
-        resource: Optional[DimcatResource | fl.Resource | str] = None,
+        **kwargs,
+    ):
+        """Spoiler alert: They are spurious."""
+        pass
+
+    def create_and_add_resource(
+        self,
+        resource: Optional[Resource | fl.Resource | str] = None,
         resource_name: Optional[str] = None,
-        df: Optional[D] = None,
         basepath: Optional[str] = None,
         auto_validate: bool = False,
     ) -> None:
         """Adds a resource to the package. Parameters are passed to :class:`DimcatResource`."""
-        if sum(x is not None for x in (resource, df)) == 2:
-            raise ValueError("Pass either a DimcatResource or a dataframe, not both.")
-        if df is not None:
-            new_resource = DimcatResource.from_dataframe(
-                df=df,
-                resource_name=resource_name,
-                auto_validate=auto_validate,
-                basepath=basepath,
-            )
-            self.add_resource(new_resource)
-            return
-        if isinstance(resource, Resource):
-            new_resource = DimcatResource.from_resource(
+        Constructor = self.accepted_resource_types[0]
+        if isinstance(resource, self.accepted_resource_types):
+            new_resource = resource.__class__.from_resource(
                 resource=resource,
                 resource_name=resource_name,
                 basepath=basepath,
@@ -689,7 +843,7 @@ class Package(Data):
             self.add_resource(new_resource)
             return
         if isinstance(resource, str):
-            new_resource = DimcatResource.from_descriptor_path(
+            new_resource = Constructor.from_descriptor_path(
                 descriptor_path=resource,
                 basepath=basepath,
                 auto_validate=auto_validate,
@@ -697,7 +851,7 @@ class Package(Data):
             self.add_resource(new_resource)
             return
         if resource is None or isinstance(resource, fl.Resource):
-            new_resource = DimcatResource(
+            new_resource = Constructor(
                 resource=resource,
                 basepath=basepath,
                 auto_validate=auto_validate,
@@ -710,66 +864,101 @@ class Package(Data):
             f"resource is expected to be a resource or a path to a descriptor, not {type(resource)!r}"
         )
 
-    def add_resource(
+    def add_resource(self, resource: Resource):
+        """Adds a resource to the package."""
+        self._add_resource(resource)
+
+    def _add_resource(
         self,
         resource: Resource,
-        how: AddingBehaviour = AddingBehaviour.RAISE,
+        mode: Optional[PackageMode] = None,
     ) -> None:
         """Adds a resource to the package."""
-        self.check_resource(resource)
-        is_dimcat_resource = isinstance(resource, DimcatResource)
-        if is_dimcat_resource:
-            # A DimcatResource is expected to be part of a .zip file in this package's basepath or a subfolder
-            resource = self._handle_resource_argument(resource, how=how)
-            if resource.is_loaded:
-                resource._status = ResourceStatus.PACKAGED_LOADED
-                self.logger.debug(
-                    f"Status of resource {resource.resource_name!r} was set to {resource.status!r}."
-                )
-            else:
-                resource._status = ResourceStatus.PACKAGED_NOT_LOADED
-                self.logger.debug(
-                    f"Status of resource {resource.resource_name!r} was set to {resource.status!r}."
-                )
+        if mode is None:
+            mode = self.default_mode
+        if len(self._resources) == 0 and self.package_exists:
+            os.remove(self.normpath)
+        resource = self._amend_resource_type(resource)
+        resource = self._reconcile_resource(
+            resource,
+            mode=mode,
+        )
         self._resources.append(resource)
         self._package.add_resource(resource.resource)
-        if not is_dimcat_resource:
-            if self.status == PackageStatus.EMPTY:
-                self._status = PackageStatus.PATHS_ONLY
-            return
-        if self.status == PackageStatus.PARTIALLY_SERIALIZED:
-            return
-        if resource.is_serialized:
-            if self.status in (PackageStatus.EMPTY, PackageStatus.FULLY_SERIALIZED):
-                self._status = PackageStatus.FULLY_SERIALIZED
-            elif self.status in (
-                PackageStatus.NOT_SERIALIZED,
-                PackageStatus.PATHS_ONLY,
-            ):
-                self._status = PackageStatus.PARTIALLY_SERIALIZED
-            else:
-                raise NotImplementedError(f"Unexpected status {self.status!r}")
-        else:
-            if self.status in (PackageStatus.EMPTY, PackageStatus.NOT_SERIALIZED):
-                self._status = PackageStatus.NOT_SERIALIZED
-            elif self.status == PackageStatus.FULLY_SERIALIZED:
-                self._status = PackageStatus.PARTIALLY_SERIALIZED
-            else:
-                raise NotImplementedError(f"Unexpected status {self.status!r}")
+        if (
+            resource.basepath == self.basepath
+            and resource.descriptor_filename == self.descriptor_filename
+            and resource.is_serialized
+        ):
+            self.store_descriptor(
+                overwrite=True,
+                allow_partial=True,
+            )
+        self._update_status()
 
-    def check_resource(self, resource):
-        """Checks if the given resource can be added.
+    def _amend_resource_type(self, resource) -> Resource:
+        """Change the type of the given resource an perform transformations, if needed, before
+        adding it to the package.
 
         Raises:
-            TypeError: If the given resource is not a :obj:`Resource` object.
+            TypeError: If the given resource is not specified in :attr:`accepted_resource_types`.
             ValueError: If the given resource has a name that already exists in the package.
         """
-        if not isinstance(resource, Resource):
-            raise TypeError(f"Expected a Resource, not {type(resource)!r}")
-        if resource.resource_name in self.resource_names:
+        if (
+            isinstance(resource, Resource)
+            and resource.resource_name in self.resource_names
+        ):
             raise ValueError(
                 f"Resource with name {resource.resource_name!r} already exists."
             )
+        if isinstance(resource, self.accepted_resource_types):
+            return resource
+        Constructor = self.accepted_resource_types[0]
+        return Constructor.from_resource(resource)
+
+    def check_if_homogeneous(
+        self,
+        resource_types: Optional[Type[Resource], Tuple[Type[Resource], ...]] = None,
+        status_exactly=None,
+        status_at_least=None,
+        status_at_most=None,
+    ) -> bool:
+        """Returns True if all resources in the package conform to the specified criteria.
+
+        Args:
+            resource_types: If not specified, all resources need to be of the same type.
+            status_exactly: If specified, all resources need to have exactly this status.
+            status_at_least: If specified, all resources need to have at least this status.
+            status_at_most: If specified, all resources need to have at most this status.
+
+        Returns:
+
+        """
+        if self.is_empty:
+            return True
+        if resource_types is None:
+            resource_types = (self._resources[0].__class__,)
+        else:
+            if isclass(resource_types):
+                resource_types = (resource_types,)
+            resource_types = tuple(
+                get_class(typ) if isinstance(typ, str) else typ
+                for typ in resource_types
+            )
+        if not all(isinstance(resource, resource_types) for resource in self.resources):
+            return False
+        if status_exactly is not None and not all(
+            resource.status == status_exactly for resource in self.resources
+        ):
+            return False
+        if status_at_least is not None and not all(
+            resource.status >= status_at_least for resource in self.resources
+        ):
+            return False
+        if status_at_most is not None and not all(
+            resource.status <= status_at_most for resource in self.resources
+        ):
+            return False
 
     def copy(self) -> Self:
         """Returns a copy of the package."""
@@ -783,7 +972,9 @@ class Package(Data):
             self.logger.debug("Nothing to add.")
             return
         for n_added, resource in enumerate(resources, 1):
-            self.add_resource(resource)
+            self.add_resource(
+                resource,
+            )
         self.logger.info(
             f"Package {self.package_name!r} was extended with {n_added} resources to a total "
             f"of {self.n_resources}."
@@ -814,24 +1005,36 @@ class Package(Data):
         Constructor = feature_name.get_class()
         return Constructor.from_resource(resource)
 
-    def get_descriptor_path(self, create_if_necessary=False) -> Optional[str]:
-        """Returns the path to the descriptor file."""
+    def get_descriptor_path(
+        self,
+        set_default_if_missing=False,
+    ) -> Optional[str]:
+        """Returns the path to the descriptor file. If basepath or descriptor_filename are not set, they are set
+        permanently to their defaults. If ``create_if_missing`` is set to True, the descriptor file is created if it
+        does not exist yet."""
         descriptor_path = os.path.join(
-            self.get_basepath(), self.get_descriptor_filepath()
+            self.get_basepath(set_default_if_missing=set_default_if_missing),
+            self.get_descriptor_filename(set_default_if_missing=set_default_if_missing),
         )
-        if not os.path.isfile(descriptor_path) and create_if_necessary:
-            self.store_descriptor(descriptor_path)
         return descriptor_path
 
-    def get_descriptor_filepath(self) -> str:
-        """Like :attr:`descriptor_filepath` but returning a default value if None."""
-        if self.descriptor_filepath is not None:
-            return self.descriptor_filepath
+    def get_descriptor_filename(
+        self,
+        set_default_if_missing: bool = False,
+    ) -> str:
+        """Like :attr:`descriptor_filename` but returning a default value if None.
+        If ``set_default_if_missing`` is set to True and no basepath has been set (e.g. during initialization),
+        the :attr:`basepath` is permanently set to the  default basepath.
+        """
+        if self.descriptor_filename:
+            return self.descriptor_filename
         if self.package_name:
-            descriptor_filepath = f"{self.package_name}.datapackage.json"
+            descriptor_filename = f"{self.package_name}.datapackage.json"
         else:
-            descriptor_filepath = "datapackage.json"
-        return descriptor_filepath
+            descriptor_filename = "datapackage.json"
+        if set_default_if_missing:
+            self._descriptor_filename = descriptor_filename
+        return descriptor_filename
 
     def get_feature(self, feature: FeatureSpecs) -> Feature:
         """Checks if the package includes a feature matching the specs, and extracts it otherwise, if possible.
@@ -893,15 +1096,29 @@ class Package(Data):
                 return resource
         raise NoMatchingResourceFoundError(config)
 
+    def _get_status(self) -> PackageStatus:
+        """Returns the status of the package."""
+        if self.is_empty:
+            return PackageStatus.EMPTY
+        if self.is_paths_only:
+            return PackageStatus.PATHS_ONLY
+        if not self.is_aligned:
+            return PackageStatus.MISALIGNED
+        if not self.is_partially_serialized:
+            return PackageStatus.ALIGNED
+        if self.is_fully_serialized:
+            return PackageStatus.FULLY_SERIALIZED
+        return PackageStatus.PARTIALLY_SERIALIZED
+
     def get_zip_filepath(self) -> str:
         """Returns the path of the ZIP file that the resources of this package are serialized to."""
-        descriptor_filepath = self.get_descriptor_filepath()
-        if descriptor_filepath == "datapackage.json":
+        descriptor_filename = self.get_descriptor_filename()
+        if descriptor_filename == "datapackage.json":
             zip_filename = f"{self.package_name}.zip"
-        elif descriptor_filepath.endswith(
+        elif descriptor_filename.endswith(
             ".datapackage.json"
-        ) or descriptor_filepath.endswith(".datapackage.yaml"):
-            zip_filename = f"{descriptor_filepath[:-17]}.zip"
+        ) or descriptor_filename.endswith(".datapackage.yaml"):
+            zip_filename = f"{descriptor_filename[:-17]}.zip"
         return zip_filename
 
     def get_zip_path(self) -> str:
@@ -925,176 +1142,95 @@ class Package(Data):
                 return resource
         raise ResourceNotFoundError(name, self.package_name)
 
-    def _handle_package_argument(self, package: PackageSpecs) -> fl.Package:
-        descriptor_path = None
-        if isinstance(package, str):
-            descriptor_path = check_file_path(
-                package,
-                extensions=(
-                    "package.json",
-                    "package.yaml",
-                ),  # both datapackage and package are fine
-            )
-            fl_package = fl.Package(descriptor_path)
-            fl_basepath = fl_package.basepath
-        elif isinstance(package, fl.Package):
-            fl_package = package
-            if not fl_package.resource_names:
-                fl_package.clear_resources()  # otherwise the package might be invalid
-            fl_basepath = fl_package.basepath
-        elif isinstance(package, Package):
-            raise TypeError(
-                f"To create a {self.name} from a {type(package)!r} use {self.name}.from_package(package)"
-            )
-        else:
-            raise ValueError(
-                f"Expected a path or a frictionless.Package, not {type(package)!r}"
-            )
-        if self.package_name is None:
-            if not fl_package.name:
-                raise ValueError(
-                    f"{self.name}.package_name is not set and the given package has no name."
-                )
-            self.package_name = fl_package.name
-        if fl_basepath is None:
-            if self.basepath:
-                fl_package.basepath = self.basepath
-                self.logger.info(
-                    f"The missing basepath of {fl_package.name!r} was set to {self.basepath!r}."
-                )
-            # else:
-            #     default_basepath = self.get_basepath()
-            #     fl_package.basepath = default_basepath
-            #     self.logger.info(f"The missing basepath of {self.package_name!r} was set to the default "
-            #                      f"{default_basepath!r}.")
-        else:
-            if self.basepath:
-                if fl_basepath != self.basepath:
-                    raise ValueError(
-                        f"The basepath of the given package {fl_basepath!r} does not match the one of the "
-                        f"Package {self.basepath!r}."
-                    )
-            else:
-                self.basepath = fl_basepath
-                self.logger.info(
-                    f"The missing basepath of {self.package_name!r} was set to the one from the "
-                    f"frictionless.Package {fl_basepath!r}."
-                )
-        if descriptor_path:
-            if self.basepath:
-                descriptor_filepath = make_rel_path(descriptor_path, self.basepath)
-            else:
-                basepath, descriptor_filepath = os.path.split(descriptor_path)
-                self.basepath = basepath
-            self._descriptor_filepath = descriptor_filepath
-        return fl_package
-
     def _handle_resource_argument(
         self,
         resource: DimcatResource | fl.Resource,
-        how: AddingBehaviour = AddingBehaviour.RAISE,
     ) -> Resource:
-        """If package paths haven't been set, use those from this resource that is to be added to the package.
-        Otherwise, make sure the resource paths are compatible.
-        """
-        how = AddingBehaviour(how)
-        if how != AddingBehaviour.RAISE:
-            raise NotImplementedError
-        is_dimcat_resource = isinstance(resource, DimcatResource)
-        if is_dimcat_resource:
-            fl_resource = resource.resource
-        elif isinstance(resource, fl.Resource):
-            fl_resource = resource
-        else:
-            raise TypeError(
-                f"Expected a frictionless.Resource or a DimcatResource, but got {type(resource)!r}."
-            )
-        resource_is_serialized = fl_resource.basepath and os.path.isfile(
-            fl_resource.normpath
-        )
-        # If the frictionless resource points to an actual file on disk, its paths
-        # need to be reconciled with the package's paths. Currently, objects of type Resource
-        # (not DimcatResource) do not end up here (TypeError) because their paths are independent
-        if resource_is_serialized:
-            # if not fl_resource.path.endswith(".zip"):
-            #     raise NotImplementedError(
-            #         f"Currently only zipped resources are supported. {fl_resource.name!r} is stored at "
-            #         f"{fl_resource.normpath}."
-            #     )
-            if fl_resource.path.endswith(".zip") and not fl_resource.innerpath:
-                raise ValueError(
-                    f"The resource {fl_resource.name!r} is stored at {fl_resource.normpath} but has no innerpath."
-                )
-            if self.basepath is None:
-                if fl_resource.basepath is not None:
-                    self.basepath = fl_resource.basepath
-                    self.logger.info(
-                        f"The missing basepath of {self.package_name!r} was set to the one from the "
-                        f"frictionless.Package {fl_resource.basepath!r}."
-                    )
-                    assert (
-                        self.basepath is not None
-                    ), f"basepath is None after setting it to {fl_resource.basepath}"
+        """Turn the argument into some :class:`Resource` object.
 
-            if fl_resource.basepath != self.basepath:
-                new_filepath = make_rel_path(fl_resource.normpath, self.basepath)
-                self.logger.info(
-                    f"Adapting basepath and filepath of {fl_resource.name!r} from {fl_resource.basepath!r} / "
-                    f"{fl_resource.path}  to {self.basepath} / {new_filepath}."
-                )
-                fl_resource.basepath = self.basepath
-                fl_resource.path = new_filepath
-        else:
-            # the resource is not attached to a file on disk, so we can replace its basepath
-            fl_resource.basepath = self.basepath
-            # fl_resource.path = self.get_zip_filepath()
-        if is_dimcat_resource:
+        Raises:
+            TypeError: If the argument is neither a :class:`Resourcce` nor a frictionless.Resource.
+        """
+        if isinstance(resource, Resource):
             return resource
-        # when we reach this point, a frictionless.Resource was passed as argument and we need to decide which
-        # type of DimcatResource it should become
-        dtype = fl_resource.custom.get("dtype")
-        if dtype:
-            Constructor = get_class(dtype)
-        elif fl_resource.path.endswith(".zip") and fl_resource.innerpath:
-            Constructor = DimcatResource
-        elif fl_resource.path.endswith(".tsv"):
-            Constructor = DimcatResource
-        else:
-            Constructor = Resource
-        dc_resource = Constructor(
-            resource=fl_resource, descriptor_filepath=self.descriptor_filepath
+        if isinstance(resource, fl.Resource):
+            return Resource.from_descriptor(resource=resource.to_dict())
+        raise TypeError(
+            f"Expected a frictionless.Resource or a DimcatResource, but got {type(resource)!r}."
         )
-        return dc_resource
 
     def make_descriptor(self) -> dict:
-        descriptor = dict(name=self.package_name, resources=[])
-        for resource in self.resources:
-            descriptor["resources"].append(resource.to_dict())
-        return descriptor
+        return self.pickle_schema.dump(self)
 
-    def make_fl_descriptor(self) -> dict:
-        descriptor = dict(name=self.package_name, resources=[])
-        for resource in self.resources:
-            descriptor["resources"].append(resource.get_frictionless_descriptor())
-        return descriptor
+    def _reconcile_resource(
+        self,
+        resource: Resource,
+        mode: Optional[PackageMode] = None,
+    ) -> Resource:
+        if mode is None:
+            mode = self.default_mode
+        if mode == PackageMode.ALLOW_MISALIGNMENT:
+            return resource
 
-    def _set_descriptor_filepath(self, descriptor_filepath):
+        # try reconciling the paths
+        package_basepath = self.get_basepath()
+        package_filepath = self.filepath if self.store_zipped else None
+        package_descriptor_filename = self.get_descriptor_filename(
+            set_default_if_missing=True
+        )
+        try:
+            resource.basepath = package_basepath
+        except (ResourceIsFrozenError, ResourceIsPackagedError):
+            # resource is currently pointing to a resource file and/or descriptor on disk
+            if mode == PackageMode.RAISE:
+                raise
+            if mode == PackageMode.RECONCILE_SAFELY:
+                try:
+                    resource = resource.copy_to_new_location(
+                        package_basepath,
+                        filepath=package_filepath,
+                        descriptor_filename=package_descriptor_filename,
+                    )
+                except FileExistsError:
+                    resource = resource.from_resource(
+                        resource=resource,
+                        descriptor_filename=package_descriptor_filename,
+                        basepath=package_basepath,
+                    )
+                    if package_filepath is not None:
+                        resource.filepath = package_filepath
+                    self.logger.info(
+                        f"{mode!r}: Using the existing resource at {resource.normpath!r}."
+                    )
+            elif mode == PackageMode.RECONCILE_EVERYTHING:
+                resource = resource.copy_to_new_location(
+                    package_basepath,
+                    overwrite=True,
+                    filepath=package_filepath,
+                    descriptor_filename=package_descriptor_filename,
+                )
+            else:
+                raise NotImplementedError(f"Unexpected PackageMode {mode!r}.")
+
+        return resource
+
+    def _set_descriptor_filename(self, descriptor_filename):
         if self.descriptor_exists:
             if (
-                descriptor_filepath == self._descriptor_filepath
-                or descriptor_filepath == self.get_descriptor_path()
+                descriptor_filename == self._descriptor_filename
+                or descriptor_filename == self.get_descriptor_path()
             ):
                 self.logger.info(
-                    f"Descriptor filepath for {self.name!r} was already set to {descriptor_filepath!r}."
+                    f"Descriptor filepath for {self.name!r} was already set to {descriptor_filename!r}."
                 )
             else:
                 raise RuntimeError(
-                    f"Cannot set descriptor_filepath for {self.name!r} to {descriptor_filepath} because it already "
+                    f"Cannot set descriptor_filename for {self.name!r} to {descriptor_filename} because it already "
                     f"set to the existing one at {self.get_descriptor_path()!r}."
                 )
-        if os.path.isabs(descriptor_filepath):
+        if os.path.isabs(descriptor_filename):
             filepath = check_file_path(
-                descriptor_filepath,
+                descriptor_filename,
                 extensions=("package.json", "package.yaml"),
                 must_exist=False,
             )
@@ -1103,7 +1239,7 @@ class Package(Data):
                 self.basepath = basepath
                 self.logger.info(
                     f"The absolute descriptor_path {filepath!r} was used to set the basepath to "
-                    f"{basepath!r} and descriptor_filepath to {rel_path}."
+                    f"{basepath!r} and descriptor_filename to {rel_path}."
                 )
             else:
                 rel_path = make_rel_path(filepath, self.basepath)
@@ -1111,41 +1247,68 @@ class Package(Data):
                     f"The absolute descriptor_path {filepath!r} was turned into the relative path "
                     f"{rel_path!r} using the basepath {self.basepath!r}."
                 )
-            self._descriptor_filepath = rel_path
+            self._descriptor_filename = rel_path
         else:
-            self.logger.info(f"Setting descriptor_filepath to {descriptor_filepath!r}.")
-            self._descriptor_filepath = descriptor_filepath
+            self.logger.info(f"Setting descriptor_filename to {descriptor_filename!r}.")
+            self._descriptor_filename = descriptor_filename
 
     def store_descriptor(
-        self, descriptor_path: Optional[str] = None, overwrite=True
+        self,
+        descriptor_path: Optional[str] = None,
+        overwrite=True,
+        allow_partial=False,
     ) -> str:
         """Stores the descriptor to disk based on the package's configuration and returns its path."""
+        if not self.is_aligned:
+            show_misaligned = dict(
+                basepath=self.basepath,
+                descriptor=self._descriptor_filename,
+            )
+            for r in self.resources:
+                misaligned = {
+                    attr: val
+                    for attr, val in zip(
+                        ("basepath", "descriptor"), (r.basepath, r.descriptor_filename)
+                    )
+                    if val != show_misaligned[attr]
+                }
+                if misaligned:
+                    show_misaligned[r.resource_name] = misaligned
+            raise PackagePathsNotAlignedError(
+                f"Cannot store descriptor for this {self.name} because its resources are not aligned:\n"
+                f"{pformat(show_misaligned, sort_dicts=False)}"
+            )
+        if not self.is_fully_serialized and not allow_partial:
+            raise PackageNotFullySerializedError(
+                f"Cannot store descriptor for this {self.name} because not all resources have been serialized. "
+                f"If you want to allow this, set allow_partial=True."
+            )
         if descriptor_path is None:
-            descriptor_path = self.get_descriptor_path()
-        if not overwrite and self.descriptor_exists:
+            descriptor_path = self.get_descriptor_path(set_default_if_missing=False)
+            new_descriptor_filename = None
+        else:
+            new_descriptor_filename = make_rel_path(descriptor_path, self.basepath)
+            new_descriptor_filename = check_descriptor_filename_argument(
+                new_descriptor_filename
+            )
+        if not overwrite and os.path.isfile(descriptor_path):
             self.logger.info(
                 f"Descriptor exists already and will not be overwritten: {descriptor_path}"
             )
             return descriptor_path
         descriptor_dict = self.make_descriptor()
-        if descriptor_path.endswith("package.yaml"):
-            with open(descriptor_path, "w") as f:
-                yaml.dump(descriptor_dict, f)
-        elif descriptor_path.endswith("package.json"):
-            with open(descriptor_path, "w") as f:
-                json.dump(descriptor_dict, f, indent=2)
-        else:
-            raise ValueError(
-                f"Descriptor path must end with package.yaml or package.json: {descriptor_path}"
+        store_as_json_or_yaml(descriptor_dict, descriptor_path)
+        if new_descriptor_filename is not None:
+            self.descriptor_filename = new_descriptor_filename
+            self.logger.debug(
+                f"Updated descriptor_filename to {new_descriptor_filename!r}."
             )
-        self.descriptor_filepath = descriptor_path
-        assert self._descriptor_filepath is not None, (
-            "After storing the descriptor, the field _descriptor_filepath "
-            "should be set."
-        )
         if self.auto_validate:
             _ = self.validate(raise_exception=True)
         return descriptor_path
+
+    def _update_status(self):
+        self._status = self._get_status()
 
     def validate(self, raise_exception: bool = False) -> fl.Report:
         if self.n_resources != len(self._package.resource_names):
@@ -1163,6 +1326,24 @@ class Package(Data):
             errors = [err.message for task in report.tasks for err in task.errors]
             raise fl.FrictionlessException("\n".join(errors))
         return report
+
+
+class PathPackage(Package):
+    """Behaves like :class:`Package` but with the important difference that it never interprets filepaths as
+    frictionless resource descriptors (which Package loads as the appropriate :class:`Resource` type).
+    """
+
+    accepted_resource_types = (PathResource,)
+    default_mode = PackageMode.ALLOW_MISALIGNMENT
+    detects_extensions = None  # any
+
+    def add_resource(
+        self,
+        resource: PathResource,
+    ) -> None:
+        """Adds a resource to the package."""
+        resource = self._handle_resource_argument(resource)
+        self._add_resource(resource)
 
 
 PackageSpecs: TypeAlias = Union[Package, fl.Package, str]

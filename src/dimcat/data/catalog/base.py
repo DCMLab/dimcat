@@ -10,7 +10,7 @@ from dimcat.data.package.base import PackageSpecs
 from dimcat.data.package.dc import DimcatPackage
 from dimcat.data.resource.base import Resource
 from dimcat.data.resource.features import FeatureSpecs
-from dimcat.exceptions import (
+from dimcat.dc_exceptions import (
     DuplicatePackageNameError,
     EmptyCatalogError,
     PackageNotFoundError,

@@ -8,7 +8,7 @@ import frictionless as fl
 import marshmallow as mm
 from dimcat.base import DimcatConfig, ObjectEnum, is_subclass_of
 from dimcat.data.resource.dc import DimcatResource
-from dimcat.exceptions import ResourceNotProcessableError
+from dimcat.dc_exceptions import ResourceNotProcessableError
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +63,7 @@ class Notes(Feature):
         merge_ties: bool = True,
         weight_grace_notes: float = 0.0,
         resource: Optional[fl.Resource | str] = None,
-        descriptor_filepath: Optional[str] = None,
+        descriptor_filename: Optional[str] = None,
         basepath: Optional[str] = None,
         auto_validate: bool = True,
         default_groupby: Optional[str | list[str]] = None,
@@ -72,7 +72,7 @@ class Notes(Feature):
         self._weight_grace_notes: float = weight_grace_notes
         super().__init__(
             resource=resource,
-            descriptor_filepath=descriptor_filepath,
+            descriptor_filename=descriptor_filename,
             basepath=basepath,
             auto_validate=auto_validate,
             default_groupby=default_groupby,
