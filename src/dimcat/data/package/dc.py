@@ -11,6 +11,7 @@ from dimcat.data.resource.dc import DimcatResource
 class DimcatPackage(Package):
     accepted_resource_types = (DimcatResource,)
     default_mode = PackageMode.RECONCILE_SAFELY
+    store_zipped = True
 
     def _verify_creationist_arguments(
         self,
