@@ -1,15 +1,13 @@
 import dataclasses
 import logging
-import os.path
 from collections import defaultdict
 from functools import cache
 from inspect import signature
-from typing import DefaultDict, Iterable, List, Optional, Tuple
+from typing import DefaultDict, List, Tuple
 
 import music21 as m21
 import pandas as pd
-from dimcat.utils import is_uri, resolve_path
-from tqdm.auto import tqdm
+from dimcat.data.resource.base import Resource
 
 from .base import ScoreLoader
 from .utils import get_m21_input_extensions
@@ -457,7 +455,7 @@ def make_dataframe(records: List[dict], drop_empty_columns: bool = True):
     return df
 
 
-def make_metadata(metadata_dict):
+def make_metadata(metadata_dict) -> pd.Series:
     metadata = {
         k: v[0] if len(v) == 1 else ", ".join(str(e) for e in v)
         for k, v in metadata_dict.items()
@@ -470,69 +468,16 @@ class Music21Loader(ScoreLoader):
     """Extracts information from scores using music21."""
 
     accepted_file_extensions = get_m21_input_extensions()
-
-    def __init__(
-        self,
-        package_name: str,
-        basepath: Optional[str] = None,
-        source: Optional[str] = None,
-        overwrite: bool = False,
-    ):
-        super().__init__(
-            package_name=package_name,
-            basepath=basepath,
-            source=source,
-            overwrite=overwrite,
-        )
-
-    @property
-    def source(self) -> str | Iterable[str]:
-        return self._source
-
-    @source.setter
-    def source(self, source: str):
-        if is_uri(source):
-            raise NotImplementedError("Loading from remote URLs is not yet supported.")
-        if isinstance(source, str):
-            new_source = resolve_path(source)
-            if not new_source:
-                raise ValueError(f"Could not resolve {source}.")
-            self._source = new_source
-        else:
-            self._source = source
-
-    def create_datapackage(
-        self,
-        overwrite: Optional[bool] = None,
-    ) -> str:
-        super().create_datapackage(overwrite=overwrite)
-        self._parse_and_extract()
-        self.store_datapackage()
-        return self.descriptor_path
-
-    def _parse_and_extract(
-        self,
-    ):
-        paths = list(self.paths)
-        for path in (
-            pbar := tqdm(
-                paths,
-                total=len(paths),
-                desc="Parsing scores...",
-            )
-        ):
-            directory, file = os.path.split(path)
-            pbar.set_description(f"Parsing {file}")
-            self._process_resource(path)
+    default_loader_name = "music21"
 
     def _process_resource(
         self,
-        resource: str,
+        resource: Resource,
     ) -> None:
-        score = Music21Score(resource)
+        ID = resource.ID
+        filepath = resource.filepath
+        score = Music21Score(filepath)
         score.parse()
-        path, file = os.path.split(resource)
-        ID = (os.path.basename(path), os.path.splitext(file)[0])
         for facet_name, obj in zip(
             ("events", "control", "structure", "annotations", "metadata"),
             (

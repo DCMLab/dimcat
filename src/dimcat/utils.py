@@ -34,7 +34,7 @@ def make_valid_frictionless_name_from_filepath(
 ) -> str:
     file = os.path.basename(path)
     if include_extension:
-        return file
+        return make_valid_frictionless_name(file, replace_char=replace_char)
     name, _ = os.path.splitext(file)
     return make_valid_frictionless_name(name, replace_char=replace_char)
 
@@ -346,7 +346,7 @@ def scan_directory(
             try:
                 passing = re.search(reg, s) is not None and re.search(excl, s) is None
             except Exception:
-                print(reg)
+                logger.error(reg)
                 raise
             return passing
 

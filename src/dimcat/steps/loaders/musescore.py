@@ -1,14 +1,17 @@
+import logging
 import os
 import re
 from pathlib import Path
 from typing import ClassVar, Collection, Literal, Optional, Tuple
 
 import ms3
-from dimcat.exceptions import NoMuseScoreExecutableSpecifiedError
+from dimcat.dc_exceptions import NoMuseScoreExecutableSpecifiedError
 from dimcat.utils import make_valid_frictionless_name
 from tqdm.asyncio import tqdm
 
 from .base import Loader, ScoreLoader
+
+logger = logging.getLogger(__name__)
 
 
 class MuseScoreLoader(ScoreLoader):
@@ -41,14 +44,12 @@ class MuseScoreLoader(ScoreLoader):
         **logger_cfg,
     ):
         super().__init__(
-            package_name=package_name,
             basepath=basepath,
-            source=source,
             overwrite=overwrite,
         )
         self.parser: ms3.Parse | ms3.Corpus = None
         ms3_arguments = dict(
-            directory=self.source,
+            directory=self.sources,
             only_metadata_fnames=only_metadata_fnames,
             include_convertible=include_convertible,
             include_tsv=include_tsv,
@@ -79,7 +80,7 @@ class MuseScoreLoader(ScoreLoader):
             if self.parser.ms is None:
                 raise NoMuseScoreExecutableSpecifiedError
 
-    def create_datapackage(
+    def make_and_store_datapackage(
         self,
         overwrite: Optional[bool] = None,
         view_name: Optional[str] = None,
@@ -104,7 +105,7 @@ class MuseScoreLoader(ScoreLoader):
             FileExistsError: If the zip file <basepath>/<package_name>.zip already exists.
 
         """
-        super().create_datapackage(overwrite=overwrite)
+        super().make_and_store_datapackage(overwrite=overwrite)
         if choose not in ("auto", "ask"):
             raise ValueError(
                 f"Invalid value for choose: {choose}. Pass 'auto' (default) or 'ask'."
@@ -115,7 +116,7 @@ class MuseScoreLoader(ScoreLoader):
             unparsed=unparsed,
             view_name=view_name,
         )
-        self.store_datapackage()
+        self._store_datapackage()
         return self.descriptor_path
 
     def _parse_and_extract(
@@ -141,7 +142,7 @@ class MuseScoreLoader(ScoreLoader):
             }
             score_files = {ID: files[0] for ID, files in score_files.items()}
         else:  # ms3.Corpus
-            if self.package_name is None:
+            if self.loader_name is None:
                 corpus_name = make_valid_frictionless_name(self.parser.name)
                 self.package_name = corpus_name
             else:
