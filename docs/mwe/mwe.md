@@ -5,7 +5,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.14.4
+    jupytext_version: 1.14.6
 kernelspec:
   display_name: dimcat
   language: python
@@ -81,8 +81,6 @@ analyzed_dataset.get_result().plot()
 Let's define a CustomPieceGrouper from random piece groups:
 
 ```{code-cell} ipython3
-:tags: []
-
 n_groups = 10
 n_members = 10
 
@@ -120,8 +118,6 @@ analyzed_dataset.get_result().plot()
 Serialization of any DimcatObject uses the `DimcatConfig` object.
 
 ```{code-cell} ipython3
-:tags: []
-
 step_configs = [
     dict(dtype="FeatureExtractor", features=[dict(dtype="Notes", format="FIFTHS")]),
     dict(dtype="Counter"),
