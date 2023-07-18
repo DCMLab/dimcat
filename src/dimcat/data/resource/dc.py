@@ -188,7 +188,7 @@ class DimcatResource(Resource, Generic[D]):
 """
         if resource_name is not None:
             new_object.resource_name = resource_name
-        new_object.df = df
+        new_object._df = df
         assert (
             new_object.resource.path is not None
         ), f"""{cls.name}(
@@ -208,6 +208,7 @@ class DimcatResource(Resource, Generic[D]):
         descriptor_filename: Optional[str] = None,
         auto_validate: bool = False,
         default_groupby: Optional[str | list[str]] = None,
+        basepath: Optional[str] = None,
         **kwargs: Optional[bool],
     ) -> Self:
         """Create a Resource from a file on disk, be it a JSON/YAML resource descriptor, or a simple path resource.
@@ -226,7 +227,8 @@ class DimcatResource(Resource, Generic[D]):
                 e.g. replacing the the :attr:`column_schema`.
             default_groupby:
                 Pass a list of column names or index levels to groupby something else than the default (by piece).
-
+            basepath:
+                Basepath to use for the resource. If None, the folder of the ``filepath`` is used.
         """
         return super().from_filepath(
             filepath=filepath,
@@ -234,6 +236,7 @@ class DimcatResource(Resource, Generic[D]):
             descriptor_filename=descriptor_filename,
             auto_validate=auto_validate,
             default_groupby=default_groupby,
+            basepath=basepath,
             **kwargs,
         )
 
@@ -312,10 +315,20 @@ class DimcatResource(Resource, Generic[D]):
         descriptor_filename: Optional[str] = None,
         **kwargs,
     ) -> Self:
-        raise NotImplementedError(
-            f"Either load the resource yourself and use {cls.name}.from_dataframe() or, if you "
-            f"want to get a simple path resource, use Resource.from_resource_path() (not "
-            f"DimcatResource)."
+        if not resource_path.endswith(".tsv"):
+            fname, fext = os.path.splitext(os.path.basename(resource_path))
+            raise NotImplementedError(
+                f"{fname}: Don't know how to load {fext} files yet."
+                f"Either load the resource yourself and use {cls.name}.from_dataframe() or, if you "
+                f"want to get a simple path resource, use Resource.from_resource_path() (not "
+                f"DimcatResource)."
+            )
+        df = ms3.load_tsv(resource_path)
+        return cls.from_dataframe(
+            df=df,
+            resource_name=resource_name,
+            descriptor_filename=descriptor_filename,
+            **kwargs,
         )
 
     class Schema(Resource.Schema):
@@ -502,7 +515,7 @@ DimcatResource.__init__(
             try:
                 self.column_schema = infer_schema_from_df(df)
             except FrictionlessException:
-                print(f"Could not infer schema from {type(df)}:\n{df}")
+                self.logger.error(f"Could not infer schema from {type(df)}:\n{df}")
                 raise
         self._status = ResourceStatus.DATAFRAME
         if self.auto_validate:

@@ -42,7 +42,6 @@ class Result(DimcatResource):
                 groups.remove(level)
         if len(groups) > 0 and "color" not in kwargs:
             kwargs["color"] = groups[0]
-            print(kwargs)
         df = self.df.reset_index()
         fig = px.bar(
             df,

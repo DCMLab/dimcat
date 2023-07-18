@@ -209,7 +209,9 @@ class Package(Data):
         """
         Constructor = cls.accepted_resource_types[0]
         new_resource = Constructor.from_filepath(
-            filepath=filepath, resource_name=resource_name
+            filepath=filepath,
+            resource_name=resource_name,
+            basepath=basepath,
         )
         if corpus_name:
             new_resource.corpus_name = make_valid_frictionless_name(corpus_name)
@@ -397,7 +399,6 @@ class Package(Data):
         resource_names: Optional[Callable[[str], Optional[str]]] = None,
         corpus_names: Optional[Callable[[str], Optional[str]]] = None,
         auto_validate: bool = False,
-        basepath: Optional[str] = None,
     ) -> Self:
         """Create a new Package from an iterable of filepaths.
 
@@ -427,9 +428,6 @@ class Package(Data):
                 Whatever the name turns out to be, it will always be turned into a valid
                 frictionless name via :func:`make_valid_frictionless_name`.
             auto_validate: Set True to validate the new package after copying it.
-            basepath:
-                The basepath where the new package will be stored. If None, the basepath of the
-                original package
         """
         directory = resolve_path(directory)
         if extensions is None and cls.detects_extensions:
@@ -440,15 +438,13 @@ class Package(Data):
         cls.logger.info(f"Found {len(paths)} files in {directory}.")
         if not package_name:
             package_name = os.path.basename(directory)
-        if basepath is None:
-            basepath = directory
         return cls.from_filepaths(
             paths,
             package_name=package_name,
             resource_names=resource_names,
             corpus_names=corpus_names,
             auto_validate=auto_validate,
-            basepath=basepath,
+            basepath=directory,
         )
 
     @classmethod

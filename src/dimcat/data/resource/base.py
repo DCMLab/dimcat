@@ -320,6 +320,7 @@ class Resource(Data):
         filepath: str,
         resource_name: Optional[str] = None,
         descriptor_filename: Optional[str] = None,
+        basepath: Optional[str] = None,
         **kwargs,
     ) -> Self:
         """Create a Resource from a file on disk, be it a JSON/YAML resource descriptor, or a simple path resource.
@@ -338,7 +339,8 @@ class Resource(Data):
                 e.g. replacing the the :attr:`column_schema`.
             default_groupby:
                 Pass a list of column names or index levels to groupby something else than the default (by piece).
-
+            basepath:
+                Basepath to use for the resource. If None, the folder of the ``filepath`` is used.
         """
         if is_default_resource_descriptor_path(filepath):
             return cls.from_descriptor_path(descriptor_path=filepath, **kwargs)
@@ -346,6 +348,7 @@ class Resource(Data):
             resource_path=filepath,
             resource_name=resource_name,
             descriptor_filename=descriptor_filename,
+            basepath=basepath,
             **kwargs,
         )
 
@@ -1102,6 +1105,7 @@ class PathResource(Resource):
         filepath: str,
         resource_name: Optional[str] = None,
         descriptor_filename: Optional[str] = None,
+        basepath: Optional[str] = None,
         **kwargs,
     ) -> Self:
         """Create a Resource from a file on disk, be it a JSON/YAML resource descriptor, or a simple path resource.
@@ -1120,12 +1124,14 @@ class PathResource(Resource):
                 e.g. replacing the the :attr:`column_schema`.
             default_groupby:
                 Pass a list of column names or index levels to groupby something else than the default (by piece).
-
+            basepath:
+                Basepath to use for the resource. If None, the folder of the ``filepath`` is used.
         """
         return cls.from_resource_path(
             resource_path=filepath,
             resource_name=resource_name,
             descriptor_filename=descriptor_filename,
+            basepath=basepath,
             **kwargs,
         )
 
@@ -1135,6 +1141,7 @@ class PathResource(Resource):
         resource_path: str,
         resource_name: Optional[str] = None,
         descriptor_filename: Optional[str] = None,
+        basepath: Optional[str] = None,
         **kwargs,
     ) -> Self:
         """Create a Resource from a file on disk, treating it just as a path even if it's a
@@ -1147,6 +1154,7 @@ class PathResource(Resource):
                 resource_path=resource_path,
                 resource_name=resource_name,
                 descriptor_filename=descriptor_filename,
+                basepath=basepath,
                 **kwargs,
             )
 
