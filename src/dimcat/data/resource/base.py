@@ -161,6 +161,10 @@ class ResourceSchema(Data.Schema):
     For example, :attr:`resource_name` uses ``.resource.name`` under the hood.
     """
 
+    # class Meta:
+    #     ordered = True
+    #     unknown = mm.INCLUDE # unknown fields allowed because frictionless descriptors can come with custom metadata
+
     basepath = mm.fields.Str(
         required=False,
         allow_none=True,
@@ -176,7 +180,8 @@ class ResourceSchema(Data.Schema):
     )
 
     def get_frictionless_descriptor(self, obj: Resource) -> dict:
-        return obj._resource.to_dict()
+        descriptor = obj._resource.to_dict()
+        return descriptor
 
     def raw(self, data):
         return data
@@ -192,11 +197,18 @@ class ResourceSchema(Data.Schema):
             return data
         if isinstance(data, fl.Resource):
             fl_resource = data
+        elif "name" not in data:
+            # probably manually compiled data
+            return data
         else:
             fl_resource = fl.Resource.from_descriptor(data)
-        unsquashed_data = dict(fl_resource.custom)
-        fl_resource.custom = {}
-        assert fl_resource.custom == {}
+        unsquashed_data = {}
+        for field_name in self.declared_fields.keys():
+            # the frictionless.Resource carries all unknown keys in the 'custom' dictionary
+            # we take out those that belong to the schema and leave the rest, which is arbitrary metadata
+            field_value = fl_resource.custom.pop(field_name, None)
+            if field_value is not None:
+                unsquashed_data[field_name] = field_value
         unsquashed_data["resource"] = fl_resource
         return unsquashed_data
 
@@ -204,9 +216,16 @@ class ResourceSchema(Data.Schema):
     def init_object(self, data, **kwargs):
         if "resource" not in data or data["resource"] is None:
             # probably manually compiled data
+            if "dtype" not in data:
+                data["dtype"] = "Resource"
             return super().init_object(data, **kwargs)
         if not isinstance(data["resource"], fl.Resource):
             data["resource"] = fl.Resource.from_descriptor(data["resource"])
+        if "dtype" not in data:
+            if data["resource"].schema.fields:
+                data["dtype"] = "DimcatResource"
+            else:
+                data["dtype"] = "Resource"
         return super().init_object(data, **kwargs)
 
 
@@ -703,8 +722,16 @@ Resource(
     ) -> Self:
         try:
             old_normpath = self.normpath
-        except (BasePathNotDefinedError, FilePathNotDefinedError) as e:
-            raise e(f"{self.name} does not point to a resource on disk.")
+        except FilePathNotDefinedError:
+            raise FilePathNotDefinedError(
+                message=f"{self.name} {self.resource_name!r} cannot be copied because it does not have a filepath "
+                f"pointing to a resource on disk."
+            )
+        except BasePathNotDefinedError:
+            raise BasePathNotDefinedError(
+                message=f"{self.name} {self.resource_name!r} cannot be copied because it does not have a basepath and "
+                f"therefore does not point to resource on disk."
+            )
         new_innerpath = None
         if filepath:
             check_rel_path(filepath, basepath)
@@ -778,7 +805,7 @@ Resource(
         if resource_name:
             new_resource.resource_name = resource_name
         if new_innerpath:
-            new_resource.innerpath = new_innerpath
+            new_resource.resource.innerpath = new_innerpath
         if filepath:
             new_resource.filepath = filepath
         if new_resource.filepath.endswith(".zip"):
@@ -1052,7 +1079,7 @@ Resource(
         """Returns a dictionary representation of the resource and stores its descriptor to disk."""
         if not pickle:
             return super().to_dict()
-        descriptor_path = self.get_descriptor_path(create_if_missing=True)
+        descriptor_path = self.get_descriptor_path(set_default_if_missing=True)
         descriptor_dict = self.make_descriptor()
 
         store_as_json_or_yaml(descriptor_dict, descriptor_path)
@@ -1145,18 +1172,30 @@ class PathResource(Resource):
         **kwargs,
     ) -> Self:
         """Create a Resource from a file on disk, treating it just as a path even if it's a
-        JSON/YAML resource descriptor"""
-        with warnings.catch_warnings():
-            # suppress warning when receiving descriptor path since this object is treating
-            # all paths as equals
-            warnings.simplefilter("ignore")
-            return super().from_resource_path(
-                resource_path=resource_path,
-                resource_name=resource_name,
-                descriptor_filename=descriptor_filename,
-                basepath=basepath,
-                **kwargs,
-            )
+        JSON/YAML resource descriptor."""
+        try:
+            basepath, resource_path = reconcile_base_and_file(basepath, resource_path)
+        except BaseFilePathMismatchError:
+            basepath, resource_path = os.path.split(resource_path)
+        # The rest of the method is copied from super().from_resource_path
+        fname, extension = os.path.splitext(resource_path)
+        if resource_name:
+            resource_name = make_valid_frictionless_name(resource_name)
+        else:
+            resource_name = make_valid_frictionless_name_from_filepath(resource_path)
+        options = dict(
+            name=resource_name,
+            path=resource_path,
+            scheme="file",
+            format=extension[1:],
+        )
+        fl_resource = make_fl_resource(**options)
+        return cls(
+            resource=fl_resource,
+            descriptor_filename=descriptor_filename,
+            basepath=basepath,
+            **kwargs,
+        )
 
     def __init__(
         self,

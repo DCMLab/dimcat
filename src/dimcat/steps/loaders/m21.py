@@ -475,7 +475,7 @@ class Music21Loader(ScoreLoader):
         resource: Resource,
     ) -> None:
         ID = resource.ID
-        filepath = resource.filepath
+        filepath = resource.normpath
         score = Music21Score(filepath)
         score.parse()
         for facet_name, obj in zip(

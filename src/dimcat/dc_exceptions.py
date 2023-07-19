@@ -128,6 +128,15 @@ class ExcludedFileExtensionError(DimcatError):
     }
 
 
+class FeatureUnavailableError(DimcatError):
+    """optional args: (feature_name,)"""
+
+    nargs2message = {
+        0: "A required feature is not available.",
+        1: lambda name: f"Feature {name!r} is not available.",
+    }
+
+
 class FilePathNotDefinedError(DimcatError):
     """No optional args."""
 
@@ -160,37 +169,6 @@ class NoPathsSpecifiedError(DimcatError):
 
     nargs2message = {
         0: "No valid paths have been specified.",
-    }
-
-
-class ResourceNotProcessableError(DimcatError):
-    """optional args: (feature_name,)"""
-
-    nargs2message = {
-        0: "Cannot process this feature.",
-        1: lambda name: f"Cannot process {name!r}.",
-        2: lambda name, step: f"{step!r} cannot process feature {name!r}.",
-    }
-
-
-class ResourceIsPackagedError(DimcatError):
-    """optional args: (name, new_path, path_type)"""
-
-    nargs2message = {
-        0: "The resource is packaged can cannot store its own descriptor.",
-        1: lambda name: f"Resource {name!r} is packaged and its paths cannot be modified.",
-        2: lambda name, new_path: f"Resource {name!r} is packaged so {new_path!r} cannot be set.",
-        3: lambda name, new_path, path_type: f"Resource {name!r} is packaged so {new_path!r} cannot be set as the new "
-        f"{path_type!r}.",
-    }
-
-
-class FeatureUnavailableError(DimcatError):
-    """optional args: (feature_name,)"""
-
-    nargs2message = {
-        0: "A required feature is not available.",
-        1: lambda name: f"Feature {name!r} is not available.",
     }
 
 
@@ -231,7 +209,7 @@ class PackageNotFullySerializedError(DimcatError):
 
 
 class PackageInconsistentlySerializedError(DimcatError):
-    """optional args: (package_name, existing_path)"""
+    """optional args: (package_name, existing_path, missing_path)"""
 
     nargs2message = {
         0: "The package has been serialized in an inconsistent way, found only ZIP or descriptor, not both.",
@@ -239,6 +217,8 @@ class PackageInconsistentlySerializedError(DimcatError):
         f"only ZIP or descriptor, not both.",
         2: lambda package_name, existing_path: f"The package {package_name!r} has been serialized in an "
         f"inconsistent way, expected ZIP and descriptor, found only {existing_path!r}.",
+        3: lambda package_name, existing_path, missing_path: f"The package {package_name!r} has been serialized in an "
+        f"inconsistent way, expected ZIP and descriptor, found only {existing_path!r} but not {missing_path!r}.",
     }
 
 
@@ -260,6 +240,49 @@ class PotentiallyUnrelatedDescriptorError(DimcatError):
         f".from_descriptor_path().",
         2: lambda name, path: f"There is a potentially unrelated descriptor for {name!r} on disk. You can "
         f"load it via .from_descriptor_path({path!r}).",
+    }
+
+
+class ResourceIsFrozenError(DimcatError):
+    """optional args: (resource_name, current_basepath, new_basepath)"""
+
+    nargs2message = {
+        0: "Resource is frozen, i.e. tied to data stored on disk, so you would need to copy it for the relative paths "
+        "ro remain valid.",
+        1: lambda name: f"Resource {name!r} is frozen, i.e. tied to data stored on disk, so you would need to copy "
+        f"it for the relative paths to remain valid.",
+        2: lambda name, current_basepath: f"Resource {name!r} is frozen, i.e. tied to data stored on disk at basepath "
+        f"{current_basepath!r}, so you would need to copy it for the relative paths to remain valid.",
+        3: lambda name, current_basepath, new_basepath: f"Resource {name!r} is frozen, i.e. tied to data stored on "
+        f"disk at basepath {current_basepath!r}. Changing it to {new_basepath!r} would invalidate the "
+        f"relative paths. Consider using copy_to_new_location().",
+    }
+
+
+class ResourceIsMisalignedError(ResourceIsFrozenError):
+    nargs2message = {
+        0: "Package prevents adding resources that cannot be aligned with it without copying them. "
+        "Consider using one of the subtypes such as PathPackage or DimcatPackage.",
+        1: lambda misaligned_path: f"{misaligned_path!r} is not aligned with the Package and it prevents adding "
+        f"misaligned resources. Consider using one of the subtypes such as PathPackage or DimcatPackage.",
+        2: lambda misaligned_path, target_path: f"{misaligned_path!r} cannot be aligned with {target_path!r} "
+        f"and the Package prevents adding misaligned resources. Consider using one of the subtypes such as "
+        f"PathPackage or DimcatPackage.",
+        3: lambda misaligned_path, target_path, package_type: f"{misaligned_path!r} cannot be aligned with "
+        f"{target_path!r} and the {package_type} prevents adding misaligned resources. Consider using one of "
+        f"the subtypes such as PathPackage or DimcatPackage.",
+    }
+
+
+class ResourceIsPackagedError(ResourceIsFrozenError):
+    """optional args: (name, new_path, path_type)"""
+
+    nargs2message = {
+        0: "The resource is packaged can cannot store its own descriptor.",
+        1: lambda name: f"Resource {name!r} is packaged and its paths cannot be modified.",
+        2: lambda name, new_path: f"Resource {name!r} is packaged so {new_path!r} cannot be set.",
+        3: lambda name, new_path, path_type: f"Resource {name!r} is packaged so {new_path!r} cannot be set as the new "
+        f"{path_type!r}.",
     }
 
 
@@ -294,17 +317,11 @@ class ResourceNotFoundError(DimcatError):
     }
 
 
-class ResourceIsFrozenError(DimcatError):
-    """optional args: (resource_name, current_basepath, new_basepath)"""
+class ResourceNotProcessableError(DimcatError):
+    """optional args: (feature_name,)"""
 
     nargs2message = {
-        0: "Resource is frozen, i.e. tied to data stored on disk, so you would need to copy it for the relative paths "
-        "ro remain valid.",
-        1: lambda name: f"Resource {name!r} is frozen, i.e. tied to data stored on disk, so you would need to copy "
-        f"it for the relative paths to remain valid.",
-        2: lambda name, current_basepath: f"Resource {name!r} is frozen, i.e. tied to data stored on disk at basepath "
-        f"{current_basepath!r}, so you would need to copy it for the relative paths to remain valid.",
-        3: lambda name, current_basepath, new_basepath: f"Resource {name!r} is frozen, i.e. tied to data stored on "
-        f"disk at basepath {current_basepath!r}. Changing it to {new_basepath!r} would invalidate the "
-        f"relative paths. Consider using copy_to_new_location().",
+        0: "Cannot process this feature.",
+        1: lambda name: f"Cannot process {name!r}.",
+        2: lambda name, step: f"{step!r} cannot process feature {name!r}.",
     }

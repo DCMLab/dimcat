@@ -353,36 +353,25 @@ def scan_directory(
         for dir_entry in os.scandir(d):
             name = dir_entry.name
             path = os.path.join(d, name)
-            if dir_entry.is_dir() and (recursive or folder_re != ".*"):
+            if dir_entry.is_dir():
+                if not recursive:
+                    continue
+                if exclude_files_only:
+                    if not check_regex(folder_re, name, excl="^$"):
+                        continue
+                else:
+                    if not check_regex(folder_re, name):
+                        continue
                 for res in traverse(path):
                     yield res
             else:
                 if pbar is not None:
                     pbar.update()
-                if folder_re == ".*":
-                    folder_passes = True
-                else:
-                    folder_path = os.path.dirname(path)
-                    if recursive:
-                        folder_passes = check_regex(
-                            folder_re, folder_path, excl="^$"
-                        )  # passes if the folder path matches the regex
-                    else:
-                        folder = os.path.basename(folder_path)
-                        folder_passes = check_regex(
-                            folder_re, folder, excl="^$"
-                        )  # passes if the folder name itself matches the regex
-                    if (
-                        folder_passes and not exclude_files_only
-                    ):  # True if the exclude_re should also exclude folder names
-                        folder_passes = check_regex(
-                            folder_re, folder_path
-                        )  # is false if any part of the folder path matches exclude_re
+
                 if (
                     dir_entry.is_file()
-                    and folder_passes
-                    and check_regex(file_re, name)
                     and check_regex(extensions_regex, name)
+                    and check_regex(file_re, name)
                 ):
                     counter += 1
                     if pbar is not None:

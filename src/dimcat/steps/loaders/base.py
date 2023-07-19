@@ -16,6 +16,7 @@ from typing import (
     Optional,
     Set,
     Tuple,
+    Type,
 )
 
 import marshmallow as mm
@@ -24,10 +25,11 @@ from dimcat.base import FriendlyEnum, get_setting
 from dimcat.data.base import Data
 from dimcat.data.catalog.base import DimcatCatalog
 from dimcat.data.dataset.base import Dataset
+from dimcat.data.package.base import Package, PathPackage
 from dimcat.data.package.dc import DimcatPackage
 from dimcat.data.package.score import ScorePackage
-from dimcat.data.resource.base import Resource
-from dimcat.data.resource.utils import make_rel_path
+from dimcat.data.resource.base import PathResource, Resource
+from dimcat.data.resource.utils import is_default_package_descriptor_path, make_rel_path
 from dimcat.dc_exceptions import (
     DuplicateIDError,
     DuplicateResourceIDsError,
@@ -36,7 +38,7 @@ from dimcat.dc_exceptions import (
 )
 from dimcat.steps.base import PipelineStep
 from dimcat.steps.loaders.utils import store_datapackage
-from dimcat.utils import make_valid_frictionless_name, resolve_path
+from dimcat.utils import make_valid_frictionless_name, resolve_path, scan_directory
 from tqdm.auto import tqdm
 from typing_extensions import Self
 
@@ -86,6 +88,70 @@ class Loader(PipelineStep):
     conditionally_accepted_file_extensions: ClassVar[Optional[Tuple[str, ...]]] = None
     """File extensions that this loader accepts conditional on whether a particular piece of software is installed."""
 
+    path_package_type: ClassVar[Type[Package]] = PathPackage
+    """The type of package that this loader uses to collect PathResource objects."""
+
+    @classmethod
+    def from_directory(
+        cls,
+        directory: str,
+        package_name: Optional[str] = None,
+        extensions: Optional[Iterable[str]] = None,
+        file_re: Optional[str] = None,
+        exclude_re: Optional[str] = None,
+        resource_names: Optional[Callable[[str], Optional[str]]] = None,
+        corpus_names: Optional[Callable[[str], Optional[str]]] = None,
+        auto_validate: bool = False,
+        basepath: Optional[str] = None,
+        **kwargs,
+    ) -> Self:
+        """Create a loader from a :obj:`ScorePackage` created on the fly from an iterable of filepaths.
+
+        Args:
+            directory: The directory that is to be scanned for files with particular extensions.
+            package_name:
+                The name of the new package. If None, the base of the directory is used.
+            extensions:
+                The extensions of the files to be discovered under ``directory`` and which are to be
+                turned into :class:`Resource` objects. Defaults to this loader's
+                :attr:`accepted_file_extensions`.
+            file_re:
+                Pass a regular expression in order to select only files that (partially) match it.
+            resource_names:
+                Name factory for the resources created from the paths. Names also serve as piece
+                identifiers.
+                By default, the filename is used. To override this behaviour you can pass a callable
+                that takes a filepath and returns a name. When the callable returns None, the
+                default is used (i.e., the filename).
+                Whatever the name turns out to be, it will always be turned into a valid
+                frictionless name via :func:`make_valid_frictionless_name`.
+            corpus_names:
+                Names of (or name factory for) the corpus that each resource (=piece) belongs to
+                and that is used in the ('corpus', 'piece') ID.
+                By default, the name of the package is used. To override this behaviour you can pass
+                a callable that takes a path and returns a name. When the callable returns None,
+                the default is used  (i.e., the package_name).
+                Whatever the name turns out to be, it will always be turned into a valid
+                frictionless name via :func:`make_valid_frictionless_name`.
+            auto_validate: Set True to validate the new package after copying it.
+            basepath:
+                The basepath where the new package will be stored. If None, the basepath of the
+                original package
+        """
+        if extensions is None:
+            extensions = cls.accepted_file_extensions
+        new_package = cls.path_package_type.from_directory(
+            directory=directory,
+            package_name=package_name,
+            extensions=extensions,
+            file_re=file_re,
+            exclude_re=exclude_re,
+            resource_names=resource_names,
+            corpus_names=corpus_names,
+            auto_validate=auto_validate,
+        )
+        return cls.from_package(package=new_package, basepath=basepath, **kwargs)
+
     @classmethod
     def from_filepaths(
         cls,
@@ -98,9 +164,11 @@ class Loader(PipelineStep):
             filepaths: The filepaths that are to be turned into :class:`Resource` objects and packaged.
             basepath: The basepath where the new package will be stored. If None, the basepath of the original package
         """
+        if isinstance(filepaths, (str, Path)):
+            filepaths = [filepaths]
         valid, invalid = [], []
         for filepath in filepaths:
-            if filepath.endswith("package.json") or filepath.endswith("package.yaml"):
+            if is_default_package_descriptor_path(filepath):
                 valid.append(filepath)
             else:
                 invalid.append(filepath)
@@ -163,7 +231,7 @@ class Loader(PipelineStep):
 
     def add_package(self, package: DimcatPackage) -> None:
         """Add a package to the loader that contains resources to be processed."""
-        self.packages.add_package(package, basepath=self.basepath)
+        self.packages.add_package(package)
 
     def check_resource(self, resource: Resource) -> None:
         """Checks whether the resource at the given path exists."""
@@ -232,65 +300,9 @@ class Loader(PipelineStep):
 class PackageLoader(Loader):
     """Simple loader that discovers and loads frictionless datapackages through their descriptors."""
 
-    accepted_file_extensions = ("package.json",)
-
-
-class ScoreLoader(Loader):
-    """Base class for all loaders that parse scores and create a datapackage containing the extracted facets."""
-
-    default_loader_name = "score_loader"
-
-    # noinspection PyMethodOverriding
-    @classmethod
-    def from_filepaths(
-        cls,
-        filepaths: Iterable[str],
-        package_name: str,
-        resource_names: Optional[Iterable[str] | Callable[[str], str]] = None,
-        corpus_names: Optional[Iterable[str] | Callable[[str], Optional[str]]] = None,
-        auto_validate: bool = False,
-        basepath: Optional[str] = None,
-        loader_name: Optional[str] = None,
-        overwrite: bool = False,
-    ) -> Self:
-        """Create a loader from a :obj:`ScorePackage` created on the fly from an iterable of filepaths.
-
-        Args:
-            filepaths: The filepaths that are to be turned into :class:`Resource` objects and packaged.
-            package_name: The name of the new package.
-            resource_names:
-                Names of (or name factory for) the created resources serving as piece identifiers.
-                By default, the filename is used. To override this behaviour you can pass an iterable
-                of names corresponding to paths, or a callable that takes a path and returns a name.
-                When the callable returns None, the default is used (i.e., the filename).
-                Whatever the name turns out to be, it will always be turned into a valid
-                frictionless name via :func:`make_valid_frictionless_name`.
-            corpus_names:
-                Names of (or name factory for) the corpus that each resource (=piece) belongs to
-                and that is used in the ('corpus', 'piece') ID.
-                By default, the name of the package is used. To override this behaviour you can pass
-                an iterable of names corresponding to paths, or a callable that takes a path and
-                returns a name. When the callable returns None, the default is used  (i.e., the
-                package_name).
-                Whatever the name turns out to be, it will always be turned into a valid
-                frictionless name via :func:`make_valid_frictionless_name`.
-            auto_validate: Set True to validate the new package after copying it.
-            basepath: The basepath where the new package will be stored. If None, the basepath of the original package
-        """
-        new_package = ScorePackage.from_filepaths(
-            filepaths=filepaths,
-            package_name=package_name,
-            resource_names=resource_names,
-            corpus_names=corpus_names,
-            auto_validate=auto_validate,
-            basepath=basepath,
-        )
-        return cls.from_package(
-            package=new_package,
-            basepath=basepath,
-            loader_name=loader_name,
-            overwrite=overwrite,
-        )
+    accepted_file_extensions = tuple(get_setting("package_descriptor_endings"))
+    default_loader_name = "package_loader"
+    path_package_type = Package
 
     @classmethod
     def from_directory(
@@ -299,6 +311,74 @@ class ScoreLoader(Loader):
         package_name: Optional[str] = None,
         extensions: Optional[Iterable[str]] = None,
         file_re: Optional[str] = None,
+        exclude_re: Optional[str] = None,
+        resource_names: Optional[Callable[[str], Optional[str]]] = None,
+        corpus_names: Optional[Callable[[str], Optional[str]]] = None,
+        auto_validate: bool = False,
+        basepath: Optional[str] = None,
+        **kwargs,
+    ) -> Self:
+        """Create a loader from a :obj:`ScorePackage` created on the fly from an iterable of filepaths.
+
+        Args:
+            directory: The directory that is to be scanned for files with particular extensions.
+            package_name:
+                The name of the new package. If None, the base of the directory is used.
+            extensions:
+                The extensions of the files to be discovered under ``directory`` and which are to be
+                turned into :class:`Resource` objects. Defaults to this loader's
+                :attr:`accepted_file_extensions`.
+            file_re:
+                Pass a regular expression in order to select only files that (partially) match it.
+            resource_names:
+                Name factory for the resources created from the paths. Names also serve as piece
+                identifiers.
+                By default, the filename is used. To override this behaviour you can pass a callable
+                that takes a filepath and returns a name. When the callable returns None, the
+                default is used (i.e., the filename).
+                Whatever the name turns out to be, it will always be turned into a valid
+                frictionless name via :func:`make_valid_frictionless_name`.
+            corpus_names:
+                Names of (or name factory for) the corpus that each resource (=piece) belongs to
+                and that is used in the ('corpus', 'piece') ID.
+                By default, the name of the package is used. To override this behaviour you can pass
+                a callable that takes a path and returns a name. When the callable returns None,
+                the default is used  (i.e., the package_name).
+                Whatever the name turns out to be, it will always be turned into a valid
+                frictionless name via :func:`make_valid_frictionless_name`.
+            auto_validate: Set True to validate the new package after copying it.
+            basepath:
+                The basepath where the new package will be stored. If None, the basepath of the
+                original package
+        """
+        if extensions is None:
+            extensions = cls.accepted_file_extensions
+        paths = list(
+            scan_directory(
+                directory,
+                extensions=extensions,
+                file_re=file_re,
+                exclude_re=exclude_re,
+            )
+        )
+        return cls.from_filepaths(paths, basepath=basepath, **kwargs)
+
+
+class ScoreLoader(Loader):
+    """Base class for all loaders that parse scores and create a datapackage containing the extracted facets."""
+
+    default_loader_name = "score_loader"
+
+    path_package_type = ScorePackage
+
+    @classmethod
+    def from_directory(
+        cls,
+        directory: str,
+        package_name: Optional[str] = None,
+        extensions: Optional[Iterable[str]] = None,
+        file_re: Optional[str] = None,
+        exclude_re: Optional[str] = None,
         resource_names: Optional[Callable[[str], Optional[str]]] = None,
         corpus_names: Optional[Callable[[str], Optional[str]]] = None,
         auto_validate: bool = False,
@@ -339,26 +419,78 @@ class ScoreLoader(Loader):
                 The basepath where the new package will be stored. If None, the basepath of the
                 original package
         """
-        if extensions is None:
-            extensions = cls.accepted_file_extensions
-        new_package = ScorePackage.from_directory(
+        return super().from_directory(
             directory=directory,
             package_name=package_name,
             extensions=extensions,
             file_re=file_re,
+            exclude_re=exclude_re,
+            resource_names=resource_names,
+            corpus_names=corpus_names,
+            auto_validate=auto_validate,
+            basepath=basepath,
+            loader_name=loader_name,
+            overwrite=overwrite,
+        )
+
+    # noinspection PyMethodOverriding
+    @classmethod
+    def from_filepaths(
+        cls,
+        filepaths: Iterable[str],
+        package_name: str,
+        resource_names: Optional[Iterable[str] | Callable[[str], str]] = None,
+        corpus_names: Optional[Iterable[str] | Callable[[str], Optional[str]]] = None,
+        auto_validate: bool = False,
+        basepath: Optional[str] = None,
+        loader_name: Optional[str] = None,
+        overwrite: bool = False,
+    ) -> Self:
+        """Create a loader from a :obj:`ScorePackage` created on the fly from an iterable of filepaths.
+
+        Args:
+            filepaths: The filepaths that are to be turned into :class:`Resource` objects and packaged.
+            package_name: The name of the new package.
+            resource_names:
+                Names of (or name factory for) the created resources serving as piece identifiers.
+                By default, the filename is used. To override this behaviour you can pass an iterable
+                of names corresponding to paths, or a callable that takes a path and returns a name.
+                When the callable returns None, the default is used (i.e., the filename).
+                Whatever the name turns out to be, it will always be turned into a valid
+                frictionless name via :func:`make_valid_frictionless_name`.
+            corpus_names:
+                Names of (or name factory for) the corpus that each resource (=piece) belongs to
+                and that is used in the ('corpus', 'piece') ID.
+                By default, the name of the package is used. To override this behaviour you can pass
+                an iterable of names corresponding to paths, or a callable that takes a path and
+                returns a name. When the callable returns None, the default is used  (i.e., the
+                package_name).
+                Whatever the name turns out to be, it will always be turned into a valid
+                frictionless name via :func:`make_valid_frictionless_name`.
+            auto_validate: Set True to validate the new package after copying it.
+            basepath: The basepath where the new package will be stored. If None, the basepath of the original package
+        """
+        if isinstance(filepaths, (str, Path)):
+            filepaths = [filepaths]
+        new_package = ScorePackage.from_filepaths(
+            filepaths=filepaths,
+            package_name=package_name,
             resource_names=resource_names,
             corpus_names=corpus_names,
             auto_validate=auto_validate,
             basepath=basepath,
         )
         return cls.from_package(
-            package=new_package, loader_name=loader_name, overwrite=overwrite
+            package=new_package,
+            basepath=basepath,
+            loader_name=loader_name,
+            overwrite=overwrite,
         )
 
     @classmethod
     def from_package(
         cls,
-        package: DimcatPackage,
+        package: ScorePackage,
         basepath: Optional[str] = None,
         loader_name: Optional[str] = None,
         overwrite: bool = False,
@@ -425,7 +557,7 @@ class ScoreLoader(Loader):
     def loader_name(self, loader_name: Optional[str]):
         valid_name = make_valid_frictionless_name(loader_name)
         if valid_name != loader_name:
-            self.logger.info(f"Changed package name to {valid_name}.")
+            self.logger.info(f"Changed loader_name to {valid_name}.")
         self._loader_name = valid_name
 
     @property
@@ -449,7 +581,7 @@ class ScoreLoader(Loader):
         id2dataframe[ID] = df
         self._processed_ids.add(ID)
 
-    def check_resource(self, resource: str | Path) -> None:
+    def check_resource(self, resource: PathResource) -> None:
         super().check_resource(resource)
         admissible_extensions = []
         if self.accepted_file_extensions is not None:
@@ -458,7 +590,8 @@ class ScoreLoader(Loader):
             admissible_extensions.extend(self.conditionally_accepted_file_extensions)
         if not admissible_extensions:
             return
-        _, fext = os.path.splitext(resource)
+        filepath = resource.normpath
+        _, fext = os.path.splitext(filepath)
         if fext not in admissible_extensions:
             raise ExcludedFileExtensionError(fext, admissible_extensions)
 
@@ -542,7 +675,12 @@ class ScoreLoader(Loader):
             )
         ):
             pbar.set_description(f"Parsing {resource.filepath}")
-            self.process_resource(resource)
+            try:
+                self.process_resource(resource)
+            except Exception as e:
+                self.logger.error(f"Error while processing {resource.normpath}: {e}")
+                raise
+                continue
 
     def _process_resource(self, resource: Resource) -> None:
         """Parse the resource and extract the facets."""

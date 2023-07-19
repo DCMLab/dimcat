@@ -335,6 +335,8 @@ class Dataset(Data):
 
         """
         if isinstance(package, (str, Path)):
+            package = DimcatPackage.from_descriptor_path(package, **options)
+        elif isinstance(package, dict):
             package = DimcatPackage.from_descriptor(package, **options)
         elif isinstance(package, Package):
             pass

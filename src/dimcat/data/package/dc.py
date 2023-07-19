@@ -3,14 +3,17 @@ from __future__ import annotations
 from typing import Iterable, Optional
 
 import frictionless as fl
+import pandas as pd
+from dimcat.base import get_setting
 from dimcat.data.package.base import Package, PackageMode
-from dimcat.data.resource.base import D, Resource
-from dimcat.data.resource.dc import DimcatResource
+from dimcat.data.resource.base import D, Resource, SomeDataframe
+from dimcat.data.resource.dc import DimcatResource, PieceIndex
 
 
 class DimcatPackage(Package):
     accepted_resource_types = (DimcatResource,)
     default_mode = PackageMode.RECONCILE_SAFELY
+    detects_extensions = get_setting("resource_descriptor_endings")
     store_zipped = True
 
     def _verify_creationist_arguments(
@@ -81,3 +84,33 @@ class DimcatPackage(Package):
             basepath=basepath,
             auto_validate=auto_validate,
         )
+
+    def get_boolean_resource_table(self) -> SomeDataframe:
+        """Returns a table with this package's piece index and one boolean column per resource,
+        indicating whether the resource is available for a given piece or not."""
+        bool_masks = []
+        for resource in self:
+            piece_index = resource.get_piece_index()
+            if len(piece_index) == 0:
+                continue
+            bool_masks.append(
+                pd.Series(
+                    True,
+                    dtype="boolean",
+                    index=piece_index.index,
+                    name=resource.resource_name,
+                )
+            )
+        if len(bool_masks) == 0:
+            return pd.DataFrame([], dtype="boolean", index=PieceIndex().index)
+        table = pd.concat(bool_masks, axis=1).fillna(False).sort_index()
+        table.index.names = ("corpus", "piece")
+        table.columns.names = ("resource_name",)
+        return table
+
+    def get_piece_index(self) -> PieceIndex:
+        """Returns the piece index corresponding to a sorted union of all included resources' indices."""
+        IDs = set()
+        for resource in self:
+            IDs.update(resource.get_piece_index())
+        return PieceIndex.from_tuples(sorted(IDs))

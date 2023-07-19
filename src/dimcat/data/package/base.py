@@ -22,8 +22,7 @@ from typing import (
 
 import frictionless as fl
 import marshmallow as mm
-import pandas as pd
-from dimcat.base import DimcatConfig, FriendlyEnum, get_class, get_setting
+from dimcat.base import DimcatConfig, FriendlyEnum, get_class
 from dimcat.data.base import Data
 from dimcat.data.resource.base import (
     PathResource,
@@ -44,6 +43,7 @@ from dimcat.data.resource.utils import (
     store_as_json_or_yaml,
 )
 from dimcat.dc_exceptions import (
+    BaseFilePathMismatchError,
     BasePathNotDefinedError,
     EmptyPackageError,
     FilePathNotDefinedError,
@@ -52,6 +52,7 @@ from dimcat.dc_exceptions import (
     PackageNotFullySerializedError,
     PackagePathsNotAlignedError,
     ResourceIsFrozenError,
+    ResourceIsMisalignedError,
     ResourceIsPackagedError,
     ResourceNamesNonUniqueError,
     ResourceNotFoundError,
@@ -179,13 +180,11 @@ class Package(Data):
     """:meth:`add_resource` if a given resource is not an instance of one of these. The first one
     is used as default constructor in :meth:`create_and_add_resource`.
     """
-    detects_extensions: ClassVar[Iterable[str]] = get_setting(
-        "resource_descriptor_endings"
-    )
+    detects_extensions: ClassVar[Iterable[str]] = None
     """Determines which files are detected by :meth:`from_directory` if ``extensions`` is not specified.
-    Subclasses where this is set to None will detect all files.
+    If None, all files are detected.
     """
-    default_mode: ClassVar[PackageMode] = PackageMode.RECONCILE_EVERYTHING
+    default_mode: ClassVar[PackageMode] = PackageMode.RAISE
     """How the class deals with newly added resources. See :class:`PackageMode` for details."""
     store_zipped: ClassVar[bool] = False
 
@@ -220,7 +219,7 @@ class Package(Data):
     @classmethod
     def from_descriptor(
         cls,
-        descriptor: dict,
+        descriptor: dict | fl.Package,
         descriptor_filename: Optional[str] = None,
         auto_validate: Optional[bool] = None,
         basepath: Optional[str] = None,
@@ -237,8 +236,19 @@ class Package(Data):
         """
         if isinstance(descriptor, fl.Package):
             fl_package = descriptor
+        elif isinstance(descriptor, str):
+            raise ValueError(
+                f"{cls.name}.from_descriptor() expects a descriptor, not a string. Did you mean "
+                f"{cls.name}.from_descriptor_path()?"
+            )
         else:
             fl_package = fl.Package.from_descriptor(descriptor)
+        if auto_validate is None:
+            value_in_descriptor = fl_package.custom.get("auto_validate")
+            if value_in_descriptor is None:
+                auto_validate = False
+            else:
+                auto_validate = value_in_descriptor
         package_name = fl_package.name
         if dtype := fl_package.custom.get("dtype"):
             # the descriptor.custom dict contains serialization data for a DiMCAT object so we will deserialize
@@ -248,6 +258,7 @@ class Package(Data):
                 raise TypeError(
                     f"The descriptor specifies dtype {dtype!r} which is not a subclass of {cls.name}."
                 )
+            descriptor = fl_package.to_dict()
             descriptor = dict(
                 descriptor,
                 descriptor_filename=descriptor_filename,
@@ -396,6 +407,7 @@ class Package(Data):
         package_name: Optional[str] = None,
         extensions: Optional[Iterable[str]] = None,
         file_re: Optional[str] = None,
+        exclude_re: Optional[str] = None,
         resource_names: Optional[Callable[[str], Optional[str]]] = None,
         corpus_names: Optional[Callable[[str], Optional[str]]] = None,
         auto_validate: bool = False,
@@ -434,7 +446,14 @@ class Package(Data):
             extensions = cls.detects_extensions
         elif isinstance(extensions, str):
             extensions = (extensions,)
-        paths = list(scan_directory(directory, extensions=extensions, file_re=file_re))
+        paths = list(
+            scan_directory(
+                directory,
+                extensions=extensions,
+                file_re=file_re,
+                exclude_re=exclude_re,
+            )
+        )
         cls.logger.info(f"Found {len(paths)} files in {directory}.")
         if not package_name:
             package_name = os.path.basename(directory)
@@ -683,7 +702,7 @@ class Package(Data):
                 "Package is not empty but no basepath had been set.", RuntimeWarning
             )
         basepath = self.get_basepath(set_default_if_missing=True)
-        descriptor_filename = self.get_descriptor_filename()
+        descriptor_filename = self.get_descriptor_filename(set_default_if_missing=True)
         for resource in self._resources:
             if resource.basepath != basepath:
                 return False
@@ -714,10 +733,11 @@ class Package(Data):
             return True
         if n_exist == 0:
             return False
-        existing_path = (
-            self.get_descriptor_path() if self.descriptor_exists else self.normpath
-        )
-        raise PackageInconsistentlySerializedError(self.package_name, existing_path)
+        if self.descriptor_exists:
+            existing, missing = self.get_descriptor_path(), self.normpath
+        else:
+            existing, missing = self.normpath, self.get_descriptor_path()
+        raise PackageInconsistentlySerializedError(self.package_name, existing, missing)
 
     @property
     def is_paths_only(self) -> bool:
@@ -862,18 +882,41 @@ class Package(Data):
 
     def add_resource(self, resource: Resource):
         """Adds a resource to the package."""
-        self._add_resource(resource)
+        resource = self._handle_resource_argument(resource)
+        added_resource = self._add_resource(resource)
+        if self.package_exists and added_resource.is_serialized:
+            self.store_descriptor(
+                overwrite=True,
+                allow_partial=True,
+            )
+            self._update_status()
 
     def _add_resource(
         self,
         resource: Resource,
         mode: Optional[PackageMode] = None,
-    ) -> None:
-        """Adds a resource to the package."""
+    ) -> Resource:
+        """Tries to add resource to the package. Behaviour depends on the ``mode``.
+
+        Args:
+            resource:
+            mode:
+
+        Returns:
+
+        """
+        if not isinstance(resource, self.accepted_resource_types):
+            if len(self.accepted_resource_types) > 1:
+                expected = self.accepted_resource_types
+            else:
+                expected = self.accepted_resource_types[0]
+            raise TypeError(
+                f"{self.name}s accept only {expected}, got {type(resource)!r}"
+            )
         if mode is None:
             mode = self.default_mode
-        if len(self._resources) == 0 and self.package_exists:
-            os.remove(self.normpath)
+        # if len(self._resources) == 0 and self.package_exists:
+        #     os.remove(self.normpath)
         resource = self._amend_resource_type(resource)
         resource = self._reconcile_resource(
             resource,
@@ -881,16 +924,8 @@ class Package(Data):
         )
         self._resources.append(resource)
         self._package.add_resource(resource.resource)
-        if (
-            resource.basepath == self.basepath
-            and resource.descriptor_filename == self.descriptor_filename
-            and resource.is_serialized
-        ):
-            self.store_descriptor(
-                overwrite=True,
-                allow_partial=True,
-            )
         self._update_status()
+        return resource
 
     def _amend_resource_type(self, resource) -> Resource:
         """Change the type of the given resource an perform transformations, if needed, before
@@ -968,7 +1003,7 @@ class Package(Data):
             self.logger.debug("Nothing to add.")
             return
         for n_added, resource in enumerate(resources, 1):
-            self.add_resource(
+            self._add_resource(
                 resource,
             )
         self.logger.info(
@@ -1047,34 +1082,11 @@ class Package(Data):
             pass
         return self.extract_feature(feature_config)
 
-    def get_boolean_resource_table(self) -> SomeDataframe:
-        """Returns a table with this package's piece index and one boolean column per resource,
-        indicating whether the resource is available for a given piece or not."""
-        bool_masks = []
-        for resource in self:
-            piece_index = resource.get_piece_index()
-            if len(piece_index) == 0:
-                continue
-            bool_masks.append(
-                pd.Series(
-                    True,
-                    dtype="boolean",
-                    index=piece_index.index,
-                    name=resource.resource_name,
-                )
-            )
-        if len(bool_masks) == 0:
-            return pd.DataFrame([], dtype="boolean", index=PieceIndex())
-        table = pd.concat(bool_masks, axis=1).fillna(False).sort_index()
-        table.index.names = ("corpus", "piece")
-        table.columns.names = ("resource_name",)
-        return table
-
     def get_piece_index(self) -> PieceIndex:
-        """Returns the piece index corresponding to a sorted union of all included resources' indices."""
+        """Returns the piece index corresponding to all resources' IDs, sorted."""
         IDs = set()
         for resource in self:
-            IDs.update(resource.get_piece_index())
+            IDs.add(resource.ID)
         return PieceIndex.from_tuples(sorted(IDs))
 
     def get_metadata(self) -> SomeDataframe:
@@ -1140,7 +1152,7 @@ class Package(Data):
 
     def _handle_resource_argument(
         self,
-        resource: DimcatResource | fl.Resource,
+        resource: Resource | fl.Resource,
     ) -> Resource:
         """Turn the argument into some :class:`Resource` object.
 
@@ -1174,40 +1186,84 @@ class Package(Data):
         package_descriptor_filename = self.get_descriptor_filename(
             set_default_if_missing=True
         )
-        try:
+        if resource.basepath is None:
             resource.basepath = package_basepath
-        except (ResourceIsFrozenError, ResourceIsPackagedError):
-            # resource is currently pointing to a resource file and/or descriptor on disk
-            if mode == PackageMode.RAISE:
-                raise
-            if mode == PackageMode.RECONCILE_SAFELY:
+            basepath_ok = True
+        else:
+            basepath_ok = resource.basepath == package_basepath
+        if resource.descriptor_filename is None:
+            resource.descriptor_filename = package_descriptor_filename
+            resource_descriptor_filename_ok = True
+        else:
+            resource_descriptor_filename_ok = (
+                resource.descriptor_filename == package_descriptor_filename
+            )
+        if basepath_ok and resource_descriptor_filename_ok:
+            return resource
+        if not basepath_ok:
+            try:
+                resource.basepath = package_basepath
+            except (
+                ResourceIsFrozenError,
+                ResourceIsPackagedError,
+                BaseFilePathMismatchError,
+            ):
+                # resource is currently pointing to a resource file and/or descriptor on disk
                 try:
+                    # if the resource basepath is a subpath of the package basepath, we can
+                    # simply create a copy with adapted paths without having to copy the resourceraises if not allowed
+                    adapted_filepath = make_rel_path(
+                        resource.normpath, package_basepath
+                    )
+                    new_fl_resource = resource.resource.to_copy()
+                    new_fl_resource.basepath = package_basepath
+                    new_fl_resource.path = adapted_filepath
+                    new_resource = resource.__class__(
+                        resource=new_fl_resource,
+                        descriptor_filename=package_descriptor_filename,
+                    )
+                    new_resource._corpus_name = resource._corpus_name
+                    return new_resource
+                except BaseFilePathMismatchError:
+                    pass
+                if mode == PackageMode.RAISE:
+                    raise ResourceIsMisalignedError(
+                        resource.basepath, package_basepath, self.name
+                    )
+                if mode == PackageMode.RECONCILE_SAFELY:
+                    try:
+                        resource = resource.copy_to_new_location(
+                            package_basepath,
+                            filepath=package_filepath,
+                            descriptor_filename=package_descriptor_filename,
+                        )
+                    except FileExistsError:
+                        resource = resource.from_resource(
+                            resource=resource,
+                            descriptor_filename=package_descriptor_filename,
+                            basepath=package_basepath,
+                        )
+                        if package_filepath is not None:
+                            resource.filepath = package_filepath
+                        self.logger.info(
+                            f"{mode!r}: Using the existing resource at {resource.normpath!r}."
+                        )
+                elif mode == PackageMode.RECONCILE_EVERYTHING:
                     resource = resource.copy_to_new_location(
                         package_basepath,
+                        overwrite=True,
                         filepath=package_filepath,
                         descriptor_filename=package_descriptor_filename,
                     )
-                except FileExistsError:
-                    resource = resource.from_resource(
-                        resource=resource,
-                        descriptor_filename=package_descriptor_filename,
-                        basepath=package_basepath,
-                    )
-                    if package_filepath is not None:
-                        resource.filepath = package_filepath
-                    self.logger.info(
-                        f"{mode!r}: Using the existing resource at {resource.normpath!r}."
-                    )
-            elif mode == PackageMode.RECONCILE_EVERYTHING:
-                resource = resource.copy_to_new_location(
-                    package_basepath,
-                    overwrite=True,
-                    filepath=package_filepath,
-                    descriptor_filename=package_descriptor_filename,
-                )
-            else:
-                raise NotImplementedError(f"Unexpected PackageMode {mode!r}.")
-
+                else:
+                    raise NotImplementedError(f"Unexpected PackageMode {mode!r}.")
+        elif not resource_descriptor_filename_ok:
+            # if mode == PackageMode.RAISE:
+            #     raise ResourceIsMisalignedError(
+            #         resource.descriptor_filename, package_descriptor_filename, self.name
+            #     )
+            # elif mode in (PackageMode.RECONCILE_SAFELY, PackageMode.RECONCILE_EVERYTHING):
+            resource._set_descriptor_filename(package_descriptor_filename)
         return resource
 
     def _set_descriptor_filename(self, descriptor_filename):
@@ -1257,16 +1313,17 @@ class Package(Data):
         """Stores the descriptor to disk based on the package's configuration and returns its path."""
         if not self.is_aligned:
             show_misaligned = dict(
-                basepath=self.basepath,
-                descriptor=self._descriptor_filename,
+                target_basepath=self.get_basepath(),
+                target_descriptor_filename=self.get_descriptor_filename(),
             )
             for r in self.resources:
                 misaligned = {
                     attr: val
                     for attr, val in zip(
-                        ("basepath", "descriptor"), (r.basepath, r.descriptor_filename)
+                        ("basepath", "descriptor_filename"),
+                        (r.basepath, r.descriptor_filename),
                     )
-                    if val != show_misaligned[attr]
+                    if val != show_misaligned["target_" + attr]
                 }
                 if misaligned:
                     show_misaligned[r.resource_name] = misaligned
@@ -1333,13 +1390,18 @@ class PathPackage(Package):
     default_mode = PackageMode.ALLOW_MISALIGNMENT
     detects_extensions = None  # any
 
-    def add_resource(
-        self,
-        resource: PathResource,
-    ) -> None:
+    def add_resource(self, resource: Resource):
         """Adds a resource to the package."""
         resource = self._handle_resource_argument(resource)
-        self._add_resource(resource)
+        _ = self._add_resource(resource)
+        # Currently the PathPackage does not store its descriptor because it allows/is made for misaligned resources
+        # that come with their own, independent base paths
+        # if self.package_exists and added_resource.is_serialized:
+        #     self.store_descriptor(
+        #         overwrite=True,
+        #         allow_partial=True,
+        #     )
+        #     self._update_status()
 
 
 PackageSpecs: TypeAlias = Union[Package, fl.Package, str]

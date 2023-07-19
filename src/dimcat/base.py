@@ -197,7 +197,9 @@ class DimcatObject(ABC):
             if report:
                 raise mm.ValidationError(
                     f"Dump of {data['dtype']} created with a {self.name} could not be validated by "
-                    f"{dtype_schema.name} :\n{report}"
+                    f"{dtype_schema.name}."
+                    f"\n\nDUMP:\n{pformat(data, sort_dicts=False)}"
+                    f"\n\nREPORT:\n{pformat(report, sort_dicts=False)}"
                 )
             return dict(data)
 
@@ -834,6 +836,7 @@ def get_setting(key: str) -> Any:
 
 def change_setting(key: str, value: Any) -> None:
     SETTINGS[key] = value
+    logger.info(f"Changed setting {key!r} to {value!r}.")
 
 
 def reset_settings(config_filepath: Optional[str] = None) -> None:

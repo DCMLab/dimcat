@@ -3,6 +3,7 @@ import os
 
 import pytest
 from dimcat import Dataset, Pipeline
+from dimcat.data.resource.base import PathResource
 from dimcat.steps.loaders.base import Loader, PackageLoader
 from dimcat.steps.loaders.m21 import Music21Loader
 from dimcat.steps.loaders.musescore import MuseScoreLoader
@@ -21,17 +22,11 @@ def score_path(request):
     return request.param
 
 
-@pytest.fixture()
-def tmp_package_path(request, tmp_path_factory):
-    """Returns the path to the directory where serialized resources are stored."""
-    name = request.node.name
-    return str(tmp_path_factory.mktemp(name))
-
-
 def test_musescore_loader(mixed_files_path, tmp_package_path):
     L = MuseScoreLoader.from_directory(
         directory=mixed_files_path,
-        loader_name="mixed_files",
+        package_name="mixed_files",
+        exclude_re="changed_instruments",
         basepath=tmp_package_path,
     )
     logger.info(
@@ -56,9 +51,9 @@ def test_music21_single_filepath(corpus_path, score_path, tmp_package_path):
     logger.info(
         f"""
 Music21Loader.from_filepaths(
-    filepaths={score_path},
+    filepaths={score_path!r},
     package_name="music21_single_resource",
-    basepath={tmp_package_path},
+    basepath={tmp_package_path!r},
 )"""
     )
     L.parse_and_extract()
@@ -75,28 +70,34 @@ def test_music21_single_resource(corpus_path, score_path, tmp_package_path):
     logger.info(
         f"""
 Music21Loader.from_filepaths(
-    filepaths={score_path},
+    filepaths={score_path!r},
     package_name="music21_single_resource",
-    basepath={tmp_package_path},
+    basepath={tmp_package_path!r},
 )"""
     )
-    L.process_resource(score_path)
+    L.parse_and_extract()
     logger.info(f"Loader.processed_ids: {L.processed_ids}")
     assert len(L.processed_ids) == 1
 
 
+@pytest.fixture(
+    params=get_m21_score_paths(),
+    ids=os.path.basename,
+)
+def m21_path_resource(request):
+    return PathResource.from_resource_path(request.param)
+
+
 def test_music21_list_of_paths(list_of_m21_score_paths, tmp_package_path):
-    L = Music21Loader(
-        package_name="music21_corpus",
+    L = Music21Loader.from_filepaths(
+        list_of_m21_score_paths,
+        package_name="music21_paths",
         basepath=tmp_package_path,
-        source=list_of_m21_score_paths,
     )
     logger.info(
-        f"""
-Music21Loader(
-    package_name="music21_corpus",
+        f"""Music21Loader(
+    {list_of_m21_score_paths},
     basepath={tmp_package_path},
-    source={list_of_m21_score_paths},
 )"""
     )
     L.make_and_store_datapackage()
@@ -106,14 +107,13 @@ Music21Loader(
 
 
 def test_loading_into_dataset(
-    mixed_files_path, list_of_m21_score_paths, tmp_package_path
+    list_of_musescore_score_paths, list_of_m21_score_paths, tmp_package_path
 ):
-    MS = MuseScoreLoader(
-        "musescore",
+    MS = MuseScoreLoader.from_filepaths(
+        list_of_musescore_score_paths, package_name="musescore_files"
     )
-    M21 = Music21Loader(
-        package_name="music21",
-        source=list_of_m21_score_paths,
+    M21 = Music21Loader.from_filepaths(
+        list_of_m21_score_paths, package_name="music21_files"
     )
     D = Dataset(basepath=tmp_package_path)
     PL = Pipeline([MS, M21])
@@ -132,15 +132,15 @@ Pipeline([
 
 
 def test_package_loader(corpus_path):
-    L = PackageLoader(source=corpus_path)
-    D = L.process(Dataset())
+    L = PackageLoader.from_directory(corpus_path)
+    D = L.create_dataset()
     logger.info(f"Dataset after loading package:\n{D}")
     assert len(D.inputs) == 1
     assert D.inputs.package_names == ["unittest_metacorpus"]
 
 
 def test_base_loader(list_of_m21_score_paths):
-    L = Loader(package_name="test_package")
+    L = Loader()
     L_config = L.to_config()
     logger.info(f"Serialized Loader: {L_config!r}")
     L_copy1 = Loader.from_config(L_config)

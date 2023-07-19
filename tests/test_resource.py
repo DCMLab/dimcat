@@ -158,24 +158,24 @@ class TestResourceFromScorePath(TestBaseResource):
 
 class TestResourceFromDescriptorPath(TestBaseResource):
     @pytest.fixture(params=[None, -1, -2], ids=["no_bp", "bp-1", "bp-2"])
-    def init_basepath(self, request, resource_path):
+    def init_basepath(self, request, resource_descriptor_path):
         """Different basepath arguments for initializing objects."""
         if request.param is None:
             return None
-        basepath, _ = os.path.split(resource_path)
+        basepath, _ = os.path.split(resource_descriptor_path)
         init_basepath = os.sep.join(basepath.split(os.sep)[: request.param])
         return init_basepath
 
     @pytest.fixture()
-    def resource_obj(self, resource_path, init_basepath):
+    def resource_obj(self, resource_descriptor_path, init_basepath):
         return Resource.from_descriptor_path(
-            descriptor_path=resource_path,
+            descriptor_path=resource_descriptor_path,
         )
 
     @pytest.fixture()
-    def expected_basepath(self, resource_path):
+    def expected_basepath(self, resource_descriptor_path):
         """If init_basepath is None, we expect the directory where the score is located."""
-        basepath, _ = os.path.split(resource_path)
+        basepath, _ = os.path.split(resource_descriptor_path)
         return basepath
 
     @pytest.fixture()

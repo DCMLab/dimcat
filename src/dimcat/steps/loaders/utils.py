@@ -42,8 +42,8 @@ def make_datapackage_descriptor(
     for facet, df in facet_df_pairs:
         schema = ms3.get_schema_or_url(facet, df.columns, df.index.names)
         resource_descriptor = ms3.assemble_resource_descriptor(
-            name=f"{package_name}.{facet}",
-            path=f"{package_name}.zip",
+            resource_name=f"{package_name}.{facet}",
+            filepath=f"{package_name}.zip",
             schema=schema,
             innerpath=f"{facet}.tsv",
         )
