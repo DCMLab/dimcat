@@ -5,7 +5,7 @@ import os
 import tempfile
 from itertools import product
 from pprint import pprint
-from typing import Counter, List, Tuple, Type
+from typing import List, Tuple, Type
 
 import frictionless as fl
 import pandas as pd
@@ -24,6 +24,7 @@ from dimcat.data.resource.base import Resource
 from dimcat.data.resource.dc import DimcatResource
 from dimcat.data.resource.features import Notes
 from dimcat.steps.analyzer.base import Analyzer
+from dimcat.steps.analyzer.counters import Counter
 from dimcat.steps.base import FeatureProcessingStep
 from dimcat.steps.loaders.base import Loader
 from marshmallow import ValidationError, fields
@@ -89,7 +90,7 @@ class TestBaseObjects:
         assert isinstance(obj, dimcat_class)
 
 
-DUMMY_CONFIG_OPTIONS = dict(dtype="Notes")
+DUMMY_CONFIG_OPTIONS = dict(dtype="DimcatObject")
 
 
 def dummy_config() -> DimcatConfig:
@@ -154,7 +155,7 @@ def make_test_id(params: tuple) -> str:
 def dimcat_object(request, tmp_path_factory):
     """Initializes each of the objects to be tested and injects them into the test class."""
     Constructor, options = unpack_dimcat_object_params(request.param)
-    request.cls.resource_constructor = Constructor
+    request.cls.object_constructor = Constructor
     dimcat_object = Constructor(**options)
     if isinstance(dimcat_object, DimcatResource) and not dimcat_object.is_frozen:
         tmp_path = str(tmp_path_factory.mktemp("dimcat_resource"))

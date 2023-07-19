@@ -176,7 +176,8 @@ class ResourceSchema(Data.Schema):
     )
 
     def get_frictionless_descriptor(self, obj: Resource) -> dict:
-        return obj._resource.to_dict()
+        descriptor = obj._resource.to_dict()
+        return descriptor
 
     def raw(self, data):
         return data
@@ -192,6 +193,9 @@ class ResourceSchema(Data.Schema):
             return data
         if isinstance(data, fl.Resource):
             fl_resource = data
+        elif "name" not in data:
+            # probably manually compiled data
+            return data
         else:
             fl_resource = fl.Resource.from_descriptor(data)
         unsquashed_data = dict(fl_resource.custom)
