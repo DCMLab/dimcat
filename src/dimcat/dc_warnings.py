@@ -10,3 +10,18 @@ class PotentiallyUnrelatedDescriptorUserWarning(UserWarning):
     """
 
     pass
+
+
+class PotentiallyMisalignedPackageUserWarning(UserWarning):
+    """This warning is shown when resources are added to a package whose status is not ALLOW_MISALIGNMENT
+    but which has no defined basepath."""
+
+    pass
+
+
+class ResourceWithRangeIndexUserWarning(UserWarning):
+    """This warning is shown when a resource has a range index, which is typically the case
+    for dataframes holding information for single piece only.
+    """
+
+    pass

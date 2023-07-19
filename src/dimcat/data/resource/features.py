@@ -28,6 +28,9 @@ class Metadata(Feature):
     pass
 
 
+# region Notes
+
+
 class NotesFormat(str, Enum):
     NAME = "NAME"
     FIFTHS = "FIFTHS"
@@ -87,6 +90,10 @@ class Notes(Feature):
         return self._weight_grace_notes
 
 
+# endregion Notes
+# region Annotations
+
+
 class Annotations(Feature):
     pass
 
@@ -94,6 +101,8 @@ class Annotations(Feature):
 class KeyAnnotations(Annotations):
     pass
 
+
+# endregion Annotations
 
 FeatureSpecs: TypeAlias = Union[MutableMapping, Feature, FeatureName, str]
 

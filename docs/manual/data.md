@@ -20,8 +20,6 @@ if not sys.warnoptions:
 import os
 import frictionless as fl
 from dimcat.base import deserialize_json_file
-from dimcat.data.resource.base import Resource, PathResource
-from dimcat.data.resource.dc import DimcatResource
 CORPUS_PATH = os.path.abspath(os.path.join("..", "..", "unittest_metacorpus"))
 assert os.path.isdir(CORPUS_PATH)
 sweelinck_dir = os.path.join(CORPUS_PATH, "sweelinck_keyboard")
@@ -52,6 +50,10 @@ Let's exemplify looking at the
 
 The `sweelinck_keyboard` repository contains a single MuseScore file (in the folder "MS3") and several TSV files extracted from it.
 Let's load it:
+
+```{code-cell} ipython3
+from dimcat.data.resource import DimcatResource, PathResource
+```
 
 ```{code-cell} ipython3
 score_resource = os.path.join(sweelinck_dir, "MS3", "SwWV258_fantasia_cromatica.mscx")
@@ -122,14 +124,10 @@ score_resource.status
 The path components cannot be modified because it would invalidate the relations with other path components:
 
 ```{code-cell} ipython3
+:tags: [raises-exception]
+
 base_path_level_up = os.path.dirname(score_resource.basepath)
 score_resource.basepath = base_path_level_up
-```
-
-We can either create the same resource once more, specifying the new basepath at once:
-
-```{code-cell} ipython3
-PathResource.from_descriptor_path(score_descriptor_path)
 ```
 
 ### DimcatResource
@@ -139,22 +137,73 @@ Let's create one from a TSV resource descriptor:
 
 ```{code-cell} ipython3
 notes_descriptor_path = os.path.join(sweelinck_dir, "notes", "SwWV258_fantasia_cromatica.notes.resource.json")
-notes_resources = DimcatResource.from_descriptor_path(notes_descriptor_path)
-notes_resources
+notes_resource = DimcatResource.from_descriptor_path(notes_descriptor_path)
+notes_resource
+```
+
+As the output shows, the status of the resource is `STANDALONE_NOT_LOADED`.
+The resource is considered standalone, as opposed to packaged, because it has its own resource descriptor file.
+And it is considered "not loaded" because the actual tabular data has not been loaded from the described TSV file into memory.
+The latter is achieved through the property `df` (short for dataframe):
+
+```{code-cell} ipython3
+notes_resource.df
+```
+
+... which changes the status to `STANDALONE_LOADED`:
+
+```{code-cell} ipython3
+notes_resource.status
 ```
 
 ```{code-cell} ipython3
-notes_resources.df
+type(notes_resource)
+```
+
+## Package
+
+A package, or DataPackage, is a collection of resources. Analogously there are two main types:
+
+* [PathPackage](PathPackage) for collecting [PathResources](PathResource), and
+* [DimcatPackage](DimcatPackage) for collecting [DimcatResources](DimcatResource).
+
+Just like resources, packages have a basepath and may be stored as a frictionless package descriptor.
+
+For starters, let's assemble a package from scratch:
+
+```{code-cell} ipython3
+from dimcat.data.package import PathPackage, DimcatPackage
 ```
 
 ```{code-cell} ipython3
-type(notes_resources)
+path_package = PathPackage(package_name="scratch")
+path_package
 ```
 
-Note that
+The fields are mostly familiar from above:
+
+* `basepath`: Absolute path on disk where the descriptor and the ZIP file would be stored.
+* `resources`: Currently an empty list. Typically, all `resources` need to have the same `basepath` (if not, the package is 'misaligned').
+* `name`: As per the [Frictionless specification](https://specs.frictionlessdata.io/) every package needs a name. In DiMCAT, the relevant property is called `package_name`.
+* `descriptor_filename`: The name of the descriptor file if it deviates from the default `<package_name>.datapackage.json`.
+* `auto_validate`: If True, the package is automatically validated after it is stored to disk.
+
+Now let's add the path resource we have created above:
 
 ```{code-cell} ipython3
-score_resource.resource_exists
+path_package.add_resource(score_resource)
+path_package
+```
+
+```{code-cell} ipython3
+path_package.store_descriptor()
+```
+
+We can also create a package directly from a resource:
+
+```{code-cell} ipython3
+dimcat_package = DimcatPackage.from_resources([notes_resource], package_name="pack")
+dimcat_package
 ```
 
 ```{code-cell} ipython3
@@ -185,7 +234,6 @@ notes_path_resource
 ```
 
 ```{code-cell} ipython3
-
 notes_resource = Resource.from_descriptor_path(notes_descriptor_path)
 notes_resource
 ```

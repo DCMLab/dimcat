@@ -113,7 +113,7 @@ class Data(DimcatObject):
             default_basepath = resolve_path(get_setting("default_basepath"))
             if set_default_if_missing:
                 self._basepath = default_basepath
-                print(  # self.logger.debug(
+                self.logger.debug(
                     f"The {self.name}'s basepath has been set to the default {default_basepath!r}"
                 )
             return default_basepath

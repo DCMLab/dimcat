@@ -57,6 +57,7 @@ from dimcat.dc_exceptions import (
     ResourceNamesNonUniqueError,
     ResourceNotFoundError,
 )
+from dimcat.dc_warnings import PotentiallyMisalignedPackageUserWarning
 from dimcat.utils import (
     _set_new_basepath,
     check_file_path,
@@ -180,13 +181,18 @@ class Package(Data):
     """:meth:`add_resource` if a given resource is not an instance of one of these. The first one
     is used as default constructor in :meth:`create_and_add_resource`.
     """
+
+    auto_serialize: ClassVar[bool] = False
+    """If True, the package is serialized to disk after each resource is added."""
+
     detects_extensions: ClassVar[Iterable[str]] = None
     """Determines which files are detected by :meth:`from_directory` if ``extensions`` is not specified.
     If None, all files are detected.
     """
     default_mode: ClassVar[PackageMode] = PackageMode.RAISE
     """How the class deals with newly added resources. See :class:`PackageMode` for details."""
-    store_zipped: ClassVar[bool] = False
+
+    store_zipped: ClassVar[bool] = True
 
     @classmethod
     def _make_new_resource(
@@ -701,8 +707,15 @@ class Package(Data):
             warnings.warn(
                 "Package is not empty but no basepath had been set.", RuntimeWarning
             )
-        basepath = self.get_basepath(set_default_if_missing=True)
-        descriptor_filename = self.get_descriptor_filename(set_default_if_missing=True)
+            first_resource = self._resources[0]
+            basepath = first_resource.basepath
+            self.logger.debug(
+                f"Checking alignment based on the basepath of the first resource, "
+                f"{first_resource.resource_name!r}."
+            )
+        else:
+            basepath = self.basepath
+        descriptor_filename = self.get_descriptor_filename()
         for resource in self._resources:
             if resource.basepath != basepath:
                 return False
@@ -1182,16 +1195,10 @@ class Package(Data):
             return resource
 
         # try reconciling the paths
-        package_basepath = self.get_basepath()
-        package_filepath = self.filepath if self.store_zipped else None
+
         package_descriptor_filename = self.get_descriptor_filename(
             set_default_if_missing=True
         )
-        if resource.basepath is None:
-            resource.basepath = package_basepath
-            basepath_ok = True
-        else:
-            basepath_ok = resource.basepath == package_basepath
         if resource.descriptor_filename is None:
             resource.descriptor_filename = package_descriptor_filename
             resource_descriptor_filename_ok = True
@@ -1199,8 +1206,21 @@ class Package(Data):
             resource_descriptor_filename_ok = (
                 resource.descriptor_filename == package_descriptor_filename
             )
+        if self.basepath is None:
+            warnings.warn(
+                "Package basepath is None, resource is being added without reconciling.",
+                PotentiallyMisalignedPackageUserWarning,
+            )
+            return resource
+        package_basepath = self.get_basepath()
+        if resource.basepath is None:
+            resource.basepath = package_basepath
+            basepath_ok = True
+        else:
+            basepath_ok = resource.basepath == package_basepath
         if basepath_ok and resource_descriptor_filename_ok:
             return resource
+        package_filepath = self.filepath if self.store_zipped else None
         if not basepath_ok:
             try:
                 resource.basepath = package_basepath
@@ -1312,7 +1332,10 @@ class Package(Data):
         allow_partial=False,
     ) -> str:
         """Stores the descriptor to disk based on the package's configuration and returns its path."""
-        if not self.is_aligned:
+        if (
+            self.default_mode is not PackageMode.ALLOW_MISALIGNMENT
+            and not self.is_aligned
+        ):
             show_misaligned = dict(
                 target_basepath=self.get_basepath(),
                 target_descriptor_filename=self.get_descriptor_filename(),
@@ -1332,7 +1355,9 @@ class Package(Data):
                 f"Cannot store descriptor for this {self.name} because its resources are not aligned:\n"
                 f"{pformat(show_misaligned, sort_dicts=False)}"
             )
-        if not self.is_fully_serialized and not allow_partial:
+        if self.status is not PackageStatus.PATHS_ONLY and (
+            not self.is_fully_serialized and not allow_partial
+        ):
             raise PackageNotFullySerializedError(
                 f"Cannot store descriptor for this {self.name} because not all resources have been serialized. "
                 f"If you want to allow this, set allow_partial=True."

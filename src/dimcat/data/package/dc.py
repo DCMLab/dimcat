@@ -14,7 +14,6 @@ class DimcatPackage(Package):
     accepted_resource_types = (DimcatResource,)
     default_mode = PackageMode.RECONCILE_SAFELY
     detects_extensions = get_setting("resource_descriptor_endings")
-    store_zipped = True
 
     def _verify_creationist_arguments(
         self,

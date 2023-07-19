@@ -16,7 +16,10 @@ import yaml
 from dimcat.base import get_setting
 from dimcat.dc_exceptions import BaseFilePathMismatchError
 
-from ...dc_warnings import PotentiallyUnrelatedDescriptorUserWarning
+from ...dc_warnings import (
+    PotentiallyUnrelatedDescriptorUserWarning,
+    ResourceWithRangeIndexUserWarning,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -224,9 +227,10 @@ def load_fl_resource(
         if fl_resource.schema.primary_key:
             index_col_names = fl_resource.schema.primary_key
         else:
-            logger.warning(
+            warnings.warn(
                 f"Resource {fl_resource.name!r} has no primary key and no index_col was given. "
-                f"Dataframe will come with a RangeIndex."
+                f"Dataframe will come with a RangeIndex.",
+                ResourceWithRangeIndexUserWarning,
             )
     if index_col_names is not None:
         missing_col_names = [
