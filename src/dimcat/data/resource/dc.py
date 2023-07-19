@@ -540,7 +540,10 @@ DimcatResource.__init__(
 
     @property
     def is_loaded(self) -> bool:
-        return self._df is not None
+        return self._df is not None or self.status in (
+            ResourceStatus.STANDALONE_LOADED,
+            ResourceStatus.PACKAGED_LOADED,
+        )
 
     @property
     def is_valid(self) -> bool:

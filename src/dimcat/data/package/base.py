@@ -880,11 +880,11 @@ class Package(Data):
             f"resource is expected to be a resource or a path to a descriptor, not {type(resource)!r}"
         )
 
-    def add_resource(self, resource: Resource):
+    def add_resource(self, resource: Resource, update_descriptor: bool = False):
         """Adds a resource to the package."""
         resource = self._handle_resource_argument(resource)
         added_resource = self._add_resource(resource)
-        if self.package_exists and added_resource.is_serialized:
+        if update_descriptor and self.package_exists and added_resource.is_serialized:
             self.store_descriptor(
                 overwrite=True,
                 allow_partial=True,
@@ -922,6 +922,7 @@ class Package(Data):
             resource,
             mode=mode,
         )
+        resource._update_status()
         self._resources.append(resource)
         self._package.add_resource(resource.resource)
         self._update_status()
@@ -1389,19 +1390,6 @@ class PathPackage(Package):
     accepted_resource_types = (PathResource,)
     default_mode = PackageMode.ALLOW_MISALIGNMENT
     detects_extensions = None  # any
-
-    def add_resource(self, resource: Resource):
-        """Adds a resource to the package."""
-        resource = self._handle_resource_argument(resource)
-        _ = self._add_resource(resource)
-        # Currently the PathPackage does not store its descriptor because it allows/is made for misaligned resources
-        # that come with their own, independent base paths
-        # if self.package_exists and added_resource.is_serialized:
-        #     self.store_descriptor(
-        #         overwrite=True,
-        #         allow_partial=True,
-        #     )
-        #     self._update_status()
 
 
 PackageSpecs: TypeAlias = Union[Package, fl.Package, str]

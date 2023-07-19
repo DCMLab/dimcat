@@ -35,11 +35,7 @@ from dimcat.data.resource.features import (
     feature_specs2config,
     features_argument2config_list,
 )
-from dimcat.dc_exceptions import (
-    NoFeaturesActiveError,
-    NoMatchingResourceFoundError,
-    PackageNotFoundError,
-)
+from dimcat.dc_exceptions import NoMatchingResourceFoundError, PackageNotFoundError
 from typing_extensions import Self
 
 if TYPE_CHECKING:
@@ -291,26 +287,26 @@ class Dataset(Data):
         for config in configs:
             yield self.get_feature(config)
 
-    def make_features_package(
-        self,
-        features: FeatureSpecs | Iterable[FeatureSpecs] = None,
-    ) -> DimcatPackage:
-        """Returns a DimcatPackage containing the requested or currently active features.
-
-        Args:
-            features:
-
-        Returns:
-
-        """
-        if not features:
-            if self.n_active_features == 0:
-                raise NoFeaturesActiveError
-            return self.outputs.get_package_by_name("features")
-        new_package = DimcatPackage(package_name="features")
-        for feature in self.iter_features(features):
-            new_package.add_resource(feature)
-        return new_package
+    # def make_features_package(
+    #     self,
+    #     features: FeatureSpecs | Iterable[FeatureSpecs] = None,
+    # ) -> DimcatPackage:
+    #     """Returns a DimcatPackage containing the requested or currently active features.
+    #
+    #     Args:
+    #         features:
+    #
+    #     Returns:
+    #
+    #     """
+    #     if not features:
+    #         if self.n_active_features == 0:
+    #             raise NoFeaturesActiveError
+    #         return self.outputs.get_package_by_name("features")
+    #     new_package = DimcatPackage(package_name="features")
+    #     for feature in self.iter_features(features):
+    #         new_package.add_resource(feature)
+    #     return new_package
 
     def get_metadata(self) -> SomeDataframe:
         metadata = self.inputs.get_metadata()

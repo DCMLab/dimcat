@@ -2,6 +2,7 @@ import logging
 from collections import defaultdict
 from typing import Dict, Iterable, List, MutableMapping, Sequence
 
+import marshmallow as mm
 import pandas as pd
 from dimcat.base import is_subclass_of
 from dimcat.data.dataset.base import Dataset
@@ -10,7 +11,6 @@ from dimcat.data.resource.dc import DimcatIndex, DimcatResource, PieceIndex
 from dimcat.data.resource.features import Feature
 from dimcat.steps.base import FeatureProcessingStep
 from dimcat.utils import check_name
-from marshmallow import fields, pre_load
 from typing_extensions import Self
 
 logger = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ class Grouper(FeatureProcessingStep):
     output_package_name = None
 
     class Schema(FeatureProcessingStep.Schema):
-        level_name = fields.Str()
+        level_name = mm.fields.Str()
 
     def __init__(self, level_name: str = "grouper", **kwargs):
         super().__init__(**kwargs)
@@ -91,9 +91,9 @@ class Grouper(FeatureProcessingStep):
 
 class CustomPieceGrouper(Grouper):
     class Schema(Grouper.Schema):
-        grouped_pieces = fields.Nested(DimcatIndex.Schema)
+        grouped_pieces = mm.fields.Nested(DimcatIndex.Schema)
 
-        @pre_load
+        @mm.pre_load
         def deal_with_dict(self, data, **kwargs):
             if isinstance(data["grouped_pieces"], MutableMapping):
                 if "dtype" not in data["grouped_pieces"] or not is_subclass_of(
