@@ -20,11 +20,6 @@ def single_path_resource(list_of_m21_score_paths):
     return PathResource.from_resource_path(selected_path)
 
 
-@pytest.fixture(params=[mode.value for mode in PackageMode])
-def package_mode(request):
-    return request.param
-
-
 class TestPackage:
     @pytest.fixture(params=[Package, PathPackage, DimcatPackage])
     def package_constructor(self, request):
@@ -38,6 +33,19 @@ class TestPackage:
     @pytest.fixture()
     def expected_package_status(self, package_constructor):
         return PackageStatus.EMPTY
+
+    @pytest.fixture(
+        params=[
+            mode.value
+            for mode in PackageMode
+            if mode.value in ["RAISE", "ALLOW_MISALIGNMENT"]
+        ]
+    )
+    def package_mode(self, request):
+        """This is not tested with RECONCILE modes because it would copy files to the basepath, which is the
+        unittest_metacorpus by default (the path from where the descriptor is loaded).
+        """
+        return request.param
 
     @pytest.fixture()
     def package_obj(self, package_constructor, tmp_package_path):
@@ -70,7 +78,7 @@ class TestPackage:
         idx2 = table.index
         assert idx1 == idx2
 
-    def test_package_modes(self, package_obj, single_path_resource, package_mode):
+    def test_adding_resource(self, package_obj, single_path_resource, package_mode):
         if isinstance(package_obj, DimcatPackage):
             with pytest.raises(TypeError):
                 package_obj._add_resource(single_path_resource, mode=package_mode)
@@ -142,19 +150,6 @@ class TestPackageFromFileDirectory(TestPackage):
         """The expected basepath of the resource after initialization."""
         return corpus_path
 
-    @pytest.fixture(
-        params=[
-            mode.value
-            for mode in PackageMode
-            if mode.value in ["RAISE", "ALLOW_MISALIGNMENT"]
-        ]
-    )
-    def package_mode(self, request):
-        """This is not tested with RECONCILE modes because it would copy files to the basepath, which is the
-        unittest_metacorpus by default (the path from where the file paths are discovered).
-        """
-        return request.param
-
 
 # region PackageFromDescriptor
 
@@ -185,19 +180,6 @@ class TestPackageFromDescriptor(TestPackage):
             )
         else:
             return package_constructor.from_descriptor_path(package_descriptor_path)
-
-    @pytest.fixture(
-        params=[
-            mode.value
-            for mode in PackageMode
-            if mode.value in ["RAISE", "ALLOW_MISALIGNMENT"]
-        ]
-    )
-    def package_mode(self, request):
-        """This is not tested with RECONCILE modes because it would copy files to the basepath, which is the
-        unittest_metacorpus by default (the path from where the descriptor is loaded).
-        """
-        return request.param
 
 
 class TestPackageFromFL(TestPackageFromDescriptor):
