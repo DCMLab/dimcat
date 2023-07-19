@@ -161,6 +161,10 @@ class ResourceSchema(Data.Schema):
     For example, :attr:`resource_name` uses ``.resource.name`` under the hood.
     """
 
+    # class Meta:
+    #     ordered = True
+    #     unknown = mm.INCLUDE # unknown fields allowed because frictionless descriptors can come with custom metadata
+
     basepath = mm.fields.Str(
         required=False,
         allow_none=True,
@@ -198,9 +202,13 @@ class ResourceSchema(Data.Schema):
             return data
         else:
             fl_resource = fl.Resource.from_descriptor(data)
-        unsquashed_data = dict(fl_resource.custom)
-        fl_resource.custom = {}
-        assert fl_resource.custom == {}
+        unsquashed_data = {}
+        for field_name in self.declared_fields.keys():
+            # the frictionless.Resource carries all unknown keys in the 'custom' dictionary
+            # we take out those that belong to the schema and leave the rest, which is arbitrary metadata
+            field_value = fl_resource.custom.pop(field_name, None)
+            if field_value is not None:
+                unsquashed_data[field_name] = field_value
         unsquashed_data["resource"] = fl_resource
         return unsquashed_data
 
@@ -208,9 +216,16 @@ class ResourceSchema(Data.Schema):
     def init_object(self, data, **kwargs):
         if "resource" not in data or data["resource"] is None:
             # probably manually compiled data
+            if "dtype" not in data:
+                data["dtype"] = "Resource"
             return super().init_object(data, **kwargs)
         if not isinstance(data["resource"], fl.Resource):
             data["resource"] = fl.Resource.from_descriptor(data["resource"])
+        if "dtype" not in data:
+            if data["resource"].schema.fields:
+                data["dtype"] = "DimcatResource"
+            else:
+                data["dtype"] = "Resource"
         return super().init_object(data, **kwargs)
 
 
@@ -790,7 +805,7 @@ Resource(
         if resource_name:
             new_resource.resource_name = resource_name
         if new_innerpath:
-            new_resource.innerpath = new_innerpath
+            new_resource.resource.innerpath = new_innerpath
         if filepath:
             new_resource.filepath = filepath
         if new_resource.filepath.endswith(".zip"):
@@ -1064,7 +1079,7 @@ Resource(
         """Returns a dictionary representation of the resource and stores its descriptor to disk."""
         if not pickle:
             return super().to_dict()
-        descriptor_path = self.get_descriptor_path(create_if_missing=True)
+        descriptor_path = self.get_descriptor_path(set_default_if_missing=True)
         descriptor_dict = self.make_descriptor()
 
         store_as_json_or_yaml(descriptor_dict, descriptor_path)

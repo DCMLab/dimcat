@@ -40,7 +40,7 @@ logger.debug(f"CORPUS_DIR: {CORPUS_DIR!r}. Contents: {os.listdir(CORPUS_DIR)}")
 
 def retrieve_and_check_corpus_path():
     """Compose the paths for the test corpora."""
-    repo_name, test_commit = ("unittest_metacorpus", "dabe24c")
+    repo_name, test_commit = ("unittest_metacorpus", "5899afe")
     path = os.path.join(CORPUS_DIR, repo_name)
     path = os.path.expanduser(path)
     assert os.path.isdir(path)
@@ -58,6 +58,11 @@ RESOURCE_DESCRIPTOR_PATHS = {
     file: os.path.join(CORPUS_PATH, file)
     for file in os.listdir(CORPUS_PATH)
     if file.endswith(".resource.yaml")
+}
+PACKAGE_DESCRIPTOR_PATHS = {
+    file: os.path.join(CORPUS_PATH, file)
+    for file in os.listdir(CORPUS_PATH)
+    if file.endswith("package.json")
 }
 TEST_N_SCORES = 10
 
@@ -83,23 +88,27 @@ def datapackage_json_path() -> str:
 
 
 @pytest.fixture(scope="session")
-def resource_descriptor_filename(resource_path) -> str:
+def resource_descriptor_filename(resource_descriptor_path) -> str:
     """Returns the path to the descriptor file."""
-    return make_rel_path(resource_path, CORPUS_PATH)
+    return make_rel_path(resource_descriptor_path, CORPUS_PATH)
 
 
 @pytest.fixture(
     scope="session",
     params=RESOURCE_DESCRIPTOR_PATHS.values(),
-    ids=RESOURCE_DESCRIPTOR_PATHS,
+    ids=RESOURCE_DESCRIPTOR_PATHS.keys(),
 )
-def resource_path(request):
+def resource_descriptor_path(request):
     return request.param
 
 
-@pytest.fixture(scope="session")
-def package_descriptor_path():
-    return os.path.join(CORPUS_PATH, "datapackage.json")
+@pytest.fixture(
+    scope="session",
+    params=PACKAGE_DESCRIPTOR_PATHS.values(),
+    ids=PACKAGE_DESCRIPTOR_PATHS.keys(),
+)
+def package_descriptor_path(request):
+    return request.param
 
 
 @pytest.fixture()
@@ -117,9 +126,9 @@ def tmp_serialization_path(request, tmp_path_factory):
 
 
 @pytest.fixture(scope="session")
-def fl_resource(resource_path):
+def fl_resource(resource_descriptor_path):
     """Returns a frictionless resource object."""
-    return fl.Resource(resource_path)
+    return fl.Resource(resource_descriptor_path)
 
 
 @pytest.fixture()
@@ -170,9 +179,9 @@ def resource_from_dataframe(
 
 
 @pytest.fixture()
-def resource_from_descriptor(resource_path):
+def resource_from_descriptor(resource_descriptor_path):
     """Returns a DimcatResource object created from the descriptor on disk."""
-    return DimcatResource.from_descriptor_path(descriptor_path=resource_path)
+    return DimcatResource.from_descriptor_path(descriptor_path=resource_descriptor_path)
 
 
 @pytest.fixture()
@@ -287,9 +296,14 @@ def fl_package(package_descriptor_path) -> fl.Package:
 
 
 @pytest.fixture()
-def package_from_fl_package(fl_package) -> DimcatPackage:
+def package_from_fl_package(fl_package, package_descriptor_path) -> DimcatPackage:
     """Returns a DimcatPackage object."""
-    return DimcatPackage.from_package(fl_package)
+    basepath, descriptor_filename = os.path.split(package_descriptor_path)
+    return DimcatPackage.from_descriptor(
+        descriptor=fl_package,
+        descriptor_filename=descriptor_filename,
+        basepath=basepath,
+    )
 
 
 @pytest.fixture()
@@ -582,3 +596,8 @@ def list_of_mixed_score_paths() -> List[str]:
 
 
 # endregion deprecated
+@pytest.fixture()
+def tmp_package_path(request, tmp_path_factory):
+    """Returns the path to the directory where serialized resources are stored."""
+    name = request.node.name
+    return str(tmp_path_factory.mktemp(name))

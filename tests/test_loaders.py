@@ -21,13 +21,6 @@ def score_path(request):
     return request.param
 
 
-@pytest.fixture()
-def tmp_package_path(request, tmp_path_factory):
-    """Returns the path to the directory where serialized resources are stored."""
-    name = request.node.name
-    return str(tmp_path_factory.mktemp(name))
-
-
 def test_musescore_loader(mixed_files_path, tmp_package_path):
     L = MuseScoreLoader.from_directory(
         directory=mixed_files_path,
