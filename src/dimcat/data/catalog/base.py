@@ -6,8 +6,7 @@ from typing import Iterable, Iterator, List, Optional
 import frictionless as fl
 import marshmallow as mm
 from dimcat.data.base import Data
-from dimcat.data.package.base import PackageSpecs
-from dimcat.data.package.dc import DimcatPackage
+from dimcat.data.package.base import Package, PackageSpecs
 from dimcat.data.resource.base import Resource
 from dimcat.data.resource.features import FeatureSpecs
 from dimcat.dc_exceptions import (
@@ -21,7 +20,7 @@ from typing_extensions import Self
 
 
 class DimcatCatalog(Data):
-    """Has the purpose of collecting and managing a set of :obj:`DimcatPackage` objects.
+    """Has the purpose of collecting and managing a set of :obj:`Package` objects.
 
     Analogous to a :obj:`frictionless.Catalog`, but without intermediate :obj:`frictionless.Dataset` objects.
     Nevertheless, a DimcatCatalog can be stored as and created from a Catalog descriptor (ToDo).
@@ -34,7 +33,7 @@ class DimcatCatalog(Data):
             metadata=dict(description="The basepath for all packages in the catalog."),
         )
         packages = mm.fields.List(
-            mm.fields.Nested(DimcatPackage.Schema),
+            mm.fields.Nested(Package.Schema),
             required=False,
             allow_none=True,
             metadata=dict(description="The packages in the catalog."),
@@ -45,23 +44,23 @@ class DimcatCatalog(Data):
         basepath: Optional[str] = None,
         packages: Optional[PackageSpecs | List[PackageSpecs]] = None,
     ) -> None:
-        """Creates a DimcatCatalog which is essentially a list of :obj:`DimcatPackage` objects.
+        """Creates a DimcatCatalog which is essentially a list of :obj:`Package` objects.
 
         Args:
             basepath: The basepath for all packages in the catalog.
         """
-        self._packages: List[DimcatPackage] = []
+        self._packages: List[Package] = []
         super().__init__(basepath=basepath)
         if packages is not None:
             self.packages = packages
 
-    def __getitem__(self, item: str) -> DimcatPackage:
+    def __getitem__(self, item: str) -> Package:
         try:
             return self.get_package(item)
         except Exception as e:
             raise KeyError(str(e)) from e
 
-    def __iter__(self) -> Iterator[DimcatPackage]:
+    def __iter__(self) -> Iterator[Package]:
         yield from self._packages
 
     def __len__(self) -> int:
@@ -90,14 +89,14 @@ class DimcatCatalog(Data):
         return [package.package_name for package in self._packages]
 
     @property
-    def packages(self) -> List[DimcatPackage]:
+    def packages(self) -> List[Package]:
         return self._packages
 
     @packages.setter
     def packages(self, packages: PackageSpecs | List[PackageSpecs]) -> None:
         if len(self._packages) > 0:
             raise ValueError("Cannot set packages if packages are already present.")
-        if isinstance(packages, (DimcatPackage, fl.Package, str)):
+        if isinstance(packages, (Package, fl.Package, str)):
             packages = [packages]
         for package in packages:
             try:
@@ -110,10 +109,10 @@ class DimcatCatalog(Data):
         package: PackageSpecs,
         basepath: Optional[str] = None,
     ):
-        """Adds a :obj:`DimcatPackage` to the catalog."""
+        """Adds a :obj:`Package` to the catalog."""
         if isinstance(package, (str, fl.Package)):
-            dc_package = DimcatPackage(None, resources=package)
-        elif isinstance(package, DimcatPackage):
+            dc_package = Package(None, resources=package)
+        elif isinstance(package, Package):
             dc_package = package.copy()
         else:
             msg = f"{self.name}.add_package() takes a package, not {type(package)!r}."
@@ -142,7 +141,7 @@ class DimcatCatalog(Data):
         new_object.packages = self.packages
         return new_object
 
-    def extend(self, catalog: Iterable[DimcatPackage]) -> None:
+    def extend(self, catalog: Iterable[Package]) -> None:
         """Adds all packages from another catalog to this one."""
         for package in catalog:
             if package.package_name not in self.package_names:
@@ -151,12 +150,12 @@ class DimcatCatalog(Data):
             self_package = self.get_package_by_name(package.package_name)
             self_package.extend(package)
 
-    def extend_package(self, package: DimcatPackage) -> None:
+    def extend_package(self, package: Package) -> None:
         """Adds all resources from the given package to the existing one with the same name."""
         catalog_package = self.get_package_by_name(package.package_name, create=True)
         catalog_package.extend(package)
 
-    def get_package(self, name: Optional[str] = None) -> DimcatPackage:
+    def get_package(self, name: Optional[str] = None) -> Package:
         """If a name is given, calls :meth:`get_package_by_name`, otherwise returns the last loaded package.
 
         Raises:
@@ -168,7 +167,7 @@ class DimcatCatalog(Data):
             raise EmptyCatalogError
         return self._packages[-1]
 
-    def get_package_by_name(self, name: str, create: bool = False) -> DimcatPackage:
+    def get_package_by_name(self, name: str, create: bool = False) -> Package:
         """
 
         Raises:
@@ -206,22 +205,24 @@ class DimcatCatalog(Data):
         basepath: Optional[str] = None,
         auto_validate: bool = False,
     ):
-        """Adds a package to the catalog. Parameters are the same as for :class:`DimcatPackage`."""
+        """Adds a package to the catalog. Parameters are the same as for :class:`Package`."""
         if package is None or isinstance(package, (fl.Package, str)):
-            package = DimcatPackage(
+            package = Package(
                 package_name=package_name,
                 basepath=basepath,
                 auto_validate=auto_validate,
             )
-        elif not isinstance(package, DimcatPackage):
+        elif not isinstance(package, Package):
             msg = f"{self.name} takes a Package, not {type(package)!r}."
             raise ValueError(msg)
         self.add_package(package, basepath=basepath)
 
-    def replace_package(self, package: DimcatPackage) -> None:
+    def replace_package(self, package: Package) -> None:
         """Replaces the package with the same name as the given package with the given package."""
-        if not isinstance(package, DimcatPackage):
-            msg = f"{self.name}.replace_package() takes a DimcatPackage, not {type(package)!r}."
+        if not isinstance(package, Package):
+            msg = (
+                f"{self.name}.replace_package() takes a Package, not {type(package)!r}."
+            )
             raise TypeError(msg)
         for i, p in enumerate(self._packages):
             if p.package_name == package.package_name:
