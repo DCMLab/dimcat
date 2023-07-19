@@ -24,14 +24,13 @@ class MuseScoreLoader(ScoreLoader):
     class Schema(Loader.Schema):
         pass
 
-    def __init__(
-        self,
+    @classmethod
+    def from_ms3(
+        cls,
         package_name: str,
-        basepath: Optional[str] = None,
-        source: Optional[str] = None,
-        overwrite: bool = False,
+        directory: str,
         as_corpus: bool = False,
-        only_metadata_fnames: bool = True,
+        only_metadata_pieces: bool = True,
         include_convertible: bool = False,
         include_tsv: bool = True,
         exclude_review: bool = True,
@@ -39,18 +38,21 @@ class MuseScoreLoader(ScoreLoader):
         folder_re: Optional[str | re.Pattern] = None,
         exclude_re: Optional[str | re.Pattern] = None,
         paths: Optional[Collection[str]] = None,
+        choose: Literal["auto", "all", "ask"] = "auto",
         labels_cfg={},
         ms=None,
-        **logger_cfg,
+        logger_cfg: Optional[dict] = None,
+        basepath: Optional[str] = None,
+        loader_name: Optional[str] = None,
+        overwrite: bool = False,
+        auto_validate: bool = True,
     ):
-        super().__init__(
-            basepath=basepath,
-            overwrite=overwrite,
-        )
-        self.parser: ms3.Parse | ms3.Corpus = None
+        parser: ms3.Parse | ms3.Corpus = None
+        if logger_cfg is None:
+            logger_cfg = {}
         ms3_arguments = dict(
-            directory=self.sources,
-            only_metadata_fnames=only_metadata_fnames,
+            directory=directory,
+            only_metadata_pieces=only_metadata_pieces,
             include_convertible=include_convertible,
             include_tsv=include_tsv,
             exclude_review=exclude_review,
@@ -62,16 +64,46 @@ class MuseScoreLoader(ScoreLoader):
             **logger_cfg,
         )
         if as_corpus:
-            ms3_arguments[
-                "paths"
-            ] = paths  # ToDo: Treat 'paths' argument separately (only for ms3.Parse?)
-            self.parser = ms3.Corpus(**ms3_arguments)
+            ms3_arguments["paths"] = paths
+            parser = ms3.Corpus(**ms3_arguments)
         else:
             if paths is not None:
                 raise NotImplementedError(
                     "Argument 'paths' currently is only supported for as_corpus=True."
                 )
-            self.parser = ms3.Parse(**ms3_arguments)
+            parser = ms3.Parse(**ms3_arguments)
+        score_files = parser.get_files(
+            facets="scores",
+            choose=choose,
+            flat=True,
+            include_empty=False,
+        )  # Dict[str | Tuple[str, str], List[ms3.File]]; the lists are guaranteed to have length 1
+        filepaths, corpus_names, piece_names = [], [], []
+        if isinstance(parser, ms3.Parse):
+            for ID, files in score_files.items():
+                corpus_name, piece_name = ID
+                filepaths.append(files[0])
+                corpus_names.append(corpus_name)
+                piece_names.append(piece_name)
+        else:  # ms3.Corpus
+            if package_name is None:
+                corpus_name = make_valid_frictionless_name(parser.name)
+            else:
+                corpus_name = make_valid_frictionless_name(package_name)
+            for fname, files in score_files.items():
+                filepaths.append(files[0])
+                corpus_names.append(corpus_name)
+                piece_names.append(fname)
+        return cls.from_filepaths(
+            filepaths=filepaths,
+            package_name=package_name,
+            resource_names=piece_names,
+            corpus_names=corpus_names,
+            auto_validate=auto_validate,
+            basepath=basepath,
+            loader_name=loader_name,
+            overwrite=overwrite,
+        )
 
     def check_resource(self, resource: str | Path) -> None:
         super().check_resource(resource)

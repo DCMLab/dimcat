@@ -44,6 +44,7 @@ from dimcat.data.resource.utils import (
     store_as_json_or_yaml,
 )
 from dimcat.dc_exceptions import (
+    BaseFilePathMismatchError,
     BasePathNotDefinedError,
     EmptyPackageError,
     FilePathNotDefinedError,
@@ -237,6 +238,11 @@ class Package(Data):
         """
         if isinstance(descriptor, fl.Package):
             fl_package = descriptor
+        elif isinstance(descriptor, str):
+            raise ValueError(
+                f"{cls.name}.from_descriptor() expects a descriptor, not a string. Did you mean "
+                f"{cls.name}.from_descriptor_path()?"
+            )
         else:
             fl_package = fl.Package.from_descriptor(descriptor)
         package_name = fl_package.name
@@ -396,6 +402,7 @@ class Package(Data):
         package_name: Optional[str] = None,
         extensions: Optional[Iterable[str]] = None,
         file_re: Optional[str] = None,
+        exclude_re: Optional[str] = None,
         resource_names: Optional[Callable[[str], Optional[str]]] = None,
         corpus_names: Optional[Callable[[str], Optional[str]]] = None,
         auto_validate: bool = False,
@@ -434,7 +441,14 @@ class Package(Data):
             extensions = cls.detects_extensions
         elif isinstance(extensions, str):
             extensions = (extensions,)
-        paths = list(scan_directory(directory, extensions=extensions, file_re=file_re))
+        paths = list(
+            scan_directory(
+                directory,
+                extensions=extensions,
+                file_re=file_re,
+                exclude_re=exclude_re,
+            )
+        )
         cls.logger.info(f"Found {len(paths)} files in {directory}.")
         if not package_name:
             package_name = os.path.basename(directory)
@@ -1176,7 +1190,11 @@ class Package(Data):
         )
         try:
             resource.basepath = package_basepath
-        except (ResourceIsFrozenError, ResourceIsPackagedError):
+        except (
+            ResourceIsFrozenError,
+            ResourceIsPackagedError,
+            BaseFilePathMismatchError,
+        ):
             # resource is currently pointing to a resource file and/or descriptor on disk
             if mode == PackageMode.RAISE:
                 raise

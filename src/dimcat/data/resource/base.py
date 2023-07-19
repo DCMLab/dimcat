@@ -703,8 +703,16 @@ Resource(
     ) -> Self:
         try:
             old_normpath = self.normpath
-        except (BasePathNotDefinedError, FilePathNotDefinedError) as e:
-            raise e(f"{self.name} does not point to a resource on disk.")
+        except FilePathNotDefinedError:
+            raise FilePathNotDefinedError(
+                message=f"{self.name} {self.resource_name!r} cannot be copied because it does not have a filepath "
+                f"pointing to a resource on disk."
+            )
+        except BasePathNotDefinedError:
+            raise BasePathNotDefinedError(
+                message=f"{self.name} {self.resource_name!r} cannot be copied because it does not have a basepath and "
+                f"therefore does not point to resource on disk."
+            )
         new_innerpath = None
         if filepath:
             check_rel_path(filepath, basepath)

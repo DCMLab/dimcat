@@ -299,6 +299,7 @@ class ScoreLoader(Loader):
         package_name: Optional[str] = None,
         extensions: Optional[Iterable[str]] = None,
         file_re: Optional[str] = None,
+        exclude_re: Optional[str] = None,
         resource_names: Optional[Callable[[str], Optional[str]]] = None,
         corpus_names: Optional[Callable[[str], Optional[str]]] = None,
         auto_validate: bool = False,
@@ -346,19 +347,22 @@ class ScoreLoader(Loader):
             package_name=package_name,
             extensions=extensions,
             file_re=file_re,
+            exclude_re=exclude_re,
             resource_names=resource_names,
             corpus_names=corpus_names,
             auto_validate=auto_validate,
-            basepath=basepath,
         )
         return cls.from_package(
-            package=new_package, loader_name=loader_name, overwrite=overwrite
+            package=new_package,
+            basepath=basepath,
+            loader_name=loader_name,
+            overwrite=overwrite,
         )
 
     @classmethod
     def from_package(
         cls,
-        package: DimcatPackage,
+        package: ScorePackage,
         basepath: Optional[str] = None,
         loader_name: Optional[str] = None,
         overwrite: bool = False,
@@ -425,7 +429,7 @@ class ScoreLoader(Loader):
     def loader_name(self, loader_name: Optional[str]):
         valid_name = make_valid_frictionless_name(loader_name)
         if valid_name != loader_name:
-            self.logger.info(f"Changed package name to {valid_name}.")
+            self.logger.info(f"Changed loader_name to {valid_name}.")
         self._loader_name = valid_name
 
     @property

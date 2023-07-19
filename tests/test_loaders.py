@@ -32,6 +32,7 @@ def test_musescore_loader(mixed_files_path, tmp_package_path):
     L = MuseScoreLoader.from_directory(
         directory=mixed_files_path,
         loader_name="mixed_files",
+        exclude_re="changed_instruments",
         basepath=tmp_package_path,
     )
     logger.info(
