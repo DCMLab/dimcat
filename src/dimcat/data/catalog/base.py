@@ -110,8 +110,10 @@ class DimcatCatalog(Data):
         basepath: Optional[str] = None,
     ):
         """Adds a :obj:`Package` to the catalog."""
-        if isinstance(package, (str, fl.Package)):
-            dc_package = Package(None, resources=package)
+        if isinstance(package, fl.Package):
+            dc_package = Package.from_descriptor(package)
+        elif isinstance(package, str):
+            dc_package = Package.from_descriptor_path(package)
         elif isinstance(package, Package):
             dc_package = package.copy()
         else:

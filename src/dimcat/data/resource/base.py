@@ -1172,18 +1172,30 @@ class PathResource(Resource):
         **kwargs,
     ) -> Self:
         """Create a Resource from a file on disk, treating it just as a path even if it's a
-        JSON/YAML resource descriptor"""
-        with warnings.catch_warnings():
-            # suppress warning when receiving descriptor path since this object is treating
-            # all paths as equals
-            warnings.simplefilter("ignore")
-            return super().from_resource_path(
-                resource_path=resource_path,
-                resource_name=resource_name,
-                descriptor_filename=descriptor_filename,
-                basepath=basepath,
-                **kwargs,
-            )
+        JSON/YAML resource descriptor."""
+        try:
+            basepath, resource_path = reconcile_base_and_file(basepath, resource_path)
+        except BaseFilePathMismatchError:
+            basepath, resource_path = os.path.split(resource_path)
+        # The rest of the method is copied from super().from_resource_path
+        fname, extension = os.path.splitext(resource_path)
+        if resource_name:
+            resource_name = make_valid_frictionless_name(resource_name)
+        else:
+            resource_name = make_valid_frictionless_name_from_filepath(resource_path)
+        options = dict(
+            name=resource_name,
+            path=resource_path,
+            scheme="file",
+            format=extension[1:],
+        )
+        fl_resource = make_fl_resource(**options)
+        return cls(
+            resource=fl_resource,
+            descriptor_filename=descriptor_filename,
+            basepath=basepath,
+            **kwargs,
+        )
 
     def __init__(
         self,

@@ -2,12 +2,12 @@ import logging
 import os
 import re
 from pathlib import Path
-from typing import ClassVar, Collection, Literal, Optional, Tuple
+from typing import Collection, Literal, Optional
 
 import ms3
+from dimcat.data.resource.base import PathResource
 from dimcat.dc_exceptions import NoMuseScoreExecutableSpecifiedError
 from dimcat.utils import make_valid_frictionless_name
-from tqdm.asyncio import tqdm
 
 from .base import Loader, ScoreLoader
 
@@ -17,8 +17,16 @@ logger = logging.getLogger(__name__)
 class MuseScoreLoader(ScoreLoader):
     """Wrapper around the ms3 MuseScore parsing library."""
 
-    accepted_file_extensions: ClassVar[Tuple[str, ...]] = (".mscx", ".mscz")
-    conditionally_accepted_file_extensions: ClassVar[Tuple[str, ...]] = (".mscz",)
+    accepted_file_extensions = (".mscx", ".mscz")
+    conditionally_accepted_file_extensions = (
+        ".cap",
+        ".capx",
+        ".midi",
+        ".mid",
+        ".musicxml",
+        ".mxl",
+        ".xml",
+    )
     """Convertible file formats accepted if a MuseScore executable is specified (parameter ``ms``)."""
 
     class Schema(Loader.Schema):
@@ -105,107 +113,86 @@ class MuseScoreLoader(ScoreLoader):
             overwrite=overwrite,
         )
 
-    def check_resource(self, resource: str | Path) -> None:
-        super().check_resource(resource)
-        _, fext = os.path.splitext(resource)
-        if fext in self.conditionally_accepted_file_extensions:
-            if self.parser.ms is None:
-                raise NoMuseScoreExecutableSpecifiedError
-
-    def make_and_store_datapackage(
+    def __init__(
         self,
-        overwrite: Optional[bool] = None,
-        view_name: Optional[str] = None,
-        parsed: bool = True,
-        unparsed: bool = True,
-        choose: Literal["auto", "ask"] = "auto",
-    ) -> str:
+        basepath: Optional[str] = None,
+        loader_name: Optional[str] = None,
+        overwrite: bool = False,
+        ms: Optional[str] = None,
+    ):
         """
 
         Args:
+            basepath: Directory in which to store the loaded data as a datapackage.
+            loader_name: Name of the datapackage containing the loaded data.
             overwrite:
-                If False (default), raise FileExistsError if zip file already exists.
-                If True, overwrite existing zip file.
-            view_name:
-            parsed:
-            unparsed:
-            choose:
-
-        Returns:
-
-        Raises:
-            FileExistsError: If the zip file <basepath>/<package_name>.zip already exists.
-
+                By default, the loader will not parse anything if the target package ``loader_name``
+                already exists in ``basepath``. Set this to True to re-parse and overwrite.
+            ms3:
+                Path to a MuseScore executable to allow for loading all score formats that MuseScore can open.
+                If None, only .mscx and .mscz files can be loaded.
         """
-        super().make_and_store_datapackage(overwrite=overwrite)
-        if choose not in ("auto", "ask"):
-            raise ValueError(
-                f"Invalid value for choose: {choose}. Pass 'auto' (default) or 'ask'."
-            )
-        self._parse_and_extract(
-            choose=choose,
-            parsed=parsed,
-            unparsed=unparsed,
-            view_name=view_name,
+        super().__init__(
+            basepath=basepath,
+            loader_name=loader_name,
+            overwrite=overwrite,
         )
-        self._store_datapackage()
-        return self.descriptor_path
+        self.ms = ms
 
-    def _parse_and_extract(
-        self,
-        choose: Literal["auto", "ask"] = "auto",
-        parsed: bool = True,
-        unparsed: bool = True,
-        view_name: Optional[str] = None,
-    ):
-        score_files = self.parser.get_files(
-            facets="scores",
-            view_name=view_name,
-            parsed=parsed,
-            unparsed=unparsed,
-            choose=choose,
-            flat=True,
-            include_empty=False,
-        )  # Dict[str | Tuple[str, str], List[ms3.File]]; the lists are guaranteed to have length 1
-        if isinstance(self.parser, ms3.Parse):
-            logger_names = {
-                (corpus, fname): self.parser[corpus].logger_names[fname]
-                for corpus, fname in score_files.keys()
-            }
-            score_files = {ID: files[0] for ID, files in score_files.items()}
-        else:  # ms3.Corpus
-            if self.loader_name is None:
-                corpus_name = make_valid_frictionless_name(self.parser.name)
-                self.package_name = corpus_name
-            else:
-                corpus_name = self.package_name
-            logger_names = {
-                (corpus_name, fname): self.parser.logger_names[fname]
-                for fname in score_files.keys()
-            }
-            score_files = {
-                (corpus_name, fname): files[0] for fname, files in score_files.items()
-            }
+    def check_resource(self, resource: str | Path) -> None:
+        super().check_resource(resource)
+        filepath = resource.normpath
+        _, fext = os.path.splitext(filepath)
+        if fext in self.conditionally_accepted_file_extensions and self.ms is None:
+            raise NoMuseScoreExecutableSpecifiedError
 
-        for ID, file in (
-            pbar := tqdm(
-                score_files.items(),
-                total=len(score_files),
-                desc="Parsing scores...",
-            )
-        ):
-            path = file.full_path
-            pbar.set_description(f"Parsing {file.file}")
-            logger_name = logger_names[ID]
-            self._process_resource(path, ID, logger_name)
+    # def make_and_store_datapackage(
+    #     self,
+    #     overwrite: Optional[bool] = None,
+    #     view_name: Optional[str] = None,
+    #     parsed: bool = True,
+    #     unparsed: bool = True,
+    #     choose: Literal["auto", "ask"] = "auto",
+    # ) -> str:
+    #     """
+    #
+    #     Args:
+    #         overwrite:
+    #             If False (default), raise FileExistsError if zip file already exists.
+    #             If True, overwrite existing zip file.
+    #         view_name:
+    #         parsed:
+    #         unparsed:
+    #         choose:
+    #
+    #     Returns:
+    #
+    #     Raises:
+    #         FileExistsError: If the zip file <basepath>/<package_name>.zip already exists.
+    #
+    #     """
+    #     super().make_and_store_datapackage(overwrite=overwrite)
+    #     if choose not in ("auto", "ask"):
+    #         raise ValueError(
+    #             f"Invalid value for choose: {choose}. Pass 'auto' (default) or 'ask'."
+    #         )
+    #     self._parse_and_extract(
+    #         choose=choose,
+    #         parsed=parsed,
+    #         unparsed=unparsed,
+    #         view_name=view_name,
+    #     )
+    #     self._store_datapackage()
+    #     return self.descriptor_path
 
-    def _process_resource(self, resource: str, ID: tuple, logger_name: str) -> None:
+    def _process_resource(self, resource: PathResource) -> None:
+        ID = resource.ID
+        filepath = resource.normpath
         score = ms3.Score(
-            resource,
+            filepath,
             read_only=True,
-            labels_cfg=self.parser.labels_cfg,
-            ms=self.parser.ms,
-            name=logger_name,
+            ms=self.ms,
+            name=self.logger.name,
         )
         for facet_name, obj in zip(
             ("events", "control", "structure", "annotations", "metadata"),
