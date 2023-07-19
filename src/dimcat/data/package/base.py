@@ -1390,5 +1390,18 @@ class PathPackage(Package):
     default_mode = PackageMode.ALLOW_MISALIGNMENT
     detects_extensions = None  # any
 
+    def add_resource(self, resource: Resource):
+        """Adds a resource to the package."""
+        resource = self._handle_resource_argument(resource)
+        _ = self._add_resource(resource)
+        # Currently the PathPackage does not store its descriptor because it allows/is made for misaligned resources
+        # that come with their own, independent base paths
+        # if self.package_exists and added_resource.is_serialized:
+        #     self.store_descriptor(
+        #         overwrite=True,
+        #         allow_partial=True,
+        #     )
+        #     self._update_status()
+
 
 PackageSpecs: TypeAlias = Union[Package, fl.Package, str]
