@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 class Grouper(FeatureProcessingStep):
     new_dataset_type = GroupedDataset
-    new_resource_type = None
+    new_resource_type = None  # same as input
     output_package_name = None
 
     class Schema(FeatureProcessingStep.Schema):
