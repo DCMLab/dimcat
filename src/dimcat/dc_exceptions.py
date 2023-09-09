@@ -242,6 +242,7 @@ class PotentiallyUnrelatedDescriptorError(DimcatError):
         f"load it via .from_descriptor_path({path!r}).",
     }
 
+
 class ResourceDescriptorHasWrongTypeError(DimcatError):
     """optional args: (expected_type, actual_type, name)"""
 

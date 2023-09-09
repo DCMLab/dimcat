@@ -14,8 +14,8 @@ finally:
 from .base import DimcatConfig, get_class, get_schema
 from .data.dataset.base import Dataset
 from .steps.extractor.base import FeatureExtractor
-from .steps.pipeline.base import Pipeline
 from .steps.loaders.base import PackageLoader
+from .steps.pipeline.base import Pipeline
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(

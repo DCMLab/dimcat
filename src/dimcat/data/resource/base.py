@@ -19,9 +19,10 @@ from dimcat.dc_exceptions import (
     BasePathNotDefinedError,
     FilePathNotDefinedError,
     InvalidResourcePathError,
+    ResourceDescriptorHasWrongTypeError,
     ResourceIsFrozenError,
     ResourceIsPackagedError,
-    ResourceNeedsToBeCopiedError, ResourceDescriptorHasWrongTypeError,
+    ResourceNeedsToBeCopiedError,
 )
 from dimcat.dc_warnings import PotentiallyUnrelatedDescriptorUserWarning
 from dimcat.utils import (
@@ -282,7 +283,9 @@ class Resource(Data):
             dtype = fl_resource.custom.get("dtype", "DimcatResource")
             Constructor = get_class(dtype)
             if not issubclass(Constructor, cls):
-                raise ResourceDescriptorHasWrongTypeError(dtype, cls.name, fl_resource.name)
+                raise ResourceDescriptorHasWrongTypeError(
+                    dtype, cls.name, fl_resource.name
+                )
 
             try:
                 return Constructor.schema.load(descriptor)
