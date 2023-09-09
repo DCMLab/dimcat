@@ -95,6 +95,13 @@ class Dataset(Data):
         dataset = cls() if not loader.basepath else cls(basepath=loader.basepath)
         return loader.process_dataset(dataset)
 
+    @classmethod
+    def from_package(cls, package: PackageSpecs) -> Self:
+        """Instantiate from a PackageSpecs by loading it into the inputs catalog."""
+        dataset = cls()
+        dataset.load_package(package=package)
+        return dataset
+
     class Schema(Data.Schema):
         """Dataset serialization schema."""
 
