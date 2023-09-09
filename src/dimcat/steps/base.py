@@ -216,7 +216,7 @@ class FeatureProcessingStep(PipelineStep):
 
     """
 
-    allowed_features: Optional[ClassVar[Tuple[FeatureName]]] = None
+    allowed_features: Optional[ClassVar[Tuple[FeatureName, ...]]] = None
     """If set, this FeatureProcessingStep can only be initialized with features that are in this tuple."""
 
     output_package_name: Optional[str] = None

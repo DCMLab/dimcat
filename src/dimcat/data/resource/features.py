@@ -14,10 +14,12 @@ logger = logging.getLogger(__name__)
 
 
 class FeatureName(ObjectEnum):
-    Notes = "Notes"
     Annotations = "Annotations"
+    HarmonyLabels = "HarmonyLabels"
     KeyAnnotations = "KeyAnnotations"
+    Measures = "Measures"
     Metadata = "Metadata"
+    Notes = "Notes"
 
 
 class Feature(DimcatResource):
@@ -95,6 +97,10 @@ class Notes(Feature):
 
 
 class Annotations(Feature):
+    pass
+
+
+class HarmonyLabels(Annotations):
     pass
 
 

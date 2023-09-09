@@ -14,6 +14,7 @@ from typing import (
     Iterator,
     List,
     Optional,
+    Set,
     Tuple,
     Type,
     TypeAlias,
@@ -31,7 +32,7 @@ from dimcat.data.resource.base import (
     reconcile_base_and_file,
 )
 from dimcat.data.resource.dc import DimcatResource, PieceIndex
-from dimcat.data.resource.facets import MuseScoreFacet
+from dimcat.data.resource.facets import Facet, MuseScoreFacet
 from dimcat.data.resource.features import (
     Feature,
     FeatureName,
@@ -653,6 +654,13 @@ class Package(Data):
         return pformat(values, sort_dicts=False)
 
     @property
+    def available_features(self) -> Set[FeatureName]:
+        """The set of all available features defined as the union of :attr:`contained_features` and
+        :attr:`extractable_features`.
+        """
+        return self.contained_features.union(self.extractable_features)
+
+    @property
     def basepath(self) -> str:
         return self._basepath
 
@@ -678,6 +686,11 @@ class Package(Data):
         self._package.basepath = basepath_arg
         for resource in self._resources:
             resource.basepath = basepath_arg  # this is meant to fail RN
+
+    @property
+    def contained_features(self) -> Set[FeatureName]:
+        """The dtypes of all feature resources included in the package."""
+        return {feature.dtype for feature in self.iter_features()}
 
     @property
     def descriptor_exists(self) -> bool:
@@ -710,6 +723,12 @@ class Package(Data):
             if resource.name not in resource_names_in_descriptor:
                 return False
         return True
+
+    @property
+    def extractable_features(self) -> Set[FeatureName]:
+        """The dtypes of all features that can be extracted from the facet resources included in the package."""
+        f_name_tuples = [facet.extractable_features for facet in self.iter_facets()]
+        return set(sum(f_name_tuples, tuple()))
 
     @property
     def filepath(self) -> str:
@@ -1052,22 +1071,20 @@ class Package(Data):
     def extract_feature(self, feature: FeatureSpecs) -> Feature:
         feature_config = feature_specs2config(feature)
         feature_name = FeatureName(feature_config.options_dtype)
-        name2resource = dict(
-            Notes="notes",
-            Annotations="expanded",
-            KeyAnnotations="expanded",
-            Metadata="metadata",
-        )
-        try:
-            resource_name = name2resource[feature_name]
-        except KeyError:
+        if feature_name not in self.extractable_features:
             raise NoMatchingResourceFoundError(feature_config)
-        try:
-            resource = self.get_resource_by_name(resource_name)
-        except ResourceNotFoundError:
-            raise NoMatchingResourceFoundError(feature_config)
-        Constructor = feature_name.get_class()
-        return Constructor.from_resource(resource)
+        candidate_facets = [
+            facet
+            for facet in self.iter_facets()
+            if feature_name in facet.extractable_features
+        ]
+        if len(candidate_facets) > 1:
+            raise NotImplementedError(
+                f"More than one facet allow for extracting {feature_name!r}."
+            )
+        Klass = feature_name.get_class()
+        selected_facet = candidate_facets[0]
+        return Klass.from_resource(selected_facet)
 
     def get_descriptor_path(
         self,
@@ -1199,6 +1216,18 @@ class Package(Data):
         raise TypeError(
             f"Expected a frictionless.Resource or a DimcatResource, but got {type(resource)!r}."
         )
+
+    def iter_facets(self) -> Iterator[Facet]:
+        """Iterates over all facets in the package."""
+        for resource in self:
+            if isinstance(resource, Facet):
+                yield resource
+
+    def iter_features(self) -> Iterator[Feature]:
+        """Iterates over all features in the package."""
+        for resource in self:
+            if isinstance(resource, Feature):
+                yield resource
 
     def make_descriptor(self) -> dict:
         return self.pickle_schema.dump(self)

@@ -132,7 +132,7 @@ class Dataset(Data):
         """
         self._inputs = InputsCatalog(basepath=basepath)
         self._outputs = OutputsCatalog(basepath=basepath)
-        self._pipeline = None
+        self._pipeline: "Pipeline" = None
         self.reset_pipeline()
         super().__init__(basepath=basepath, **kwargs)  # calls the Mixin's __init__
 
