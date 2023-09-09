@@ -89,7 +89,7 @@ class DimcatResource(Resource, Generic[D]):
     @classmethod
     def from_descriptor(
         cls,
-        descriptor: dict,
+        descriptor: dict | Resource,
         descriptor_filename: Optional[str] = None,
         basepath: Optional[str] = None,
         auto_validate: bool = False,

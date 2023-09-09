@@ -31,6 +31,7 @@ from dimcat.data.resource.base import (
     reconcile_base_and_file,
 )
 from dimcat.data.resource.dc import DimcatResource, PieceIndex
+from dimcat.data.resource.facets import MuseScoreFacet
 from dimcat.data.resource.features import (
     Feature,
     FeatureName,
@@ -48,6 +49,7 @@ from dimcat.dc_exceptions import (
     EmptyPackageError,
     FilePathNotDefinedError,
     NoMatchingResourceFoundError,
+    PackageDescriptorHasWrongTypeError,
     PackageInconsistentlySerializedError,
     PackageNotFullySerializedError,
     PackagePathsNotAlignedError,
@@ -243,6 +245,8 @@ class Package(Data):
         """
         if isinstance(descriptor, fl.Package):
             fl_package = descriptor
+            if basepath is None:
+                basepath = fl_package.basepath
         elif isinstance(descriptor, str):
             raise ValueError(
                 f"{cls.name}.from_descriptor() expects a descriptor, not a string. Did you mean "
@@ -262,8 +266,8 @@ class Package(Data):
             # it with the appropriate dtype class constructor
             Constructor = get_class(dtype)
             if not issubclass(Constructor, cls):
-                raise TypeError(
-                    f"The descriptor specifies dtype {dtype!r} which is not a subclass of {cls.name}."
+                raise PackageDescriptorHasWrongTypeError(
+                    cls.name, Constructor, fl_package.name
                 )
             descriptor = fl_package.to_dict()
             descriptor = dict(
@@ -273,8 +277,14 @@ class Package(Data):
                 basepath=basepath,
             )
             return Constructor.schema.load(descriptor)
+        if (creator := fl_package.custom.get("creator")) and creator["name"] == "ms3":
+            Constructor = get_class("MuseScorePackage")
+            ResourceConstructor = MuseScoreFacet
+        else:
+            Constructor = cls
+            ResourceConstructor = Resource
         resources = [
-            Resource.from_descriptor(
+            ResourceConstructor.from_descriptor(
                 descriptor=resource.to_dict(),
                 basepath=basepath,
                 descriptor_filename=descriptor_filename,
@@ -282,7 +292,7 @@ class Package(Data):
             )
             for resource in fl_package.resources
         ]
-        return cls(
+        return Constructor(
             package_name=package_name,
             resources=resources,
             descriptor_filename=descriptor_filename,
@@ -605,7 +615,8 @@ class Package(Data):
         self._status = PackageStatus.EMPTY
         self._resources: List[Resource] = []
         self._descriptor_filename: Optional[str] = None
-        self.auto_validate = True if auto_validate else False  # catches None
+        self.auto_validate = True if auto_validate else False  # catches None => False
+        print(f"BASEPATH: {basepath}")
         super().__init__(basepath=basepath)
         self.package_name = package_name
         if descriptor_filename is not None:

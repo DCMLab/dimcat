@@ -27,7 +27,7 @@ from dimcat.data.catalog.base import DimcatCatalog
 from dimcat.data.dataset.base import Dataset
 from dimcat.data.package.base import Package, PathPackage
 from dimcat.data.package.dc import DimcatPackage
-from dimcat.data.package.score import ScorePackage
+from dimcat.data.package.score import ScorePathPackage
 from dimcat.data.resource.base import PathResource, Resource
 from dimcat.data.resource.utils import is_default_package_descriptor_path, make_rel_path
 from dimcat.dc_exceptions import (
@@ -369,7 +369,7 @@ class ScoreLoader(Loader):
 
     default_loader_name = "score_loader"
 
-    path_package_type = ScorePackage
+    path_package_type = ScorePathPackage
 
     @classmethod
     def from_directory(
@@ -472,7 +472,7 @@ class ScoreLoader(Loader):
         """
         if isinstance(filepaths, (str, Path)):
             filepaths = [filepaths]
-        new_package = ScorePackage.from_filepaths(
+        new_package = ScorePathPackage.from_filepaths(
             filepaths=filepaths,
             package_name=package_name,
             resource_names=resource_names,
@@ -490,7 +490,7 @@ class ScoreLoader(Loader):
     @classmethod
     def from_package(
         cls,
-        package: ScorePackage,
+        package: ScorePathPackage,
         basepath: Optional[str] = None,
         loader_name: Optional[str] = None,
         overwrite: bool = False,

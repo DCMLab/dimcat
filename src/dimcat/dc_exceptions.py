@@ -190,6 +190,19 @@ class NoMatchingResourceFoundError(DimcatError):
     }
 
 
+class PackageDescriptorHasWrongTypeError(DimcatError):
+    """optional args: (expected_type, actual_type, name)"""
+
+    nargs2message = {
+        0: "The package descriptor resolves to the wrong type.",
+        1: lambda expected_type: f"The package descriptor resolves to the wrong type. Expected {expected_type!r}.",
+        2: lambda expected_type, actual_type: f"The package descriptor resolves to the wrong type. Expected "
+        f"{expected_type!r}, got {actual_type!r}.",
+        3: lambda expected_type, actual_type, name: f"The package descriptor for {name!r} resolves to the wrong type. "
+        f"Expected {expected_type!r}, got {actual_type!r}.",
+    }
+
+
 class PackageNotFoundError(DimcatError):
     """optional args: (package_name,)"""
 
