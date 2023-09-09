@@ -1,9 +1,9 @@
 from pathlib import Path
-from typing import Optional
+from typing import Optional  # , ClassVar, Tuple
 
 import frictionless as fl
 from dimcat.base import ObjectEnum
-from dimcat.data.resource import DimcatResource, Metadata, Resource
+from dimcat.data.resource import DimcatResource, FeatureName, Metadata, Resource
 from typing_extensions import Self
 
 
@@ -14,7 +14,17 @@ class MuseScoreFacetName(ObjectEnum):
     MuseScoreNotes = "MuseScoreNotes"
 
 
-class MuseScoreFacet(DimcatResource):
+class Facet(DimcatResource):
+    """A facet is one aspect of a score that can sensibly ordered and conceived of along the score's timeline. The
+    format of a facet depends on the score format and tries to stay as close to the original as possible, using only
+    the necessary minimum of standardization. Content an format of a facet define which features can be extracted,
+    based on which configuration options.
+    """
+
+    extractable_features = None  # : Optional[ClassVar[Tuple[FeatureName, ...]]]
+
+
+class MuseScoreFacet(Facet):
     """A single facet of a MuseScore package as created by the ms3 MuseScore parsing library. Contains a single TSV
     facet one or several corpora. Naming format ``<name>.<facet>[.tsv]``."""
 
@@ -81,12 +91,12 @@ class MuseScoreFacet(DimcatResource):
 
 
 class MuseScoreHarmonies(MuseScoreFacet):
-    pass
+    extractable_features = (FeatureName.HarmonyLabels, FeatureName.KeyAnnotations)
 
 
 class MuseScoreMeasures(MuseScoreFacet):
-    pass
+    extractable_features = (FeatureName.Measures,)
 
 
 class MuseScoreNotes(MuseScoreFacet):
-    pass
+    extractable_features = (FeatureName.Notes,)
