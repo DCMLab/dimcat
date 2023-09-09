@@ -285,7 +285,7 @@ class Package(Data):
             ResourceConstructor = Resource
         resources = [
             ResourceConstructor.from_descriptor(
-                descriptor=resource.to_dict(),
+                descriptor=resource,
                 basepath=basepath,
                 descriptor_filename=descriptor_filename,
                 auto_validate=auto_validate,
