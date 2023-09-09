@@ -230,9 +230,9 @@ class ResourceSchema(Data.Schema):
 
 
 class Resource(Data):
-    """A Resource is essentially a wrapper around a :obj:`frictionless.Resource` object. In its
-    simple form, it serves merely for storing a file path, but split into a basepath and a relative
-    filepath, as per the frictionless philosophy.
+    """A Resource is essentially a wrapper around a :obj:`frictionless.Resource` object. Initializing a Resource object
+    from a descriptor dispatches to the appropriate subclass, depending on the specified dtype or, if absent,
+    to a :class:`DimcatResource` for tabular data and to a :class:`PathResource` for any other.
     """
 
     @classmethod
@@ -265,31 +265,31 @@ class Resource(Data):
             fl_resource = descriptor
         else:
             fl_resource = fl.Resource.from_descriptor(descriptor)
-        if dtype := fl_resource.custom.get("dtype"):
-            # the descriptor.custom dict contains serialization data for a DiMCAT object so we will deserialize
-            # it with the appropriate dtype class constructor
-            Constructor = get_class(dtype)
-            if not issubclass(Constructor, cls):
-                raise TypeError(
-                    f"The descriptor specifies dtype {dtype!r} which is not a subclass of {cls.name}."
-                )
+        if fl_resource.type == "table":
+            # dispatch
             descriptor = dict(
                 descriptor,
                 descriptor_filename=descriptor_filename,
                 basepath=basepath,
                 **kwargs,
             )
+            if dtype := fl_resource.custom.get("dtype"):
+                # the descriptor.custom dict contains serialization data for a DiMCAT object so we will deserialize
+                # it with the appropriate dtype class constructor
+                Constructor = get_class(dtype)
+            else:
+                Constructor = get_class("DimcatResource")
+            if not issubclass(Constructor, cls):
+                raise TypeError(
+                    f"The descriptor specifies dtype {dtype!r} which is not a subclass of {cls.name}."
+                )
+
             try:
                 return Constructor.schema.load(descriptor)
             except mm.ValidationError as e:
                 raise mm.ValidationError(
                     f"Deserializing the descriptor {descriptor!r} with {Constructor.name}.schema failed with \n{e}."
                 ) from e
-        elif fl_resource.custom != {}:
-            warnings.warn(
-                f"The descriptor contains unknown data: {fl_resource.custom}.",
-                RuntimeWarning,
-            )
         return cls(
             resource=fl_resource,
             descriptor_filename=descriptor_filename,
