@@ -246,7 +246,13 @@ class DimcatCatalog(Data):
         for package in self._packages:
             package.basepath = self.basepath
 
-    def summary_dict(self) -> dict:
+    def summary_dict(self, include_type: bool = True) -> dict:
         """Returns a summary of the dataset."""
-        summary = {p.package_name: p.resource_names for p in self._packages}
+        if include_type:
+            summary = {
+                p.package_name: [f"{r.resource_name!r} ({r.dtype})" for r in p]
+                for p in self._packages
+            }
+        else:
+            summary = {p.package_name: p.resource_names for p in self._packages}
         return dict(basepath=self.basepath, packages=summary)
