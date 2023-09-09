@@ -132,6 +132,7 @@ class PackageSchema(Data.Schema):
     )
     descriptor_filename = mm.fields.String(allow_none=True, metadata={"expose": False})
     auto_validate = mm.fields.Boolean(metadata={"expose": False})
+    # ToDo: accept the rest as additional metadata dict as the "custom" field
 
     # def get_package_descriptor(self, obj: Package):
     #     return obj.make_descriptor()
@@ -287,6 +288,7 @@ class Package(Data):
             descriptor_filename=descriptor_filename,
             basepath=basepath,
             auto_validate=auto_validate,
+            metadata=fl_package.custom,
         )
 
     @classmethod
@@ -573,10 +575,12 @@ class Package(Data):
         basepath: Optional[str] = None,
         descriptor_filename: Optional[str] = None,
         auto_validate: bool = False,
+        metadata: Optional[dict] = None,
     ) -> None:
         """
 
         Args:
+            metadata:
             package_name:
                 Name of the package that can be used to retrieve it.
             resources:
@@ -589,11 +593,15 @@ class Package(Data):
                 are stored. The filepaths of all included :class:`DimcatResource` objects need to be relative to the
                 basepath and DiMCAT does its best to ensure this.
             auto_validate:
-                By default, the package is validated everytime a resource is added. Set to False to disable this.
+                By default, the package is validated everytime a resource is added. Pass False to disable this.
+            metadata:
+                Custom metadata to be maintained in the package descriptor.
         """
         if not package_name:
             raise ValueError("package_name cannot be empty")
         self._package = fl.Package(resources=[])
+        if metadata:
+            self._package.custom.update(metadata)
         self._status = PackageStatus.EMPTY
         self._resources: List[Resource] = []
         self._descriptor_filename: Optional[str] = None
@@ -613,7 +621,7 @@ class Package(Data):
         if isinstance(item, int):
             return self._resources[item]
         try:
-            return self.get_resource(item)
+            return self.get_resource_by_name(item)
         except Exception as e:
             raise KeyError(str(e)) from e
 
@@ -1044,7 +1052,7 @@ class Package(Data):
         except KeyError:
             raise NoMatchingResourceFoundError(feature_config)
         try:
-            resource = self.get_resource(resource_name)
+            resource = self.get_resource_by_name(resource_name)
         except ResourceNotFoundError:
             raise NoMatchingResourceFoundError(feature_config)
         Constructor = feature_name.get_class()
@@ -1105,7 +1113,7 @@ class Package(Data):
 
     def get_metadata(self) -> SomeDataframe:
         """Returns the metadata of the package."""
-        return self.get_resource("metadata").df
+        return self.get_resource_by_name("metadata").df
 
     def get_resource_by_config(self, config: DimcatConfig) -> Resource:
         """Returns the first resource that matches the given config."""
@@ -1148,7 +1156,7 @@ class Package(Data):
         zip_filename = self.get_zip_filepath()
         return os.path.join(self.get_basepath(), zip_filename)
 
-    def get_resource(self, name: Optional[str] = None) -> Resource:
+    def get_resource_by_name(self, name: Optional[str] = None) -> Resource:
         """Returns the Resource with the given name. If no name is given, returns the last resource.
 
         Raises:

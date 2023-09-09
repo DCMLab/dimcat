@@ -232,7 +232,7 @@ def serialized_resource(resource_from_dataframe) -> DimcatResource:
 def zipped_resource_copied_from_dc_package(
     package_from_fl_package, package_descriptor_filename
 ) -> DimcatResource:
-    dc_resource = package_from_fl_package.get_resource("notes")
+    dc_resource = package_from_fl_package.get_resource_by_name("notes")
     return DimcatResource.from_resource(dc_resource)
 
 

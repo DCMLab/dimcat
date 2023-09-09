@@ -32,10 +32,12 @@ class DimcatPackage(Package):
         basepath: Optional[str] = None,
         descriptor_filename: Optional[str] = None,
         auto_validate: bool = False,
+        metadata: Optional[dict] = None,
     ) -> None:
         """
 
         Args:
+            metadata:
             package_name:
                 Name of the package that can be used to retrieve it.
             resources:
@@ -49,6 +51,8 @@ class DimcatPackage(Package):
                 basepath and DiMCAT does its best to ensure this.
             auto_validate:
                 By default, the package is validated everytime a resource is added. Set to False to disable this.
+            metadata:
+                Custom metadata to be maintained in the package descriptor.
         """
         super().__init__(
             package_name=package_name,
@@ -56,6 +60,7 @@ class DimcatPackage(Package):
             basepath=basepath,
             descriptor_filename=descriptor_filename,
             auto_validate=auto_validate,
+            metadata=metadata,
         )
 
     def create_and_add_resource(

@@ -221,7 +221,8 @@ class Dataset(Data):
         return Dataset.from_dataset(self)
 
     def _extract_feature(self, feature_config: DimcatConfig) -> Feature:
-        """Extracts a feature from this Dataset.
+        """Extracts a feature from the Dataset's input catalog, sends it through its pipeline and returns the result,
+        without storing it.
 
         Args:
             feature: FeatureSpecs to be extracted.
@@ -236,8 +237,8 @@ class Dataset(Data):
         return self._pipeline.process_resource(extracted)
 
     def extract_feature(self, feature: FeatureSpecs) -> Feature:
-        """Extracts a feature from this Dataset, adds it to the OutputsCatalog, and adds the corresponding
-        FeatureExtractor to the dataset's pipeline as if it had been applied.
+        """Extracts a feature from this Dataset's input catalog, sends it through its pipeline, adds the result to the
+        OutputsCatalog, and adds the corresponding FeatureExtractor to the dataset's pipeline.
 
         Args:
             feature: FeatureSpecs to be extracted.

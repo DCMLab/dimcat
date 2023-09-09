@@ -43,7 +43,7 @@ class _AnalyzedMixin(_ProcessedMixin):
         """Returns the result of the previously applied analyzer with the given name."""
         results = self.outputs.get_package("results")
         if analyzer_name is None:
-            return results.get_resource()
+            return results.get_resource_by_name()
         raise NotImplementedError("get_result with analyzer_name not implemented yet.")
 
 
