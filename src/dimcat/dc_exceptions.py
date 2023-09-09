@@ -242,6 +242,18 @@ class PotentiallyUnrelatedDescriptorError(DimcatError):
         f"load it via .from_descriptor_path({path!r}).",
     }
 
+class ResourceDescriptorHasWrongTypeError(DimcatError):
+    """optional args: (expected_type, actual_type, name)"""
+
+    nargs2message = {
+        0: "The resource descriptor resolves to the wrong type.",
+        1: lambda expected_type: f"The resource descriptor resolves to the wrong type. Expected {expected_type!r}.",
+        2: lambda expected_type, actual_type: f"The resource descriptor resolves to the wrong type. Expected "
+        f"{expected_type!r}, got {actual_type!r}.",
+        3: lambda expected_type, actual_type, name: f"The resource descriptor for {name!r} resolves to the wrong type. "
+        f"Expected {expected_type!r}, got {actual_type!r}.",
+    }
+
 
 class ResourceIsFrozenError(DimcatError):
     """optional args: (resource_name, current_basepath, new_basepath)"""

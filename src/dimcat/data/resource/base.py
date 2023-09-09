@@ -21,7 +21,7 @@ from dimcat.dc_exceptions import (
     InvalidResourcePathError,
     ResourceIsFrozenError,
     ResourceIsPackagedError,
-    ResourceNeedsToBeCopiedError,
+    ResourceNeedsToBeCopiedError, ResourceDescriptorHasWrongTypeError,
 )
 from dimcat.dc_warnings import PotentiallyUnrelatedDescriptorUserWarning
 from dimcat.utils import (
@@ -238,7 +238,7 @@ class Resource(Data):
     @classmethod
     def from_descriptor(
         cls,
-        descriptor: dict,
+        descriptor: dict | fl.Resource,
         descriptor_filename: Optional[str] = None,
         basepath: Optional[str] = None,
         **kwargs,
@@ -253,6 +253,11 @@ class Resource(Data):
             basepath: Where the file would be serialized.
             **kwargs: Subclasses can use this method.
 
+        Raises:
+            TypeError: If the descriptor is a string or a Path, not a dictionary or a frictionless Resource.
+            ResourceDescriptorHasWrongTypeError:
+                If the descriptor belongs to a type that is not a subclass of the Resource class to be initialized.
+
         Returns:
 
         """
@@ -266,23 +271,18 @@ class Resource(Data):
         else:
             fl_resource = fl.Resource.from_descriptor(descriptor)
         if fl_resource.type == "table":
-            # dispatch
+            # descriptor contains tabular data, dispatch to the appropriate Dimcat object based on the presence or
+            # absence of 'dtype' in the descriptor
             descriptor = dict(
                 descriptor,
                 descriptor_filename=descriptor_filename,
                 basepath=basepath,
                 **kwargs,
             )
-            if dtype := fl_resource.custom.get("dtype"):
-                # the descriptor.custom dict contains serialization data for a DiMCAT object so we will deserialize
-                # it with the appropriate dtype class constructor
-                Constructor = get_class(dtype)
-            else:
-                Constructor = get_class("DimcatResource")
+            dtype = fl_resource.custom.get("dtype", "DimcatResource")
+            Constructor = get_class(dtype)
             if not issubclass(Constructor, cls):
-                raise TypeError(
-                    f"The descriptor specifies dtype {dtype!r} which is not a subclass of {cls.name}."
-                )
+                raise ResourceDescriptorHasWrongTypeError(dtype, cls.name, fl_resource.name)
 
             try:
                 return Constructor.schema.load(descriptor)
@@ -290,6 +290,15 @@ class Resource(Data):
                 raise mm.ValidationError(
                     f"Deserializing the descriptor {descriptor!r} with {Constructor.name}.schema failed with \n{e}."
                 ) from e
+        if cls.name == "Resource":
+            # base object to be initialized from a descriptor of non-tabular data, dispatch to PathResource
+            return PathResource.from_descriptor(
+                descriptor=fl_resource,
+                descriptor_filename=descriptor_filename,
+                basepath=basepath,
+                **kwargs,
+            )
+        # initialize the subclass from the frictionless Resource
         return cls(
             resource=fl_resource,
             descriptor_filename=descriptor_filename,
