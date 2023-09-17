@@ -18,9 +18,11 @@ kernelspec:
 
 ```{code-cell}
 import dimcat as dc
+from dimcat.data import resources
+from dimcat.steps import analyzers, extractors, groupers
 
-dataset = dc.Dataset()
-dataset.load_package("dcml_corpora.datapackage.json")
+package_path = "/home/laser/git/dimcat/docs/mwe/dcml_corpora.datapackage.json"
+dataset = dc.Dataset.from_package(package_path)
 dataset
 ```
 
@@ -38,7 +40,7 @@ Here we pass the extracted notes to the counter.
 
 ```{code-cell}
 notes = dataset.get_feature("notes")
-result = dc.steps.Counter().process(notes)
+result = analyzers.Counter().process(notes)
 result.plot()
 ```
 
@@ -53,7 +55,7 @@ dataset
 Here we pass the dataset to the counter.
 
 ```{code-cell}
-counter = dc.steps.Counter(features="notes")
+counter = analyzers.Counter(features="notes")
 analyzed_dataset = counter.process(dataset)
 analyzed_dataset.get_result().plot()
 ```
@@ -69,8 +71,8 @@ analyzed_dataset
 
 ```{code-cell}
 pipeline = dc.Pipeline([
-    dc.steps.FeatureExtractor("notes"),
-    dc.steps.Counter()
+    extractors.FeatureExtractor("notes"),
+    analyzers.Counter()
 ])
 analyzed_dataset = pipeline.process(dataset)
 analyzed_dataset.get_result().plot()
@@ -84,9 +86,9 @@ Let's define a CustomPieceGrouper from random piece groups:
 n_groups = 10
 n_members = 10
 
-piece_index = dc.data.PieceIndex.from_resource(notes)
+piece_index = resources.PieceIndex.from_resource(notes)
 grouping = {f"group_{i}": piece_index.sample(n_members) for i in range(1, n_groups + 1)}
-grouper = dc.steps.CustomPieceGrouper.from_grouping(grouping)
+grouper = groupers.CustomPieceGrouper.from_grouping(grouping)
 grouper
 ```
 
