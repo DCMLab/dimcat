@@ -115,12 +115,13 @@ class HarmonyLabels(Annotations):
             resource: An existing :obj:`frictionless.Resource`.
             descriptor_filename:
                 Relative filepath for using a different JSON/YAML descriptor filename than the default
-                :func:`get_descriptor_filename`. Needs to end either in resource.json or resource.yaml.
+                :func:`get_descriptor_filename`. Needs to on one of the file extensions defined in the
+                setting ``package_descriptor_endings`` (by default 'resource.json' or 'resource.yaml').
             basepath: Where the file would be serialized.
             auto_validate:
                 By default, the DimcatResource will not be validated upon instantiation or change (but always before
                 writing to disk). Set True to raise an exception during creation or modification of the resource,
-                e.g. replacing the the :attr:`column_schema`.
+                e.g. replacing the :attr:`column_schema`.
             default_groupby:
                 Pass a list of column names or index levels to groupby something else than the default (by piece).
         """
@@ -138,6 +139,7 @@ class KeyAnnotations(Annotations):
 
 
 # endregion Annotations
+# region helpers
 
 FeatureSpecs: TypeAlias = Union[MutableMapping, Feature, FeatureName, str]
 
@@ -188,3 +190,6 @@ def features_argument2config_list(
             if config.options_dtype not in allowed_features:
                 raise ResourceNotProcessableError(config.options_dtype)
     return configs
+
+
+# endregion helpers

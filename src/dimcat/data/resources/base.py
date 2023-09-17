@@ -255,7 +255,8 @@ class Resource(Data):
             descriptor: Descriptor corresponding to a frictionless resource descriptor.
             descriptor_filename:
                 Relative filepath for using a different JSON/YAML descriptor filename than the default
-                :func:`get_descriptor_filename`. Needs to end either in resource.json or resource.yaml.
+                :func:`get_descriptor_filename`. Needs to on one of the file extensions defined in the
+                setting ``package_descriptor_endings`` (by default 'resource.json' or 'resource.yaml').
             basepath: Where the file would be serialized.
             **kwargs: Subclasses can use this method.
 
@@ -368,11 +369,12 @@ class Resource(Data):
                 is stored to a ZIP file.
             descriptor_filename:
                 Relative filepath for using a different JSON/YAML descriptor filename than the default
-                :func:`get_descriptor_filename`. Needs to end either in resource.json or resource.yaml.
+                :func:`get_descriptor_filename`. Needs to on one of the file extensions defined in the
+                setting ``package_descriptor_endings`` (by default 'resource.json' or 'resource.yaml').
             auto_validate:
                 By default, the Resource will not be validated upon instantiation or change (but always before
                 writing to disk). Set True to raise an exception during creation or modification of the resource,
-                e.g. replacing the the :attr:`column_schema`.
+                e.g. replacing the :attr:`column_schema`.
             default_groupby:
                 Pass a list of column names or index levels to groupby something else than the default (by piece).
             basepath:
@@ -513,7 +515,8 @@ class Resource(Data):
             resource: An existing :obj:`frictionless.Resource`.
             descriptor_filename:
                 Relative filepath for using a different JSON/YAML descriptor filename than the default
-                :func:`get_descriptor_filename`. Needs to end either in resource.json or resource.yaml.
+                :func:`get_descriptor_filename`. Needs to on one of the file extensions defined in the
+                setting ``package_descriptor_endings`` (by default 'resource.json' or 'resource.yaml').
             basepath: Where the file would be serialized.
         """
         self.logger.debug(
@@ -1161,11 +1164,12 @@ class PathResource(Resource):
                 is stored to a ZIP file.
             descriptor_filename:
                 Relative filepath for using a different JSON/YAML descriptor filename than the default
-                :func:`get_descriptor_filename`. Needs to end either in resource.json or resource.yaml.
+                :func:`get_descriptor_filename`. Needs to on one of the file extensions defined in the
+                setting ``package_descriptor_endings`` (by default 'resource.json' or 'resource.yaml').
             auto_validate:
                 By default, the Resource will not be validated upon instantiation or change (but always before
                 writing to disk). Set True to raise an exception during creation or modification of the resource,
-                e.g. replacing the the :attr:`column_schema`.
+                e.g. replacing the :attr:`column_schema`.
             default_groupby:
                 Pass a list of column names or index levels to groupby something else than the default (by piece).
             basepath:
@@ -1227,7 +1231,8 @@ class PathResource(Resource):
             resource: An existing :obj:`frictionless.Resource`.
             descriptor_filename:
                 Relative filepath for using a different JSON/YAML descriptor filename than the default
-                :func:`get_descriptor_filename`. Needs to end either in resource.json or resource.yaml.
+                :func:`get_descriptor_filename`. Needs to on one of the file extensions defined in the
+                setting ``package_descriptor_endings`` (by default 'resource.json' or 'resource.yaml').
             basepath: Where the file would be serialized.
         """
         self.logger.debug(

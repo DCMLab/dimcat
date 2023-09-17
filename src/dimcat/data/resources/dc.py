@@ -89,13 +89,13 @@ class DimcatResource(Resource, Generic[D]):
     @classmethod
     def from_descriptor(
         cls,
-        descriptor: dict | Resource,
+        descriptor: dict | fl.Resource,
         descriptor_filename: Optional[str] = None,
         basepath: Optional[str] = None,
         auto_validate: bool = False,
         default_groupby: Optional[str | list[str]] = None,
     ) -> Self:
-        """Create a DimcatResource by loading its frictionless descriptor is loaded from disk.
+        """Create a DimcatResource by loading its frictionless descriptor from disk.
         The descriptor's directory is used as ``basepath``. ``descriptor_path`` is expected to end in
         ``.resource.json``.
 
@@ -103,12 +103,13 @@ class DimcatResource(Resource, Generic[D]):
             descriptor: Descriptor corresponding to a frictionless resource descriptor.
             descriptor_filename:
                 Relative filepath for using a different JSON/YAML descriptor filename than the default
-                :func:`get_descriptor_filename`. Needs to end either in resource.json or resource.yaml.
+                :func:`get_descriptor_filename`. Needs to on one of the file extensions defined in the
+                setting ``package_descriptor_endings`` (by default 'resource.json' or 'resource.yaml').
             basepath: Where the file would be serialized.
             auto_validate:
                 By default, the DimcatResource will not be validated upon instantiation or change (but always before
                 writing to disk). Set True to raise an exception during creation or modification of the resource,
-                e.g. replacing the the :attr:`column_schema`.
+                e.g. replacing the :attr:`column_schema`.
             default_groupby:
                 Pass a list of column names or index levels to groupby something else than the default (by piece).
         """
@@ -134,7 +135,7 @@ class DimcatResource(Resource, Generic[D]):
             auto_validate:
                 By default, the DimcatResource will not be validated upon instantiation or change (but always before
                 writing to disk). Set True to raise an exception during creation or modification of the resource,
-                e.g. replacing the the :attr:`column_schema`.
+                e.g. replacing the :attr:`column_schema`.
             default_groupby:
                 Pass a list of column names or index levels to groupby something else than the default (by piece).
 
@@ -167,7 +168,7 @@ class DimcatResource(Resource, Generic[D]):
             auto_validate:
                 By default, the DimcatResource will not be validated upon instantiation or change (but always before
                 writing to disk). Set True to raise an exception during creation or modification of the resource,
-                e.g. replacing the the :attr:`column_schema`.
+                e.g. replacing the :attr:`column_schema`.
             default_groupby:
                 Pass a list of column names or index levels to groupby something else than the default (by piece).
         """
@@ -221,11 +222,12 @@ class DimcatResource(Resource, Generic[D]):
                 is stored to a ZIP file.
             descriptor_filename:
                 Relative filepath for using a different JSON/YAML descriptor filename than the default
-                :func:`get_descriptor_filename`. Needs to end either in resource.json or resource.yaml.
+                :func:`get_descriptor_filename`. Needs to on one of the file extensions defined in the
+                setting ``package_descriptor_endings`` (by default 'resource.json' or 'resource.yaml').
             auto_validate:
                 By default, the Resource will not be validated upon instantiation or change (but always before
                 writing to disk). Set True to raise an exception during creation or modification of the resource,
-                e.g. replacing the the :attr:`column_schema`.
+                e.g. replacing the :attr:`column_schema`.
             default_groupby:
                 Pass a list of column names or index levels to groupby something else than the default (by piece).
             basepath:
@@ -285,7 +287,7 @@ class DimcatResource(Resource, Generic[D]):
             auto_validate:
                 By default, the DimcatResource will not be validated upon instantiation or change (but always before
                 writing to disk). Set True to raise an exception during creation or modification of the resource,
-                e.g. replacing the the :attr:`column_schema`.
+                e.g. replacing the :attr:`column_schema`.
             default_groupby:
                 Pass a list of column names or index levels to groupby something else than the default (by piece).
         """
@@ -370,12 +372,13 @@ class DimcatResource(Resource, Generic[D]):
             resource: An existing :obj:`frictionless.Resource`.
             descriptor_filename:
                 Relative filepath for using a different JSON/YAML descriptor filename than the default
-                :func:`get_descriptor_filename`. Needs to end either in resource.json or resource.yaml.
+                :func:`get_descriptor_filename`. Needs to on one of the file extensions defined in the
+                setting ``package_descriptor_endings`` (by default 'resource.json' or 'resource.yaml').
             basepath: Where the file would be serialized.
             auto_validate:
                 By default, the DimcatResource will not be validated upon instantiation or change (but always before
                 writing to disk). Set True to raise an exception during creation or modification of the resource,
-                e.g. replacing the the :attr:`column_schema`.
+                e.g. replacing the :attr:`column_schema`.
             default_groupby:
                 Pass a list of column names or index levels to groupby something else than the default (by piece).
         """
@@ -428,8 +431,8 @@ DimcatResource.__init__(
         if self.is_loaded:
             try:
                 return self.df[item]
-            except Exception:
-                raise KeyError(item)
+            except Exception as e:
+                raise KeyError(item) from e
         elif item in self.field_names:
             raise KeyError(
                 f"Column {item!r} will be available after loading the dataframe into memory."
