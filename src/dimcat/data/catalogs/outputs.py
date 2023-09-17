@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Iterator, Tuple
 
-from dimcat.data.catalog.base import DimcatCatalog
+from dimcat.data.catalogs.base import DimcatCatalog
 from dimcat.data.resource.dc import DimcatResource
 from dimcat.data.resource.features import FeatureSpecs, feature_specs2config
 

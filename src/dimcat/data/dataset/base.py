@@ -22,9 +22,9 @@ from typing import TYPE_CHECKING, Iterable, Iterator, List, Literal, Optional, o
 import marshmallow as mm
 from dimcat.base import DimcatConfig, DimcatObjectField, get_class
 from dimcat.data.base import Data
-from dimcat.data.catalog.base import DimcatCatalog
-from dimcat.data.catalog.inputs import InputsCatalog
-from dimcat.data.catalog.outputs import OutputsCatalog
+from dimcat.data.catalogs.base import DimcatCatalog
+from dimcat.data.catalogs.inputs import InputsCatalog
+from dimcat.data.catalogs.outputs import OutputsCatalog
 from dimcat.data.package.base import Package, PackageSpecs
 from dimcat.data.package.dc import DimcatPackage
 from dimcat.data.resource.base import SomeDataframe

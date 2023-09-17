@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dimcat.data.catalog.base import DimcatCatalog
+from dimcat.data.catalogs.base import DimcatCatalog
 from dimcat.data.resource.base import SomeDataframe
 from dimcat.data.resource.features import Feature, FeatureSpecs, feature_specs2config
 
