@@ -19,7 +19,7 @@ from dimcat.base import (
 )
 from dimcat.data.base import Data
 from dimcat.data.catalogs.base import DimcatCatalog
-from dimcat.data.package.dc import DimcatPackage
+from dimcat.data.packages.dc import DimcatPackage
 from dimcat.data.resource.base import Resource
 from dimcat.data.resource.dc import DimcatResource
 from dimcat.data.resource.features import Notes

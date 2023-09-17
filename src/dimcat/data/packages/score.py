@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dimcat.data.package import DimcatPackage
-from dimcat.data.package.base import PathPackage
+from dimcat.data.packages import DimcatPackage
+from dimcat.data.packages.base import PathPackage
 
 
 class ScorePathPackage(PathPackage):

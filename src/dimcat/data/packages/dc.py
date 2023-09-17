@@ -5,7 +5,7 @@ from typing import Iterable, Optional
 import frictionless as fl
 import pandas as pd
 from dimcat.base import get_setting
-from dimcat.data.package.base import Package, PackageMode
+from dimcat.data.packages.base import Package, PackageMode
 from dimcat.data.resource.base import D, Resource, SomeDataframe
 from dimcat.data.resource.dc import DimcatResource, PieceIndex
 

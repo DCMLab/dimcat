@@ -6,7 +6,7 @@ from typing import Iterable, Iterator, List, Optional
 import frictionless as fl
 import marshmallow as mm
 from dimcat.data.base import Data
-from dimcat.data.package.base import Package, PackageSpecs
+from dimcat.data.packages.base import Package, PackageSpecs
 from dimcat.data.resource.base import Resource
 from dimcat.data.resource.features import FeatureSpecs
 from dimcat.dc_exceptions import (

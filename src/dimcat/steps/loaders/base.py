@@ -25,9 +25,9 @@ from dimcat.base import FriendlyEnum, get_setting
 from dimcat.data.base import Data
 from dimcat.data.catalogs.base import DimcatCatalog
 from dimcat.data.datasets.base import Dataset
-from dimcat.data.package.base import Package, PathPackage
-from dimcat.data.package.dc import DimcatPackage
-from dimcat.data.package.score import ScorePathPackage
+from dimcat.data.packages.base import Package, PathPackage
+from dimcat.data.packages.dc import DimcatPackage
+from dimcat.data.packages.score import ScorePathPackage
 from dimcat.data.resource.base import PathResource, Resource
 from dimcat.data.resource.utils import is_default_package_descriptor_path, make_rel_path
 from dimcat.dc_exceptions import (
