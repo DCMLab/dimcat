@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Optional
 from .base import Dataset
 
 if TYPE_CHECKING:
-    from dimcat.data.resource import Result
+    from dimcat.data.resources import Result
 
 logger = logging.getLogger(__name__)
 

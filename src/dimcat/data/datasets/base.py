@@ -27,9 +27,9 @@ from dimcat.data.catalogs.inputs import InputsCatalog
 from dimcat.data.catalogs.outputs import OutputsCatalog
 from dimcat.data.packages.base import Package, PackageSpecs
 from dimcat.data.packages.dc import DimcatPackage
-from dimcat.data.resource.base import SomeDataframe
-from dimcat.data.resource.dc import DimcatResource
-from dimcat.data.resource.features import (
+from dimcat.data.resources.base import SomeDataframe
+from dimcat.data.resources.dc import DimcatResource
+from dimcat.data.resources.features import (
     Feature,
     FeatureSpecs,
     feature_specs2config,
@@ -39,7 +39,7 @@ from dimcat.dc_exceptions import NoMatchingResourceFoundError, PackageNotFoundEr
 from typing_extensions import Self
 
 if TYPE_CHECKING:
-    from dimcat.data.resource.results import Result
+    from dimcat.data.resources.results import Result
     from dimcat.steps.base import FeatureProcessingStep
     from dimcat.steps.loaders.base import Loader
     from dimcat.steps.pipelines import Pipeline

@@ -28,8 +28,11 @@ from dimcat.data.datasets.base import Dataset
 from dimcat.data.packages.base import Package, PathPackage
 from dimcat.data.packages.dc import DimcatPackage
 from dimcat.data.packages.score import ScorePathPackage
-from dimcat.data.resource.base import PathResource, Resource
-from dimcat.data.resource.utils import is_default_package_descriptor_path, make_rel_path
+from dimcat.data.resources.base import PathResource, Resource
+from dimcat.data.resources.utils import (
+    is_default_package_descriptor_path,
+    make_rel_path,
+)
 from dimcat.dc_exceptions import (
     DuplicateIDError,
     DuplicateResourceIDsError,

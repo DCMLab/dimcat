@@ -7,7 +7,7 @@ from typing import DefaultDict, List, Tuple
 
 import music21 as m21
 import pandas as pd
-from dimcat.data.resource.base import Resource
+from dimcat.data.resources.base import Resource
 
 from .base import ScoreLoader
 from .utils import get_m21_input_extensions

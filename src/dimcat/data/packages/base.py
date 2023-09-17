@@ -26,21 +26,21 @@ import frictionless as fl
 import marshmallow as mm
 from dimcat.base import DimcatConfig, FriendlyEnum, get_class
 from dimcat.data.base import Data
-from dimcat.data.resource.base import (
+from dimcat.data.resources.base import (
     PathResource,
     Resource,
     SomeDataframe,
     reconcile_base_and_file,
 )
-from dimcat.data.resource.dc import DimcatResource, PieceIndex
-from dimcat.data.resource.facets import Facet, MuseScoreFacet
-from dimcat.data.resource.features import (
+from dimcat.data.resources.dc import DimcatResource, PieceIndex
+from dimcat.data.resources.facets import Facet, MuseScoreFacet
+from dimcat.data.resources.features import (
     Feature,
     FeatureName,
     FeatureSpecs,
     feature_specs2config,
 )
-from dimcat.data.resource.utils import (
+from dimcat.data.resources.utils import (
     check_descriptor_filename_argument,
     make_rel_path,
     store_as_json_or_yaml,

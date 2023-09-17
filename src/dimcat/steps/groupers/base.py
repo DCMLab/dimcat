@@ -7,8 +7,8 @@ import pandas as pd
 from dimcat.base import is_subclass_of
 from dimcat.data.datasets.base import Dataset
 from dimcat.data.datasets.processed import GroupedDataset
-from dimcat.data.resource.dc import DimcatIndex, DimcatResource, PieceIndex
-from dimcat.data.resource.features import Feature
+from dimcat.data.resources.dc import DimcatIndex, DimcatResource, PieceIndex
+from dimcat.data.resources.features import Feature
 from dimcat.steps.base import FeatureProcessingStep
 from dimcat.utils import check_name
 from typing_extensions import Self

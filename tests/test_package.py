@@ -6,7 +6,7 @@ import pytest
 from dimcat.base import change_setting
 from dimcat.data.packages.base import Package, PackageMode, PackageStatus, PathPackage
 from dimcat.data.packages.dc import DimcatPackage
-from dimcat.data.resource.base import PathResource
+from dimcat.data.resources.base import PathResource
 from dimcat.dc_exceptions import ResourceIsFrozenError
 
 from tests.conftest import CORPUS_PATH

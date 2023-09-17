@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Collection, Literal, Optional
 
 import ms3
-from dimcat.data.resource.base import PathResource
+from dimcat.data.resources.base import PathResource
 from dimcat.dc_exceptions import NoMuseScoreExecutableSpecifiedError
 from dimcat.utils import make_valid_frictionless_name
 

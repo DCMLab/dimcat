@@ -3,7 +3,7 @@ from typing import Optional  # , ClassVar, Tuple
 
 import frictionless as fl
 from dimcat.base import ObjectEnum
-from dimcat.data.resource import DimcatResource, FeatureName, Metadata, Resource
+from dimcat.data.resources import DimcatResource, FeatureName, Metadata, Resource
 from typing_extensions import Self
 
 

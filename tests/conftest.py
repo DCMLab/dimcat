@@ -12,8 +12,8 @@ import pytest
 from _pytest.terminal import TerminalReporter
 from dimcat.data.datasets.base import Dataset
 from dimcat.data.packages.dc import DimcatPackage
-from dimcat.data.resource.dc import DimcatResource
-from dimcat.data.resource.utils import load_fl_resource, make_rel_path
+from dimcat.data.resources.dc import DimcatResource
+from dimcat.data.resources.utils import load_fl_resource, make_rel_path
 from dimcat.utils import scan_directory
 from git import Repo
 

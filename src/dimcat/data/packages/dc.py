@@ -6,8 +6,8 @@ import frictionless as fl
 import pandas as pd
 from dimcat.base import get_setting
 from dimcat.data.packages.base import Package, PackageMode
-from dimcat.data.resource.base import D, Resource, SomeDataframe
-from dimcat.data.resource.dc import DimcatResource, PieceIndex
+from dimcat.data.resources.base import D, Resource, SomeDataframe
+from dimcat.data.resources.dc import DimcatResource, PieceIndex
 
 
 class DimcatPackage(Package):

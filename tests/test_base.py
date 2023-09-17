@@ -20,9 +20,9 @@ from dimcat.base import (
 from dimcat.data.base import Data
 from dimcat.data.catalogs.base import DimcatCatalog
 from dimcat.data.packages.dc import DimcatPackage
-from dimcat.data.resource.base import Resource
-from dimcat.data.resource.dc import DimcatResource
-from dimcat.data.resource.features import Notes
+from dimcat.data.resources.base import Resource
+from dimcat.data.resources.dc import DimcatResource
+from dimcat.data.resources.features import Notes
 from dimcat.steps.analyzers.base import Analyzer
 from dimcat.steps.analyzers.counters import Counter
 from dimcat.steps.base import FeatureProcessingStep

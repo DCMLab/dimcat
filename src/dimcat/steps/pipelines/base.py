@@ -4,7 +4,7 @@ from typing import Iterable, Iterator, List, Literal, Optional, overload
 
 from dimcat import Dataset, DimcatConfig
 from dimcat.base import DimcatObject, DimcatObjectField
-from dimcat.data.resource.dc import DimcatResource
+from dimcat.data.resources.dc import DimcatResource
 from dimcat.steps.base import PipelineStep
 from marshmallow import fields
 

@@ -3,7 +3,7 @@ import os
 
 import pytest
 from dimcat import Dataset, Pipeline
-from dimcat.data.resource.base import PathResource
+from dimcat.data.resources.base import PathResource
 from dimcat.steps.loaders.base import Loader, PackageLoader
 from dimcat.steps.loaders.m21 import Music21Loader
 from dimcat.steps.loaders.musescore import MuseScoreLoader

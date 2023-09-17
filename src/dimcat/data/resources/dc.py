@@ -12,7 +12,7 @@ import ms3
 import pandas as pd
 from dimcat.base import get_setting
 from dimcat.data.base import Data
-from dimcat.data.resource.base import (
+from dimcat.data.resources.base import (
     IX,
     D,
     Resource,
@@ -20,7 +20,7 @@ from dimcat.data.resource.base import (
     SomeDataframe,
     SomeIndex,
 )
-from dimcat.data.resource.utils import (
+from dimcat.data.resources.utils import (
     align_with_grouping,
     ensure_level_named_piece,
     infer_schema_from_df,
