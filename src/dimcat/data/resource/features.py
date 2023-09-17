@@ -101,7 +101,36 @@ class Annotations(Feature):
 
 
 class HarmonyLabels(Annotations):
-    pass
+    def __init__(
+        self,
+        resource: fl.Resource = None,
+        descriptor_filename: Optional[str] = None,
+        basepath: Optional[str] = None,
+        auto_validate: bool = False,
+        default_groupby: Optional[str | list[str]] = None,
+    ) -> None:
+        """
+
+        Args:
+            resource: An existing :obj:`frictionless.Resource`.
+            descriptor_filename:
+                Relative filepath for using a different JSON/YAML descriptor filename than the default
+                :func:`get_descriptor_filename`. Needs to end either in resource.json or resource.yaml.
+            basepath: Where the file would be serialized.
+            auto_validate:
+                By default, the DimcatResource will not be validated upon instantiation or change (but always before
+                writing to disk). Set True to raise an exception during creation or modification of the resource,
+                e.g. replacing the the :attr:`column_schema`.
+            default_groupby:
+                Pass a list of column names or index levels to groupby something else than the default (by piece).
+        """
+        super().__init__(
+            resource=resource,
+            descriptor_filename=descriptor_filename,
+            basepath=basepath,
+            auto_validate=auto_validate,
+            default_groupby=default_groupby,
+        )
 
 
 class KeyAnnotations(Annotations):
