@@ -1,7 +1,7 @@
 import logging
 
 import marshmallow as mm
-from dimcat.data.dataset.processed import SlicedDataset
+from dimcat.data.datasets.processed import SlicedDataset
 from dimcat.steps.base import FeatureProcessingStep
 
 logger = logging.getLogger(__name__)

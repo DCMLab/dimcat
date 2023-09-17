@@ -5,8 +5,8 @@ from typing import Dict, Iterable, List, MutableMapping, Sequence
 import marshmallow as mm
 import pandas as pd
 from dimcat.base import is_subclass_of
-from dimcat.data.dataset.base import Dataset
-from dimcat.data.dataset.processed import GroupedDataset
+from dimcat.data.datasets.base import Dataset
+from dimcat.data.datasets.processed import GroupedDataset
 from dimcat.data.resource.dc import DimcatIndex, DimcatResource, PieceIndex
 from dimcat.data.resource.features import Feature
 from dimcat.steps.base import FeatureProcessingStep

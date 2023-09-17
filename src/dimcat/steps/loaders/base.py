@@ -24,7 +24,7 @@ import pandas as pd
 from dimcat.base import FriendlyEnum, get_setting
 from dimcat.data.base import Data
 from dimcat.data.catalogs.base import DimcatCatalog
-from dimcat.data.dataset.base import Dataset
+from dimcat.data.datasets.base import Dataset
 from dimcat.data.package.base import Package, PathPackage
 from dimcat.data.package.dc import DimcatPackage
 from dimcat.data.package.score import ScorePathPackage

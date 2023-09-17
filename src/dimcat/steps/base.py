@@ -16,7 +16,7 @@ from typing import (
 
 from dimcat.base import DimcatConfig, DimcatObject, get_class
 from dimcat.data.base import Data
-from dimcat.data.dataset.base import Dataset
+from dimcat.data.datasets.base import Dataset
 from dimcat.data.package.dc import DimcatPackage
 from dimcat.data.resource.base import Resource, ResourceSpecs, resource_specs2resource
 from dimcat.data.resource.dc import DimcatResource

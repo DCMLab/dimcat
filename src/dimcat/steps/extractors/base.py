@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Iterable
 
 from dimcat.base import DimcatConfig
-from dimcat.data.dataset.base import Dataset
+from dimcat.data.datasets.base import Dataset
 from dimcat.data.resource.dc import DimcatResource
 from dimcat.steps.base import FeatureProcessingStep
 from marshmallow import fields, validate

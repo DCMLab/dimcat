@@ -12,7 +12,7 @@ finally:
 
 
 from .base import DimcatConfig, get_class, get_schema
-from .data.dataset.base import Dataset
+from .data.datasets.base import Dataset
 from .steps.extractors.base import FeatureExtractor
 from .steps.loaders.base import PackageLoader
 from .steps.pipelines.base import Pipeline
