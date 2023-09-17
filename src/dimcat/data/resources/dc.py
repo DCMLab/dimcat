@@ -198,6 +198,7 @@ class DimcatResource(Resource, Generic[D]):
     default_groupby={default_groupby},
 )
 """
+        new_object._update_status()
         return new_object
 
     @classmethod
