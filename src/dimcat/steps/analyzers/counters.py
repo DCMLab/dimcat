@@ -3,7 +3,7 @@ import logging
 from dimcat.data.resource.base import SomeDataframe, SomeSeries
 from dimcat.data.resource.dc import DimcatResource
 from dimcat.data.resource.features import Feature
-from dimcat.steps.analyzer.base import Analyzer
+from dimcat.steps.analyzers.base import Analyzer
 
 logger = logging.getLogger(__name__)
 

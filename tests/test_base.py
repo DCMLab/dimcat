@@ -23,8 +23,8 @@ from dimcat.data.package.dc import DimcatPackage
 from dimcat.data.resource.base import Resource
 from dimcat.data.resource.dc import DimcatResource
 from dimcat.data.resource.features import Notes
-from dimcat.steps.analyzer.base import Analyzer
-from dimcat.steps.analyzer.counters import Counter
+from dimcat.steps.analyzers.base import Analyzer
+from dimcat.steps.analyzers.counters import Counter
 from dimcat.steps.base import FeatureProcessingStep
 from dimcat.steps.loaders.base import Loader
 from marshmallow import ValidationError, fields
