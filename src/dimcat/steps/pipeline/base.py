@@ -69,7 +69,7 @@ class Pipeline(PipelineStep):
         if isinstance(step, DimcatConfig):
             step = step.create()
         if not isinstance(step, PipelineStep):
-            raise TypeError(f"Pipeline acceppts only PipelineSteps, not {type(step)}.")
+            raise TypeError(f"Pipeline accepts only PipelineSteps, not {type(step)}.")
         self._steps.append(step)
 
     @overload

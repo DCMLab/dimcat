@@ -282,7 +282,7 @@ class Resource(Data):
                 # descriptor contains tabular data, dispatch to the appropriate DimcatResource type based on the
                 # presence or absence of 'dtype' in the descriptor
                 descriptor = dict(
-                    descriptor,
+                    fl_resource.to_dict(),
                     descriptor_filename=descriptor_filename,
                     basepath=basepath,
                     **kwargs,
