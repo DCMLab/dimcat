@@ -174,12 +174,7 @@ class TestPackageFromDescriptor(TestPackage):
         package_constructor,
         package_descriptor_path,
     ):
-        if package_constructor == Package and "dcpackage" in package_descriptor_path:
-            pytest.skip(
-                "Cannot load DimcatPackage descriptor with base Package constructor."
-            )
-        else:
-            return package_constructor.from_descriptor_path(package_descriptor_path)
+        return package_constructor.from_descriptor_path(package_descriptor_path)
 
 
 class TestPackageFromFL(TestPackageFromDescriptor):

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from enum import Enum
-from typing import Iterable, List, MutableMapping, Optional, TypeAlias, Union
+from typing import ClassVar, Iterable, List, MutableMapping, Optional, TypeAlias, Union
 
 import frictionless as fl
 import marshmallow as mm
@@ -24,6 +24,45 @@ class FeatureName(ObjectEnum):
 
 class Feature(DimcatResource):
     _enum_type = FeatureName
+    _feature_columns: Optional[ClassVar[List[str]]] = None
+
+    def __init__(
+        self,
+        resource: fl.Resource = None,
+        descriptor_filename: Optional[str] = None,
+        basepath: Optional[str] = None,
+        auto_validate: bool = False,
+        default_groupby: Optional[str | list[str]] = None,
+        **kwargs,
+    ) -> None:
+        """
+
+        Args:
+            resource: An existing :obj:`frictionless.Resource`.
+            descriptor_filename:
+                Relative filepath for using a different JSON/YAML descriptor filename than the default
+                :func:`get_descriptor_filename`. Needs to on one of the file extensions defined in the
+                setting ``package_descriptor_endings`` (by default 'resource.json' or 'resource.yaml').
+            basepath: Where the file would be serialized.
+            auto_validate:
+                By default, the DimcatResource will not be validated upon instantiation or change (but always before
+                writing to disk). Set True to raise an exception during creation or modification of the resource,
+                e.g. replacing the :attr:`column_schema`.
+            default_groupby:
+                Pass a list of column names or index levels to groupby something else than the default (by piece).
+            **kwargs: Keyword arguments passed to :meth:`_init_feature`.
+        """
+        super().__init__(
+            resource=resource,
+            descriptor_filename=descriptor_filename,
+            basepath=basepath,
+            auto_validate=auto_validate,
+            default_groupby=default_groupby,
+        )
+        self._init_feature(**kwargs)
+
+    def _init_feature(self):
+        pass
 
 
 class Metadata(Feature):

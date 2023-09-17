@@ -40,7 +40,7 @@ logger.debug(f"CORPUS_DIR: {CORPUS_DIR!r}. Contents: {os.listdir(CORPUS_DIR)}")
 
 def retrieve_and_check_corpus_path():
     """Compose the paths for the test corpora."""
-    repo_name, test_commit = ("unittest_metacorpus", "5899afe")
+    repo_name, test_commit = ("unittest_metacorpus", "bb8bb60")
     path = os.path.join(CORPUS_DIR, repo_name)
     path = os.path.expanduser(path)
     assert os.path.isdir(path)
@@ -57,7 +57,7 @@ CORPUS_PATH = retrieve_and_check_corpus_path()
 RESOURCE_DESCRIPTOR_PATHS = {
     file: os.path.join(CORPUS_PATH, file)
     for file in os.listdir(CORPUS_PATH)
-    if file.endswith(".resource.yaml")
+    if file.endswith(".resource.json")
 }
 PACKAGE_DESCRIPTOR_PATHS = {
     file: os.path.join(CORPUS_PATH, file)
@@ -79,12 +79,12 @@ def mixed_files_path(corpus_path) -> str:
 
 def single_resource_descriptor_path() -> str:
     """Returns the path to a single resource."""
-    return RESOURCE_DESCRIPTOR_PATHS["unittest_notes.resource.yaml"]
+    return RESOURCE_DESCRIPTOR_PATHS["unittest_metacorpus.notes.resource.json"]
 
 
 def datapackage_json_path() -> str:
     """Returns the path to a single resource."""
-    return os.path.join(CORPUS_PATH, "datapackage.json")
+    return list(PACKAGE_DESCRIPTOR_PATHS.values())[0]
 
 
 @pytest.fixture(scope="session")
@@ -232,8 +232,8 @@ def serialized_resource(resource_from_dataframe) -> DimcatResource:
 def zipped_resource_copied_from_dc_package(
     package_from_fl_package, package_descriptor_filename
 ) -> DimcatResource:
-    dc_resource = package_from_fl_package.get_resource_by_name("notes")
-    return DimcatResource.from_resource(dc_resource)
+    dc_resources = package_from_fl_package.get_resources_by_regex("notes")
+    return DimcatResource.from_resource(dc_resources[0])
 
 
 @pytest.fixture()
@@ -242,7 +242,7 @@ def zipped_resource_from_fl_package(
     package_descriptor_filename,
 ) -> DimcatResource:
     """Returns a DimcatResource object created from the dataframe."""
-    fl_resource = fl_package.get_resource("notes")
+    fl_resource = fl_package.get_resource("unittest_metacorpus.notes")
     return DimcatResource(
         resource=fl_resource, descriptor_filename=package_descriptor_filename
     )
