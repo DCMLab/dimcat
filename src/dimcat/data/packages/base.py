@@ -618,7 +618,6 @@ class Package(Data):
         self._resources: List[Resource] = []
         self._descriptor_filename: Optional[str] = None
         self.auto_validate = True if auto_validate else False  # catches None => False
-        print(f"BASEPATH: {basepath}")
         super().__init__(basepath=basepath)
         self.package_name = package_name
         if descriptor_filename is not None:

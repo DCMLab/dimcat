@@ -661,9 +661,9 @@ Resource(
     def is_packaged(self) -> bool:
         """Returns True if the resource is packaged, i.e. its descriptor_filename is the one of
         the :class:`Package` it belongs to. Also means that the resource is passive."""
-        return self.descriptor_filename and is_default_package_descriptor_path(
-            self.descriptor_filename
-        )
+        return (
+            self.descriptor_filename is not None
+        ) and is_default_package_descriptor_path(self.descriptor_filename)
 
     @property
     def is_serialized(self) -> bool:
