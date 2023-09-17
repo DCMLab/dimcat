@@ -1,7 +1,7 @@
 colorlover==0.3.0
 dimcat[dev]==0.3.0
 ipython==8.11.0
-jupytext==1.14.5
+jupytext==1.15.2
 kaleido==0.2.1
 matplotlib==3.7.1
 ms3==1.2.4
