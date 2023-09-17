@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 import warnings
 from collections import defaultdict
 from enum import IntEnum, auto
@@ -1141,7 +1142,17 @@ class Package(Data):
 
     def get_metadata(self) -> SomeDataframe:
         """Returns the metadata of the package."""
-        return self.get_resource_by_name("metadata").df
+        if self.n_resources == 0:
+            raise EmptyPackageError(self.package_name)
+        resources = self.get_resources_by_type("Metadata")
+        if len(resources) == 0:
+            raise NoMatchingResourceFoundError("Metadata")
+        if len(resources) > 1:
+            raise NotImplementedError(
+                f"More than one metadata resource found: {resources!r}"
+            )
+        metadata = resources[0].df
+        return metadata
 
     def get_resource_by_config(self, config: DimcatConfig) -> Resource:
         """Returns the first resource that matches the given config."""
@@ -1153,6 +1164,47 @@ class Package(Data):
                 )
                 return resource
         raise NoMatchingResourceFoundError(config)
+
+    def get_resource_by_name(self, name: Optional[str] = None) -> Resource:
+        """Returns the Resource with the given name. If no name is given, returns the last resource.
+
+        Raises:
+            EmptyPackageError: If the package is empty.
+            ResourceNotFoundError: If the resource with the given name is not found.
+        """
+        if self.n_resources == 0:
+            raise EmptyPackageError(self.package_name)
+        if name is None:
+            return self._resources[-1]
+        for resource in self._resources:
+            if resource.resource_name == name:
+                return resource
+        raise ResourceNotFoundError(name, self.package_name)
+
+    def get_resources_by_regex(self, regex: str) -> List[Resource]:
+        """Returns the Resource objects whose names contain the given regex."""
+        return [
+            resource
+            for resource in self._resources
+            if re.search(regex, resource.resource_name)
+        ]
+
+    def get_resources_by_type(
+        self,
+        resource_type: Type[Resource] | str,
+    ) -> List[Resource]:
+        """Returns the Resource objects of the given type."""
+        if isinstance(resource_type, str):
+            resource_type = get_class(resource_type)
+        if not issubclass(resource_type, Resource):
+            raise TypeError(
+                f"Expected a subclass of 'Resource', got {resource_type!r}."
+            )
+        return [
+            resource
+            for resource in self._resources
+            if isinstance(resource, resource_type)
+        ]
 
     def _get_status(self) -> PackageStatus:
         """Returns the status of the package."""
@@ -1183,22 +1235,6 @@ class Package(Data):
         """Returns the path of the ZIP file that the resources of this package are serialized to."""
         zip_filename = self.get_zip_filepath()
         return os.path.join(self.get_basepath(), zip_filename)
-
-    def get_resource_by_name(self, name: Optional[str] = None) -> Resource:
-        """Returns the Resource with the given name. If no name is given, returns the last resource.
-
-        Raises:
-            EmptyPackageError: If the package is empty.
-            ResourceNotFoundError: If the resource with the given name is not found.
-        """
-        if self.n_resources == 0:
-            raise EmptyPackageError(self.package_name)
-        if name is None:
-            return self._resources[-1]
-        for resource in self._resources:
-            if resource.resource_name == name:
-                return resource
-        raise ResourceNotFoundError(name, self.package_name)
 
     def _handle_resource_argument(
         self,
