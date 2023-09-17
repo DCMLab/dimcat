@@ -42,7 +42,7 @@ if TYPE_CHECKING:
     from dimcat.data.resource.results import Result
     from dimcat.steps.base import FeatureProcessingStep
     from dimcat.steps.loaders.base import Loader
-    from dimcat.steps.pipeline import Pipeline
+    from dimcat.steps.pipelines import Pipeline
 
 logger = logging.getLogger(__name__)
 

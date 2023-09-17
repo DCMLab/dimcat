@@ -3,7 +3,7 @@ from dimcat.data.resource.dc import PieceIndex
 from dimcat.steps.base import FeatureProcessingStep
 from dimcat.steps.extractors.base import FeatureExtractor
 from dimcat.steps.groupers.base import CustomPieceGrouper
-from dimcat.steps.pipeline.base import Pipeline
+from dimcat.steps.pipelines.base import Pipeline
 
 
 def test_pipeline():
