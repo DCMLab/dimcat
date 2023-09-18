@@ -660,6 +660,21 @@ class DimcatSettings(DimcatObject):
     """
 
     auto_make_dirs: bool = True
+    context_columns: List[str] = dataclass_field(
+        default_factory=lambda: [
+            "mc",
+            "mn",
+            "quarterbeats",
+            "quarterbeats_all_endings",
+            "duration_qb",
+            "duration",
+            "mc_onset",
+            "mn_onset",
+            "timesig",
+            "staff",
+            "voice",
+        ]
+    )
     default_basepath: str = "~/dimcat_data"
     """where to serialize data if no other basepath is specified"""
     default_resource_name: str = "unnamed"
@@ -682,6 +697,15 @@ class DimcatSettings(DimcatObject):
             required=True,
             metadata={
                 "description": "whether to automatically create directories, e.g. when indicating basepaths"
+            },
+        )
+        context_columns = mm.fields.List(
+            mm.fields.String(),
+            required=True,
+            metadata={
+                "description": "the columns that are considered essential for locating elements horizontally and "
+                "vertically and which are therefore always copied, if present, and moved to the left "
+                "of the new dataframe in the given order"
             },
         )
         default_basepath = mm.fields.String(
