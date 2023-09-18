@@ -2,19 +2,26 @@ from __future__ import annotations
 
 import logging
 from enum import Enum
+from functools import cache, cached_property
 from typing import ClassVar, Iterable, List, MutableMapping, Optional, TypeAlias, Union
 
 import frictionless as fl
 import marshmallow as mm
-from dimcat.base import DimcatConfig, ObjectEnum, is_subclass_of
+from dimcat.base import DimcatConfig, ObjectEnum, get_setting, is_subclass_of
+from dimcat.data.resources.base import D, ResourceStatus
 from dimcat.data.resources.dc import DimcatResource
-from dimcat.dc_exceptions import ResourceNotProcessableError
+from dimcat.data.resources.utils import load_fl_resource
+from dimcat.dc_exceptions import (
+    ResourceIsMissingFeatureColumnError,
+    ResourceNotProcessableError,
+)
 
 logger = logging.getLogger(__name__)
 
 
 class FeatureName(ObjectEnum):
     Annotations = "Annotations"
+    BassNotes = "BassNotes"
     HarmonyLabels = "HarmonyLabels"
     KeyAnnotations = "KeyAnnotations"
     Measures = "Measures"
@@ -25,6 +32,236 @@ class FeatureName(ObjectEnum):
 class Feature(DimcatResource):
     _enum_type = FeatureName
     _feature_columns: Optional[ClassVar[List[str]]] = None
+
+    # @classmethod
+    # def from_descriptor(
+    #         cls,
+    #         descriptor: dict | fl.Resource,
+    #         descriptor_filename: Optional[str] = None,
+    #         basepath: Optional[str] = None,
+    #         auto_validate: bool = False,
+    #         default_groupby: Optional[str | list[str]] = None,
+    # ) -> Self:
+    #     """Create a Feature by loading its frictionless descriptor from disk.
+    #     The descriptor's directory is used as ``basepath``. ``descriptor_path`` is expected to end in
+    #     ``.resource.json``.
+    #
+    #     Args:
+    #         descriptor: Descriptor corresponding to a frictionless resource descriptor.
+    #         descriptor_filename:
+    #             Relative filepath for using a different JSON/YAML descriptor filename than the default
+    #             :func:`get_descriptor_filename`. Needs to on one of the file extensions defined in the
+    #             setting ``package_descriptor_endings`` (by default 'resource.json' or 'resource.yaml').
+    #         basepath: Where the file would be serialized.
+    #         auto_validate:
+    #             By default, the DimcatResource will not be validated upon instantiation or change (but always before
+    #             writing to disk). Set True to raise an exception during creation or modification of the resource,
+    #             e.g. replacing the :attr:`column_schema`.
+    #         default_groupby:
+    #             Pass a list of column names or index levels to groupby something else than the default (by piece).
+    #     """
+    #     return super().from_descriptor(
+    #         descriptor=descriptor,
+    #         descriptor_filename=descriptor_filename,
+    #         basepath=basepath,
+    #         auto_validate=auto_validate,
+    #         default_groupby=default_groupby,
+    #     )
+    #
+    # @classmethod
+    # def from_descriptor_path(
+    #         cls,
+    #         descriptor_path: str,
+    #         auto_validate: bool = False,
+    #         default_groupby: Optional[str | list[str]] = None,
+    # ) -> Self:
+    #     """Create a Resource from a frictionless descriptor file on disk.
+    #
+    #     Args:
+    #         descriptor_path: Absolute path where the JSON/YAML descriptor is located.
+    #         auto_validate:
+    #             By default, the DimcatResource will not be validated upon instantiation or change (but always before
+    #             writing to disk). Set True to raise an exception during creation or modification of the resource,
+    #             e.g. replacing the :attr:`column_schema`.
+    #         default_groupby:
+    #             Pass a list of column names or index levels to groupby something else than the default (by piece).
+    #
+    #     """
+    #     return super().from_descriptor_path(
+    #         descriptor_path=descriptor_path,
+    #         auto_validate=auto_validate,
+    #         default_groupby=default_groupby,
+    #     )
+    #
+    # @classmethod
+    # def from_dataframe(
+    #         cls,
+    #         df: D,
+    #         resource_name: str,
+    #         descriptor_filename: Optional[str] = None,
+    #         basepath: Optional[str] = None,
+    #         auto_validate: bool = False,
+    #         default_groupby: Optional[str | list[str]] = None,
+    # ) -> Self:
+    #     """Create a Feature from a dataframe, specifying its name and, optionally, at what path it is to be
+    #     serialized.
+    #
+    #     Args:
+    #         df: Dataframe to create the resource from.
+    #         resource_name:
+    #             Name of the resource used for retrieving it from a DimcatPackage and as filename when the resource
+    #             is stored to a ZIP file.
+    #         basepath: Where the file would be serialized. If ``resource`` is a filepath, its directory is used.
+    #         auto_validate:
+    #             By default, the DimcatResource will not be validated upon instantiation or change (but always before
+    #             writing to disk). Set True to raise an exception during creation or modification of the resource,
+    #             e.g. replacing the :attr:`column_schema`.
+    #         default_groupby:
+    #             Pass a list of column names or index levels to groupby something else than the default (by piece).
+    #     """
+    #     new_object = cls(
+    #         basepath=basepath,
+    #         descriptor_filename=descriptor_filename,
+    #         auto_validate=auto_validate,
+    #         default_groupby=default_groupby,
+    #     )
+    #     if resource_name is not None:
+    #         new_object.resource_name = resource_name
+    #     new_object._df = df
+    #     new_object._update_status()
+    #     return new_object
+    #
+    # @classmethod
+    # def from_filepath(
+    #         cls,
+    #         filepath: str,
+    #         resource_name: Optional[str] = None,
+    #         descriptor_filename: Optional[str] = None,
+    #         auto_validate: bool = False,
+    #         default_groupby: Optional[str | list[str]] = None,
+    #         basepath: Optional[str] = None,
+    #         **kwargs: Optional[bool],
+    # ) -> Self:
+    #     """Create a Resource from a file on disk, be it a JSON/YAML resource descriptor, or a simple path resource.
+    #
+    #     Args:
+    #         filepath: Path pointing to a resource descriptor or a simple path resource.
+    #         resource_name:
+    #             Name of the resource used for retrieving it from a DimcatPackage and as filename when the resource
+    #             is stored to a ZIP file.
+    #         descriptor_filename:
+    #             Relative filepath for using a different JSON/YAML descriptor filename than the default
+    #             :func:`get_descriptor_filename`. Needs to on one of the file extensions defined in the
+    #             setting ``package_descriptor_endings`` (by default 'resource.json' or 'resource.yaml').
+    #         auto_validate:
+    #             By default, the Resource will not be validated upon instantiation or change (but always before
+    #             writing to disk). Set True to raise an exception during creation or modification of the resource,
+    #             e.g. replacing the :attr:`column_schema`.
+    #         default_groupby:
+    #             Pass a list of column names or index levels to groupby something else than the default (by piece).
+    #         basepath:
+    #             Basepath to use for the resource. If None, the folder of the ``filepath`` is used.
+    #     """
+    #     return super().from_filepath(
+    #         filepath=filepath,
+    #         resource_name=resource_name,
+    #         descriptor_filename=descriptor_filename,
+    #         auto_validate=auto_validate,
+    #         default_groupby=default_groupby,
+    #         basepath=basepath,
+    #         **kwargs,
+    #     )
+    #
+    # @classmethod
+    # def from_index(
+    #         cls,
+    #         index: DimcatIndex | SomeIndex,
+    #         resource_name: str,
+    #         basepath: Optional[str] = None,
+    #         descriptor_filename: Optional[str] = None,
+    #         auto_validate: bool = False,
+    #         default_groupby: Optional[str | list[str]] = None,
+    # ) -> Self:
+    #     if isinstance(index, DimcatIndex):
+    #         index = index.index
+    #     dataframe = pd.DataFrame(index=index)
+    #     return cls.from_dataframe(
+    #         df=dataframe,
+    #         resource_name=resource_name,
+    #         descriptor_filename=descriptor_filename,
+    #         auto_validate=auto_validate,
+    #         default_groupby=default_groupby,
+    #         basepath=basepath,
+    #     )
+    #
+    # @classmethod
+    # def from_resource(
+    #         cls,
+    #         resource: Resource,
+    #         descriptor_filename: Optional[str] = None,
+    #         resource_name: Optional[str] = None,
+    #         basepath: Optional[str] = None,
+    #         auto_validate: Optional[bool] = None,
+    #         default_groupby: Optional[str | list[str]] = None,
+    # ) -> Self:
+    #     """Create a Feature from an existing :obj:`Resource`, specifying its name and,
+    #     optionally, at what path it is to be serialized.
+    #
+    #     Args:
+    #         resource: An existing :obj:`frictionless.Resource` or a filepath.
+    #         resource_name:
+    #             Name of the resource used for retrieving it from a DimcatPackage and as filename when the resource
+    #             is stored to a ZIP file.
+    #         basepath: Where the file would be serialized. If ``resource`` is a filepath, its directory is used.
+    #         auto_validate:
+    #             By default, the DimcatResource will not be validated upon instantiation or change (but always before
+    #             writing to disk). Set True to raise an exception during creation or modification of the resource,
+    #             e.g. replacing the :attr:`column_schema`.
+    #         default_groupby:
+    #             Pass a list of column names or index levels to groupby something else than the default (by piece).
+    #     """
+    #     if not isinstance(resource, Resource):
+    #         raise TypeError(f"Expected a Resource, got {type(resource)!r}.")
+    #     new_object = super().from_resource(
+    #         resource=resource,
+    #         descriptor_filename=descriptor_filename,
+    #         resource_name=resource_name,
+    #         basepath=basepath,
+    #         auto_validate=auto_validate,
+    #         default_groupby=default_groupby,
+    #     )
+    #     # copy additional fields
+    #     for attr in ("_df", "_status", "_corpus_name"):
+    #         if (
+    #                 hasattr(resource, attr)
+    #                 and (value := getattr(resource, attr)) is not None
+    #         ):
+    #             setattr(new_object, attr, value)
+    #     return new_object
+    #
+    # @classmethod
+    # def from_resource_path(
+    #         cls,
+    #         resource_path: str,
+    #         resource_name: Optional[str] = None,
+    #         descriptor_filename: Optional[str] = None,
+    #         **kwargs,
+    # ) -> Self:
+    #     if not resource_path.endswith(".tsv"):
+    #         fname, fext = os.path.splitext(os.path.basename(resource_path))
+    #         raise NotImplementedError(
+    #             f"{fname}: Don't know how to load {fext} files yet."
+    #             f"Either load the resource yourself and use {cls.name}.from_dataframe() or, if you "
+    #             f"want to get a simple path resource, use Resource.from_resource_path() (not "
+    #             f"DimcatResource)."
+    #         )
+    #     df = ms3.load_tsv(resource_path)
+    #     return cls.from_dataframe(
+    #         df=df,
+    #         resource_name=resource_name,
+    #         descriptor_filename=descriptor_filename,
+    #         **kwargs,
+    #     )
 
     def __init__(
         self,
@@ -59,10 +296,93 @@ class Feature(DimcatResource):
             auto_validate=auto_validate,
             default_groupby=default_groupby,
         )
-        self._init_feature(**kwargs)
+        self._treat_columns()
+        self._modify_name()
 
-    def _init_feature(self):
+    @property
+    def context_column_names(self) -> List[str]:
+        return list(self._context_column_names)
+
+    @cached_property
+    def df(self) -> D:
+        if self._df is not None:
+            resource_df = self._df
+        elif self.is_frozen:
+            resource_df = self.get_dataframe()
+        else:
+            RuntimeError(f"No dataframe accessible for this {self.name}:\n{self}")
+        feature_df = self._make_feature_df(resource_df)
+        return feature_df
+
+    @property
+    def feature_column_names(self) -> List[str]:
+        """List of column names that this feature uses."""
+        if self._feature_columns is None:
+            available_columns = [
+                col
+                for col in self.field_names
+                if col not in self.column_schema.primary_key
+            ]
+            return [
+                col
+                for col in available_columns
+                if col not in self._context_column_names
+            ]
+        return list(self._feature_columns)
+
+    @cache
+    def get_dataframe(self) -> D:
+        """
+        Load the dataframe from disk based on the descriptor's normpath.
+
+        Returns:
+            The dataframe or DimcatResource.
+        """
+        index_levels = self.column_schema.primary_key
+        usecols = index_levels + self.context_column_names + self.feature_column_names
+        dataframe = load_fl_resource(
+            self._resource, index_col=index_levels, usecols=usecols
+        )
+        if self.status == ResourceStatus.STANDALONE_NOT_LOADED:
+            self._status = ResourceStatus.STANDALONE_LOADED
+        elif self.status == ResourceStatus.PACKAGED_NOT_LOADED:
+            self._status = ResourceStatus.PACKAGED_LOADED
+        return dataframe
+
+    def _make_feature_df(
+        self,
+        resource_df: D,
+    ):
+        columns = self.context_column_names + self.feature_column_names
+        feature_df = resource_df[columns]
+        if self._feature_columns is None:
+            return feature_df.copy()
+        return feature_df.dropna(subset=self._feature_columns, how="any")
+
+    def _modify_name(self):
+        """Modify the resource name to reflect the feature."""
         pass
+
+    def _treat_columns(self) -> None:
+        """Check which columns exist in the original resource and store the one that this feature uses."""
+        available_columns = self.field_names
+        assert len(self.field_names), "No column schema defined for the given resource."
+        context_column_names = get_setting("context_columns")
+        if self._feature_columns is not None:
+            missing = [
+                col for col in self._feature_columns if col not in available_columns
+            ]
+            if missing:
+                raise ResourceIsMissingFeatureColumnError(
+                    self.resource_name, missing, self.name
+                )
+            # make sure context columns do not include feature columns
+            context_column_names = [
+                col for col in context_column_names if col not in self._feature_columns
+            ]
+        self._context_column_names = [
+            col for col in context_column_names if col in available_columns
+        ]
 
 
 class Metadata(Feature):
@@ -112,8 +432,6 @@ class Notes(Feature):
         auto_validate: bool = True,
         default_groupby: Optional[str | list[str]] = None,
     ) -> None:
-        self._format: NotesFormat = format
-        self._weight_grace_notes: float = weight_grace_notes
         super().__init__(
             resource=resource,
             descriptor_filename=descriptor_filename,
@@ -121,10 +439,17 @@ class Notes(Feature):
             auto_validate=auto_validate,
             default_groupby=default_groupby,
         )
+        self._format = NotesFormat(format)
+        self._merge_ties = bool(merge_ties)
+        self._weight_grace_notes = float(weight_grace_notes)
 
     @property
     def format(self) -> NotesFormat:
         return self._format
+
+    @property
+    def merge_ties(self) -> bool:
+        return self._merge_ties
 
     @property
     def weight_grace_notes(self) -> float:
@@ -173,8 +498,15 @@ class HarmonyLabels(Annotations):
         )
 
 
+class BassNotes(HarmonyLabels):
+    _feature_columns = ["bass_note"]
+
+    def _modify_name(self):
+        self.resource_name = f"{self.resource_name}.bass_notes"
+
+
 class KeyAnnotations(Annotations):
-    pass
+    _feature_columns = ["globalkey", "localkey"]
 
 
 # endregion Annotations

@@ -91,7 +91,11 @@ class MuseScoreFacet(Facet):
 
 
 class MuseScoreHarmonies(MuseScoreFacet):
-    extractable_features = (FeatureName.HarmonyLabels, FeatureName.KeyAnnotations)
+    extractable_features = (
+        FeatureName.BassNotes,
+        FeatureName.HarmonyLabels,
+        FeatureName.KeyAnnotations,
+    )
 
 
 class MuseScoreMeasures(MuseScoreFacet):

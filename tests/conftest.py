@@ -96,7 +96,7 @@ def resource_descriptor_filename(resource_descriptor_path) -> str:
 @pytest.fixture(
     scope="session",
     params=RESOURCE_DESCRIPTOR_PATHS.values(),
-    ids=RESOURCE_DESCRIPTOR_PATHS.keys(),
+    ids=list(RESOURCE_DESCRIPTOR_PATHS.keys()),
 )
 def resource_descriptor_path(request):
     return request.param
@@ -105,10 +105,16 @@ def resource_descriptor_path(request):
 @pytest.fixture(
     scope="session",
     params=PACKAGE_DESCRIPTOR_PATHS.values(),
-    ids=PACKAGE_DESCRIPTOR_PATHS.keys(),
+    ids=list(PACKAGE_DESCRIPTOR_PATHS.keys()),
 )
 def package_descriptor_path(request):
     return request.param
+
+
+@pytest.fixture(scope="session")
+def package_descriptor_filename(package_descriptor_path) -> str:
+    """Returns the path to the descriptor file."""
+    return os.path.basename(package_descriptor_path)
 
 
 @pytest.fixture()

@@ -300,6 +300,18 @@ class ResourceIsMisalignedError(ResourceIsFrozenError):
     }
 
 
+class ResourceIsMissingFeatureColumnError(DimcatError):
+    """optional args: (resource_name, missing_column(s), feature_name)"""
+
+    nargs2message = {
+        0: "The resource is missing a feature column.",
+        1: lambda name: f"Resource {name!r} is missing a feature column.",
+        2: lambda name, missing_columns: f"Resource {name!r} is missing the feature column(s) {missing_columns!r}.",
+        3: lambda name, missing_columns, feature_name: f"Resource {name!r} is missing the feature column(s) "
+        f"{missing_columns!r} for feature {feature_name!r}.",
+    }
+
+
 class ResourceIsPackagedError(ResourceIsFrozenError):
     """optional args: (name, new_path, path_type)"""
 
