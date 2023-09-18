@@ -190,10 +190,38 @@ def infer_piece_col_position(
     return
 
 
-def infer_schema_from_df(df: SomeDataframe) -> fl.Schema:
-    """Infer a frictionless.Schema from a dataframe."""
-    descriptor = fl.describe(df)
-    return descriptor.schema
+def infer_schema_from_df(
+    df: SomeDataframe, include_index_levels: bool = True, **kwargs
+) -> fl.Schema:
+    """Infer a frictionless.Schema from a dataframe.
+
+    This function partially copies ms3.utils.frictionless_helpers.get_schema().
+
+    Args:
+        df:
+        include_index_levels:
+            If False (default), the index levels are not described, assuming that they will not be written to disk
+            (otherwise, validation error). Set to True to add all index levels to the described columns and,
+            in addition, to make them the ``primaryKey`` (which, in frictionless, implies the constraints "required" &
+            "unique").
+        **kwargs:
+            Arbitrary key-value pairs that will be added to the frictionless schema descriptor as "custom" metadata.
+
+    Returns:
+
+    """
+    column_names = list(df.columns)
+    if include_index_levels:
+        index_levels = list(df.index.names)
+        column_names = index_levels + column_names
+    else:
+        index_levels = None
+    descriptor = make_frictionless_schema_descriptor(
+        column_names=column_names,
+        primary_key=index_levels,
+        **kwargs,
+    )
+    return fl.Schema(descriptor)
 
 
 def load_fl_resource(
@@ -410,6 +438,47 @@ def make_boolean_mask_from_set_of_tuples(
         return index.isin(tuples)
     tuple_maker = itemgetter(*levels)
     return index.map(lambda index_tuple: tuple_maker(index_tuple) in tuples)
+
+
+def make_frictionless_schema_descriptor(
+    column_names: Iterable[str],
+    primary_key: Optional[Iterable[str]] = None,
+    **custom_data,
+) -> dict:
+    """Creates a frictionless schema descriptor from a list of column names and a primary key.
+
+    This function is a duplicate of ms3.utils.frictionless_helpers.make_frictionless_schema_descriptor() and the
+    translation of column names into frictionless fields (with type and description) falls back to
+    ms3.utils.frictionless_helpers.column_name2frictionless_field().
+
+    Args:
+        column_names:
+        primary_key:
+        **custom_data:
+
+    Returns:
+
+    """
+    fields = []
+    if primary_key:
+        for ix_level, column in zip(primary_key, column_names):
+            if ix_level != column:
+                raise ValueError(
+                    f"primary_key {primary_key} does not match column_names {column_names[:len(primary_key)]}"
+                )
+    for column_name in column_names:
+        field = ms3.column_name2frictionless_field(column_name)
+        if "type" not in field:
+            raise ValueError(
+                f"column_name2frictionless_field({column_name!r}) = {field} (missing 'type'!)"
+            )
+        fields.append(field)
+    descriptor = dict(fields=fields)
+    if primary_key:
+        descriptor["primaryKey"] = list(primary_key)
+    if len(custom_data) > 0:
+        descriptor.update(custom_data)
+    return descriptor
 
 
 def make_index_from_grouping_dict(

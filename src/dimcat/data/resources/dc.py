@@ -178,27 +178,10 @@ class DimcatResource(Resource, Generic[D]):
             auto_validate=auto_validate,
             default_groupby=default_groupby,
         )
-        assert (
-            new_object.resource.path is not None
-        ), f"""{cls.name}(
-    basepath={basepath},
-    descriptor_filename={descriptor_filename},
-    auto_validate={auto_validate},
-    default_groupby={default_groupby},
-)
-"""
         if resource_name is not None:
             new_object.resource_name = resource_name
         new_object._df = df
-        assert (
-            new_object.resource.path is not None
-        ), f"""{cls.name}(
-    basepath={basepath},
-    descriptor_filename={descriptor_filename},
-    auto_validate={auto_validate},
-    default_groupby={default_groupby},
-)
-"""
+        new_object._resource.schema = infer_schema_from_df(df)
         new_object._update_status()
         return new_object
 
