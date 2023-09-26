@@ -511,7 +511,13 @@ class DimcatConfig(MutableMapping, DimcatObject):
         self._options[key] = value
 
     @property
-    def options_dtype(self):
+    def options_class(self):
+        """The class of the described DimcatObject."""
+        return get_class(self.options_dtype)
+
+    @property
+    def options_dtype(self) -> str:
+        """The dtype (i.e. class name) of the described DimcatObject."""
         return self._options["dtype"]
 
     @property
