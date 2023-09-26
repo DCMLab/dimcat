@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from pprint import pformat
 from typing import Iterable, Iterator, List, Optional
 
 import frictionless as fl
@@ -65,12 +64,6 @@ class DimcatCatalog(Data):
 
     def __len__(self) -> int:
         return len(self._packages)
-
-    def __repr__(self):
-        return pformat(self.summary_dict(), sort_dicts=False)
-
-    def __str__(self):
-        return pformat(self.summary_dict(), sort_dicts=False)
 
     @property
     def basepath(self) -> Optional[str]:

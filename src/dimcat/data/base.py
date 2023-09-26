@@ -93,6 +93,9 @@ class Data(DimcatObject):
         if basepath is not None:
             self.basepath = basepath
 
+    def __str__(self):
+        return self.info(return_str=True)
+
     @property
     def basepath(self) -> str:
         return self._basepath

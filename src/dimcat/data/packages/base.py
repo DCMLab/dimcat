@@ -643,16 +643,6 @@ class Package(Data):
     def __len__(self):
         return len(self._resources)
 
-    def __repr__(self):
-        result = self.to_dict()
-        # result = dict(package_name=self.package_name, **result)
-        return pformat(result, sort_dicts=False)
-
-    def __str__(self):
-        values = self._package.to_descriptor()
-        values["basepath"] = self.basepath
-        return pformat(values, sort_dicts=False)
-
     @property
     def available_features(self) -> Set[FeatureName]:
         """The set of all available features defined as the union of :attr:`contained_features` and
@@ -1468,6 +1458,15 @@ class Package(Data):
         if self.auto_validate:
             _ = self.validate(raise_exception=True)
         return descriptor_path
+
+    def summary_dict(self, verbose: bool = False) -> str:
+        """Returns a summary of the package."""
+        summary = self._package.to_descriptor()
+        summary["basepath"] = self.basepath
+        if verbose:
+            return summary
+        summary["resources"] = [f"{r.resource_name!r} ({r.dtype})" for r in self]
+        return summary
 
     def _update_status(self):
         self._status = self._get_status()

@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 import warnings
 from functools import cache
-from pprint import pformat
 from typing import (
     TYPE_CHECKING,
     ClassVar,
@@ -440,10 +439,6 @@ DimcatResource.__init__(
     def __len__(self) -> int:
         return len(self.df.index)
 
-    def __repr__(self) -> str:
-        return_str = f"{pformat(self.to_dict(), sort_dicts=False)}"
-        return f"ResourceStatus={self.status.name}\n{return_str}"
-
     @property
     def column_schema(self) -> fl.Schema:
         return self._resource.schema
@@ -763,6 +758,11 @@ DimcatResource.__init__(
                     )
                 self.logger.warning(msg)
         self._status = ResourceStatus.STANDALONE_LOADED
+
+    def summary_dict(self) -> dict:
+        summary = self.to_dict()
+        summary["ResourceStatus"] = self.status.name
+        return summary
 
     def update_default_groupby(self, new_level_name: str) -> None:
         """Updates the value of :attr:`default_groupby` by prepending the new level name to it."""

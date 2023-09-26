@@ -11,7 +11,17 @@ from enum import Enum
 from functools import cache
 from inspect import isclass
 from pprint import pformat
-from typing import Any, ClassVar, Dict, List, MutableMapping, Optional, Type
+from typing import (
+    Any,
+    ClassVar,
+    Dict,
+    List,
+    Literal,
+    MutableMapping,
+    Optional,
+    Type,
+    overload,
+)
 
 import marshmallow as mm
 
@@ -226,13 +236,35 @@ class DimcatObject(ABC):
         return id(self)
 
     def __repr__(self):
-        return f"{pformat(self.to_dict(), sort_dicts=False)}"
+        return self.info(return_str=True)
 
     def __str__(self):
         return f"{__name__}.{self.name}"
 
     def filename_factory(self):
         return self.name
+
+    @overload
+    def info(self, return_str: Literal[False]) -> None:
+        ...
+
+    @overload
+    def info(self, return_str: Literal[True]) -> str:
+        ...
+
+    def info(self, return_str: bool = False) -> Optional[str]:
+        """Returns a summary of the dataset."""
+        summary = self.summary_dict()
+        title = self.name
+        title += f"\n{'=' * len(title)}\n"
+        summary_str = f"{title}{pformat(summary, sort_dicts=False, width=120)}"
+        if return_str:
+            return summary_str
+        print(summary_str)
+
+    def summary_dict(self) -> dict:
+        """Returns a summary of the object."""
+        return self.to_dict()
 
     def to_dict(self) -> dict:
         return self.schema.dump(self)
@@ -488,9 +520,6 @@ class DimcatConfig(MutableMapping, DimcatObject):
     def __len__(self):
         return len(self._options)
 
-    def __repr__(self):
-        return f"{self.name}({pformat(self._options, sort_dicts=False)})"
-
     def __setitem__(self, key, value):
         if key == "dtype" and value != self._options["dtype"]:
             tmp_schema = get_schema(value)
@@ -558,6 +587,9 @@ class DimcatConfig(MutableMapping, DimcatObject):
             if self[key] != config[key]:
                 return False
         return True
+
+    def summary_dict(self) -> dict:
+        return self._options
 
     def validate(self, partial=False) -> Dict[str, List[str]]:
         """Validates the current status of the config in terms of ability to create an object. Empty dict == valid."""

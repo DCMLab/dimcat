@@ -16,8 +16,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from pprint import pformat
-from typing import TYPE_CHECKING, Iterable, Iterator, List, Literal, Optional, overload
+from typing import TYPE_CHECKING, Iterable, Iterator, List, Optional
 
 import marshmallow as mm
 from dimcat.base import DimcatConfig, DimcatObjectField, get_class
@@ -135,12 +134,6 @@ class Dataset(Data):
         self._pipeline: "Pipeline" = None
         self.reset_pipeline()
         super().__init__(basepath=basepath, **kwargs)  # calls the Mixin's __init__
-
-    def __repr__(self):
-        return self.info(return_str=True)
-
-    def __str__(self):
-        return self.info(return_str=True)
 
     @property
     def inputs(self) -> InputsCatalog:
@@ -265,24 +258,6 @@ class Dataset(Data):
             pass
         return self.extract_feature(feature_config)
 
-    @overload
-    def info(self, return_str: Literal[False]) -> None:
-        ...
-
-    @overload
-    def info(self, return_str: Literal[True]) -> str:
-        ...
-
-    def info(self, return_str: bool = False) -> Optional[str]:
-        """Returns a summary of the dataset."""
-        summary = self.summary_dict()
-        title = self.name
-        title += f"\n{'=' * len(title)}\n"
-        summary_str = f"{title}{pformat(summary, sort_dicts=False)}"
-        if return_str:
-            return summary_str
-        print(summary_str)
-
     def iter_features(
         self, features: FeatureSpecs | Iterable[FeatureSpecs] = None
     ) -> Iterator[DimcatResource]:
@@ -376,7 +351,7 @@ class Dataset(Data):
         Constructor = get_class("Pipeline")
         self._pipeline = Constructor()
 
-    def summary_dict(self) -> str:
+    def summary_dict(self) -> dict:
         """Returns a summary of the dataset."""
         summary = dict(
             inputs=self.inputs.summary_dict(),
