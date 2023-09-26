@@ -4,7 +4,7 @@ import os
 import warnings
 from functools import cache
 from pprint import pformat
-from typing import Dict, Generic, Iterable, List, Optional, Sequence
+from typing import ClassVar, Dict, Generic, Iterable, List, Optional, Sequence, Tuple
 
 import frictionless as fl
 import marshmallow as mm
@@ -12,6 +12,7 @@ import ms3
 import pandas as pd
 from dimcat.base import get_setting
 from dimcat.data.base import Data
+from dimcat.data.resources import FeatureName
 from dimcat.data.resources.base import (
     IX,
     D,
@@ -85,6 +86,8 @@ class DimcatResource(Resource, Generic[D]):
     A DimcatResource knows that it is part of a package if its ``filepath`` ends on ``.zip``. In that case, the
     DimcatPackage will take care of the serialization and not store an individual resource descriptor.
     """
+
+    extractable_features: Optional[ClassVar[Tuple[FeatureName, ...]]] = None
 
     @classmethod
     def from_descriptor(

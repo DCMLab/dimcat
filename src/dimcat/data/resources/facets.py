@@ -4,6 +4,7 @@ from typing import Optional  # , ClassVar, Tuple
 import frictionless as fl
 from dimcat.base import ObjectEnum
 from dimcat.data.resources import DimcatResource, FeatureName, Metadata, Resource
+from dimcat.data.resources.features import HARMONY_FEATURE_NAMES
 from typing_extensions import Self
 
 
@@ -21,7 +22,7 @@ class Facet(DimcatResource):
     based on which configuration options.
     """
 
-    extractable_features = None  # : Optional[ClassVar[Tuple[FeatureName, ...]]]
+    pass
 
 
 class MuseScoreFacet(Facet):
@@ -91,11 +92,7 @@ class MuseScoreFacet(Facet):
 
 
 class MuseScoreHarmonies(MuseScoreFacet):
-    extractable_features = (
-        FeatureName.BassNotes,
-        FeatureName.HarmonyLabels,
-        FeatureName.KeyAnnotations,
-    )
+    extractable_features = HARMONY_FEATURE_NAMES
 
 
 class MuseScoreMeasures(MuseScoreFacet):

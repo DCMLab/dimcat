@@ -3,11 +3,20 @@ from __future__ import annotations
 import logging
 from enum import Enum
 from functools import cache, cached_property
-from typing import ClassVar, Iterable, List, MutableMapping, Optional, TypeAlias, Union
+from typing import (
+    ClassVar,
+    Iterable,
+    List,
+    MutableMapping,
+    Optional,
+    Type,
+    TypeAlias,
+    Union,
+)
 
 import frictionless as fl
 import marshmallow as mm
-from dimcat.base import DimcatConfig, ObjectEnum, get_setting, is_subclass_of
+from dimcat.base import DimcatConfig, ObjectEnum, get_class, get_setting, is_subclass_of
 from dimcat.data.resources.base import D, ResourceStatus
 from dimcat.data.resources.dc import DimcatResource
 from dimcat.data.resources.utils import load_fl_resource
@@ -28,10 +37,23 @@ class FeatureName(ObjectEnum):
     Metadata = "Metadata"
     Notes = "Notes"
 
+    def get_class(self) -> Type[Feature]:
+        return get_class(self.name)
+
+
+HARMONY_FEATURE_NAMES = (
+    FeatureName.BassNotes,
+    FeatureName.HarmonyLabels,
+    FeatureName.KeyAnnotations,
+)
+
 
 class Feature(DimcatResource):
     _enum_type = FeatureName
+    _auxiliary_columns: Optional[ClassVar[List[str]]] = None
     _feature_columns: Optional[ClassVar[List[str]]] = None
+
+    # region constructors
 
     # @classmethod
     # def from_descriptor(
@@ -263,6 +285,8 @@ class Feature(DimcatResource):
     #         **kwargs,
     #     )
 
+    # endregion constructors
+
     def __init__(
         self,
         resource: fl.Resource = None,
@@ -296,8 +320,18 @@ class Feature(DimcatResource):
             auto_validate=auto_validate,
             default_groupby=default_groupby,
         )
+        self._context_column_names: List[str] = []
+        """Context columns present in this resource. Depend on the setting 'context_columns'."""
+        self._feature_column_names: List[str] = []
+        """Feature columns present in this resource."""
         self._treat_columns()
         self._modify_name()
+
+    @property
+    def auxiliary_column_names(self):
+        if self._auxiliary_columns is None:
+            return []
+        return [col for col in self._auxiliary_columns if col in self.field_names]
 
     @property
     def context_column_names(self) -> List[str]:
@@ -323,12 +357,21 @@ class Feature(DimcatResource):
                 for col in self.field_names
                 if col not in self.column_schema.primary_key
             ]
-            return [
-                col
-                for col in available_columns
-                if col not in self._context_column_names
-            ]
+            excluded_columns = list(self._context_column_names)
+            if self._auxiliary_columns is not None:
+                excluded_columns += self._auxiliary_columns
+            return [col for col in available_columns if col not in excluded_columns]
         return list(self._feature_columns)
+
+    def get_column_names(self, include_index_levels: bool = False) -> List[str]:
+        """Retrieve the names of [index_levels] + auxiliary_column_names + feature_column_names"""
+        column_names = self.column_schema.primary_key if include_index_levels else []
+        column_names += (
+            self.context_column_names
+            + self.auxiliary_column_names
+            + self.feature_column_names
+        )
+        return column_names
 
     @cache
     def get_dataframe(self) -> D:
@@ -339,7 +382,7 @@ class Feature(DimcatResource):
             The dataframe or DimcatResource.
         """
         index_levels = self.column_schema.primary_key
-        usecols = index_levels + self.context_column_names + self.feature_column_names
+        usecols = self.get_column_names()
         dataframe = load_fl_resource(
             self._resource, index_col=index_levels, usecols=usecols
         )
@@ -353,18 +396,34 @@ class Feature(DimcatResource):
         self,
         resource_df: D,
     ):
-        columns = self.context_column_names + self.feature_column_names
+        columns = self.get_column_names()
         feature_df = resource_df[columns]
+        len_before = len(feature_df)
         if self._feature_columns is None:
-            return feature_df.copy()
-        return feature_df.dropna(subset=self._feature_columns, how="any")
+            result = feature_df.copy()
+            len_after = len_before
+        else:
+            result = feature_df.dropna(subset=self._feature_columns, how="any")
+            len_after = len(result)
+        if len_before == len_after:
+            self.logger.debug(
+                f"Made {self.dtype} dataframe for {self.resource_name} with {len_after} non-empty rows."
+            )
+        else:
+            self.logger.debug(
+                f"Made {self.dtype} dataframe for {self.resource_name} dropping {len_before - len_after} "
+                f"rows with missing values."
+            )
+        return result
 
     def _modify_name(self):
-        """Modify the resource name to reflect the feature."""
+        """Modify the :attr:`resource_name` to reflect the feature."""
         pass
 
     def _treat_columns(self) -> None:
         """Check which columns exist in the original resource and store the one that this feature uses."""
+        if self.is_empty:
+            return
         available_columns = self.field_names
         assert len(self.field_names), "No column schema defined for the given resource."
         context_column_names = get_setting("context_columns")
@@ -465,6 +524,9 @@ class Annotations(Feature):
 
 
 class HarmonyLabels(Annotations):
+    _auxiliary_columns = ["globalkey", "localkey"]
+    extractable_features = HARMONY_FEATURE_NAMES
+
     def __init__(
         self,
         resource: fl.Resource = None,
@@ -502,6 +564,7 @@ class BassNotes(HarmonyLabels):
     _feature_columns = ["bass_note"]
 
     def _modify_name(self):
+        """Modify the :attr:`resource_name` to reflect the feature."""
         self.resource_name = f"{self.resource_name}.bass_notes"
 
 
