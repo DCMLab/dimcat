@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from typing import Iterable
+from typing import Iterable, Type
 
 from dimcat.base import DimcatConfig
 from dimcat.data.datasets.base import Dataset
+from dimcat.data.resources import Feature, FeatureName
 from dimcat.data.resources.dc import DimcatResource
+from dimcat.dc_exceptions import ResourceNotProcessableError
 from dimcat.steps.base import FeatureProcessingStep
 from marshmallow import fields, validate
 
@@ -19,11 +21,20 @@ class FeatureExtractor(FeatureProcessingStep):
             validate=validate.Length(min=1),
         )
 
-    def _make_new_resource(self, resource: DimcatResource) -> DimcatResource:
-        """The extractor receives resources freshly created by :meth:`Dataset.extract_feature`
-        (via :meth:`get_features`) and therefore does not need to create a new resource.
-        """
-        return resource
+    def _get_new_resource_type(self, resource: DimcatResource) -> Type[Feature]:
+        feature_specs = self.get_feature_specs()
+        if len(feature_specs) > 1:
+            raise NotImplementedError(
+                "Extraction of multiple features from a single Resource is not implemented. "
+                "Run the Extractor on a Dataset or specify only one feature."
+            )
+        feature_config = feature_specs[0]
+        feature_name = FeatureName(feature_config.options_dtype)
+        if feature_name not in resource.extractable_features:
+            raise ResourceNotProcessableError(
+                resource.resource_name, feature_name, resource.dtype
+            )
+        return feature_name.get_class()
 
     def _iter_features(self, dataset: Dataset) -> Iterable[DimcatResource]:
         features = self.get_feature_specs()

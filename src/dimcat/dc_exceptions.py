@@ -356,10 +356,11 @@ class ResourceNotFoundError(DimcatError):
 
 
 class ResourceNotProcessableError(DimcatError):
-    """optional args: (feature_name,)"""
+    """optional args: (resource_name, pipeline_step, resource_type)"""
 
     nargs2message = {
-        0: "Cannot process this feature.",
+        0: "Cannot process this Resource.",
         1: lambda name: f"Cannot process {name!r}.",
-        2: lambda name, step: f"{step!r} cannot process feature {name!r}.",
+        2: lambda name, step: f"{step!r} cannot process Resource {name!r}.",
+        3: lambda name, step, resource_type: f"{step!r} cannot process Resource {name!r} of type {resource_type!r}.",
     }
