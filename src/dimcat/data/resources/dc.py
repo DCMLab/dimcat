@@ -4,7 +4,17 @@ import os
 import warnings
 from functools import cache
 from pprint import pformat
-from typing import ClassVar, Dict, Generic, Iterable, List, Optional, Sequence, Tuple
+from typing import (
+    TYPE_CHECKING,
+    ClassVar,
+    Dict,
+    Generic,
+    Iterable,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+)
 
 import frictionless as fl
 import marshmallow as mm
@@ -12,7 +22,6 @@ import ms3
 import pandas as pd
 from dimcat.base import get_setting
 from dimcat.data.base import Data
-from dimcat.data.resources import FeatureName
 from dimcat.data.resources.base import (
     IX,
     D,
@@ -41,6 +50,9 @@ from dimcat.dc_warnings import PotentiallyUnrelatedDescriptorUserWarning
 from dimcat.utils import check_name
 from frictionless import FrictionlessException
 from typing_extensions import Self
+
+if TYPE_CHECKING:
+    from dimcat.data.resources.features import FeatureName
 
 
 class DimcatResource(Resource, Generic[D]):
