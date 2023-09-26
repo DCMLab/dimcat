@@ -525,7 +525,7 @@ class Annotations(Feature):
 
 class HarmonyLabels(Annotations):
     _auxiliary_columns = ["globalkey", "localkey"]
-    extractable_features = HARMONY_FEATURE_NAMES
+    _extractable_features = HARMONY_FEATURE_NAMES
 
     def __init__(
         self,
@@ -562,6 +562,7 @@ class HarmonyLabels(Annotations):
 
 class BassNotes(HarmonyLabels):
     _feature_columns = ["bass_note"]
+    _extractable_features = None
 
     def _modify_name(self):
         """Modify the :attr:`resource_name` to reflect the feature."""

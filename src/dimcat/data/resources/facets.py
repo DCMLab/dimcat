@@ -92,12 +92,12 @@ class MuseScoreFacet(Facet):
 
 
 class MuseScoreHarmonies(MuseScoreFacet):
-    extractable_features = HARMONY_FEATURE_NAMES
+    _extractable_features = HARMONY_FEATURE_NAMES
 
 
 class MuseScoreMeasures(MuseScoreFacet):
-    extractable_features = (FeatureName.Measures,)
+    _extractable_features = (FeatureName.Measures,)
 
 
 class MuseScoreNotes(MuseScoreFacet):
-    extractable_features = (FeatureName.Notes,)
+    _extractable_features = (FeatureName.Notes,)

@@ -98,7 +98,7 @@ class DimcatResource(Resource, Generic[D]):
     DimcatPackage will take care of the serialization and not store an individual resource descriptor.
     """
 
-    extractable_features: Optional[ClassVar[Tuple[FeatureName, ...]]] = None
+    _extractable_features: Optional[ClassVar[Tuple[FeatureName, ...]]] = None
 
     @classmethod
     def from_descriptor(
@@ -517,6 +517,12 @@ DimcatResource.__init__(
         self._status = ResourceStatus.DATAFRAME
         if self.auto_validate:
             _ = self.validate(raise_exception=True)
+
+    @property
+    def extractable_features(self) -> Tuple[FeatureName, ...]:
+        if self._extractable_features is None:
+            return tuple()
+        return tuple(self._extractable_features)
 
     @property
     def field_names(self) -> List[str]:
