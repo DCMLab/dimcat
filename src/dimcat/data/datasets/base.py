@@ -131,7 +131,7 @@ class Dataset(Data):
         """
         self._inputs = InputsCatalog(basepath=basepath)
         self._outputs = OutputsCatalog(basepath=basepath)
-        self._pipeline: "Pipeline" = None
+        self._pipeline: Pipeline = None
         self.reset_pipeline()
         super().__init__(basepath=basepath, **kwargs)  # calls the Mixin's __init__
 
@@ -227,7 +227,7 @@ class Dataset(Data):
         self.logger.debug(
             f"Applying pipeline to extracted feature: {self._pipeline.steps}."
         )
-        return self._pipeline.process_resource(extracted)
+        return self._pipeline._process_resource(extracted, ignore_exceptions=True)
 
     def extract_feature(self, feature: FeatureSpecs) -> Feature:
         """Extracts a feature from this Dataset's input catalog, sends it through its pipeline, adds the result to the

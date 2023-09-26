@@ -98,14 +98,21 @@ class Pipeline(PipelineStep):
             # ToDo: checks?
         return processed_dataset
 
-    def _process_resource(self, resource: DimcatResource) -> DimcatResource:
+    def _process_resource(
+        self, resource: DimcatResource, ignore_exceptions: bool = False
+    ) -> DimcatResource:
         if len(self._steps) == 0:
             self.logger.info("Nothing to do.")
             return resource
         processed_resource = resource
         for step in self._steps:
             previous_resource = processed_resource
-            processed_resource = step._make_new_resource(previous_resource)
+            try:
+                processed_resource = step._make_new_resource(previous_resource)
+            except Exception:
+                if ignore_exceptions:
+                    continue
+                raise
             # ToDo: Pipeline checks the compatibility of steps and data first, uses step._process_resource()
             # ToDo: Check the processed resource and handle errors
         return processed_resource
