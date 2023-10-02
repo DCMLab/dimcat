@@ -6,7 +6,7 @@ import os
 import warnings
 from collections import Counter
 from operator import itemgetter
-from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Set, Tuple
+from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Set, Tuple, TypeVar
 from zipfile import ZipFile
 
 import frictionless as fl
@@ -104,6 +104,16 @@ def str2tuple(s):
     return ms3.str2inttuple(s, strict=False)
 
 
+T = TypeVar("T")
+
+
+def value2bool(s: int | float | T) -> bool | T:
+    try:
+        return bool(int(s))
+    except Exception:
+        return s
+
+
 def fl_fields2pandas_params(fields: List[fl.Field]) -> Tuple[dict, dict, list]:
     """Convert frictionless Fields to pd.read_csv() parameters 'dtype', 'converters' and 'parse_dates'."""
     dtype = {}
@@ -122,7 +132,7 @@ def fl_fields2pandas_params(fields: List[fl.Field]) -> Tuple[dict, dict, list]:
         elif field.type == "number":
             dtype[field.name] = float
         elif field.type == "boolean":
-            dtype[field.name] = bool
+            converters[field.name] = value2bool
         elif field.type == "date":
             parse_dates.append(field.name)
         elif field.type == "array":
