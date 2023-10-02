@@ -574,6 +574,12 @@ class KeyAnnotations(Annotations):
 
 
 # endregion Annotations
+# region Measures
+class Measures(Feature):
+    pass
+
+
+# endregion Measures
 # region helpers
 
 FeatureSpecs: TypeAlias = Union[MutableMapping, Feature, FeatureName, str]
