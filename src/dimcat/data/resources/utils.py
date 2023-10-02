@@ -123,7 +123,26 @@ def fl_fields2pandas_params(fields: List[fl.Field]) -> Tuple[dict, dict, list]:
         if not field.type or field.type == "any":
             continue
         if field.type == "string":
-            dtype[field.name] = "string"
+            if pattern_constraint := field.constraints.get("pattern"):
+                if pattern_constraint == ms3.FRACTION_REGEX:
+                    converters[field.name] = ms3.safe_frac
+                elif pattern_constraint == ms3.EDTF_LIKE_YEAR_REGEX:
+                    # year number or '..'
+                    converters[field.name] = ms3.safe_int
+                elif pattern_constraint == ms3.INT_ARRAY_REGEX:
+                    # a sequence of numbers
+                    converters[field.name] = ms3.str2inttuple
+                elif pattern_constraint == ms3.KEYSIG_DICT_REGEX:
+                    converters[field.name] = ms3.str2keysig_dict
+                elif pattern_constraint == ms3.TIMESIG_DICT_REGEX:
+                    converters[field.name] = ms3.str2timesig_dict
+                else:
+                    raise NotImplementedError(
+                        f"What is the dtype for a string with a pattern constraint of "
+                        f"{pattern_constraint!r} (field {field.name})?"
+                    )
+            else:
+                dtype[field.name] = "string"
         elif field.type == "integer":
             if field.required:
                 dtype[field.name] = int
