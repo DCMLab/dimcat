@@ -15,6 +15,7 @@ import pandas as pd
 import yaml
 from dimcat.base import get_setting
 from dimcat.dc_exceptions import BaseFilePathMismatchError
+from marshmallow.fields import Boolean
 
 from ...dc_warnings import (
     PotentiallyUnrelatedDescriptorUserWarning,
@@ -26,6 +27,9 @@ logger = logging.getLogger(__name__)
 if TYPE_CHECKING:
     from .base import SomeDataframe, SomeIndex
     from .dc import DimcatIndex
+
+TRUTHY_VALUES = Boolean.truthy
+FALSY_VALUES = Boolean.falsy
 
 
 def align_with_grouping(
@@ -107,11 +111,22 @@ def str2tuple(s):
 T = TypeVar("T")
 
 
-def value2bool(s: int | float | T) -> bool | T:
-    try:
-        return bool(int(s))
-    except Exception:
-        return s
+def value2bool(value: str | float | int | bool) -> bool | str | float | int:
+    """Identical with ms3.value2bool"""
+    if value in TRUTHY_VALUES:
+        return True
+    if value in FALSY_VALUES:
+        return False
+    if isinstance(value, str):
+        try:
+            converted = float(value)
+        except Exception:
+            return value
+        if converted in TRUTHY_VALUES:
+            return True
+        if converted in FALSY_VALUES:
+            return False
+    return value
 
 
 def fl_fields2pandas_params(fields: List[fl.Field]) -> Tuple[dict, dict, list]:
