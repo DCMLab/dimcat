@@ -399,12 +399,8 @@ class Feature(DimcatResource):
         columns = self.get_column_names()
         feature_df = resource_df[columns]
         len_before = len(feature_df)
-        if self._feature_columns is None:
-            result = feature_df.copy()
-            len_after = len_before
-        else:
-            result = feature_df.dropna(subset=self._feature_columns, how="any")
-            len_after = len(result)
+        result = self._transform_resource_df(feature_df)
+        len_after = len(result)
         if len_before == len_after:
             self.logger.debug(
                 f"Made {self.dtype} dataframe for {self.resource_name} with {len_after} non-empty rows."
@@ -419,6 +415,14 @@ class Feature(DimcatResource):
     def _modify_name(self):
         """Modify the :attr:`resource_name` to reflect the feature."""
         pass
+
+    def _transform_resource_df(self, feature_df):
+        """Called by :meth:`_make_feature_df` to transform the resource dataframe into a feature dataframe."""
+        if self._feature_columns is None:
+            result = feature_df.copy()
+        else:
+            result = feature_df.dropna(subset=self._feature_columns, how="any")
+        return result
 
     def _treat_columns(self) -> None:
         """Check which columns exist in the original resource and store the one that this feature uses."""
@@ -558,6 +562,17 @@ class HarmonyLabels(Annotations):
             auto_validate=auto_validate,
             default_groupby=default_groupby,
         )
+
+    def _transform_resource_df(self, feature_df):
+        """Called by :meth:`_make_feature_df` to transform the resource dataframe into a feature dataframe."""
+        feature_df = super()._transform_resource_df(feature_df)
+        bool2mode = {
+            True: "minor",
+            False: "major",
+        }
+        feature_df["global_mode"] = feature_df.globalkey_is_minor.map(bool2mode)
+        feature_df["local_mode"] = feature_df.localkey_is_minor.map(bool2mode)
+        return feature_df
 
 
 class BassNotes(HarmonyLabels):
