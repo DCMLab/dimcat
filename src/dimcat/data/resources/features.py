@@ -19,7 +19,7 @@ import marshmallow as mm
 from dimcat.base import DimcatConfig, ObjectEnum, get_class, get_setting, is_subclass_of
 from dimcat.data.resources.base import D, ResourceStatus
 from dimcat.data.resources.dc import DimcatResource
-from dimcat.data.resources.utils import load_fl_resource
+from dimcat.data.resources.utils import ensure_level_named_piece, load_fl_resource
 from dimcat.dc_exceptions import (
     ResourceIsMissingFeatureColumnError,
     ResourceNotProcessableError,
@@ -345,6 +345,8 @@ class Feature(DimcatResource):
             resource_df = self.get_dataframe()
         else:
             RuntimeError(f"No dataframe accessible for this {self.name}:\n{self}")
+        if "piece" not in resource_df.index.names:
+            resource_df.index, _ = ensure_level_named_piece(resource_df.index)
         feature_df = self._make_feature_df(resource_df)
         return feature_df
 

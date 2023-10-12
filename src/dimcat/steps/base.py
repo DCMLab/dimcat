@@ -26,7 +26,6 @@ from dimcat.data.resources.features import (
     FeatureSpecs,
     features_argument2config_list,
 )
-from dimcat.data.resources.utils import ensure_level_named_piece
 from dimcat.dc_exceptions import (
     EmptyDatasetError,
     EmptyResourceError,
@@ -137,10 +136,6 @@ class PipelineStep(DimcatObject):
 
     def _pre_process_resource(self, resource: DimcatResource) -> DimcatResource:
         """Perform some pre-processing on a resource before processing it."""
-        resource.load()
-        if "piece" not in resource.index.names:
-            # ToDo: This can go once the feature extractor does this systematically
-            resource.df.index, _ = ensure_level_named_piece(resource.df.index)
         return resource
 
     @overload

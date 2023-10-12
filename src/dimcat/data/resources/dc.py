@@ -481,10 +481,14 @@ DimcatResource.__init__(
     @property
     def df(self) -> D:
         if self._df is not None:
-            return self._df
-        if self.is_frozen:
-            return self.get_dataframe()
-        raise RuntimeError(f"No dataframe accessible for this {self.name}:\n{self}")
+            resource_df = self._df
+        elif self.is_frozen:
+            resource_df = self.get_dataframe()
+        else:
+            RuntimeError(f"No dataframe accessible for this {self.name}:\n{self}")
+        if "piece" not in resource_df.index.names:
+            resource_df.index, _ = ensure_level_named_piece(resource_df.index)
+        return resource_df
 
     @df.setter
     def df(self, df: D):

@@ -211,6 +211,12 @@ class Analyzer(FeatureProcessingStep):
             groupby = feature.get_default_groupby()
         return feature.groupby(groupby).apply(self.compute, **self.to_dict())
 
+    def _pre_process_resource(self, resource: DimcatResource) -> DimcatResource:
+        """Perform some pre-processing on a resource before processing it."""
+        resource = super()._pre_process_resource(resource)
+        resource.load()
+        return resource
+
     def resource_name_factory(self, resource: DimcatResource) -> str:
         """Returns a name for the resource based on its name and the name of the pipeline step."""
         return f"{resource.resource_name}_analyzed"
