@@ -1,6 +1,6 @@
 import logging
 from collections import defaultdict
-from typing import Dict, Iterable, List, MutableMapping, Sequence
+from typing import Dict, Iterator, List, MutableMapping, Sequence, Tuple
 
 import marshmallow as mm
 import pandas as pd
@@ -17,9 +17,14 @@ logger = logging.getLogger(__name__)
 
 
 class Grouper(FeatureProcessingStep):
+    # inherited from PipelineStep:
     new_dataset_type = GroupedDataset
     new_resource_type = None  # same as input
-    output_package_name = None
+    applicable_to_empty_datasets = True
+    # inherited from FeatureProcessingStep:
+    allowed_features = None  # any
+    output_package_name = None  # transform 'features'
+    requires_at_least_one_feature = False
 
     class Schema(FeatureProcessingStep.Schema):
         level_name = mm.fields.Str()
@@ -52,7 +57,7 @@ class Grouper(FeatureProcessingStep):
             resource_name=result_name,
         )
 
-    def _iter_features(self, dataset: Dataset) -> Iterable[DimcatResource]:
+    def _iter_resources(self, dataset: Dataset) -> Iterator[Tuple[str, DimcatResource]]:
         """Iterate over all resources in the dataset's OutputCatalog."""
         return dataset.outputs.iter_resources()
 
@@ -61,7 +66,7 @@ class Grouper(FeatureProcessingStep):
         new_dataset = self._make_new_dataset(dataset)
         self.fit_to_dataset(new_dataset)
         new_dataset._pipeline.add_step(self)
-        package_name_resource_iterator = self._iter_features(new_dataset)
+        package_name_resource_iterator = self._iter_resources(new_dataset)
         processed_resources = defaultdict(list)
         for package_name, resource in package_name_resource_iterator:
             new_resource = self.process_resource(resource)

@@ -4,6 +4,7 @@ import logging
 from typing import (
     ClassVar,
     Iterable,
+    Iterator,
     List,
     Literal,
     MutableMapping,
@@ -79,7 +80,7 @@ class PipelineStep(DimcatObject):
             if dataset.n_features_available == 0:
                 raise EmptyDatasetError
 
-    def check_resource(self, resource: DimcatResource) -> None:
+    def check_resource(self, resource: Resource) -> None:
         """Check if the resource is eligible for processing.
 
         Raises:
@@ -315,7 +316,7 @@ class FeatureProcessingStep(PipelineStep):
             ):
                 raise ResourceNotProcessableError(resource.name, self.name)
 
-    def _iter_features(self, dataset: Dataset) -> Iterable[DimcatResource]:
+    def _iter_features(self, dataset: Dataset) -> Iterator[DimcatResource]:
         """Iterate over all features that are required for this PipelineStep.
         If :meth:`get_feature_specs` returns None, the Dataset will return an iterator over all active features.
         """
