@@ -71,7 +71,7 @@ def store_datapackage(
 
 def get_m21_input_extensions() -> Tuple[str, ...]:
     ext2converter = m21.converter.Converter.getSubConverterFormats()
-    extensions = list(ext2converter.keys()) + [".mxl"]
+    extensions = list(ext2converter.keys()) + [".mxl", ".krn"]
     return tuple(ext if ext[0] == "." else f".{ext}" for ext in extensions)
 
 
