@@ -30,11 +30,31 @@ class FeatureExtractor(FeatureProcessingStep):
             )
         feature_config = feature_specs[0]
         feature_name = FeatureName(feature_config.options_dtype)
-        if feature_name not in resource.extractable_features:
+        if (
+            resource.name != feature_name
+            and feature_name not in resource.extractable_features
+        ):
             raise ResourceNotProcessableError(
                 resource.resource_name, feature_name, resource.dtype
             )
         return feature_name.get_class()
+
+    def _make_new_resource(self, resource: DimcatResource) -> DimcatResource:
+        """Dispatch the passed resource to the appropriate method."""
+        resource_constructor = self._get_new_resource_type(resource)
+        if resource.__class__ == resource_constructor:
+            # this is the typical case when the FeatureExtractor simply iterates over features that have already been
+            # extracted from the Dataset. In this case there is no need to create a copy
+            return resource
+        # when we get here it's probably because process_resource() was called directly
+        resource_name = self.resource_name_factory(resource)
+        new_resource = resource_constructor.from_resource(
+            resource, resource_name=resource_name
+        )
+        self.logger.debug(
+            f"Created new resource {new_resource} of type {resource_constructor.name}."
+        )
+        return new_resource
 
     def _iter_features(self, dataset: Dataset) -> Iterable[DimcatResource]:
         features = self.get_feature_specs()
