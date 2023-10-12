@@ -9,7 +9,7 @@ import marshmallow as mm
 from dimcat.base import ObjectEnum
 from dimcat.data.datasets.processed import AnalyzedDataset
 from dimcat.data.resources.base import SomeSeries
-from dimcat.data.resources.dc import DimcatResource
+from dimcat.data.resources.dc import DimcatResource, UnitOfAnalysis
 from dimcat.data.resources.features import Feature, FeatureSpecs
 from dimcat.data.resources.results import Result
 from dimcat.steps.base import FeatureProcessingStep
@@ -31,12 +31,6 @@ class AnalyzerName(ObjectEnum):
 class DispatchStrategy(str, Enum):
     GROUPBY_APPLY = "GROUPBY_APPLY"
     ITER_STACK = "ITER_STACK"
-
-
-class UnitOfAnalysis(str, Enum):
-    SLICE = "SLICE"
-    PIECE = "PIECE"
-    GROUP = "GROUP"
 
 
 class Orientation(str, Enum):
@@ -208,7 +202,10 @@ class Analyzer(FeatureProcessingStep):
         a Series of the same length as ``feature`` or otherwise work as positional argument to feature.groupby().
         """
         if groupby is None:
-            groupby = feature.get_default_groupby()
+            groupby = feature.get_grouping_levels(self.smallest_unit)
+            self.logger.debug(
+                f"Using the {feature.resource_name}'s default groupby {groupby!r}"
+            )
         return feature.groupby(groupby).apply(self.compute, **self.to_dict())
 
     def _pre_process_resource(self, resource: DimcatResource) -> DimcatResource:

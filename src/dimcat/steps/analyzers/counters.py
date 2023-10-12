@@ -18,7 +18,7 @@ class Counter(Analyzer):
         a Series of the same length as ``feature`` or otherwise work as positional argument to feature.groupby().
         """
         if groupby is None:
-            groupby = feature.get_default_groupby()
+            groupby = feature.get_grouping_levels(self.smallest_unit)
             self.logger.debug(
                 f"Using the {feature.resource_name}'s default groupby {groupby!r}"
             )

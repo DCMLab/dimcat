@@ -37,9 +37,6 @@ class Result(DimcatResource):
             A Plotly Figure object.
         """
         groups = self.get_default_groupby()
-        for level in ("corpus", "piece"):
-            if level in groups:
-                groups.remove(level)
         if len(groups) > 0 and "color" not in kwargs:
             kwargs["color"] = groups[0]
         df = self.df.reset_index()
@@ -74,7 +71,7 @@ class Durations(Result):
         Returns:
             A Plotly Figure object.
         """
-        groups = self.get_default_groupby()
+        groups = self.get_grouping_levels()
         normalized = self.df.groupby(groups, group_keys=False).apply(
             lambda S: S / S.sum()
         )

@@ -19,7 +19,7 @@ import frictionless as fl
 import marshmallow as mm
 import ms3
 import pandas as pd
-from dimcat.base import get_setting
+from dimcat.base import FriendlyEnum, get_setting
 from dimcat.data.base import Data
 from dimcat.data.resources.base import (
     IX,
@@ -52,6 +52,12 @@ from typing_extensions import Self
 
 if TYPE_CHECKING:
     from dimcat.data.resources.features import FeatureName
+
+
+class UnitOfAnalysis(FriendlyEnum):
+    SLICE = "SLICE"
+    PIECE = "PIECE"
+    GROUP = "GROUP"
 
 
 class DimcatResource(Resource, Generic[D]):
@@ -649,12 +655,21 @@ DimcatResource.__init__(
     def get_default_groupby(self) -> List[str]:
         """Returns the default index levels for grouping the resource."""
         if not self.default_groupby:
-            return self.get_grouping_levels()
+            return []
         return self.default_groupby
 
-    def get_grouping_levels(self) -> List[str]:
-        """Returns the levels of the grouping index."""
-        return self.get_piece_index(max_levels=0).names
+    def get_grouping_levels(
+        self, smallest_unit: UnitOfAnalysis = UnitOfAnalysis.SLICE
+    ) -> List[str]:
+        """Returns the levels of the grouping index, i.e., all levels until and including 'piece'."""
+        smallest_unit = UnitOfAnalysis(smallest_unit)
+        if smallest_unit is UnitOfAnalysis.SLICE:
+            return self.get_level_names()[:-1]
+        if smallest_unit is UnitOfAnalysis.PIECE:
+            return self.get_piece_index(max_levels=0).names
+        if smallest_unit is UnitOfAnalysis.GROUP:
+            return self.get_default_groupby()
+        raise NotImplementedError(smallest_unit)
 
     def get_index(self) -> DimcatIndex:
         """Returns the index of the resource based on the ``primaryKey`` of the :obj:`frictionless.Schema`."""
@@ -777,9 +792,12 @@ DimcatResource.__init__(
     def update_default_groupby(self, new_level_name: str) -> None:
         """Updates the value of :attr:`default_groupby` by prepending the new level name to it."""
         current_default = self.get_default_groupby()
-        if current_default[0] == new_level_name:
+        if len(current_default) == 0:
+            self.logger.debug(f"Default grouping level set to {new_level_name!r}.")
+            new_default_value = [new_level_name]
+        elif current_default[0] == new_level_name:
             self.logger.debug(
-                f"Default levels already start with {new_level_name!r}: {current_default}."
+                f"Default groupby levels already start with {new_level_name!r}: {current_default}."
             )
             new_default_value = current_default
         else:
