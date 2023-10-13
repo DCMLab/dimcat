@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import Iterable, Iterator, List, Optional
+from typing import Iterable, Iterator, List, Optional, Type
 
 import frictionless as fl
 import marshmallow as mm
+from dimcat import DimcatConfig, get_class
 from dimcat.data.base import Data
 from dimcat.data.packages.base import Package, PackageSpecs
 from dimcat.data.resources.base import Resource
@@ -11,7 +12,10 @@ from dimcat.data.resources.features import FeatureSpecs
 from dimcat.dc_exceptions import (
     DuplicatePackageNameError,
     EmptyCatalogError,
+    EmptyPackageError,
+    NoMatchingResourceFoundError,
     PackageNotFoundError,
+    ResourceNotFoundError,
 )
 from dimcat.utils import _set_new_basepath
 from frictionless import FrictionlessException
@@ -179,6 +183,57 @@ class DimcatCatalog(Data):
             self.logger.info(f"Automatically added new empty package {name!r}")
             return self.get_package()
         raise PackageNotFoundError(name)
+
+    def get_resource_by_config(self, config: DimcatConfig) -> Resource:
+        """Returns the first resource that matches the given config.
+
+        Raises:
+            EmptyCatalogError: If the package is empty.
+            NoMatchingResourceFoundError: If no resource matching the specs is found in the "features" package.
+        """
+        if len(self._packages) == 0:
+            raise EmptyCatalogError
+        for package in self._packages:
+            try:
+                return package.get_resource_by_config(config)
+            except (EmptyPackageError, ResourceNotFoundError):
+                pass
+        raise NoMatchingResourceFoundError(config)
+
+    def get_resource_by_name(self, name: str) -> Resource:
+        """Returns the Resource with the given name.
+
+        Raises:
+            EmptyCatalogError: If the package is empty.
+            ResourceNotFoundError: If the resource with the given name is not found.
+        """
+        if len(self._packages) == 0:
+            raise EmptyCatalogError
+        for package in self._packages:
+            try:
+                return package.get_resource_by_name(name=name)
+            except (EmptyPackageError, ResourceNotFoundError):
+                pass
+        raise ResourceNotFoundError(name, self.catalog_name)
+
+    def get_resources_by_regex(self, regex: str) -> List[Resource]:
+        """Returns the Resource objects whose names contain the given regex."""
+        result = []
+        for package in self._packages:
+            result.extend(package.get_resources_by_regex(regex=regex))
+        return result
+
+    def get_resources_by_type(
+        self,
+        resource_type: Type[Resource] | str,
+    ) -> List[Resource]:
+        """Returns the Resource objects of the given type."""
+        if isinstance(resource_type, str):
+            resource_type = get_class(resource_type)
+        results = []
+        for package in self._packages:
+            results.extend(package.get_resources_by_type(resource_type=resource_type))
+        return results
 
     def has_package(self, name: str) -> bool:
         """Returns True if a package with the given name is loaded, False otherwise."""

@@ -1145,7 +1145,14 @@ class Package(Data):
         return metadata
 
     def get_resource_by_config(self, config: DimcatConfig) -> Resource:
-        """Returns the first resource that matches the given config."""
+        """Returns the first resource that matches the given config.
+
+        Raises:
+            EmptyPackageError: If the package is empty.
+            NoMatchingResourceFoundError: If no resource matches the config.
+        """
+        if self.n_resources == 0:
+            raise EmptyPackageError(self.package_name)
         for resource in self.resources:
             resource_config = resource.to_config()
             if resource_config.matches(config):
