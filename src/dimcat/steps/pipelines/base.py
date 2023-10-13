@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import Iterable, Iterator, List, Literal, Optional, overload
+from inspect import isclass
+from typing import Iterable, Iterator, List, Literal, Optional, Type, overload
 
 from dimcat import Dataset, DimcatConfig
-from dimcat.base import DimcatObject, DimcatObjectField
+from dimcat.base import DimcatObject, DimcatObjectField, get_class
 from dimcat.data.resources.dc import DimcatResource
 from dimcat.steps.base import PipelineStep
 from marshmallow import fields
@@ -99,13 +100,29 @@ class Pipeline(PipelineStep):
         return processed_dataset
 
     def _process_resource(
-        self, resource: DimcatResource, ignore_exceptions: bool = False
+        self,
+        resource: DimcatResource,
+        ignore_exceptions: bool = False,
+        skip_step_types: Optional[Iterable[Type[PipelineStep] | str]] = None,
     ) -> DimcatResource:
-        if len(self._steps) == 0:
+        if skip_step_types:
+            if isinstance(skip_step_types, str) or isclass(skip_step_types):
+                skip_step_types = [skip_step_types]
+            ignored_types = [
+                get_class(dtype) if isinstance(dtype, str) else dtype
+                for dtype in skip_step_types
+            ]
+            ignored_types = tuple(set(ignored_types))
+            pipeline_steps = [
+                step for step in self._steps if not isinstance(step, ignored_types)
+            ]
+        else:
+            pipeline_steps = self._steps
+        if len(pipeline_steps) == 0:
             self.logger.info("Nothing to do.")
             return resource
         processed_resource = resource
-        for step in self._steps:
+        for step in pipeline_steps:
             previous_resource = processed_resource
             try:
                 processed_resource = step._make_new_resource(previous_resource)

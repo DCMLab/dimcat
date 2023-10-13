@@ -227,7 +227,11 @@ class Dataset(Data):
         self.logger.debug(
             f"Applying pipeline to extracted feature: {self._pipeline.steps}."
         )
-        return self._pipeline._process_resource(extracted, ignore_exceptions=True)
+        return self._pipeline._process_resource(
+            extracted,
+            ignore_exceptions=True,
+            skip_step_types=["FeatureExtractor"],
+        )
 
     def extract_feature(self, feature: FeatureSpecs) -> Feature:
         """Extracts a feature from this Dataset's input catalog, sends it through its pipeline, adds the result to the
