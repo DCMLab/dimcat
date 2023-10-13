@@ -62,6 +62,37 @@ def align_with_grouping(
     return result
 
 
+def boolean_is_minor_column_to_mode(S: pd.Series) -> pd.Series:
+    return S.map({True: "minor", False: "major"})
+
+
+def check_descriptor_filename_argument(
+    descriptor_filename,
+) -> str:
+    """Check if the descriptor_filename is a filename  (not path) and warn if it doesn't have the
+    extension .json or .yaml.
+
+    Args:
+        descriptor_filename:
+
+    Raises:
+        ValueError: If the descriptor_filename is absolute.
+    """
+    subfolder, filepath = os.path.split(descriptor_filename)
+    if subfolder not in (".", ""):
+        raise ValueError(
+            f"descriptor_filename needs to be a filename in the basepath, got {descriptor_filename!r}"
+        )
+    _, ext = os.path.splitext(filepath)
+    if ext not in (".json", ".yaml"):
+        warnings.warning(
+            f"You've set a descriptor_filename with extension {ext!r} but "
+            f"frictionless allows only '.json' and '.yaml'.",
+            RuntimeWarning,
+        )
+    return filepath
+
+
 def check_rel_path(rel_path, basepath):
     if rel_path.startswith(".."):
         raise ValueError(
@@ -104,29 +135,7 @@ def ensure_level_named_piece(
     return index, piece_level_position
 
 
-def str2tuple(s):
-    return ms3.str2inttuple(s, strict=False)
-
-
 T = TypeVar("T")
-
-
-def value2bool(value: str | float | int | bool) -> bool | str | float | int:
-    """Identical with ms3.value2bool"""
-    if value in TRUTHY_VALUES:
-        return True
-    if value in FALSY_VALUES:
-        return False
-    if isinstance(value, str):
-        try:
-            converted = float(value)
-        except Exception:
-            return value
-        if converted in TRUTHY_VALUES:
-            return True
-        if converted in FALSY_VALUES:
-            return False
-    return value
 
 
 def fl_fields2pandas_params(fields: List[fl.Field]) -> Tuple[dict, dict, list]:
@@ -266,6 +275,32 @@ def infer_schema_from_df(
         **kwargs,
     )
     return fl.Schema(descriptor)
+
+
+def is_default_package_descriptor_path(filepath: str) -> bool:
+    endings = get_setting("package_descriptor_endings")
+    if len(endings) == 0:
+        warnings.warn(
+            "No default file endings for package descriptors are defined in the current settings.",
+            RuntimeWarning,
+        )
+    for ending in endings:
+        if filepath.endswith(ending):
+            return True
+    return False
+
+
+def is_default_resource_descriptor_path(filepath: str) -> bool:
+    endings = get_setting("resource_descriptor_endings")
+    if len(endings) == 0:
+        warnings.warn(
+            "No default file endings for resource descriptors are defined in the current settings.",
+            RuntimeWarning,
+        )
+    for ending in endings:
+        if filepath.endswith(ending):
+            return True
+    return False
 
 
 def load_fl_resource(
@@ -708,31 +743,26 @@ def store_json(
         json.dump(data, f, **kwargs)
 
 
-def check_descriptor_filename_argument(
-    descriptor_filename,
-) -> str:
-    """Check if the descriptor_filename is a filename  (not path) and warn if it doesn't have the
-    extension .json or .yaml.
+def str2tuple(s):
+    return ms3.str2inttuple(s, strict=False)
 
-    Args:
-        descriptor_filename:
 
-    Raises:
-        ValueError: If the descriptor_filename is absolute.
-    """
-    subfolder, filepath = os.path.split(descriptor_filename)
-    if subfolder not in (".", ""):
-        raise ValueError(
-            f"descriptor_filename needs to be a filename in the basepath, got {descriptor_filename!r}"
-        )
-    _, ext = os.path.splitext(filepath)
-    if ext not in (".json", ".yaml"):
-        warnings.warning(
-            f"You've set a descriptor_filename with extension {ext!r} but "
-            f"frictionless allows only '.json' and '.yaml'.",
-            RuntimeWarning,
-        )
-    return filepath
+def value2bool(value: str | float | int | bool) -> bool | str | float | int:
+    """Identical with ms3.value2bool"""
+    if value in TRUTHY_VALUES:
+        return True
+    if value in FALSY_VALUES:
+        return False
+    if isinstance(value, str):
+        try:
+            converted = float(value)
+        except Exception:
+            return value
+        if converted in TRUTHY_VALUES:
+            return True
+        if converted in FALSY_VALUES:
+            return False
+    return value
 
 
 def warn_about_potentially_unrelated_descriptor(
@@ -759,29 +789,3 @@ def store_as_json_or_yaml(descriptor_dict: dict, descriptor_path: str):
         raise ValueError(
             f"Descriptor path must end with .yaml or .json: {descriptor_path}"
         )
-
-
-def is_default_package_descriptor_path(filepath: str) -> bool:
-    endings = get_setting("package_descriptor_endings")
-    if len(endings) == 0:
-        warnings.warn(
-            "No default file endings for package descriptors are defined in the current settings.",
-            RuntimeWarning,
-        )
-    for ending in endings:
-        if filepath.endswith(ending):
-            return True
-    return False
-
-
-def is_default_resource_descriptor_path(filepath: str) -> bool:
-    endings = get_setting("resource_descriptor_endings")
-    if len(endings) == 0:
-        warnings.warn(
-            "No default file endings for resource descriptors are defined in the current settings.",
-            RuntimeWarning,
-        )
-    for ending in endings:
-        if filepath.endswith(ending):
-            return True
-    return False

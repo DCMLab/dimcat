@@ -19,7 +19,11 @@ import marshmallow as mm
 from dimcat.base import DimcatConfig, ObjectEnum, get_class, get_setting, is_subclass_of
 from dimcat.data.resources.base import D, ResourceStatus
 from dimcat.data.resources.dc import DimcatResource
-from dimcat.data.resources.utils import ensure_level_named_piece, load_fl_resource
+from dimcat.data.resources.utils import (
+    boolean_is_minor_column_to_mode,
+    ensure_level_named_piece,
+    load_fl_resource,
+)
 from dimcat.dc_exceptions import (
     ResourceIsMissingFeatureColumnError,
     ResourceNotProcessableError,
@@ -530,7 +534,7 @@ class Annotations(Feature):
 
 
 class HarmonyLabels(Annotations):
-    _auxiliary_columns = ["globalkey", "localkey"]
+    _auxiliary_columns = ["globalkey", "localkey"]  # for inheritance
     _extractable_features = HARMONY_FEATURE_NAMES
 
     def __init__(
@@ -568,12 +572,12 @@ class HarmonyLabels(Annotations):
     def _transform_resource_df(self, feature_df):
         """Called by :meth:`_make_feature_df` to transform the resource dataframe into a feature dataframe."""
         feature_df = super()._transform_resource_df(feature_df)
-        bool2mode = {
-            True: "minor",
-            False: "major",
-        }
-        feature_df["global_mode"] = feature_df.globalkey_is_minor.map(bool2mode)
-        feature_df["local_mode"] = feature_df.localkey_is_minor.map(bool2mode)
+        feature_df["globalkey_mode"] = boolean_is_minor_column_to_mode(
+            feature_df.globalkey_is_minor
+        )
+        feature_df["localkey_mode"] = boolean_is_minor_column_to_mode(
+            feature_df.localkey_is_minor
+        )
         return feature_df
 
 
@@ -587,7 +591,20 @@ class BassNotes(HarmonyLabels):
 
 
 class KeyAnnotations(Annotations):
+    _auxiliary_columns = ["globalkey_is_minor", "localkey_is_minor"]
     _feature_columns = ["globalkey", "localkey"]
+    _extractable_features = None
+
+    def _transform_resource_df(self, feature_df):
+        """Called by :meth:`_make_feature_df` to transform the resource dataframe into a feature dataframe."""
+        feature_df = super()._transform_resource_df(feature_df)
+        feature_df["globalkey_mode"] = boolean_is_minor_column_to_mode(
+            feature_df.globalkey_is_minor
+        )
+        feature_df["localkey_mode"] = boolean_is_minor_column_to_mode(
+            feature_df.localkey_is_minor
+        )
+        return feature_df
 
 
 # endregion Annotations
