@@ -344,14 +344,12 @@ class Feature(DimcatResource):
     @cached_property
     def df(self) -> D:
         if self._df is not None:
-            resource_df = self._df
+            feature_df = self._df
         elif self.is_frozen:
             resource_df = self.get_dataframe()
+            feature_df = self._make_feature_df(resource_df)
         else:
             RuntimeError(f"No dataframe accessible for this {self.name}:\n{self}")
-        if "piece" not in resource_df.index.names:
-            resource_df.index, _ = ensure_level_named_piece(resource_df.index)
-        feature_df = self._make_feature_df(resource_df)
         return feature_df
 
     @property
@@ -392,6 +390,8 @@ class Feature(DimcatResource):
         dataframe = load_fl_resource(
             self._resource, index_col=index_levels, usecols=usecols
         )
+        if "piece" not in dataframe.index.names:
+            dataframe.index, _ = ensure_level_named_piece(dataframe.index)
         if self.status == ResourceStatus.STANDALONE_NOT_LOADED:
             self._status = ResourceStatus.STANDALONE_LOADED
         elif self.status == ResourceStatus.PACKAGED_NOT_LOADED:
