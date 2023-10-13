@@ -6,7 +6,17 @@ import os
 import warnings
 from collections import Counter
 from operator import itemgetter
-from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Set, Tuple, TypeVar
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    TypeVar,
+)
 from zipfile import ZipFile
 
 import frictionless as fl
@@ -15,14 +25,13 @@ import pandas as pd
 import yaml
 from dimcat.base import get_setting
 from dimcat.dc_exceptions import BaseFilePathMismatchError
-from marshmallow.fields import Boolean
-
-from ...dc_warnings import (
+from dimcat.dc_warnings import (
     PotentiallyUnrelatedDescriptorUserWarning,
     ResourceWithRangeIndexUserWarning,
 )
+from marshmallow.fields import Boolean
 
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from .base import SomeDataframe, SomeIndex
@@ -365,7 +374,7 @@ def load_fl_resource(
             converters=converters,
         )
     except Exception:
-        logger.warning(
+        module_logger.warning(
             f"Error executing\n"
             f"pd.read_csv({file!r},\n"
             f"            sep='\\t',\n"
@@ -416,12 +425,12 @@ def load_index_from_fl_resource(
             index_col = [index_col]
     elif schema.primary_key:
         index_col = schema.primary_key
-        logger.debug(
+        module_logger.debug(
             f"Loading index columns {index_col!r} from {fl_resource.name!r} based on the schema's "
             f"primary key."
         )
     elif right_most_column:
-        logger.debug(
+        module_logger.debug(
             f"Resource {fl_resource.name!r} has no primary key, trying to detect {right_most_column!r} column."
         )
         piece_col_position = infer_piece_col_position(
@@ -434,7 +443,7 @@ def load_index_from_fl_resource(
                 f"could be detected."
             )
         index_col = list(range(piece_col_position + 1))
-        logger.debug(
+        module_logger.debug(
             f"Loading index columns {index_col!r} from {fl_resource.name!r} based on the recognized "
             f"piece column {schema.field_names[piece_col_position]!r}."
         )
@@ -445,6 +454,54 @@ def load_index_from_fl_resource(
         )
     dataframe = load_fl_resource(fl_resource, index_col=index_col, usecols=index_col)
     return dataframe.index
+
+
+def make_adjacency_groups(
+    S: pd.Series,
+    groupby=None,
+    logger: Optional[logging.Logger] = None,
+) -> Tuple[pd.Series, Dict[int, Any]]:
+    """Turns a Series into a Series of ascending integers starting from 1 that reflect groups of successive
+    equal values. There are several options of how to deal with NA values.
+
+    This is a simplified variant of ms3.adjacency_groups()
+
+    Args:
+      S: Series in which to group identical adjacent values with each other.
+
+    Returns:
+      A series with increasing integers that can be used for grouping.
+      A dictionary mapping the integers to the grouped values.
+
+    """
+    if logger is None:
+        logger = module_logger
+    if groupby is None:
+        beginnings = make_adjacency_mask(S)
+    else:
+        beginnings = S.groupby(groupby, group_keys=False).apply(make_adjacency_mask)
+    groups = beginnings.cumsum()
+    names = dict(enumerate(S[beginnings], 1))
+    try:
+        return pd.to_numeric(groups).astype("Int64"), names
+    except TypeError:
+        logger.warning(f"Erroneous outcome while computing adjacency groups: {groups}")
+        return groups, names
+
+
+def make_adjacency_mask(
+    S: pd.Series,
+) -> pd.Series:
+    """Turns a Series into a Boolean Series that is True for the first value of each group of successive equal
+    values. There are several options of how to deal with NA values.
+
+    Args:
+      S: Series in which to group identical adjacent values with each other.
+
+    """
+    assert not S.isna().any(), "Series must not contain NA values."
+    beginnings = (S != S.shift()).fillna(True)
+    return beginnings
 
 
 def make_boolean_mask_from_set_of_tuples(
@@ -640,6 +697,11 @@ def make_tsv_resource(name: Optional[str] = None) -> fl.Resource:
     resource = make_fl_resource(name, **options)
     resource.type = "table"
     return resource
+
+
+def nan_eq(a, b):
+    """Returns True if a and b are equal or both null. Works on two Series or two elements."""
+    return (a == b) | (pd.isnull(a) & pd.isnull(b))
 
 
 def resolve_columns_argument(
