@@ -1074,7 +1074,8 @@ class Package(Data):
             )
         Klass = feature_name.get_class()
         selected_facet = candidate_facets[0]
-        return Klass.from_resource(selected_facet)
+        new_name = f"{selected_facet.resource_name}.{feature_name.value.lower()}"
+        return Klass.from_resource(selected_facet, resource_name=new_name)
 
     def get_descriptor_path(
         self,

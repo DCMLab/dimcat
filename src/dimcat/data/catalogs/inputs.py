@@ -9,8 +9,7 @@ class InputsCatalog(DimcatCatalog):
     def extract_feature(self, feature: FeatureSpecs) -> Feature:
         """Extracts the given features from all packages and combines them in a Feature resource."""
         package = self.get_package()
-        feature_config = feature_specs2config(feature)
-        return package.extract_feature(feature_config)
+        return package.extract_feature(feature)
 
     def get_feature(self, feature: FeatureSpecs) -> Feature:
         """ToDo: Get features from all packages and merge them."""
