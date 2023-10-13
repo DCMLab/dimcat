@@ -139,6 +139,18 @@ def condense_dataframe_by_groups(
         logger = module_logger
     if "duration_qb" not in df.columns:
         raise ValueError(f"DataFrame is missing the column 'duration_qb': {df.columns}")
+    missing_duration_mask = df.duration_qb.isna()
+    if missing_duration_mask.any():
+        if missing_duration_mask.all():
+            raise ValueError(
+                "DataFrame contains only NA values in column 'duration_qb'."
+            )
+        logger.warning(
+            f"DataFrame contains {missing_duration_mask.sum()} NA values in column 'duration_qb'. "
+            f"Those rows will be dropped."
+        )
+        df = df[~missing_duration_mask]
+        group_keys_series = group_keys_series[~missing_duration_mask]
     if group_keys_series.isna().any():
         logger.warning(
             f"The group_keys_series contains {group_keys_series.isna().sum()} NA values. The corresponding rows will "
