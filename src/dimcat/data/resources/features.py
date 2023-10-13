@@ -21,8 +21,10 @@ from dimcat.data.resources.base import D, ResourceStatus
 from dimcat.data.resources.dc import DimcatResource
 from dimcat.data.resources.utils import (
     boolean_is_minor_column_to_mode,
+    condense_dataframe_by_groups,
     ensure_level_named_piece,
     load_fl_resource,
+    make_adjacency_groups,
 )
 from dimcat.dc_exceptions import (
     ResourceIsMissingFeatureColumnError,
@@ -598,6 +600,11 @@ class KeyAnnotations(Annotations):
     def _transform_resource_df(self, feature_df):
         """Called by :meth:`_make_feature_df` to transform the resource dataframe into a feature dataframe."""
         feature_df = super()._transform_resource_df(feature_df)
+        groupby_levels = feature_df.index.names[:-1]
+        group_keys, _ = make_adjacency_groups(
+            feature_df.localkey, groupby=groupby_levels
+        )
+        feature_df = condense_dataframe_by_groups(feature_df, group_keys)
         feature_df["globalkey_mode"] = boolean_is_minor_column_to_mode(
             feature_df.globalkey_is_minor
         )

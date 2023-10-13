@@ -4,7 +4,7 @@ from dimcat.steps.groupers.base import Grouper
 
 
 class ModeGrouper(Grouper):
-    allowed_features = (FeatureName.HarmonyLabels,)
+    allowed_features = (FeatureName.HarmonyLabels, FeatureName.KeyAnnotations)
 
     def __init__(
         self,

@@ -30,6 +30,7 @@ from dimcat.dc_warnings import (
     ResourceWithRangeIndexUserWarning,
 )
 from marshmallow.fields import Boolean
+from ms3 import reduce_dataframe_duration_to_first_row
 
 module_logger = logging.getLogger(__name__)
 
@@ -110,6 +111,43 @@ def check_rel_path(rel_path, basepath):
     if rel_path.startswith(f".{os.sep}") and len(rel_path) > 2:
         rel_path = rel_path[2:]
     return rel_path
+
+
+def condense_dataframe_by_groups(
+    df: pd.DataFrame,
+    group_keys_series: pd.Series,
+    logger: Optional[logging.Logger] = None,
+):
+    """Based on the given ``group_keys_series``, drop all rows but the first of each group and adapt the column
+    'duration_qb' accordingly.
+
+
+    Args:
+        df:
+            DataFrame to be reduced, expected to contain the column ``duration_qb``. In order to use the result as a
+            segmentation, it should have a :obj:`pandas.IntervalIndex`.
+        group_keys_series:
+            Series with the same index as ``df`` that contains the group keys. If it contains NA values, the
+
+
+    Returns:
+        Reduced DataFrame with updated 'duration_qb' column and :obj:`pandas.IntervalIndex` on the first level
+        (if present).
+
+    """
+    if logger is None:
+        logger = module_logger
+    if "duration_qb" not in df.columns:
+        raise ValueError(f"DataFrame is missing the column 'duration_qb': {df.columns}")
+    if group_keys_series.isna().any():
+        logger.warning(
+            f"The group_keys_series contains {group_keys_series.isna().sum()} NA values. The corresponding rows will "
+            f"be dropped."
+        )
+    condensed = df.groupby(group_keys_series, group_keys=False).apply(
+        reduce_dataframe_duration_to_first_row
+    )
+    return condensed
 
 
 def ensure_level_named_piece(
