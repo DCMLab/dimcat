@@ -798,6 +798,14 @@ DimcatResource.__init__(
                 f"Default groupby levels already start with {new_level_name!r}: {current_default}."
             )
             new_default_value = current_default
+        elif new_level_name in current_default:
+            new_default_value = [new_level_name] + [
+                level for level in current_default if level != new_level_name
+            ]
+            self.logger.debug(
+                f"Default groupby levels already contained {new_level_name!r}, so it was moved to the first position: "
+                f"{new_default_value!r}."
+            )
         else:
             new_default_value = [new_level_name] + current_default
             self.logger.debug(

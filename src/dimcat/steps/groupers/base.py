@@ -50,6 +50,11 @@ class Grouper(FeatureProcessingStep):
 
     def _make_new_resource(self, resource: Feature) -> Feature:
         """Apply the grouper to a Feature."""
+        if self.level_name in resource.get_level_names():
+            self.logger.debug(
+                f"Resource {resource.resource_name!r} already has a level named {self.level_name!r}."
+            )
+            return resource
         result_constructor = self._get_new_resource_type(resource)
         results = self.apply_grouper(resource)
         result_name = self.resource_name_factory(resource)
@@ -100,6 +105,11 @@ class Grouper(FeatureProcessingStep):
         """Change the default_groupby value of the returned Feature."""
         result.update_default_groupby(self.level_name)
         return result
+
+
+class CorpusGrouper(Grouper):
+    def __init__(self, level_name: str = "corpus", **kwargs):
+        super().__init__(level_name=level_name, **kwargs)
 
 
 class CustomPieceGrouper(Grouper):
