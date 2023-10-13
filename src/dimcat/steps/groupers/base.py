@@ -9,6 +9,7 @@ from dimcat.data.datasets.base import Dataset
 from dimcat.data.datasets.processed import GroupedDataset
 from dimcat.data.resources.dc import DimcatIndex, DimcatResource, PieceIndex
 from dimcat.data.resources.features import Feature
+from dimcat.dc_exceptions import ResourceNotProcessableError
 from dimcat.steps.base import FeatureProcessingStep
 from dimcat.utils import check_name
 from typing_extensions import Self
@@ -69,7 +70,14 @@ class Grouper(FeatureProcessingStep):
         package_name_resource_iterator = self._iter_resources(new_dataset)
         processed_resources = defaultdict(list)
         for package_name, resource in package_name_resource_iterator:
-            new_resource = self.process_resource(resource)
+            try:
+                new_resource = self.process_resource(resource)
+            except ResourceNotProcessableError as e:
+                self.logger.warning(
+                    f"Resource {resource.resource_name!r} could not be grouped and is not included in "
+                    f"the new Dataset due to the following error: {e!r}"
+                )
+                continue
             processed_resources[package_name].append(new_resource)
         for package_name, resources in processed_resources.items():
             new_package = self._make_new_package(package_name)
