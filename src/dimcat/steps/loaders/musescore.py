@@ -7,7 +7,7 @@ from typing import Collection, Literal, Optional
 import ms3
 from dimcat.data.resources.base import PathResource
 from dimcat.dc_exceptions import NoMuseScoreExecutableSpecifiedError
-from dimcat.utils import make_valid_frictionless_name
+from dimcat.utils import make_valid_frictionless_name, resolve_path
 
 from .base import Loader, ScoreLoader
 
@@ -35,8 +35,8 @@ class MuseScoreLoader(ScoreLoader):
     @classmethod
     def from_ms3(
         cls,
-        package_name: str,
         directory: str,
+        package_name: str = None,
         as_corpus: bool = False,
         only_metadata_pieces: bool = True,
         include_convertible: bool = False,
@@ -55,7 +55,10 @@ class MuseScoreLoader(ScoreLoader):
         overwrite: bool = False,
         auto_validate: bool = True,
     ):
-        parser: ms3.Parse | ms3.Corpus = None
+        directory = resolve_path(directory)
+        if not os.path.isdir(directory):
+            raise ValueError(f"Invalid directory: {directory}")
+        parser: ms3.Parse | ms3.Corpus = None  # for type hinting
         if logger_cfg is None:
             logger_cfg = {}
         ms3_arguments = dict(
@@ -86,20 +89,25 @@ class MuseScoreLoader(ScoreLoader):
             flat=True,
             include_empty=False,
         )  # Dict[str | Tuple[str, str], List[ms3.File]]; the lists are guaranteed to have length 1
+        if package_name is None:
+            folder = os.path.basename(directory)
+            package_name = make_valid_frictionless_name(folder)
+        else:
+            package_name = make_valid_frictionless_name(package_name)
+            cls.logger.info(f"Assigned the name '{package_name}' to the package.")
         filepaths, corpus_names, piece_names = [], [], []
         if isinstance(parser, ms3.Parse):
             for ID, files in score_files.items():
                 corpus_name, piece_name = ID
-                filepaths.append(files[0])
+                first_file = files[0]
+                filepaths.append(first_file.full_path)
                 corpus_names.append(corpus_name)
                 piece_names.append(piece_name)
         else:  # ms3.Corpus
-            if package_name is None:
-                corpus_name = make_valid_frictionless_name(parser.name)
-            else:
-                corpus_name = make_valid_frictionless_name(package_name)
+            corpus_name = package_name
             for fname, files in score_files.items():
-                filepaths.append(files[0])
+                first_file = files[0]
+                filepaths.append(first_file.full_path)
                 corpus_names.append(corpus_name)
                 piece_names.append(fname)
         return cls.from_filepaths(
