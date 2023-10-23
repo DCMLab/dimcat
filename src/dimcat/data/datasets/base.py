@@ -68,7 +68,7 @@ class Dataset(Data):
         pipeline: Optional[Pipeline] = None,
         basepath: Optional[str] = None,
         **kwargs,
-    ) -> Self:
+    ) -> Dataset:
         """Instantiate by copying existing catalogs."""
         new_dataset = cls(basepath=basepath, **kwargs)
         if pipeline is not None:
@@ -80,7 +80,7 @@ class Dataset(Data):
         return new_dataset
 
     @classmethod
-    def from_dataset(cls, dataset: Dataset, **kwargs) -> Self:
+    def from_dataset(cls, dataset: Dataset, **kwargs) -> Dataset:
         """Instantiate from this Dataset by copying its fields, empty fields otherwise."""
         return cls.from_catalogs(
             inputs=dataset.inputs,
@@ -90,12 +90,12 @@ class Dataset(Data):
         )
 
     @classmethod
-    def from_loader(cls, loader: Loader) -> Self:
+    def from_loader(cls, loader: Loader) -> Dataset:
         dataset = cls() if not loader.basepath else cls(basepath=loader.basepath)
         return loader.process_dataset(dataset)
 
     @classmethod
-    def from_package(cls, package: PackageSpecs) -> Self:
+    def from_package(cls, package: PackageSpecs) -> Dataset:
         """Instantiate from a PackageSpecs by loading it into the inputs catalog."""
         dataset = cls()
         dataset.load_package(package=package)

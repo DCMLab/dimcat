@@ -567,7 +567,7 @@ def make_boolean_mask_from_set_of_tuples(
         tuples:
         levels:
 
-            * If None, the last n levels of the index are used, where n is the length of the selection tuples.
+            * If None, the first n levels of the index are used, where n is the length of the selection tuples.
             * If an iterable of integers, they are interpreted as level positions and used to create for each row a
               tuple to compare against the selected tuples.
 
@@ -599,7 +599,7 @@ def make_boolean_mask_from_set_of_tuples(
         # clean up levels argument
         is_int, is_str = isinstance(levels, int), isinstance(levels, str)
         if (is_int or is_str) and n_selection_levels > 1:
-            # only the first level was specified, select its n-1 right neightbours, too
+            # only the first level was specified, select its n-1 right neighbours, too
             if is_str:
                 position = index.names.index(levels)
             else:

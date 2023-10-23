@@ -23,6 +23,7 @@ from .base import (
     get_schema,
 )
 from .data.datasets.base import Dataset
+from .data.resources.dc import PieceIndex
 from .steps.extractors.base import FeatureExtractor  # required
 from .steps.loaders.base import PackageLoader
 from .steps.pipelines.base import Pipeline
