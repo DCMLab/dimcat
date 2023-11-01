@@ -49,10 +49,12 @@ from dimcat.dc_exceptions import (
 from dimcat.dc_warnings import PotentiallyUnrelatedDescriptorUserWarning
 from dimcat.utils import check_name
 from frictionless import FrictionlessException
+from plotly import graph_objs as go
 from typing_extensions import Self
 
 if TYPE_CHECKING:
     from dimcat.data.resources.features import Feature, FeatureName
+    from dimcat.steps.base import StepSpecs
 
 
 class UnitOfAnalysis(FriendlyEnum):
@@ -105,6 +107,7 @@ class DimcatResource(Resource, Generic[D]):
     DimcatPackage will take care of the serialization and not store an individual resource descriptor.
     """
 
+    default_analyzer: ClassVar[str] = "Proportions"
     default_value_column: Optional[ClassVar[str]] = None
     _extractable_features: Optional[ClassVar[Tuple[FeatureName, ...]]] = None
 
@@ -601,6 +604,11 @@ DimcatResource.__init__(
             return pd.DataFrame(index=grouping)
         return align_with_grouping(self.df, grouping, sort_index=sort_index)
 
+    def apply_steps(self, steps: StepSpecs | Iterable[StepSpecs]) -> DimcatResource:
+        Constructor = get_class("Pipeline")
+        pipeline = Constructor(steps=steps)
+        return pipeline.process_resource(self)
+
     def extract_feature(
         self,
         feature_config: DimcatConfig,
@@ -708,11 +716,10 @@ DimcatResource.__init__(
         smallest_unit = UnitOfAnalysis(smallest_unit)
         if smallest_unit is UnitOfAnalysis.SLICE:
             return self.get_level_names()[:-1]
-        if smallest_unit is UnitOfAnalysis.PIECE:
+        if smallest_unit in (UnitOfAnalysis.PIECE, UnitOfAnalysis.SLICE):
             return self.get_piece_index(max_levels=0).names
         if smallest_unit is UnitOfAnalysis.GROUP:
             return self.get_default_groupby()
-        raise NotImplementedError(smallest_unit)
 
     def get_index(self) -> DimcatIndex:
         """Returns the index of the resource based on the ``primaryKey`` of the :obj:`frictionless.Schema`."""
@@ -757,6 +764,14 @@ DimcatResource.__init__(
     def _make_empty_fl_resource(self):
         """Create an empty frictionless resource object with a minimal descriptor."""
         return make_tsv_resource()
+
+    def plot(
+        self, steps: Optional[StepSpecs | Iterable[StepSpecs]] = None
+    ) -> go.Figure:
+        if steps is None:
+            steps = self.default_analyzer
+        result = self.apply_steps(steps)
+        return result.plot()
 
     def set_basepath(
         self,
