@@ -129,11 +129,12 @@ class ExcludedFileExtensionError(DimcatError):
 
 
 class FeatureUnavailableError(DimcatError):
-    """optional args: (feature_name,)"""
+    """optional args: (feature_name, getting_from_name)"""
 
     nargs2message = {
         0: "A required feature is not available.",
         1: lambda name: f"Feature {name!r} is not available.",
+        2: lambda name, getting_from_name: f"{getting_from_name!r} does not bring forth the Feature {name!r}. ",
     }
 
 
