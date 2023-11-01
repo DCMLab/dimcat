@@ -1,6 +1,6 @@
 import logging
 
 from .counters import Counter
-from .pitch import PitchClassVectors
+from .proportions import PitchClassVectors
 
 logger = logging.getLogger(__name__)
