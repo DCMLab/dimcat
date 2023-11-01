@@ -11,16 +11,12 @@ from plotly import graph_objs as go
 
 logger = logging.getLogger(__name__)
 
-COLOR_SCALE_SETTINGS = dict(
-    color_continuous_scale="RdBu_r", color_continuous_midpoint=2
-)
 STD_LAYOUT = dict(
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
     margin={"l": 40, "r": 0, "b": 0, "t": 80, "pad": 0},
     font={"size": 25},
 )
-TRACES_SETTINGS = dict(marker_line_color="black")
 Y_AXIS = dict(gridcolor="lightgrey")
 X_AXIS = dict(gridcolor="lightgrey")
 
@@ -166,6 +162,7 @@ def make_bar_plot(
     x_axis: Optional[dict] = None,
     y_axis: Optional[dict] = None,
     color_axis: Optional[dict] = None,
+    traces_settings: Optional[dict] = None,
     output: Optional[str] = None,
     **kwargs,
 ) -> go.Figure:
@@ -196,10 +193,98 @@ def make_bar_plot(
         **plot_settings,
         **kwargs,
     )
-    update_figure_layout(fig, layout, x_axis, y_axis, color_axis, xaxis_type="category")
+    update_figure_layout(
+        fig=fig,
+        layout=layout,
+        x_axis=x_axis,
+        y_axis=y_axis,
+        color_axis=color_axis,
+        traces_settings=traces_settings,
+        xaxis_type="category",
+    )
     if output is not None:
         fig.write_image(output)
     return fig
+
+
+def make_bubble_plot(
+    df: pd.Series | pd.DataFrame,
+    normalize: bool = False,
+    flip: bool = False,
+    x_col: Optional[str] = None,
+    y_col: Optional[str] = None,
+    duration_column: str = "duration_qb",
+    title: Optional[str] = None,
+    labels: Optional[dict] = None,
+    hover_data: Optional[List[str]] = None,
+    width: Optional[int] = 1200,
+    height: Optional[int] = 1500,
+    layout: Optional[dict] = None,
+    x_axis: Optional[dict] = None,
+    y_axis: Optional[dict] = None,
+    color_axis: Optional[dict] = None,
+    traces_settings: Optional[dict] = None,
+    output: Optional[str] = None,
+    **kwargs,
+):
+    """
+    Expecting a long format DataFrame/Series with two index levels where the first level groups pitch class
+    distributions: Pitch classes are the second index level and the distribution values are contained in the Series
+    or the first column. Additional columns may serve, e.g. to add more hover_data fields (by passing the column name(s)
+    as keyword argument 'hover_data'.
+
+    Args:
+        x_col:
+        y_col:
+    """
+    if layout is None:
+        layout = dict()
+    xaxis_settings, yaxis_settings = dict(Y_AXIS), dict(X_AXIS)
+    if flip:
+        x_axis, y_axis = y_axis, x_axis
+        layout.update(dict(width=height, height=width, xaxis_type="category"))
+    else:
+        layout.update(dict(height=height, width=width, yaxis_type="category"))
+    if normalize:
+        if isinstance(df, pd.Series):
+            df = df.groupby(level=0, group_keys=False).apply(lambda S: S / S.sum())
+        else:
+            df.iloc[:, 0] = (
+                df.iloc[:, 0]
+                .groupby(level=0, group_keys=False)
+                .apply(lambda S: S / S.sum())
+            )
+    traces = dict(marker_line_color="black")
+    if traces_settings is not None:
+        traces.update(traces_settings)
+    if not flip:
+        yaxis_settings["autorange"] = "reversed"
+    if x_axis is not None:
+        xaxis_settings.update(x_axis)
+    if y_axis is not None:
+        yaxis_settings.update(y_axis)
+    c_axis = dict(showscale=False)
+    if color_axis is not None:
+        c_axis.update(color_axis)
+    return make_scatter_plot(
+        df=df,
+        x_col=x_col,
+        y_col=y_col,
+        title=title,
+        labels=labels,
+        hover_data=hover_data,
+        height=height,
+        width=width,
+        layout=layout,
+        x_axis=xaxis_settings,
+        y_axis=yaxis_settings,
+        color_axis=c_axis,
+        traces_settings=traces,
+        output=output,
+        # **kwargs:
+        size=duration_column,
+        **kwargs,
+    )
 
 
 def make_scatter_plot(
@@ -221,6 +306,7 @@ def make_scatter_plot(
     x_axis: Optional[dict] = None,
     y_axis: Optional[dict] = None,
     color_axis: Optional[dict] = None,
+    traces_settings: Optional[dict] = None,
     output: Optional[str] = None,
     **kwargs,
 ) -> go.Figure:
@@ -251,10 +337,78 @@ def make_scatter_plot(
         **plot_settings,
         **kwargs,
     )
-    update_figure_layout(fig, layout, x_axis, y_axis, color_axis)
+    update_figure_layout(
+        fig=fig,
+        layout=layout,
+        x_axis=x_axis,
+        y_axis=y_axis,
+        color_axis=color_axis,
+        traces_settings=traces_settings,
+    )
     if output is not None:
         fig.write_image(output)
     return fig
+
+
+def make_tpc_bubble_plot(
+    df: pd.Series | pd.DataFrame,
+    normalize: bool = False,
+    flip: bool = False,
+    x_col: Optional[str] = "tpc",
+    y_col: Optional[str] = "piece",
+    duration_column: str = "duration_qb",
+    title="Pitch class durations",
+    labels: Optional[dict] = None,
+    hover_data: Optional[List[str]] = None,
+    width: Optional[int] = 1200,
+    height: Optional[int] = 1500,
+    layout: Optional[dict] = None,
+    x_axis: Optional[dict] = None,
+    y_axis: Optional[dict] = None,
+    color_axis: Optional[dict] = None,
+    traces_settings: Optional[dict] = None,
+    output: Optional[str] = None,
+    **kwargs,
+):
+    """
+    Expecting a long format DataFrame/Series with two index levels where the first level groups pitch class
+    distributions: Pitch classes are the second index level and the distribution values are contained in the Series
+    or the first column. Additional columns may serve, e.g. to add more hover_data fields (by passing the column name(s)
+    as keyword argument 'hover_data'.
+    """
+    df = df.reset_index()
+    tpc_names = ms3.fifths2name(df[x_col].to_list())
+    df["pitch class"] = tpc_names
+    if hover_data is None:
+        hover_data = []
+    elif isinstance(hover_data, str):
+        hover_data = [hover_data]
+    hover_data.append("pitch class")
+    color_col = x_col
+    return make_bubble_plot(
+        df=df,
+        normalize=normalize,
+        flip=flip,
+        x_col=x_col,
+        y_col=y_col,
+        duration_column=duration_column,
+        title=title,
+        labels=labels,
+        hover_data=hover_data,
+        width=width,
+        height=height,
+        layout=layout,
+        x_axis=x_axis,
+        y_axis=y_axis,
+        color_axis=color_axis,
+        traces_settings=traces_settings,
+        output=output,
+        # **kwargs:
+        color=color_col,
+        color_continuous_scale="RdBu_r",
+        color_continuous_midpoint=2,
+        **kwargs,
+    )
 
 
 def plot_pitch_class_distribution(
@@ -291,101 +445,13 @@ def plot_pitch_class_distribution(
     )
 
 
-def tpc_bubbles(
-    df: pd.Series | pd.DataFrame,
-    normalize=True,
-    width=1200,
-    height=1500,
-    title="Pitch class durations",
-    duration_column="duration_qb",
-    x_axis=None,
-    y_axis=None,
-    labels=None,
-    output=None,
-    flip=False,
-    modin=False,
-    layout: Optional[dict] = None,
-    **kwargs,
-):
-    """
-    Expecting a long format DataFrame/Series with two index levels where the first level groups pitch class
-    distributions: Pitch classes are the second index level and the distribution values are contained in the Series
-    or the first column. Additional columns may serve, e.g. to add more hover_data fields (by passing the column name(s)
-    as keyword argument 'hover_data'.
-    """
-    if layout is None:
-        layout = dict(STD_LAYOUT)
-
-    xaxis_settings, yaxis_settings = dict(Y_AXIS), dict(X_AXIS)
-    if flip:
-        if modin:
-            x, y = 1, 2
-        else:
-            *_, x, y = df.index.names
-        color_col = y
-        x_axis, y_axis = y_axis, x_axis
-        layout.update(dict(width=height, height=width, xaxis_type="category"))
-    else:
-        if modin:
-            x, y = 2, 1
-        else:
-            *_, y, x = df.index.names
-        color_col = x
-        layout.update(dict(height=height, width=width, yaxis_type="category"))
-    if normalize:
-        if isinstance(df, pd.Series):
-            df = df.groupby(level=0, group_keys=False).apply(lambda S: S / S.sum())
-        else:
-            df.iloc[:, 0] = (
-                df.iloc[:, 0]
-                .groupby(level=0, group_keys=False)
-                .apply(lambda S: S / S.sum())
-            )
-        title = "Normalized " + title
-    df = df.reset_index()
-    if modin:
-        size_column = 2
-    else:
-        size_column = duration_column
-    tpc_names = ms3.fifths2name(list(df.tpc))
-    df["pitch class"] = tpc_names
-    hover_data = kwargs.pop("hover_data", [])
-    if isinstance(hover_data, str):
-        hover_data = [hover_data]
-    hover_data += ["pitch class"]
-    fig = px.scatter(
-        df,
-        x=x,
-        y=y,
-        size=size_column,
-        color=color_col,
-        **COLOR_SCALE_SETTINGS,
-        labels=labels,
-        title=title,
-        hover_data=hover_data,
-        **kwargs,
-    )
-    fig.update_traces(TRACES_SETTINGS)
-
-    if not flip:
-        yaxis_settings["autorange"] = "reversed"
-    if x_axis is not None:
-        xaxis_settings.update(x_axis)
-    if y_axis is not None:
-        yaxis_settings.update(y_axis)
-    fig.update_layout(xaxis=xaxis_settings, yaxis=yaxis_settings, **layout)
-    fig.update_coloraxes(showscale=False)
-    if output is not None:
-        fig.write_image(output)
-    return fig
-
-
 def update_figure_layout(
     fig: go.Figure,
     layout: Optional[dict] = None,
     x_axis: Optional[dict] = None,
     y_axis: Optional[dict] = None,
     color_axis: Optional[dict] = None,
+    traces_settings: Optional[dict] = None,
     **kwargs,
 ):
     figure_layout = dict(STD_LAYOUT)
@@ -406,3 +472,6 @@ def update_figure_layout(
 
     if color_axis is not None:
         fig.update_coloraxes(color_axis)
+
+    if traces_settings is not None:
+        fig.update_traces(traces_settings)
