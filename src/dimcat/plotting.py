@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Iterable, Optional
+from typing import Iterable, List, Optional
 
 import ms3
 import pandas as pd
@@ -40,7 +40,7 @@ GROUPMODE2BAR_PLOT_SETTING = {
 }
 
 
-def fifths_bar_plot(
+def plot_fifths_distribution(
     bar_data,
     x_col="tpc",
     y_col="duration_qb",
@@ -49,35 +49,20 @@ def fifths_bar_plot(
     fifth_transform=ms3.fifths2name,
     shift_color_midpoint=2,
     showlegend=False,
-    width=1500,
-    height=400,
+    width=1620,
+    height=800,
     output=None,
     **kwargs,
 ):
     """bar_data with x_col ('tpc'), y_col ('duration_qb')"""
 
-    color_values = list(bar_data[x_col])
     if labels is None:
         labels = {str(x_col): "Tonal pitch class", str(y_col): "Duration in ♩"}
-    fig = px.bar(
-        bar_data,
-        x=x_col,
-        y=y_col,
-        title=title,
-        labels=labels,
-        color=color_values,
-        color_continuous_scale="RdBu_r",
-        color_continuous_midpoint=shift_color_midpoint,
-        width=width,
-        height=height,
-        **kwargs,
-    )
+    color_values = list(bar_data[x_col])
     x_values = list(set(color_values))
     x_names = list(map(fifth_transform, x_values))
-    fig.update_coloraxes(showscale=False)
-    fig.update_layout(**STD_LAYOUT, showlegend=showlegend)
-    fig.update_yaxes(gridcolor="lightgrey")
-    fig.update_xaxes(
+    layout = dict(showlegend=showlegend)
+    x_axis = dict(
         gridcolor="lightgrey",
         zerolinecolor="grey",
         tickmode="array",
@@ -88,9 +73,24 @@ def fifths_bar_plot(
         tickcolor="black",
         minor=dict(dtick=6, gridcolor="grey", showgrid=True),
     )
-    if output is not None:
-        fig.write_image(output)
-    return fig
+    return make_bar_plot(
+        bar_data,
+        x_col=x_col,
+        y_col=y_col,
+        title=title,
+        labels=labels,
+        layout=layout,
+        x_axis=x_axis,
+        color_axis=dict(showscale=False),
+        height=height,
+        width=width,
+        output=output,
+        # **kwargs:
+        color=color_values,
+        color_continuous_scale="RdBu_r",
+        color_continuous_midpoint=shift_color_midpoint,
+        **kwargs,
+    )
 
 
 def get_pitch_class_distribution(
@@ -109,12 +109,20 @@ def make_bar_plot(
     y_col: Optional[str] = None,
     group_cols: Optional[str | Iterable[str]] = None,
     group_modes: Iterable[GroupMode] = (
-        GroupMode.AXIS,
         GroupMode.COLOR,
         GroupMode.ROWS,
         GroupMode.COLUMNS,
     ),
+    title: Optional[str] = None,
+    labels: Optional[dict] = None,
+    hover_data: Optional[List[str]] = None,
     layout: Optional[dict] = None,
+    x_axis: Optional[dict] = None,
+    y_axis: Optional[dict] = None,
+    color_axis: Optional[dict] = None,
+    height: Optional[int] = None,
+    width: Optional[int] = None,
+    output: Optional[str] = None,
     **kwargs,
 ) -> go.Figure:
     """
@@ -129,8 +137,17 @@ def make_bar_plot(
     df = df.reset_index()
     if y_col is None:
         y_col = df.columns[-1]
-    plot_settings = dict(y=y_col, hover_data=["corpus", "piece"], height=500)
+    plot_settings = dict(
+        title=title,
+        y=y_col,
+        labels=labels,
+        hover_data=hover_data,
+        height=height,
+        width=width,
+    )
     if group_cols is not None:
+        if isinstance(group_cols, str):
+            group_cols = [group_cols]
         for group_col, group_mode in zip(group_cols, group_modes):
             setting_key = GROUPMODE2BAR_PLOT_SETTING[group_mode]
             if setting_key in plot_settings:
@@ -149,12 +166,21 @@ def make_bar_plot(
         **plot_settings,
         **kwargs,
     )
-    figure_layout = dict(
-        xaxis_type="category",  # prevent Plotly from interpreting values as dates
-    )
+    figure_layout = dict(STD_LAYOUT, xaxis_type="category")
     if layout is not None:
         figure_layout.update(layout)
+    xaxis_settings, yaxis_settings = dict(Y_AXIS), dict(X_AXIS)
+    if x_axis is not None:
+        xaxis_settings.update(x_axis)
+    if y_axis is not None:
+        yaxis_settings.update(y_axis)
+    if color_axis is not None:
+        fig.update_coloraxes(color_axis)
     fig.update_layout(figure_layout)
+    fig.update_xaxes(xaxis_settings)
+    fig.update_yaxes(yaxis_settings)
+    if output is not None:
+        fig.write_image(output)
     return fig
 
 
@@ -179,7 +205,7 @@ def plot_pitch_class_distribution(
         x_col, y_col = 0, 1
     else:
         x_col, y_col = pitch_column, duration_column
-    return fifths_bar_plot(
+    return plot_fifths_distribution(
         bar_data=bar_data,
         x_col=x_col,
         y_col=y_col,
