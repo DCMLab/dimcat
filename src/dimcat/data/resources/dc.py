@@ -105,6 +105,7 @@ class DimcatResource(Resource, Generic[D]):
     DimcatPackage will take care of the serialization and not store an individual resource descriptor.
     """
 
+    default_value_column: Optional[ClassVar[str]] = None
     _extractable_features: Optional[ClassVar[Tuple[FeatureName, ...]]] = None
 
     @classmethod
@@ -399,6 +400,7 @@ DimcatResource.__init__(
         self._df: D = None
         self.auto_validate = True if auto_validate else False  # catches None
         self._default_groupby: List[str] = []
+        self._value_column: Optional[str] = None
         super().__init__(
             resource=resource,
             descriptor_filename=descriptor_filename,
@@ -565,6 +567,23 @@ DimcatResource.__init__(
         if self.is_serialized:
             return True
         return super().is_valid
+
+    @property
+    def value_column(self) -> str:
+        """The name of the column that contains the values of the resource. May depend on format
+        settings.
+        """
+        if self._value_column is not None:
+            return self._value_column
+        if self.default_value_column is not None:
+            return self.default_value_column
+        return self.column_schema.field_names[-1]
+
+    @value_column.setter
+    def value_column(self, value_column: str):
+        if not isinstance(value_column, str):
+            raise TypeError(f"Expected a string, got {type(value_column)}")
+        self._value_column = value_column
 
     def align_with_grouping(
         self,

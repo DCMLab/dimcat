@@ -568,6 +568,8 @@ class NotesFormat(str, Enum):
 
 
 class Notes(Feature):
+    default_value_column = "tpc"
+
     class Schema(Feature.Schema):
         format = mm.fields.Enum(NotesFormat)
         merge_ties = mm.fields.Boolean(
