@@ -19,7 +19,7 @@ import frictionless as fl
 import marshmallow as mm
 import ms3
 import pandas as pd
-from dimcat.base import FriendlyEnum, get_setting
+from dimcat.base import DimcatConfig, FriendlyEnum, get_class, get_setting
 from dimcat.data.base import Data
 from dimcat.data.resources.base import (
     IX,
@@ -41,6 +41,7 @@ from dimcat.data.resources.utils import (
 )
 from dimcat.dc_exceptions import (
     BasePathNotDefinedError,
+    FeatureUnavailableError,
     FilePathNotDefinedError,
     PotentiallyUnrelatedDescriptorError,
     ResourceIsFrozenError,
@@ -51,7 +52,7 @@ from frictionless import FrictionlessException
 from typing_extensions import Self
 
 if TYPE_CHECKING:
-    from dimcat.data.resources.features import FeatureName
+    from dimcat.data.resources.features import Feature, FeatureName
 
 
 class UnitOfAnalysis(FriendlyEnum):
@@ -580,6 +581,31 @@ DimcatResource.__init__(
             self.logger.warning(f"Resource {self.name} is empty.")
             return pd.DataFrame(index=grouping)
         return align_with_grouping(self.df, grouping, sort_index=sort_index)
+
+    def extract_feature(
+        self,
+        feature_config: DimcatConfig,
+        new_name: Optional[str] = None,
+    ) -> Feature:
+        feature_name = feature_config.options_dtype
+        if feature_name not in self.extractable_features:
+            raise FeatureUnavailableError(feature_name, self.resource_name)
+        # ToDo: here we'll have a method for checking the compatibility of the requested Config settings
+        return self._extract_feature(feature_config=feature_config, new_name=new_name)
+
+    def _extract_feature(
+        self,
+        feature_config: DimcatConfig,
+        new_name: Optional[str] = None,
+    ) -> Feature:
+        """The internal part of the feature extraction that subclasses can override to perform certain transformations
+        necessary for creating the Feature.
+        """
+        feature_name = feature_config.options_dtype
+        Constructor = get_class(feature_name)
+        if new_name is None:
+            new_name = f"{self.resource_name}.{feature_name.lower()}"
+        return Constructor.from_resource(self, resource_name=new_name)
 
     def _get_current_status(self) -> ResourceStatus:
         if self.is_packaged:

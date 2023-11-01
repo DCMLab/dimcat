@@ -1072,10 +1072,8 @@ class Package(Data):
             raise NotImplementedError(
                 f"More than one facet allow for extracting {feature_name!r}."
             )
-        Klass = feature_name.get_class()
         selected_facet = candidate_facets[0]
-        new_name = f"{selected_facet.resource_name}.{feature_name.value.lower()}"
-        return Klass.from_resource(selected_facet, resource_name=new_name)
+        return selected_facet._extract_feature(feature_config)
 
     def get_descriptor_path(
         self,
