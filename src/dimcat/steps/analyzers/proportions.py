@@ -3,7 +3,7 @@ import logging
 from dimcat.data.resources.base import SomeDataframe, SomeSeries
 from dimcat.data.resources.dc import DimcatResource
 from dimcat.data.resources.features import Feature, FeatureName
-from dimcat.data.resources.results import Durations
+from dimcat.data.resources.results import Durations, PitchClassDurations
 from dimcat.steps.analyzers.base import Analyzer
 
 logger = logging.getLogger(__name__)
@@ -41,6 +41,7 @@ class Proportions(Analyzer):
 
 class PitchClassVectors(Proportions):
     allowed_features = (FeatureName.Notes,)
+    new_resource_type = PitchClassDurations
 
     def resource_name_factory(self, resource: DimcatResource) -> str:
         """Returns a name for the resource based on its name and the name of the pipeline step."""

@@ -4,7 +4,7 @@ import logging
 from typing import Optional
 
 from dimcat.base import ObjectEnum
-from dimcat.plotting import make_bar_plot, tpc_bubbles
+from dimcat.plotting import make_bar_plot, make_bubble_plot, make_tpc_bubble_plot
 from plotly import graph_objs as go
 
 from .dc import DimcatResource
@@ -62,11 +62,28 @@ class Durations(Result):
         normalized = self.df.groupby(groups, group_keys=False).apply(
             lambda S: S / S.sum()
         )
-        title = "Normalized pitch class durations"
-        return tpc_bubbles(
-            normalized,
-            title=title,
-            duration_column="duration_qb",
-            layout=layout,
-            **kwargs,
+        df = normalized.reset_index()
+        x_col = df.columns[-2]
+        y_col = groups[-1]
+        title = f"Normalized {x_col} durations"
+        return make_bubble_plot(
+            df=df, x_col=x_col, y_col=y_col, title=title, layout=layout, **kwargs
         )
+
+
+class PitchClassDurations(Durations):
+    def make_bubble_plot(self, layout: Optional[dict] = None, **kwargs) -> go.Figure:
+        """
+
+        Args:
+            layout: Keyword arguments passed to fig.update_layout()
+            **kwargs: Keyword arguments passed to the Plotly plotting function.
+
+        Returns:
+            A Plotly Figure object.
+        """
+        groups = self.get_grouping_levels()
+        normalized = self.df.groupby(groups, group_keys=False).apply(
+            lambda S: S / S.sum()
+        )
+        return make_tpc_bubble_plot(df=normalized, layout=layout, **kwargs)
