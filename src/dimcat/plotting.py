@@ -103,7 +103,7 @@ def get_pitch_class_distribution(
     )
 
 
-def make_bar_plot(
+def make_plot_settings(
     df: pd.DataFrame,
     x_col: Optional[str] = None,
     y_col: Optional[str] = None,
@@ -116,25 +116,11 @@ def make_bar_plot(
     title: Optional[str] = None,
     labels: Optional[dict] = None,
     hover_data: Optional[List[str]] = None,
-    layout: Optional[dict] = None,
-    x_axis: Optional[dict] = None,
-    y_axis: Optional[dict] = None,
-    color_axis: Optional[dict] = None,
     height: Optional[int] = None,
     width: Optional[int] = None,
-    output: Optional[str] = None,
-    **kwargs,
-) -> go.Figure:
-    """
-
-    Args:
-        layout: Keyword arguments passed to fig.update_layout()
-        **kwargs: Keyword arguments passed to the Plotly plotting function.
-
-    Returns:
-        A Plotly Figure object.
-    """
-    df = df.reset_index()
+):
+    if x_col is None:
+        x_col = df.columns[-2]
     if y_col is None:
         y_col = df.columns[-1]
     plot_settings = dict(
@@ -157,28 +143,115 @@ def make_bar_plot(
                 )
             plot_settings[setting_key] = group_col
     if "x" not in plot_settings:
-        if x_col is None:
-            plot_settings["x"] = df.columns[-2]
-        else:
-            plot_settings["x"] = x_col
+        plot_settings["x"] = x_col
+    return plot_settings
+
+
+def make_bar_plot(
+    df: pd.DataFrame,
+    x_col: Optional[str] = None,
+    y_col: Optional[str] = None,
+    group_cols: Optional[str | Iterable[str]] = None,
+    group_modes: Iterable[GroupMode] = (
+        GroupMode.COLOR,
+        GroupMode.ROWS,
+        GroupMode.COLUMNS,
+    ),
+    title: Optional[str] = None,
+    labels: Optional[dict] = None,
+    hover_data: Optional[List[str]] = None,
+    height: Optional[int] = None,
+    width: Optional[int] = None,
+    layout: Optional[dict] = None,
+    x_axis: Optional[dict] = None,
+    y_axis: Optional[dict] = None,
+    color_axis: Optional[dict] = None,
+    output: Optional[str] = None,
+    **kwargs,
+) -> go.Figure:
+    """
+
+    Args:
+        layout: Keyword arguments passed to fig.update_layout()
+        **kwargs: Keyword arguments passed to the Plotly plotting function.
+
+    Returns:
+        A Plotly Figure object.
+    """
+    df = df.reset_index()
+    plot_settings = make_plot_settings(
+        df=df,
+        x_col=x_col,
+        y_col=y_col,
+        group_cols=group_cols,
+        group_modes=group_modes,
+        title=title,
+        labels=labels,
+        hover_data=hover_data,
+        height=height,
+        width=width,
+    )
     fig = px.bar(
         df,
         **plot_settings,
         **kwargs,
     )
-    figure_layout = dict(STD_LAYOUT, xaxis_type="category")
-    if layout is not None:
-        figure_layout.update(layout)
-    xaxis_settings, yaxis_settings = dict(Y_AXIS), dict(X_AXIS)
-    if x_axis is not None:
-        xaxis_settings.update(x_axis)
-    if y_axis is not None:
-        yaxis_settings.update(y_axis)
-    if color_axis is not None:
-        fig.update_coloraxes(color_axis)
-    fig.update_layout(figure_layout)
-    fig.update_xaxes(xaxis_settings)
-    fig.update_yaxes(yaxis_settings)
+    update_figure_layout(fig, layout, x_axis, y_axis, color_axis, xaxis_type="category")
+    if output is not None:
+        fig.write_image(output)
+    return fig
+
+
+def make_scatter_plot(
+    df: pd.DataFrame,
+    x_col: Optional[str] = None,
+    y_col: Optional[str] = None,
+    group_cols: Optional[str | Iterable[str]] = None,
+    group_modes: Iterable[GroupMode] = (
+        GroupMode.COLOR,
+        GroupMode.ROWS,
+        GroupMode.COLUMNS,
+    ),
+    title: Optional[str] = None,
+    labels: Optional[dict] = None,
+    hover_data: Optional[List[str]] = None,
+    height: Optional[int] = None,
+    width: Optional[int] = None,
+    layout: Optional[dict] = None,
+    x_axis: Optional[dict] = None,
+    y_axis: Optional[dict] = None,
+    color_axis: Optional[dict] = None,
+    output: Optional[str] = None,
+    **kwargs,
+) -> go.Figure:
+    """
+
+    Args:
+        layout: Keyword arguments passed to fig.update_layout()
+        **kwargs: Keyword arguments passed to the Plotly plotting function.
+
+    Returns:
+        A Plotly Figure object.
+    """
+    df = df.reset_index()
+    plot_settings = make_plot_settings(
+        df=df,
+        x_col=x_col,
+        y_col=y_col,
+        group_cols=group_cols,
+        group_modes=group_modes,
+        title=title,
+        labels=labels,
+        hover_data=hover_data,
+        height=height,
+        width=width,
+    )
+    fig = px.scatter(
+        df,
+        **plot_settings,
+        **kwargs,
+    )
+    update_figure_layout(fig, layout, x_axis, y_axis, color_axis)
     if output is not None:
         fig.write_image(output)
     return fig
@@ -305,3 +378,31 @@ def tpc_bubbles(
     if output is not None:
         fig.write_image(output)
     return fig
+
+
+def update_figure_layout(
+    fig: go.Figure,
+    layout: Optional[dict] = None,
+    x_axis: Optional[dict] = None,
+    y_axis: Optional[dict] = None,
+    color_axis: Optional[dict] = None,
+    **kwargs,
+):
+    figure_layout = dict(STD_LAYOUT)
+    if layout is not None:
+        figure_layout.update(layout)
+    if len(kwargs) > 0:
+        figure_layout.update(kwargs)
+    fig.update_layout(**figure_layout)
+    xaxis_settings = dict(Y_AXIS)
+    if x_axis is not None:
+        xaxis_settings.update(x_axis)
+    fig.update_xaxes(**xaxis_settings)
+
+    yaxis_settings = dict(X_AXIS)
+    if y_axis is not None:
+        yaxis_settings.update(y_axis)
+    fig.update_yaxes(**yaxis_settings)
+
+    if color_axis is not None:
+        fig.update_coloraxes(color_axis)
