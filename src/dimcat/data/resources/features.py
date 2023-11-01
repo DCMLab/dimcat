@@ -36,6 +36,7 @@ logger = logging.getLogger(__name__)
 
 class FeatureName(ObjectEnum):
     Annotations = "Annotations"
+    Articulation = "Articulation"
     BassNotes = "BassNotes"
     HarmonyLabels = "HarmonyLabels"
     KeyAnnotations = "KeyAnnotations"
@@ -460,74 +461,6 @@ class Metadata(Feature):
     pass
 
 
-# region Notes
-
-
-class NotesFormat(str, Enum):
-    NAME = "NAME"
-    FIFTHS = "FIFTHS"
-    MIDI = "MIDI"
-    DEGREE = "DEGREE"
-    INTERVAL = "INTERVAL"
-
-
-class Notes(Feature):
-    class Schema(Feature.Schema):
-        format = mm.fields.Enum(NotesFormat)
-        merge_ties = mm.fields.Boolean(
-            load_default=True,
-            metadata=dict(
-                title="Merge tied notes",
-                description="If set, notes that are tied together in the score are merged together, counting them "
-                "as a single event of the corresponding length. Otherwise, every note head is counted.",
-            ),
-        )
-        weight_grace_notes = mm.fields.Float(
-            load_default=0.0,
-            validate=mm.validate.Range(min=0.0, max=1.0),
-            metadata=dict(
-                title="Weight grace notes",
-                description="Set a factor > 0.0 to multiply the nominal duration of grace notes which, otherwise, have "
-                "duration 0 and are therefore excluded from many statistics.",
-            ),
-        )
-
-    def __init__(
-        self,
-        format: NotesFormat = NotesFormat.NAME,
-        merge_ties: bool = True,
-        weight_grace_notes: float = 0.0,
-        resource: Optional[fl.Resource | str] = None,
-        descriptor_filename: Optional[str] = None,
-        basepath: Optional[str] = None,
-        auto_validate: bool = True,
-        default_groupby: Optional[str | list[str]] = None,
-    ) -> None:
-        super().__init__(
-            resource=resource,
-            descriptor_filename=descriptor_filename,
-            basepath=basepath,
-            auto_validate=auto_validate,
-            default_groupby=default_groupby,
-        )
-        self._format = NotesFormat(format)
-        self._merge_ties = bool(merge_ties)
-        self._weight_grace_notes = float(weight_grace_notes)
-
-    @property
-    def format(self) -> NotesFormat:
-        return self._format
-
-    @property
-    def merge_ties(self) -> bool:
-        return self._merge_ties
-
-    @property
-    def weight_grace_notes(self) -> float:
-        return self._weight_grace_notes
-
-
-# endregion Notes
 # region Annotations
 
 
@@ -615,12 +548,88 @@ class KeyAnnotations(Annotations):
 
 
 # endregion Annotations
-# region Measures
+# region Controls
+
+
+class Articulation(Feature):
+    pass
+
+
+# endregion Controls
+# region Events
+
+
+class NotesFormat(str, Enum):
+    NAME = "NAME"
+    FIFTHS = "FIFTHS"
+    MIDI = "MIDI"
+    DEGREE = "DEGREE"
+    INTERVAL = "INTERVAL"
+
+
+class Notes(Feature):
+    class Schema(Feature.Schema):
+        format = mm.fields.Enum(NotesFormat)
+        merge_ties = mm.fields.Boolean(
+            load_default=True,
+            metadata=dict(
+                title="Merge tied notes",
+                description="If set, notes that are tied together in the score are merged together, counting them "
+                "as a single event of the corresponding length. Otherwise, every note head is counted.",
+            ),
+        )
+        weight_grace_notes = mm.fields.Float(
+            load_default=0.0,
+            validate=mm.validate.Range(min=0.0, max=1.0),
+            metadata=dict(
+                title="Weight grace notes",
+                description="Set a factor > 0.0 to multiply the nominal duration of grace notes which, otherwise, have "
+                "duration 0 and are therefore excluded from many statistics.",
+            ),
+        )
+
+    def __init__(
+        self,
+        format: NotesFormat = NotesFormat.NAME,
+        merge_ties: bool = True,
+        weight_grace_notes: float = 0.0,
+        resource: Optional[fl.Resource | str] = None,
+        descriptor_filename: Optional[str] = None,
+        basepath: Optional[str] = None,
+        auto_validate: bool = True,
+        default_groupby: Optional[str | list[str]] = None,
+    ) -> None:
+        super().__init__(
+            resource=resource,
+            descriptor_filename=descriptor_filename,
+            basepath=basepath,
+            auto_validate=auto_validate,
+            default_groupby=default_groupby,
+        )
+        self._format = NotesFormat(format)
+        self._merge_ties = bool(merge_ties)
+        self._weight_grace_notes = float(weight_grace_notes)
+
+    @property
+    def format(self) -> NotesFormat:
+        return self._format
+
+    @property
+    def merge_ties(self) -> bool:
+        return self._merge_ties
+
+    @property
+    def weight_grace_notes(self) -> float:
+        return self._weight_grace_notes
+
+
+# endregion Events
+# region Structure
 class Measures(Feature):
     pass
 
 
-# endregion Measures
+# endregion Structure
 # region helpers
 
 FeatureSpecs: TypeAlias = Union[MutableMapping, Feature, FeatureName, str]

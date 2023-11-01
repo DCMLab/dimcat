@@ -9,6 +9,7 @@ from typing_extensions import Self
 
 
 class MuseScoreFacetName(ObjectEnum):
+    MuseScoreChords = "MuseScoreChords"
     MuseScoreFacet = "MuseScoreFacet"
     MuseScoreHarmonies = "MuseScoreHarmonies"
     MuseScoreMeasures = "MuseScoreMeasures"
@@ -22,6 +23,22 @@ class Facet(DimcatResource):
     based on which configuration options.
     """
 
+    pass
+
+
+class EventsFacet(Facet):
+    pass
+
+
+class ControlsFacet(Facet):
+    pass
+
+
+class AnnotationsFacet(Facet):
+    pass
+
+
+class StructureFacet(Facet):
     pass
 
 
@@ -52,6 +69,7 @@ class MuseScoreFacet(Facet):
             else:
                 fl_resource = fl.Resource.from_descriptor(descriptor)
             facet_name2constructor = dict(
+                chords=MuseScoreChords,
                 expanded=MuseScoreHarmonies,
                 harmonies=MuseScoreHarmonies,
                 measures=MuseScoreMeasures,
@@ -91,13 +109,17 @@ class MuseScoreFacet(Facet):
         )
 
 
-class MuseScoreHarmonies(MuseScoreFacet):
+class MuseScoreChords(MuseScoreFacet, ControlsFacet):
+    _extractable_features = (FeatureName.Articulation,)
+
+
+class MuseScoreHarmonies(MuseScoreFacet, AnnotationsFacet):
     _extractable_features = HARMONY_FEATURE_NAMES
 
 
-class MuseScoreMeasures(MuseScoreFacet):
+class MuseScoreMeasures(MuseScoreFacet, StructureFacet):
     _extractable_features = (FeatureName.Measures,)
 
 
-class MuseScoreNotes(MuseScoreFacet):
+class MuseScoreNotes(MuseScoreFacet, EventsFacet):
     _extractable_features = (FeatureName.Notes,)
