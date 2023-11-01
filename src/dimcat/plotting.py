@@ -205,6 +205,7 @@ def tpc_bubbles(
     output=None,
     flip=False,
     modin=False,
+    layout: Optional[dict] = None,
     **kwargs,
 ):
     """
@@ -213,24 +214,25 @@ def tpc_bubbles(
     or the first column. Additional columns may serve, e.g. to add more hover_data fields (by passing the column name(s)
     as keyword argument 'hover_data'.
     """
-    layout = dict(STD_LAYOUT)
+    if layout is None:
+        layout = dict(STD_LAYOUT)
+
+    xaxis_settings, yaxis_settings = dict(Y_AXIS), dict(X_AXIS)
     if flip:
         if modin:
             x, y = 1, 2
         else:
             *_, x, y = df.index.names
-        xaxis_settings, yaxis_settings = dict(Y_AXIS), dict(X_AXIS)
         color_col = y
         x_axis, y_axis = y_axis, x_axis
-        layout.update(dict(width=height, height=width))
+        layout.update(dict(width=height, height=width, xaxis_type="category"))
     else:
         if modin:
             x, y = 2, 1
         else:
             *_, y, x = df.index.names
-        xaxis_settings, yaxis_settings = dict(X_AXIS), dict(Y_AXIS)
         color_col = x
-        layout.update(dict(height=height, width=width))
+        layout.update(dict(height=height, width=width, yaxis_type="category"))
     if normalize:
         if isinstance(df, pd.Series):
             df = df.groupby(level=0, group_keys=False).apply(lambda S: S / S.sum())

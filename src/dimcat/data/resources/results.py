@@ -63,4 +63,10 @@ class Durations(Result):
             lambda S: S / S.sum()
         )
         title = "Normalized pitch class durations"
-        return tpc_bubbles(normalized, title=title, layout=layout, **kwargs)
+        return tpc_bubbles(
+            normalized,
+            title=title,
+            duration_column="duration_qb",
+            layout=layout,
+            **kwargs,
+        )
