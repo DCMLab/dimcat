@@ -19,6 +19,7 @@ from typing import (
     Literal,
     MutableMapping,
     Optional,
+    Tuple,
     Type,
     overload,
 )
@@ -625,6 +626,15 @@ def is_name_of_dimcat_class(name) -> bool:
         return True
     except KeyError:
         return False
+
+
+@cache
+def is_instance_of(obj, class_or_tuple: Type | Tuple[Type | str, ...]):
+    """Returns True if the given object is an instance of the given class or one of the given classes."""
+    if not isinstance(class_or_tuple, tuple):
+        class_or_tuple = (class_or_tuple,)
+    classes = tuple(get_class(c) if isinstance(c, str) else c for c in class_or_tuple)
+    return isinstance(obj, classes)
 
 
 @cache
