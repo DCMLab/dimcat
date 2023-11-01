@@ -16,6 +16,7 @@ from typing import (
 
 import frictionless as fl
 import marshmallow as mm
+import ms3
 from dimcat.base import DimcatConfig, ObjectEnum, get_class, get_setting, is_subclass_of
 from dimcat.data.resources.base import D, ResourceStatus
 from dimcat.data.resources.dc import DimcatResource
@@ -30,6 +31,7 @@ from dimcat.dc_exceptions import (
     ResourceIsMissingFeatureColumnError,
     ResourceNotProcessableError,
 )
+from dimcat.plotting import plot_pitch_class_distribution
 
 logger = logging.getLogger(__name__)
 
@@ -623,6 +625,29 @@ class Notes(Feature):
     @property
     def weight_grace_notes(self) -> float:
         return self._weight_grace_notes
+
+    def plot(
+        self,
+        title="Pitch class distribution",
+        fifths_transform=ms3.fifths2name,
+        width=1500,
+        height=500,
+        labels=None,
+        modin=False,
+        output=None,
+    ):
+        return plot_pitch_class_distribution(
+            df=self.df,
+            pitch_column=self.value_column,
+            duration_column="duration_qb",
+            title=title,
+            fifths_transform=fifths_transform,
+            width=width,
+            height=height,
+            labels=labels,
+            modin=modin,
+            output=output,
+        )
 
 
 # endregion Events
