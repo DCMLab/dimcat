@@ -4,11 +4,10 @@ import logging
 from typing import Optional
 
 from dimcat.base import ObjectEnum
-from plotly import express as px
+from dimcat.plotting import make_bar_plot, tpc_bubbles
 from plotly import graph_objs as go
 
 from .dc import DimcatResource
-from .plotting import tpc_bubbles
 
 logger = logging.getLogger(__name__)
 
@@ -36,25 +35,13 @@ class Result(DimcatResource):
         Returns:
             A Plotly Figure object.
         """
-        groups = self.get_default_groupby()
-        if len(groups) > 0 and "color" not in kwargs:
-            kwargs["color"] = groups[0]
-        df = self.df.reset_index()
-        fig = px.bar(
-            df,
-            x=df.columns[-2],
-            y=df.columns[-1],
-            hover_data=["corpus", "piece"],
-            height=500,
+        group_cols = self.get_default_groupby()
+        return make_bar_plot(
+            df=self.df,
+            group_cols=group_cols,
+            layout=layout,
             **kwargs,
         )
-        figure_layout = dict(
-            xaxis_type="category",  # prevent Plotly from interpreting values as dates
-        )
-        if layout is not None:
-            figure_layout.update(layout)
-        fig.update_layout(figure_layout)
-        return fig
 
 
 class Durations(Result):

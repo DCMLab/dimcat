@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
+from typing import Iterable, Optional
 
 import ms3
-import plotly.express as px
-import plotly.graph_objs as go
+import pandas as pd
+from dimcat.base import FriendlyEnum
+from plotly import express as px
+from plotly import graph_objs as go
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +17,76 @@ COLOR_SCALE_SETTINGS = dict(
 TRACES_SETTINGS = dict(marker_line_color="black")
 Y_AXIS = dict()
 X_AXIS = dict()
+
+
+class GroupMode(FriendlyEnum):
+    AXIS = "AXIS"
+    COLOR = "COLOR"
+    COLUMNS = "COLUMNS"
+    ROWS = "ROWS"
+
+
+GROUPMODE2BAR_PLOT_SETTING = {
+    GroupMode.AXIS: "x",
+    GroupMode.COLOR: "color",
+    GroupMode.COLUMNS: "facet_col",
+    GroupMode.ROWS: "facet_row",
+}
+
+
+def make_bar_plot(
+    df: pd.DataFrame,
+    x_col: Optional[str] = None,
+    y_col: Optional[str] = None,
+    group_cols: Optional[str | Iterable[str]] = None,
+    group_modes: Iterable[GroupMode] = (
+        GroupMode.AXIS,
+        GroupMode.COLOR,
+        GroupMode.ROWS,
+        GroupMode.COLUMNS,
+    ),
+    layout: Optional[dict] = None,
+    **kwargs,
+) -> go.Figure:
+    """
+
+    Args:
+        layout: Keyword arguments passed to fig.update_layout()
+        **kwargs: Keyword arguments passed to the Plotly plotting function.
+
+    Returns:
+        A Plotly Figure object.
+    """
+    df = df.reset_index()
+    if y_col is None:
+        y_col = df.columns[-1]
+    plot_settings = dict(y=y_col, hover_data=["corpus", "piece"], height=500)
+    if group_cols is not None:
+        for group_col, group_mode in zip(group_cols, group_modes):
+            setting_key = GROUPMODE2BAR_PLOT_SETTING[group_mode]
+            if setting_key in plot_settings:
+                raise ValueError(
+                    f"Trying to set {setting_key!r} to {group_col!r} but it is already set to "
+                    f"{plot_settings[setting_key]!r}."
+                )
+            plot_settings[setting_key] = group_col
+    if "x" not in plot_settings:
+        if x_col is None:
+            plot_settings["x"] = df.columns[-2]
+        else:
+            plot_settings["x"] = x_col
+    fig = px.bar(
+        df,
+        **plot_settings,
+        **kwargs,
+    )
+    figure_layout = dict(
+        xaxis_type="category",  # prevent Plotly from interpreting values as dates
+    )
+    if layout is not None:
+        figure_layout.update(layout)
+    fig.update_layout(figure_layout)
+    return fig
 
 
 def tpc_bubbles(
