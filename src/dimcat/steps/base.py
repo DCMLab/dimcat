@@ -11,7 +11,9 @@ from typing import (
     Optional,
     Tuple,
     Type,
+    TypeAlias,
     TypeVar,
+    Union,
     overload,
 )
 
@@ -355,3 +357,24 @@ class FeatureProcessingStep(PipelineStep):
             new_dataset.outputs.extend_package(new_package)
         new_dataset._pipeline.add_step(self)
         return new_dataset
+
+
+StepSpecs: TypeAlias = Union[
+    PipelineStep | Type[PipelineStep] | DimcatConfig | dict | str
+]
+
+
+def step_specs2step(step_specs: StepSpecs) -> PipelineStep:
+    if isinstance(step_specs, PipelineStep):
+        return step_specs
+    if isinstance(step_specs, type) and issubclass(step_specs, PipelineStep):
+        return step_specs()
+    if isinstance(step_specs, DimcatConfig):
+        obj = step_specs.create()
+    if isinstance(step_specs, dict):
+        obj = DimcatConfig(step_specs).create()
+    if isinstance(step_specs, str):
+        obj = get_class(step_specs)()
+    if isinstance(obj, PipelineStep):
+        return obj
+    raise TypeError(f"Expected PipelineStep, got {type(step_specs)}")
