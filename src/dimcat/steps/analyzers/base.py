@@ -192,10 +192,13 @@ class Analyzer(FeatureProcessingStep):
         result_constructor = self._get_new_resource_type(resource)
         results = self.groupby_apply(resource)
         result_name = self.resource_name_factory(resource)
-        return result_constructor.from_dataframe(
+        result = result_constructor.from_dataframe(
             df=results,
             resource_name=result_name,
+            default_groupby=resource.get_default_groupby(),
         )
+        result.default_value_column = resource.value_column
+        return result
 
     def groupby_apply(self, feature: Feature, groupby: SomeSeries = None, **kwargs):
         """Performs the computation on a groupby. The value of ``groupby`` needs to be
