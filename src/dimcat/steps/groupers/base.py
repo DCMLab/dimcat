@@ -1,6 +1,16 @@
 import logging
 from collections import defaultdict
-from typing import Dict, Iterator, List, MutableMapping, Sequence, Tuple
+from numbers import Number
+from typing import (
+    Dict,
+    Hashable,
+    Iterator,
+    List,
+    MutableMapping,
+    Optional,
+    Sequence,
+    Tuple,
+)
 
 import marshmallow as mm
 import pandas as pd
@@ -9,9 +19,9 @@ from dimcat.data.datasets.base import Dataset
 from dimcat.data.datasets.processed import GroupedDataset
 from dimcat.data.resources.dc import DimcatIndex, DimcatResource, PieceIndex
 from dimcat.data.resources.features import Feature
-from dimcat.dc_exceptions import ResourceNotProcessableError
+from dimcat.dc_exceptions import GrouperNotSetUpError, ResourceNotProcessableError
 from dimcat.steps.base import FeatureProcessingStep
-from dimcat.utils import check_name
+from dimcat.utils import check_name, get_middle_composition_year
 from typing_extensions import Self
 
 logger = logging.getLogger(__name__)
@@ -130,7 +140,7 @@ class CustomPieceGrouper(Grouper):
     @classmethod
     def from_grouping(
         cls,
-        piece_groups: Dict[str, List[tuple]],
+        piece_groups: Dict[Hashable, List[tuple]],
         level_names: Sequence[str] = ("piece_group", "corpus", "piece"),
         sort: bool = False,
         raise_if_multiple_membership: bool = False,
@@ -159,11 +169,14 @@ class CustomPieceGrouper(Grouper):
         **kwargs,
     ):
         super().__init__(level_name=level_name, **kwargs)
-        self._grouped_pieces = None
-        self.grouped_pieces = grouped_pieces
+        self._grouped_pieces: Optional[DimcatIndex] = None
+        if grouped_pieces is not None:
+            self.grouped_pieces = grouped_pieces
 
     @property
     def grouped_pieces(self) -> DimcatIndex:
+        if self._grouped_pieces is None:
+            return DimcatIndex.from_tuples([], (self.level_name, "corpus", "piece"))
         return self._grouped_pieces
 
     @grouped_pieces.setter
@@ -172,7 +185,7 @@ class CustomPieceGrouper(Grouper):
             grouped_pieces = DimcatIndex(grouped_pieces)
         elif isinstance(grouped_pieces, dict):
             raise TypeError(
-                f"Use {self.name}.from_dict() to create a {self.name}from xfrom a dictionary."
+                f"Use {self.name}.from_dict() to create a {self.name}from a dictionary."
             )
         elif not isinstance(grouped_pieces, DimcatIndex):
             raise TypeError(f"Expected DimcatIndex, got {type(grouped_pieces)}")
@@ -185,3 +198,53 @@ class CustomPieceGrouper(Grouper):
     def apply_grouper(self, resource: Feature) -> pd.DataFrame:
         """Apply the grouper to a Feature."""
         return resource.align_with_grouping(self.grouped_pieces)
+
+    def check_resource(self, resource: DimcatResource) -> None:
+        if len(self.grouped_pieces) == 0:
+            raise GrouperNotSetUpError(self.dtype)
+        super().check_resource(resource)
+
+
+class YearGrouper(CustomPieceGrouper):
+    @classmethod
+    def from_grouping(
+        cls,
+        piece_groups: Dict[Number, List[tuple]],
+        level_names: Sequence[str] = ("middle_composition_year", "corpus", "piece"),
+        sort: bool = False,
+        raise_if_multiple_membership: bool = False,
+    ) -> Self:
+        """Creates a YearGrouper from a dictionary of piece groups.
+
+        Args:
+        grouping: A dictionary where keys are group names and values are lists of index tuples.
+        level_names:
+            Names for the levels of the MultiIndex, i.e. one for the group level and one per level in the tuples.
+        sort: By default the returned MultiIndex is not sorted. Set True to disable sorting.
+        raise_if_multiple_membership: If True, raises a ValueError if a member is in multiple groups.
+        """
+        return super().from_grouping(
+            piece_groups=piece_groups,
+            level_names=level_names,
+            sort=sort,
+            raise_if_multiple_membership=raise_if_multiple_membership,
+        )
+
+    def __init__(
+        self,
+        level_name: str = "middle_composition_year",
+        grouped_pieces: DimcatIndex | pd.MultiIndex = None,
+        **kwargs,
+    ):
+        super().__init__(level_name=level_name, grouped_pieces=grouped_pieces, **kwargs)
+
+    def fit_to_dataset(self, dataset: Dataset) -> None:
+        metadata = dataset.get_metadata()
+        sorted_composition_years = get_middle_composition_year(metadata).sort_values()
+        grouping = sorted_composition_years.groupby(
+            sorted_composition_years, sort=True
+        ).groups
+        group_index = DimcatIndex.from_grouping(
+            grouping, ("middle_composition_year", "corpus", "piece")
+        )
+        self.grouped_pieces = group_index

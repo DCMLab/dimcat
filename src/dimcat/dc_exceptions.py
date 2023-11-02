@@ -146,6 +146,17 @@ class FilePathNotDefinedError(DimcatError):
     }
 
 
+class GrouperNotSetUpError(DimcatError):
+    """optional args: (grouper_name,)"""
+
+    nargs2message = {
+        0: "The grouper has not been setup. Applying it would result in empty features. Set the attribute "
+        "'grouped_pieces'.",
+        1: lambda name: f"The {name!r} has not been setup. Applying it would result in empty features. "
+        f"Set the attribute 'grouped_pieces'.",
+    }
+
+
 class InvalidResourcePathError(DimcatError):
     """optional args: (filepath, basepath)"""
 
