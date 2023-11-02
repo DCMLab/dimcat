@@ -16,6 +16,7 @@ from typing import (
 
 import frictionless as fl
 import marshmallow as mm
+import pandas as pd
 from dimcat.base import DimcatConfig, ObjectEnum, get_class, get_setting, is_subclass_of
 from dimcat.data.resources.base import D, ResourceStatus
 from dimcat.data.resources.dc import DimcatResource
@@ -25,6 +26,7 @@ from dimcat.data.resources.utils import (
     ensure_level_named_piece,
     load_fl_resource,
     make_adjacency_groups,
+    resolve_recognized_piece_columns_argument,
 )
 from dimcat.dc_exceptions import (
     ResourceIsMissingFeatureColumnError,
@@ -393,6 +395,12 @@ class Feature(DimcatResource):
         dataframe = load_fl_resource(
             self._resource, index_col=index_levels, usecols=usecols
         )
+        if not index_levels:
+            dataframe.index.rename("i", inplace=True)
+            recognized_piece_columns = resolve_recognized_piece_columns_argument()
+            if not any(col in dataframe.columns for col in recognized_piece_columns):
+                piece_name = self.filepath.split(".")[0]
+                dataframe = pd.concat([dataframe], keys=[piece_name], names=["piece"])
         if "piece" not in dataframe.index.names:
             dataframe.index, _ = ensure_level_named_piece(dataframe.index)
         if self.status == ResourceStatus.STANDALONE_NOT_LOADED:
