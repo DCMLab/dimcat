@@ -8,8 +8,8 @@ from dimcat.plotting import (
     GroupMode,
     make_bar_plot,
     make_bubble_plot,
-    make_tpc_bubble_plot,
-    plot_fifths_distribution,
+    make_lof_bar_plot,
+    make_lof_bubble_plot,
 )
 from plotly import graph_objs as go
 
@@ -258,8 +258,8 @@ class PitchClassDurations(Durations):
         """
         if y_col is None:
             y_col = self.y_column
-        return plot_fifths_distribution(
-            bar_data=self.df,
+        return make_lof_bar_plot(
+            df=self.df,
             x_col=x_col,
             y_col=y_col,
             title=title,
@@ -307,7 +307,7 @@ class PitchClassDurations(Durations):
         """
         if y_col is None:
             y_col = self.y_column
-        return make_tpc_bubble_plot(
+        return make_lof_bubble_plot(
             df=self.df,
             normalize=normalize,
             flip=flip,

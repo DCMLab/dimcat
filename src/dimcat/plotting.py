@@ -36,76 +36,6 @@ GROUPMODE2BAR_PLOT_SETTING = {
 }
 
 
-def plot_fifths_distribution(
-    bar_data,
-    fifth_transform=ms3.fifths2name,
-    shift_color_midpoint=2,
-    x_col="tpc",
-    y_col="duration_qb",
-    title=None,
-    labels=None,
-    hover_data: Optional[List[str]] = None,
-    height: Optional[int] = None,
-    width: Optional[int] = None,
-    layout: Optional[dict] = None,
-    x_axis: Optional[dict] = None,
-    y_axis: Optional[dict] = None,
-    color_axis: Optional[dict] = None,
-    traces_settings: Optional[dict] = None,
-    output: Optional[str] = None,
-    **kwargs,
-):
-    """bar_data with x_col ('tpc'), y_col ('duration_qb')"""
-    if title is None:
-        title = "Pitch-class distribution"
-    if labels is None:
-        labels = {str(x_col): "Tonal pitch class", str(y_col): "Duration in ♩"}
-    bar_data = bar_data.reset_index()
-    color_values = list(bar_data[x_col])
-    x_values = list(set(color_values))
-    x_names = list(map(fifth_transform, x_values))
-    figure_layout = dict(showlegend=False)
-    if layout is not None:
-        figure_layout.update(layout)
-    xaxis_settings = dict(
-        gridcolor="lightgrey",
-        zerolinecolor="grey",
-        tickmode="array",
-        tickvals=x_values,
-        ticktext=x_names,
-        dtick=1,
-        ticks="outside",
-        tickcolor="black",
-        minor=dict(dtick=6, gridcolor="grey", showgrid=True),
-    )
-    if x_axis is not None:
-        xaxis_settings.update(x_axis)
-    c_axis = dict(showscale=False)
-    if color_axis is not None:
-        c_axis.update(color_axis)
-    return make_bar_plot(
-        bar_data,
-        x_col=x_col,
-        y_col=y_col,
-        title=title,
-        labels=labels,
-        hover_data=hover_data,
-        height=height,
-        width=width,
-        layout=figure_layout,
-        x_axis=xaxis_settings,
-        y_axis=y_axis,
-        color_axis=c_axis,
-        traces_settings=traces_settings,
-        output=output,
-        # **kwargs:
-        color=color_values,
-        color_continuous_scale="RdBu_r",
-        color_continuous_midpoint=shift_color_midpoint,
-        **kwargs,
-    )
-
-
 def get_pitch_class_distribution(
     df,
     pitch_column="tpc",
@@ -304,6 +234,138 @@ def make_bubble_plot(
     )
 
 
+def make_lof_bar_plot(
+    df: pd.DataFrame,
+    fifth_transform=ms3.fifths2name,
+    shift_color_midpoint=2,
+    x_col="tpc",
+    y_col="duration_qb",
+    title=None,
+    labels=None,
+    hover_data: Optional[List[str]] = None,
+    height: Optional[int] = None,
+    width: Optional[int] = None,
+    layout: Optional[dict] = None,
+    x_axis: Optional[dict] = None,
+    y_axis: Optional[dict] = None,
+    color_axis: Optional[dict] = None,
+    traces_settings: Optional[dict] = None,
+    output: Optional[str] = None,
+    **kwargs,
+):
+    """Like :func:`make_bar_plot` but coloring the bars along the Line of Fifths.
+    bar_data with x_col ('tpc'), y_col ('duration_qb')"""
+    if title is None:
+        title = "Pitch-class distribution"
+    if labels is None:
+        labels = {str(x_col): "Tonal pitch class", str(y_col): "Duration in ♩"}
+    df = df.reset_index()
+    color_values = list(df[x_col])
+    x_values = list(set(color_values))
+    x_names = list(map(fifth_transform, x_values))
+    figure_layout = dict(showlegend=False)
+    if layout is not None:
+        figure_layout.update(layout)
+    xaxis_settings = dict(
+        gridcolor="lightgrey",
+        zerolinecolor="grey",
+        tickmode="array",
+        tickvals=x_values,
+        ticktext=x_names,
+        dtick=1,
+        ticks="outside",
+        tickcolor="black",
+        minor=dict(dtick=6, gridcolor="grey", showgrid=True),
+    )
+    if x_axis is not None:
+        xaxis_settings.update(x_axis)
+    c_axis = dict(showscale=False)
+    if color_axis is not None:
+        c_axis.update(color_axis)
+    return make_bar_plot(
+        df,
+        x_col=x_col,
+        y_col=y_col,
+        title=title,
+        labels=labels,
+        hover_data=hover_data,
+        height=height,
+        width=width,
+        layout=figure_layout,
+        x_axis=xaxis_settings,
+        y_axis=y_axis,
+        color_axis=c_axis,
+        traces_settings=traces_settings,
+        output=output,
+        # **kwargs:
+        color=color_values,
+        color_continuous_scale="RdBu_r",
+        color_continuous_midpoint=shift_color_midpoint,
+        **kwargs,
+    )
+
+
+def make_lof_bubble_plot(
+    df: pd.Series | pd.DataFrame,
+    normalize: bool = False,
+    flip: bool = False,
+    x_col: Optional[str] = "tpc",
+    y_col: Optional[str] = "piece",
+    duration_column: str = "duration_qb",
+    title="Pitch class durations",
+    labels: Optional[dict] = None,
+    hover_data: Optional[List[str]] = None,
+    width: Optional[int] = 1200,
+    height: Optional[int] = 1500,
+    layout: Optional[dict] = None,
+    x_axis: Optional[dict] = None,
+    y_axis: Optional[dict] = None,
+    color_axis: Optional[dict] = None,
+    traces_settings: Optional[dict] = None,
+    output: Optional[str] = None,
+    **kwargs,
+):
+    """Like :func:`make_bubble_plot` but coloring the bubbles along the Line of Fifths.
+    Expecting a long format DataFrame/Series with two index levels where the first level groups pitch class
+    distributions: Pitch classes are the second index level and the distribution values are contained in the Series
+    or the first column. Additional columns may serve, e.g. to add more hover_data fields (by passing the column name(s)
+    as keyword argument 'hover_data'.
+    """
+    df = df.reset_index()
+    tpc_names = ms3.fifths2name(df[x_col].to_list())
+    df["pitch class"] = tpc_names
+    if hover_data is None:
+        hover_data = []
+    elif isinstance(hover_data, str):
+        hover_data = [hover_data]
+    hover_data.append("pitch class")
+    color_col = x_col
+    return make_bubble_plot(
+        df=df,
+        normalize=normalize,
+        flip=flip,
+        x_col=x_col,
+        y_col=y_col,
+        duration_column=duration_column,
+        title=title,
+        labels=labels,
+        hover_data=hover_data,
+        width=width,
+        height=height,
+        layout=layout,
+        x_axis=x_axis,
+        y_axis=y_axis,
+        color_axis=color_axis,
+        traces_settings=traces_settings,
+        output=output,
+        # **kwargs:
+        color=color_col,
+        color_continuous_scale="RdBu_r",
+        color_continuous_midpoint=2,
+        **kwargs,
+    )
+
+
 def make_scatter_plot(
     df: pd.DataFrame,
     x_col: Optional[str] = None,
@@ -367,67 +429,6 @@ def make_scatter_plot(
     return fig
 
 
-def make_tpc_bubble_plot(
-    df: pd.Series | pd.DataFrame,
-    normalize: bool = False,
-    flip: bool = False,
-    x_col: Optional[str] = "tpc",
-    y_col: Optional[str] = "piece",
-    duration_column: str = "duration_qb",
-    title="Pitch class durations",
-    labels: Optional[dict] = None,
-    hover_data: Optional[List[str]] = None,
-    width: Optional[int] = 1200,
-    height: Optional[int] = 1500,
-    layout: Optional[dict] = None,
-    x_axis: Optional[dict] = None,
-    y_axis: Optional[dict] = None,
-    color_axis: Optional[dict] = None,
-    traces_settings: Optional[dict] = None,
-    output: Optional[str] = None,
-    **kwargs,
-):
-    """
-    Expecting a long format DataFrame/Series with two index levels where the first level groups pitch class
-    distributions: Pitch classes are the second index level and the distribution values are contained in the Series
-    or the first column. Additional columns may serve, e.g. to add more hover_data fields (by passing the column name(s)
-    as keyword argument 'hover_data'.
-    """
-    df = df.reset_index()
-    tpc_names = ms3.fifths2name(df[x_col].to_list())
-    df["pitch class"] = tpc_names
-    if hover_data is None:
-        hover_data = []
-    elif isinstance(hover_data, str):
-        hover_data = [hover_data]
-    hover_data.append("pitch class")
-    color_col = x_col
-    return make_bubble_plot(
-        df=df,
-        normalize=normalize,
-        flip=flip,
-        x_col=x_col,
-        y_col=y_col,
-        duration_column=duration_column,
-        title=title,
-        labels=labels,
-        hover_data=hover_data,
-        width=width,
-        height=height,
-        layout=layout,
-        x_axis=x_axis,
-        y_axis=y_axis,
-        color_axis=color_axis,
-        traces_settings=traces_settings,
-        output=output,
-        # **kwargs:
-        color=color_col,
-        color_continuous_scale="RdBu_r",
-        color_continuous_midpoint=2,
-        **kwargs,
-    )
-
-
 def plot_pitch_class_distribution(
     df: pd.DataFrame,
     pitch_column="tpc",
@@ -449,8 +450,8 @@ def plot_pitch_class_distribution(
         x_col, y_col = 0, 1
     else:
         x_col, y_col = pitch_column, duration_column
-    return plot_fifths_distribution(
-        bar_data=bar_data,
+    return make_lof_bar_plot(
+        df=bar_data,
         x_col=x_col,
         y_col=y_col,
         labels=labels,
