@@ -725,6 +725,14 @@ class DimcatSettings(DimcatObject):
     )
     default_basepath: str = "~/dimcat_data"
     """where to serialize data if no other basepath is specified"""
+    default_figure_path: str = "~/dimcat_data"
+    """where to store figures if no other path was specified"""
+    default_figure_format: str = ".png"
+    """default format for all figures stored by DiMCAT."""
+    default_figure_width: int = 2880
+    """default width in pixels for figures stored by DiMCAT"""
+    default_figure_height: int = 1620
+    """default height in pixels for figures stored by DiMCAT"""
     default_resource_name: str = "unnamed"
     never_store_unvalidated_data: bool = True
     """setting this to False allows for skipping mandatory validations; set to True for production"""
@@ -760,6 +768,28 @@ class DimcatSettings(DimcatObject):
             required=True,
             metadata={
                 "description": "where to serialize data if no other basepath is specified"
+            },
+        )
+        default_figure_path = mm.fields.String(
+            required=True,
+            metadata={
+                "description": "where to store figures if no other path was specified"
+            },
+        )
+        default_figure_format = mm.fields.String(
+            required=True,
+            metadata={"description": "default format for all figures stored by DiMCAT"},
+        )
+        default_figure_width = mm.fields.Integer(
+            required=True,
+            metadata={
+                "description": "default width in pixels for figures stored by DiMCAT"
+            },
+        )
+        default_figure_height = mm.fields.Integer(
+            required=True,
+            metadata={
+                "description": "default height in pixels for figures stored by DiMCAT"
             },
         )
         default_resource_name = mm.fields.String(required=True)

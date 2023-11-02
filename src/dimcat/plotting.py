@@ -1,13 +1,19 @@
 from __future__ import annotations
 
 import logging
+import os
 from typing import Iterable, List, Optional
 
 import ms3
 import pandas as pd
-from dimcat.base import FriendlyEnum
+from dimcat.base import FriendlyEnum, get_setting
+from dimcat.utils import resolve_path
+from kaleido.scopes.plotly import PlotlyScope
 from plotly import express as px
-from plotly import graph_objs as go
+from plotly import graph_objects as go
+
+AVAILABLE_FIGURE_FORMATS = PlotlyScope._all_formats
+
 
 logger = logging.getLogger(__name__)
 
@@ -150,7 +156,7 @@ def make_bar_plot(
         xaxis_type="category",
     )
     if output is not None:
-        fig.write_image(output)
+        write_image(fig, output)
     return fig
 
 
@@ -425,7 +431,7 @@ def make_scatter_plot(
         traces_settings=traces_settings,
     )
     if output is not None:
-        fig.write_image(output)
+        write_image(fig, output)
     return fig
 
 
@@ -435,8 +441,8 @@ def plot_pitch_class_distribution(
     duration_column="duration_qb",
     title="Pitch class distribution",
     fifths_transform=ms3.fifths2name,
-    width=2880,
-    height=500,
+    width=None,
+    height=None,
     labels=None,
     modin=True,
     output=None,
@@ -493,3 +499,101 @@ def update_figure_layout(
 
     if traces_settings is not None:
         fig.update_traces(traces_settings)
+
+
+def write_image(
+    fig: go.Figure,
+    filename: str,
+    directory: Optional[str] = None,
+    format=None,
+    scale=None,
+    width=None,
+    height=None,
+    validate=True,
+):
+    """
+    Convert a figure to a static image and write it to a file.
+
+    Args:
+        fig:
+            Figure object or dict representing a figure
+
+        file: str or writeable
+            A string representing a local file path or a writeable object
+            (e.g. a pathlib.Path object or an open file descriptor)
+
+        format: str or None
+            The desired image format. One of
+              - 'png'
+              - 'jpg' or 'jpeg'
+              - 'webp'
+              - 'svg'
+              - 'pdf'
+              - 'eps' (Requires the poppler library to be installed and on the PATH)
+
+            If not specified and `file` is a string then this will default to the
+            file extension. If not specified and `file` is not a string then this
+            will default to:
+                - `plotly.io.kaleido.scope.default_format` if engine is "kaleido"
+                - `plotly.io.orca.config.default_format` if engine is "orca"
+
+        width: int or None
+            The width of the exported image in layout pixels. If the `scale`
+            property is 1.0, this will also be the width of the exported image
+            in physical pixels.
+
+            If not specified, will default to:
+                - `plotly.io.kaleido.scope.default_width` if engine is "kaleido"
+                - `plotly.io.orca.config.default_width` if engine is "orca"
+
+        height: int or None
+            The height of the exported image in layout pixels. If the `scale`
+            property is 1.0, this will also be the height of the exported image
+            in physical pixels.
+
+            If not specified, will default to:
+                - `plotly.io.kaleido.scope.default_height` if engine is "kaleido"
+                - `plotly.io.orca.config.default_height` if engine is "orca"
+
+        scale: int or float or None
+            The scale factor to use when exporting the figure. A scale factor
+            larger than 1.0 will increase the image resolution with respect
+            to the figure's layout pixel dimensions. Whereas as scale factor of
+            less than 1.0 will decrease the image resolution.
+
+            If not specified, will default to:
+                - `plotly.io.kaleido.scope.default_scale` if engine is "kaleido"
+                - `plotly.io.orca.config.default_scale` if engine is "orca"
+
+        validate: bool
+            True if the figure should be validated before being converted to
+            an image, False otherwise.
+    """
+    fname, fext = os.path.splitext(filename)
+    has_allowed_extension = fext.lstrip(".") in AVAILABLE_FIGURE_FORMATS
+    if format is None and has_allowed_extension:
+        output_filename = filename
+    else:
+        if format is None:
+            format = get_setting("default_figure_format")
+        output_filename = f"{filename}.{format.lstrip('.')}"
+    if directory is None:
+        folder, filename = os.path.split(output_filename)
+        if folder:
+            folder = resolve_path(folder)
+        else:
+            folder = get_setting("default_figure_path")
+        output_filepath = os.path.join(folder, output_filename)
+    else:
+        output_filepath = os.path.join(directory, output_filename)
+    if width is None:
+        width = get_setting("default_figure_width")
+    if height is None:
+        height = get_setting("default_figure_height")
+    fig.write_image(
+        file=output_filepath,
+        width=width,
+        height=height,
+        scale=scale,
+        validate=validate,
+    )
