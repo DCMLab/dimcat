@@ -677,7 +677,8 @@ def make_index_from_grouping_dict(
 
     Args:
         grouping: A dictionary where keys are group names and values are lists of index tuples.
-        level_names: Names for the levels of the MultiIndex, i.e. one for the group level and one per grouped level.
+        level_names:
+            Names for the levels of the MultiIndex, i.e. one for the group level and one per level in the tuples.
         sort: By default the returned MultiIndex is sorted. Set False to disable sorting.
         raise_if_multiple_membership: If True, raises a ValueError if a member is in multiple groups.
 

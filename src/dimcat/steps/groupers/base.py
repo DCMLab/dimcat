@@ -139,7 +139,8 @@ class CustomPieceGrouper(Grouper):
 
         Args:
         grouping: A dictionary where keys are group names and values are lists of index tuples.
-        names: Names for the levels of the MultiIndex, i.e. one for the group level and one per level in the tuples.
+        level_names:
+            Names for the levels of the MultiIndex, i.e. one for the group level and one per level in the tuples.
         sort: By default the returned MultiIndex is not sorted. Set True to disable sorting.
         raise_if_multiple_membership: If True, raises a ValueError if a member is in multiple groups.
         """
