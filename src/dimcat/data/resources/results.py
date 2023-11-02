@@ -23,6 +23,7 @@ class ResultName(ObjectEnum):
 
     Durations = "Durations"
     Result = "Result"
+    PitchClassDurations = "PitchClassDurations"
 
 
 class Result(DimcatResource):
@@ -92,25 +93,42 @@ class Result(DimcatResource):
             group_cols = self.get_default_groupby()
         if not group_cols:
             x_col = self.value_column
+            return self.make_bar_plot(
+                x_col=x_col,
+                group_cols=group_cols,
+                group_modes=group_modes,
+                title=title,
+                labels=labels,
+                hover_data=hover_data,
+                height=height,
+                width=width,
+                layout=layout,
+                x_axis=x_axis,
+                y_axis=y_axis,
+                color_axis=color_axis,
+                traces_settings=traces_settings,
+                output=output,
+                **kwargs,
+            )
         else:
-            x_col, *group_cols = group_cols
-        return self.make_bar_plot(
-            x_col=x_col,
-            group_cols=group_cols,
-            group_modes=group_modes,
-            title=title,
-            labels=labels,
-            hover_data=hover_data,
-            height=height,
-            width=width,
-            layout=layout,
-            x_axis=x_axis,
-            y_axis=y_axis,
-            color_axis=color_axis,
-            traces_settings=traces_settings,
-            output=output,
-            **kwargs,
-        )
+            y_col = group_cols[-1]
+            x_col = self.value_column
+            return self.make_bubble_plot(
+                x_col=x_col,
+                y_col=y_col,
+                title=title,
+                labels=labels,
+                hover_data=hover_data,
+                height=height,
+                width=width,
+                layout=layout,
+                x_axis=x_axis,
+                y_axis=y_axis,
+                color_axis=color_axis,
+                traces_settings=traces_settings,
+                output=output,
+                **kwargs,
+            )
 
     def make_bar_plot(
         self,
