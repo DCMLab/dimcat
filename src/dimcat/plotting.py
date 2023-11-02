@@ -38,27 +38,36 @@ GROUPMODE2BAR_PLOT_SETTING = {
 
 def plot_fifths_distribution(
     bar_data,
-    x_col="tpc",
-    y_col="duration_qb",
-    labels=None,
-    title="Pitch-class distribution",
     fifth_transform=ms3.fifths2name,
     shift_color_midpoint=2,
-    showlegend=False,
-    width=1620,
-    height=800,
-    output=None,
+    x_col="tpc",
+    y_col="duration_qb",
+    title=None,
+    labels=None,
+    hover_data: Optional[List[str]] = None,
+    height: Optional[int] = None,
+    width: Optional[int] = None,
+    layout: Optional[dict] = None,
+    x_axis: Optional[dict] = None,
+    y_axis: Optional[dict] = None,
+    color_axis: Optional[dict] = None,
+    traces_settings: Optional[dict] = None,
+    output: Optional[str] = None,
     **kwargs,
 ):
     """bar_data with x_col ('tpc'), y_col ('duration_qb')"""
-
+    if title is None:
+        title = "Pitch-class distribution"
     if labels is None:
         labels = {str(x_col): "Tonal pitch class", str(y_col): "Duration in ♩"}
+    bar_data = bar_data.reset_index()
     color_values = list(bar_data[x_col])
     x_values = list(set(color_values))
     x_names = list(map(fifth_transform, x_values))
-    layout = dict(showlegend=showlegend)
-    x_axis = dict(
+    figure_layout = dict(showlegend=False)
+    if layout is not None:
+        figure_layout.update(layout)
+    xaxis_settings = dict(
         gridcolor="lightgrey",
         zerolinecolor="grey",
         tickmode="array",
@@ -69,17 +78,25 @@ def plot_fifths_distribution(
         tickcolor="black",
         minor=dict(dtick=6, gridcolor="grey", showgrid=True),
     )
+    if x_axis is not None:
+        xaxis_settings.update(x_axis)
+    c_axis = dict(showscale=False)
+    if color_axis is not None:
+        c_axis.update(color_axis)
     return make_bar_plot(
         bar_data,
         x_col=x_col,
         y_col=y_col,
         title=title,
         labels=labels,
-        layout=layout,
-        x_axis=x_axis,
-        color_axis=dict(showscale=False),
+        hover_data=hover_data,
         height=height,
         width=width,
+        layout=figure_layout,
+        x_axis=xaxis_settings,
+        y_axis=y_axis,
+        color_axis=c_axis,
+        traces_settings=traces_settings,
         output=output,
         # **kwargs:
         color=color_values,
@@ -417,7 +434,7 @@ def plot_pitch_class_distribution(
     duration_column="duration_qb",
     title="Pitch class distribution",
     fifths_transform=ms3.fifths2name,
-    width=1500,
+    width=2880,
     height=500,
     labels=None,
     modin=True,

@@ -54,6 +54,7 @@ from typing_extensions import Self
 
 if TYPE_CHECKING:
     from dimcat.data.resources.features import Feature, FeatureName
+    from dimcat.data.resources.results import Result
     from dimcat.steps.base import StepSpecs
 
 
@@ -108,6 +109,7 @@ class DimcatResource(Resource, Generic[D]):
     """
 
     default_analyzer: ClassVar[str] = "Proportions"
+    """Name of the Analyzer that is used by default for plotting the resource. Needs to return a :obj:`Result`."""
     default_value_column: Optional[ClassVar[str]] = None
     _extractable_features: Optional[ClassVar[Tuple[FeatureName, ...]]] = None
 
@@ -703,6 +705,11 @@ DimcatResource.__init__(
             self._status = ResourceStatus.PACKAGED_LOADED
         return dataframe
 
+    @cache
+    def get_default_analysis(self) -> Result:
+        """Returns the default analysis of the resource."""
+        return self.apply_steps(self.default_analyzer)
+
     def get_default_groupby(self) -> List[str]:
         """Returns the default index levels for grouping the resource."""
         if not self.default_groupby:
@@ -714,11 +721,11 @@ DimcatResource.__init__(
     ) -> List[str]:
         """Returns the levels of the grouping index, i.e., all levels until and including 'piece'."""
         smallest_unit = UnitOfAnalysis(smallest_unit)
-        if smallest_unit is UnitOfAnalysis.SLICE:
+        if smallest_unit == UnitOfAnalysis.SLICE:
             return self.get_level_names()[:-1]
         if smallest_unit in (UnitOfAnalysis.PIECE, UnitOfAnalysis.SLICE):
             return self.get_piece_index(max_levels=0).names
-        if smallest_unit is UnitOfAnalysis.GROUP:
+        if smallest_unit == UnitOfAnalysis.GROUP:
             return self.get_default_groupby()
 
     def get_index(self) -> DimcatIndex:
@@ -766,12 +773,24 @@ DimcatResource.__init__(
         return make_tsv_resource()
 
     def plot(
-        self, steps: Optional[StepSpecs | Iterable[StepSpecs]] = None
+        self,
+        steps: Optional[StepSpecs | Iterable[StepSpecs]] = None,
+        **kwargs,
     ) -> go.Figure:
         if steps is None:
-            steps = self.default_analyzer
-        result = self.apply_steps(steps)
-        return result.plot()
+            result = self.get_default_analysis()
+        else:
+            result = self.apply_steps(steps)
+        return result.plot(**kwargs)
+
+    def plot_grouped(
+        self, steps: Optional[StepSpecs | Iterable[StepSpecs]] = None, **kwargs
+    ) -> go.Figure:
+        if steps is None:
+            result: Result = self.get_default_analysis()
+        else:
+            result: Result = self.apply_steps(steps)
+        return result.plot_grouped(**kwargs)
 
     def set_basepath(
         self,
