@@ -408,3 +408,16 @@ def make_extension_regex(
     else:
         regex = f"(?:{'|'.join(extensions)})$"
     return re.compile(regex, re.IGNORECASE)
+
+
+def get_middle_composition_year(
+    metadata: pd.DataFrame,
+    composed_start_column: str = "composed_start",
+    composed_end_column: str = "composed_end",
+) -> pd.Series:
+    """Returns the middle of the composition year range."""
+    composed_start = pd.to_numeric(metadata[composed_start_column], errors="coerce")
+    composed_end = pd.to_numeric(metadata[composed_end_column], errors="coerce")
+    composed_start.fillna(composed_end, inplace=True)
+    composed_end.fillna(composed_start, inplace=True)
+    return (composed_start + composed_end) / 2
