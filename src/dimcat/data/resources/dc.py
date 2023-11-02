@@ -8,6 +8,7 @@ from typing import (
     ClassVar,
     Dict,
     Generic,
+    Hashable,
     Iterable,
     List,
     Optional,
@@ -203,13 +204,14 @@ class DimcatResource(Resource, Generic[D]):
             basepath=basepath,
             descriptor_filename=descriptor_filename,
             auto_validate=auto_validate,
-            default_groupby=default_groupby,
         )
         if resource_name is not None:
             new_object.resource_name = resource_name
         new_object._df = df
         new_object._resource.schema = infer_schema_from_df(df)
         new_object._update_status()
+        if default_groupby is not None:
+            new_object.default_groupby = default_groupby
         return new_object
 
     @classmethod
@@ -972,7 +974,7 @@ class DimcatIndex(Generic[IX], Data):
     @classmethod
     def from_grouping(
         cls,
-        grouping: Dict[str, List[tuple]],
+        grouping: Dict[Hashable, List[tuple]],
         level_names: Sequence[str] = ("piece_group", "corpus", "piece"),
         sort: bool = False,
         raise_if_multiple_membership: bool = False,
@@ -1026,19 +1028,19 @@ class DimcatIndex(Generic[IX], Data):
     def from_tuples(
         cls,
         tuples: Iterable[tuple],
-        names: Sequence[str],
+        level_names: Sequence[str],
     ) -> Self:
         list_of_tuples = list(tuples)
         if len(list_of_tuples) == 0:
-            return cls()
+            return cls(pd.MultiIndex.from_tuples([], names=level_names))
         first_tuple = list_of_tuples[0]
         if not isinstance(first_tuple, tuple):
             raise ValueError(f"Expected tuples, got {type(first_tuple)!r}.")
-        if len(first_tuple) != len(names):
+        if len(first_tuple) != len(level_names):
             raise ValueError(
-                f"Expected tuples of length {len(names)}, got {len(first_tuple)}."
+                f"Expected tuples of length {len(level_names)}, got {len(first_tuple)}."
             )
-        multiindex = pd.MultiIndex.from_tuples(list_of_tuples, names=names)
+        multiindex = pd.MultiIndex.from_tuples(list_of_tuples, names=level_names)
         return cls(multiindex)
 
     def __init__(
@@ -1176,9 +1178,9 @@ class PieceIndex(DimcatIndex[IX]):
     def from_tuples(
         cls,
         tuples: Iterable[tuple],
-        names: Sequence[str] = ("corpus", "piece"),
+        level_names: Sequence[str] = ("corpus", "piece"),
     ) -> Self:
-        return super().from_tuples(tuples, names)
+        return super().from_tuples(tuples, level_names)
 
     def __init__(self, index: Optional[IX] = None):
         if index is None:
