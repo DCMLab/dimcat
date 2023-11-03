@@ -21,7 +21,7 @@ STD_LAYOUT = dict(
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
     margin={"l": 40, "r": 0, "b": 0, "t": 80, "pad": 0},
-    font={"size": 25},
+    font={"size": 20},
 )
 Y_AXIS = dict(gridcolor="lightgrey")
 X_AXIS = dict(gridcolor="lightgrey")
@@ -156,7 +156,7 @@ def make_bar_plot(
         xaxis_type="category",
     )
     if output is not None:
-        write_image(fig, output)
+        write_image(fig=fig, filename=output, width=width, height=height)
     return fig
 
 
@@ -190,23 +190,21 @@ def make_bubble_plot(
         x_col:
         y_col:
     """
-    if layout is None:
-        layout = dict()
     xaxis_settings, yaxis_settings = dict(Y_AXIS), dict(X_AXIS)
     if flip:
         x_axis, y_axis = y_axis, x_axis
-        layout.update(dict(width=height, height=width, xaxis_type="category"))
+        figure_layout = dict(width=height, height=width, xaxis_type="category")
     else:
-        layout.update(dict(height=height, width=width, yaxis_type="category"))
+        figure_layout = dict(height=height, width=width, yaxis_type="category")
+    if layout is not None:
+        figure_layout.update(layout)
     if normalize:
         if isinstance(df, pd.Series):
-            df = df.groupby(level=0, group_keys=False).apply(lambda S: S / S.sum())
+            df = df.groupby(y_col, group_keys=False).apply(lambda S: S / S.sum())
         else:
-            df.iloc[:, 0] = (
-                df.iloc[:, 0]
-                .groupby(level=0, group_keys=False)
-                .apply(lambda S: S / S.sum())
-            )
+            df.loc[:, duration_column] = df.groupby(y_col, group_keys=False)[
+                duration_column
+            ].apply(lambda S: S / S.sum())
     traces = dict(marker_line_color="black")
     if traces_settings is not None:
         traces.update(traces_settings)
@@ -228,7 +226,7 @@ def make_bubble_plot(
         hover_data=hover_data,
         height=height,
         width=width,
-        layout=layout,
+        layout=figure_layout,
         x_axis=xaxis_settings,
         y_axis=yaxis_settings,
         color_axis=c_axis,
@@ -431,7 +429,7 @@ def make_scatter_plot(
         traces_settings=traces_settings,
     )
     if output is not None:
-        write_image(fig, output)
+        write_image(fig=fig, filename=output, width=width, height=height)
     return fig
 
 
@@ -579,10 +577,9 @@ def write_image(
         output_filename = f"{filename}.{format.lstrip('.')}"
     if directory is None:
         folder, filename = os.path.split(output_filename)
-        if folder:
-            folder = resolve_path(folder)
-        else:
+        if not folder:
             folder = get_setting("default_figure_path")
+        folder = resolve_path(folder)
         output_filepath = os.path.join(folder, output_filename)
     else:
         output_filepath = os.path.join(directory, output_filename)
