@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Iterable, List, Optional
 
+import pandas as pd
 from dimcat.base import ObjectEnum
 from dimcat.plotting import (
     GroupMode,
@@ -16,6 +17,18 @@ from plotly import graph_objs as go
 from .dc import DimcatResource
 
 logger = logging.getLogger(__name__)
+
+
+def clean_axis_labels(*labels: str) -> dict:
+    """Clean axis labels for Plotly plots.
+
+    Args:
+        *labels: Labels to clean.
+
+    Returns:
+        A dictionary with the cleaned labels.
+    """
+    return {label: label.replace("_", " ") for label in labels}
 
 
 class ResultName(ObjectEnum):
@@ -51,11 +64,14 @@ class Result(DimcatResource):
         unit_of_analysis = self.get_grouping_levels()
         y_col = unit_of_analysis[-1]
         x_col = self.value_column
+        labels_settings = clean_axis_labels(x_col, y_col)
+        if labels is not None:
+            labels_settings.update(labels)
         return self.make_bubble_plot(
             x_col=x_col,
             y_col=y_col,
             title=title,
-            labels=labels,
+            labels=labels_settings,
             hover_data=hover_data,
             height=height,
             width=width,
@@ -93,12 +109,20 @@ class Result(DimcatResource):
             group_cols = self.get_default_groupby()
         if not group_cols:
             x_col = self.value_column
+            y_col = self.y_column
+            labels_settings = clean_axis_labels(x_col, y_col)
+            if labels is not None:
+                labels_settings.update(labels)
+            combined_result = (
+                self.df.unstack(fill_value=0.0).sum().rename("duration_qb")
+            )
             return self.make_bar_plot(
+                df=combined_result,
                 x_col=x_col,
                 group_cols=group_cols,
                 group_modes=group_modes,
                 title=title,
-                labels=labels,
+                labels=labels_settings,
                 hover_data=hover_data,
                 height=height,
                 width=width,
@@ -113,11 +137,14 @@ class Result(DimcatResource):
         else:
             y_col = group_cols[-1]
             x_col = self.value_column
+            labels_settings = clean_axis_labels(x_col, y_col)
+            if labels is not None:
+                labels_settings.update(labels)
             return self.make_bubble_plot(
                 x_col=x_col,
                 y_col=y_col,
                 title=title,
-                labels=labels,
+                labels=labels_settings,
                 hover_data=hover_data,
                 height=height,
                 width=width,
@@ -132,6 +159,7 @@ class Result(DimcatResource):
 
     def make_bar_plot(
         self,
+        df: Optional[pd.DataFrame] = None,
         x_col: Optional[str] = None,
         y_col: Optional[str] = None,
         group_cols: Optional[str | Iterable[str]] = None,
@@ -162,10 +190,12 @@ class Result(DimcatResource):
         Returns:
             A Plotly Figure object.
         """
+        if df is None:
+            df = self.df
         if y_col is None:
             y_col = self.y_column
         return make_bar_plot(
-            df=self.df,
+            df=df,
             x_col=x_col,
             y_col=y_col,
             group_cols=group_cols,
@@ -186,7 +216,7 @@ class Result(DimcatResource):
 
     def make_bubble_plot(
         self,
-        normalize: bool = False,
+        normalize: bool = True,
         flip: bool = False,
         x_col: Optional[str] = None,
         y_col: Optional[str] = None,
@@ -194,8 +224,8 @@ class Result(DimcatResource):
         title: Optional[str] = None,
         labels: Optional[dict] = None,
         hover_data: Optional[List[str]] = None,
-        width: Optional[int] = 1200,
-        height: Optional[int] = 1500,
+        width: Optional[int] = None,
+        height: Optional[int] = None,
         layout: Optional[dict] = None,
         x_axis: Optional[dict] = None,
         y_axis: Optional[dict] = None,
@@ -244,6 +274,7 @@ class Durations(Result):
 class PitchClassDurations(Durations):
     def make_bar_plot(
         self,
+        df: Optional[pd.DataFrame] = None,
         x_col="tpc",
         y_col=None,
         group_cols: Optional[str | Iterable[str]] = None,
@@ -274,10 +305,12 @@ class PitchClassDurations(Durations):
         Returns:
             A Plotly Figure object.
         """
+        if df is None:
+            df = self.df
         if y_col is None:
             y_col = self.y_column
         return make_lof_bar_plot(
-            df=self.df,
+            df=df,
             x_col=x_col,
             y_col=y_col,
             title=title,
@@ -296,7 +329,7 @@ class PitchClassDurations(Durations):
 
     def make_bubble_plot(
         self,
-        normalize: bool = False,
+        normalize: bool = True,
         flip: bool = False,
         x_col: Optional[str] = "tpc",
         y_col: Optional[str] = None,
@@ -304,8 +337,8 @@ class PitchClassDurations(Durations):
         title: Optional[str] = None,
         labels: Optional[dict] = None,
         hover_data: Optional[List[str]] = None,
-        width: Optional[int] = 1200,
-        height: Optional[int] = 1500,
+        width: Optional[int] = None,
+        height: Optional[int] = None,
         layout: Optional[dict] = None,
         x_axis: Optional[dict] = None,
         y_axis: Optional[dict] = None,

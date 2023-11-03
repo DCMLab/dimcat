@@ -162,7 +162,7 @@ def make_bar_plot(
 
 def make_bubble_plot(
     df: pd.Series | pd.DataFrame,
-    normalize: bool = False,
+    normalize: bool = True,
     flip: bool = False,
     x_col: Optional[str] = None,
     y_col: Optional[str] = None,
@@ -190,12 +190,21 @@ def make_bubble_plot(
         x_col:
         y_col:
     """
-    xaxis_settings, yaxis_settings = dict(Y_AXIS), dict(X_AXIS)
+    xaxis_settings, yaxis_settings = dict(X_AXIS), dict(Y_AXIS)
     if flip:
         x_axis, y_axis = y_axis, x_axis
-        figure_layout = dict(width=height, height=width, xaxis_type="category")
+        xaxis_settings, yaxis_settings = yaxis_settings, xaxis_settings
+        figure_layout = dict(width=height, height=width)
+        if y_col == "piece":
+            figure_layout["xaxis_type"] = "category"
+        else:
+            figure_layout["xaxis_type"] = "linear"
     else:
-        figure_layout = dict(height=height, width=width, yaxis_type="category")
+        figure_layout = dict(height=height, width=width)
+        if y_col == "piece":
+            figure_layout["yaxis_type"] = "category"
+        else:
+            figure_layout["yaxis_type"] = "linear"
     if layout is not None:
         figure_layout.update(layout)
     if normalize:
@@ -264,8 +273,8 @@ def make_lof_bar_plot(
     if labels is None:
         labels = {str(x_col): "Tonal pitch class", str(y_col): "Duration in ♩"}
     df = df.reset_index()
-    color_values = list(df[x_col])
-    x_values = list(set(color_values))
+    color_values = df[x_col].to_list()
+    x_values = sorted(set(color_values))
     x_names = list(map(fifth_transform, x_values))
     figure_layout = dict(showlegend=False)
     if layout is not None:
@@ -336,8 +345,13 @@ def make_lof_bubble_plot(
     as keyword argument 'hover_data'.
     """
     df = df.reset_index()
-    tpc_names = ms3.fifths2name(df[x_col].to_list())
-    df["pitch class"] = tpc_names
+    fifths = df[x_col].to_list()
+    x_vals = sorted(set(fifths))
+    x_names = ms3.fifths2name(x_vals)
+    xaxis_settings = dict(tickvals=x_vals, ticktext=x_names)
+    if x_axis is not None:
+        xaxis_settings.update(x_axis)
+    df["pitch class"] = ms3.fifths2name(fifths)
     if hover_data is None:
         hover_data = []
     elif isinstance(hover_data, str):
@@ -357,7 +371,7 @@ def make_lof_bubble_plot(
         width=width,
         height=height,
         layout=layout,
-        x_axis=x_axis,
+        x_axis=xaxis_settings,
         y_axis=y_axis,
         color_axis=color_axis,
         traces_settings=traces_settings,
