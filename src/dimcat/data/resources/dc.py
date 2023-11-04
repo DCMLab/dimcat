@@ -112,6 +112,11 @@ class DimcatResource(Resource, Generic[D]):
     default_analyzer: ClassVar[str] = "Proportions"
     """Name of the Analyzer that is used by default for plotting the resource. Needs to return a :obj:`Result`."""
     default_value_column: Optional[ClassVar[str]] = None
+    """Name of the column containing representative values for this resource. For example, they could be chosen as
+    values to be tallied up and displayed along the x-axis of a bar plot. If the :attr:`value_column` has not been set,
+    it returns this column name. For :obj:`Features <Feature>`, the value defaults to the last element of
+    :attr:`_feature_columns`.
+    """
     _extractable_features: Optional[ClassVar[Tuple[FeatureName, ...]]] = None
 
     @classmethod
@@ -590,6 +595,10 @@ DimcatResource.__init__(
     def value_column(self, value_column: str):
         if not isinstance(value_column, str):
             raise TypeError(f"Expected a string, got {type(value_column)}")
+        if value_column not in self.field_names:
+            raise ValueError(
+                f"Column {value_column!r} does not exist in the resource's schema."
+            )
         self._value_column = value_column
 
     def align_with_grouping(

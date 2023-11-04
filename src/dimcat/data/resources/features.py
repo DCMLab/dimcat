@@ -372,6 +372,29 @@ class Feature(DimcatResource):
             return [col for col in available_columns if col not in excluded_columns]
         return list(self._feature_columns)
 
+    @property
+    def value_column(self) -> str:
+        """The name of the column that contains the values of the resource. May depend on format
+        settings.
+        """
+        if self._value_column is not None:
+            return self._value_column
+        if self.default_value_column is not None:
+            return self.default_value_column
+        if self._feature_columns is not None:
+            return self._feature_columns[-1]
+        return self.column_schema.field_names[-1]
+
+    @value_column.setter
+    def value_column(self, value_column: str):
+        if not isinstance(value_column, str):
+            raise TypeError(f"Expected a string, got {type(value_column)}")
+        if value_column not in self.field_names:
+            raise ValueError(
+                f"Column {value_column!r} does not exist in the resource's schema."
+            )
+        self._value_column = value_column
+
     def get_column_names(self, include_index_levels: bool = False) -> List[str]:
         """Retrieve the names of [index_levels] + auxiliary_column_names + feature_column_names"""
         column_names = self.column_schema.primary_key if include_index_levels else []
@@ -538,6 +561,7 @@ class KeyAnnotations(Annotations):
     _auxiliary_columns = ["globalkey_is_minor", "localkey_is_minor"]
     _feature_columns = ["globalkey", "localkey"]
     _extractable_features = None
+    default_value_column = "localkey"
 
     def _transform_resource_df(self, feature_df):
         """Called by :meth:`_make_feature_df` to transform the resource dataframe into a feature dataframe."""
