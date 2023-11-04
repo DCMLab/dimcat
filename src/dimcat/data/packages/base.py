@@ -1139,7 +1139,8 @@ class Package(Data):
             raise NotImplementedError(
                 f"More than one metadata resource found: {resources!r}"
             )
-        metadata = resources[0].df
+        metadata = resources[0]
+        metadata.load()
         return metadata
 
     def get_resource_by_config(self, config: DimcatConfig) -> Resource:
