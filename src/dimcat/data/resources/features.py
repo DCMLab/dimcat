@@ -31,6 +31,7 @@ from dimcat.data.resources.utils import (
     boolean_is_minor_column_to_mode,
     condense_dataframe_by_groups,
     ensure_level_named_piece,
+    infer_schema_from_df,
     load_fl_resource,
     make_adjacency_groups,
     resolve_recognized_piece_columns_argument,
@@ -68,6 +69,8 @@ class Feature(DimcatResource):
     _enum_type = FeatureName
     _auxiliary_columns: Optional[ClassVar[List[str]]] = None
     _feature_columns: Optional[ClassVar[List[str]]] = None
+    """Feature columns should be able to fully define an individual object. When creating the resource, any row
+    containing a missing value in one of the feature columns is dropped."""
 
     # region constructors
 
@@ -360,6 +363,11 @@ class Feature(DimcatResource):
         elif self.is_frozen:
             resource_df = self.get_dataframe()
             feature_df = self._make_feature_df(resource_df)
+            self._resource.schema = infer_schema_from_df(
+                feature_df
+            )  # ToDo: the new schema should be attributed via
+            # self.column_schema = ... but for that, the detachment from the feature from the original resource needs
+            # to be implemented, which involves adapting the status
         else:
             RuntimeError(f"No dataframe accessible for this {self.name}:\n{self}")
         return feature_df
@@ -514,7 +522,16 @@ class HarmonyLabelsFormat(FriendlyEnum):
 
 
 class HarmonyLabels(Annotations):
-    _auxiliary_columns = ["globalkey", "localkey"]  # for inheritance
+    _auxiliary_columns = [
+        "globalkey",
+        "localkey",
+        "globalkey_mode",
+        "localkey_mode",
+        "localkey_resolved",
+        "localkey_and_mode",
+        "root_roman",
+        "chord_and_mode",
+    ]
     _extractable_features = HARMONY_FEATURE_NAMES
     default_value_column = "chord_and_mode"
 
@@ -624,6 +641,14 @@ def extend_harmony_feature(
 
 
 class BassNotes(HarmonyLabels):
+    _auxiliary_columns = [
+        "globalkey",
+        "localkey",
+        "globalkey_mode",
+        "localkey_mode",
+        "localkey_resolved",
+        "localkey_and_mode",
+    ]
     _feature_columns = ["bass_note"]
     _extractable_features = None
 
@@ -633,7 +658,14 @@ class BassNotes(HarmonyLabels):
 
 
 class KeyAnnotations(Annotations):
-    _auxiliary_columns = ["globalkey_is_minor", "localkey_is_minor"]
+    _auxiliary_columns = [
+        "globalkey_is_minor",
+        "localkey_is_minor",
+        "globalkey_mode",
+        "localkey_mode",
+        "localkey_resolved",
+        "localkey_and_mode",
+    ]
     _feature_columns = ["globalkey", "localkey"]
     _extractable_features = None
     default_value_column = "localkey_and_mode"

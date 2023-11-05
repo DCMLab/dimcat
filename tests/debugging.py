@@ -3,5 +3,5 @@ import dimcat
 if __name__ == "__main__":
     package_path = "/home/laser/git/dimcat/docs/mwe/dcml_corpora.datapackage.json"
     D = dimcat.Dataset.from_package(package_path)
-    labels = D.get_feature("harmonylabels")
-    props = labels.get_default_analysis()
+    keys = D.get_feature("keyannotations")
+    keys.load()

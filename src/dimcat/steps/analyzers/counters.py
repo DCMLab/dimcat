@@ -131,7 +131,7 @@ class NgramAnalyzer(Analyzer):
             left_df = right_df
         else:
             left_df = pd.concat(
-                [feature.df[feature.context_column_names, right_df]], axis=1
+                [feature.df[feature.context_column_names], right_df], axis=1
             )
         concatenate_this = {"a": left_df}
         for i in range(1, self.n):
