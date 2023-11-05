@@ -129,6 +129,17 @@ class NgramAnalyzer(Analyzer):
             concatenate_this[key] = right_df
         return pd.concat(concatenate_this, axis=1)
 
+    def _post_process_result(
+        self,
+        result: NgramTable,
+        original_resource: Feature,
+    ) -> DimcatResource:
+        """Change the default_groupby value of the returned Feature."""
+        result.context_column_names = original_resource.context_column_names
+        result.feature_column_names = original_resource.feature_column_names
+        result.auxiliary_column_names = original_resource.auxiliary_column_names
+        return result
+
     def resource_name_factory(self, resource: DimcatResource) -> str:
         """Returns a name for the resource based on its name and the name of the pipeline step."""
         return f"{resource.resource_name}_ngram_table"

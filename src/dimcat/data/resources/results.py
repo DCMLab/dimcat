@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import logging
+from itertools import product
 from typing import Iterable, List, Optional
 
+import frictionless as fl
 import pandas as pd
 from dimcat.base import ObjectEnum
 from dimcat.plotting import (
@@ -310,7 +312,62 @@ class Durations(Result):
 
 
 class NgramTable(Result):
-    pass
+    def __init__(
+        self,
+        resource: fl.Resource = None,
+        descriptor_filename: Optional[str] = None,
+        basepath: Optional[str] = None,
+        auto_validate: bool = False,
+        default_groupby: Optional[str | list[str]] = None,
+    ) -> None:
+        super().__init__(
+            resource=resource,
+            descriptor_filename=descriptor_filename,
+            basepath=basepath,
+            auto_validate=auto_validate,
+            default_groupby=default_groupby,
+        )
+        # ToDo: These fields need to be added to the schema for pickling. This will mean adding them to the init
+        #  arguments (currently these are added by NgramAnalyzer._post_process_result()).
+        self.context_column_names: List[str] = []
+        self.feature_column_names: List[str] = []
+        self.auxiliary_column_names: List[str] = []
+
+    def make_ngram_tuples(
+        self,
+        columns: Optional[str | List[str]] = None,
+        n: Optional[int] = None,
+    ) -> pd.DataFrame:
+        """Reduce the selected columns for the n first n-gram levels a, b, ... so that the resulting dataframe
+        contains n columns each of which contains tuples.
+
+        Args:
+            columns: Use only the selected column(s). Defaults to feature columns.
+            n:
+                Only make tuples for the first n n-gram levels. If None, use all n-gram levels. Minimum is 2, maximum
+                is the number of n-gram levels determined by the :obj:`NgramAnalyzer` used to create the n-gram table.
+
+        Returns:
+
+        """
+        if columns is None:
+            columns = self.feature_column_names
+        elif isinstance(columns, str):
+            columns = [columns]
+        else:
+            columns = list(columns)
+        ngram_levels = self.df.columns.levels[0]
+        if n is not None:
+            n = int(n)
+            assert 1 < n <= len(ngram_levels)
+            selected_levels = ngram_levels[:n]
+        else:
+            selected_levels = ngram_levels
+        selected_columns = list(product(selected_levels, columns))
+        selection = self.df[selected_columns]
+        return selection.groupby(level=0, axis=1).apply(
+            lambda df: df.apply(tuple, axis=1)
+        )
 
 
 class PitchClassDurations(Durations):
