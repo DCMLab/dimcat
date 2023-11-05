@@ -323,6 +323,8 @@ def infer_schema_from_df(
 
     """
     column_names = list(df.columns)
+    if isinstance(column_names[0], tuple):
+        column_names = [", ".join(col) for col in column_names]
     if include_index_levels:
         index_levels = list(df.index.names)
         column_names = index_levels + column_names

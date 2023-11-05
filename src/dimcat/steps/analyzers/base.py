@@ -24,6 +24,7 @@ class AnalyzerName(ObjectEnum):
     """Identifies the available analyzers."""
 
     Analyzer = "Analyzer"
+    BigramAnalyzer = "BigramAnalyzer"
     Counter = "Counter"
     PitchClassVectors = "PitchClassVectors"
     Proportions = "Proportions"

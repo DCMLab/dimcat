@@ -36,6 +36,7 @@ class ResultName(ObjectEnum):
     """Identifies the available analyzers."""
 
     Durations = "Durations"
+    NgramTable = "NgramTable"
     Result = "Result"
     PitchClassDurations = "PitchClassDurations"
 
@@ -305,6 +306,10 @@ class Result(DimcatResource):
 
 
 class Durations(Result):
+    pass
+
+
+class NgramTable(Result):
     pass
 
 
