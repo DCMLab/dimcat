@@ -39,9 +39,10 @@ class Counter(Analyzer):
 class NgramTableFormat(FriendlyEnum):
     """The format of the ngram table."""
 
-    SLIM = "SLIM"
-    SLIM_CONTEXT = "SLIM_CONTEXT"
-    CONTEXT = "CONTEXT"
+    FEATURES = "FEATURES"
+    FEATURES_CONTEXT = "FEATURES_CONTEXT"
+    AUXILIARY = "AUXILIARY"
+    AUXILIARY_CONTEXT = "AUXILIARY_CONTEXT"
     FULL = "FULL"
 
 
@@ -55,13 +56,13 @@ class NgramAnalyzer(Analyzer):
     class Schema(Analyzer.Schema):
         n = mm.fields.Integer(load_default=2)
         format = mm.fields.Enum(
-            NgramTableFormat, load_default=NgramTableFormat.SLIM_CONTEXT
+            NgramTableFormat, load_default=NgramTableFormat.AUXILIARY_CONTEXT
         )
 
     def __init__(
         self,
         n: int = 2,
-        format: NgramTableFormat = NgramTableFormat.SLIM_CONTEXT,
+        format: NgramTableFormat = NgramTableFormat.AUXILIARY_CONTEXT,
         features: Optional[FeatureSpecs | Iterable[FeatureSpecs]] = None,
         strategy: DispatchStrategy = DispatchStrategy.GROUPBY_APPLY,
         smallest_unit: UnitOfAnalysis = UnitOfAnalysis.SLICE,
@@ -108,18 +109,30 @@ class NgramAnalyzer(Analyzer):
                 f"Using the {feature.resource_name}'s default groupby {groupby!r}"
             )
 
-        if self.format in (NgramTableFormat.SLIM, NgramTableFormat.SLIM_CONTEXT):
+        if self.format in (
+            NgramTableFormat.FEATURES,
+            NgramTableFormat.FEATURES_CONTEXT,
+        ):
             right_df = feature.df[feature.feature_column_names]
-            if self.format == NgramTableFormat.SLIM:
-                left_df = right_df
-            else:
-                left_df = feature.df[feature.get_column_names()]
+        elif self.format in (
+            NgramTableFormat.AUXILIARY,
+            NgramTableFormat.AUXILIARY_CONTEXT,
+        ):
+            right_df = feature.df[
+                feature.auxiliary_column_names + feature.feature_column_names
+            ]
+        elif self.format == NgramTableFormat.FULL:
+            right_df = feature.df[feature.get_column_names()]
+        if self.format in (
+            NgramTableFormat.FEATURES,
+            NgramTableFormat.AUXILIARY,
+            NgramTableFormat.FULL,
+        ):
+            left_df = right_df
         else:
-            if self.format == NgramTableFormat.CONTEXT:
-                left_df = feature.df[feature.get_column_names()]
-            else:
-                left_df = feature.df
-            right_df = left_df
+            left_df = pd.concat(
+                [feature.df[feature.context_column_names, right_df]], axis=1
+            )
         concatenate_this = {"a": left_df}
         for i in range(1, self.n):
             key = chr(ord("a") + i)
