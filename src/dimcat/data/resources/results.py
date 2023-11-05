@@ -12,6 +12,7 @@ from dimcat.plotting import (
     make_lof_bar_plot,
     make_lof_bubble_plot,
 )
+from dimcat.utils import SortOrder
 from plotly import graph_objs as go
 
 from .dc import DimcatResource
@@ -43,8 +44,42 @@ class Result(DimcatResource):
     _enum_type = ResultName
 
     @property
+    def x_column(self) -> str:
+        return self.value_column
+
+    @property
     def y_column(self) -> str:
         return self.df.columns[-1]
+
+    def combine(
+        self,
+        group_cols: Optional[str | Iterable[str]] = None,
+        sort_order: SortOrder = SortOrder.DESCENDING,
+    ):
+        if group_cols is None:
+            group_cols = self.get_default_groupby()
+        elif isinstance(group_cols, str):
+            group_cols = [group_cols]
+        else:
+            group_cols = list(group_cols)
+        groupby = group_cols + [self.x_column]
+        combined_result = self.df.groupby(groupby).sum()
+        if sort_order is None or sort_order == SortOrder.NONE:
+            return combined_result
+        if not group_cols:
+            # no grouping required
+            if sort_order == SortOrder.ASCENDING:
+                return combined_result.sort_values(self.y_column)
+            else:
+                return combined_result.sort_values(self.y_column, ascending=False)
+        if sort_order == SortOrder.ASCENDING:
+            return combined_result.groupby(group_cols, group_keys=False).apply(
+                lambda df: df.sort_values(self.y_column)
+            )
+        else:
+            return combined_result.groupby(group_cols, group_keys=False).apply(
+                lambda df: df.sort_values(self.y_column, ascending=False)
+            )
 
     def plot(
         self,
@@ -107,15 +142,17 @@ class Result(DimcatResource):
     ) -> go.Figure:
         if group_cols is None:
             group_cols = self.get_default_groupby()
+        elif isinstance(group_cols, str):
+            group_cols = [group_cols]
+        else:
+            group_cols = list(group_cols)
         if not group_cols:
-            x_col = self.value_column
+            x_col = self.x_column
             y_col = self.y_column
             labels_settings = clean_axis_labels(x_col, y_col)
             if labels is not None:
                 labels_settings.update(labels)
-            combined_result = (
-                self.df.unstack(fill_value=0.0).sum().rename("duration_qb")
-            )
+            combined_result = self.combine()
             return self.make_bar_plot(
                 df=combined_result,
                 x_col=x_col,
@@ -136,7 +173,7 @@ class Result(DimcatResource):
             )
         else:
             y_col = group_cols[-1]
-            x_col = self.value_column
+            x_col = self.x_column
             labels_settings = clean_axis_labels(x_col, y_col)
             if labels is not None:
                 labels_settings.update(labels)

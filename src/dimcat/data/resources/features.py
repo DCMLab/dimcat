@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from enum import Enum
 from functools import cache, cached_property
 from typing import (
     ClassVar,
@@ -16,8 +15,16 @@ from typing import (
 
 import frictionless as fl
 import marshmallow as mm
+import ms3
 import pandas as pd
-from dimcat.base import DimcatConfig, ObjectEnum, get_class, get_setting, is_subclass_of
+from dimcat.base import (
+    DimcatConfig,
+    FriendlyEnum,
+    ObjectEnum,
+    get_class,
+    get_setting,
+    is_subclass_of,
+)
 from dimcat.data.resources.base import D, ResourceStatus
 from dimcat.data.resources.dc import DimcatResource
 from dimcat.data.resources.utils import (
@@ -499,13 +506,24 @@ class Annotations(Feature):
     pass
 
 
+class HarmonyLabelsFormat(FriendlyEnum):
+    ROMAN = "ROMAN"
+    FIFTHS = "FIFTHS"
+    DEGREE = "DEGREE"
+    INTERVAL = "INTERVAL"
+
+
 class HarmonyLabels(Annotations):
     _auxiliary_columns = ["globalkey", "localkey"]  # for inheritance
     _extractable_features = HARMONY_FEATURE_NAMES
-    default_value_column = "chord"
+    default_value_column = "chord_and_mode"
+
+    class Schema(Annotations.Schema):
+        format = mm.fields.Enum(HarmonyLabelsFormat)
 
     def __init__(
         self,
+        format: HarmonyLabelsFormat = HarmonyLabelsFormat.ROMAN,
         resource: fl.Resource = None,
         descriptor_filename: Optional[str] = None,
         basepath: Optional[str] = None,
@@ -535,17 +553,69 @@ class HarmonyLabels(Annotations):
             auto_validate=auto_validate,
             default_groupby=default_groupby,
         )
+        self._format = HarmonyLabelsFormat(format)
+
+    @property
+    def format(self) -> HarmonyLabelsFormat:
+        return self._format
 
     def _transform_resource_df(self, feature_df):
         """Called by :meth:`_make_feature_df` to transform the resource dataframe into a feature dataframe."""
         feature_df = super()._transform_resource_df(feature_df)
-        feature_df["globalkey_mode"] = boolean_is_minor_column_to_mode(
-            feature_df.globalkey_is_minor
-        )
-        feature_df["localkey_mode"] = boolean_is_minor_column_to_mode(
-            feature_df.localkey_is_minor
-        )
+        feature_df = transform_harmony_feature(feature_df, self.format)
         return feature_df
+
+
+def safe_row_tuple(row):
+    try:
+        return ", ".join(row)
+    except TypeError:
+        return pd.NA
+
+
+def transform_harmony_feature(
+    feature_df,
+):
+    concatenate_this = [
+        feature_df,
+        boolean_is_minor_column_to_mode(feature_df.globalkey_is_minor).rename(
+            "globalkey_mode"
+        ),
+        boolean_is_minor_column_to_mode(feature_df.localkey_is_minor).rename(
+            "localkey_mode"
+        ),
+        (
+            localkey_resolved := ms3.transform(
+                feature_df, ms3.resolve_relative_keys, ["localkey", "localkey_is_minor"]
+            ).rename("localkey_resolved")
+        ),
+        (
+            localkey_resolved_is_minor := localkey_resolved.str.islower().rename(
+                "localkey_resolved_is_minor"
+            )
+        ),
+        boolean_is_minor_column_to_mode(localkey_resolved_is_minor).rename(
+            "localkey_resolved_mode"
+        ),
+        (feature_df.numeral + ("/" + feature_df.relativeroot).fillna("")).rename(
+            "root_roman"
+        ),
+        ms3.transform(
+            feature_df, ms3.resolve_relative_keys, ["pedal", "localkey_is_minor"]
+        ).rename("pedal_resolved"),
+    ]
+    feature_df = pd.concat(concatenate_this, axis=1)
+    concatenate_this = [
+        feature_df,
+        feature_df[["chord", "localkey_resolved_mode"]]
+        .apply(safe_row_tuple, axis=1)
+        .rename("chord_and_mode"),
+        # ms3.transform(
+        #     feature_df, ms3.rel2abs_key, ["numeral", "localkey_resolved", "localkey_resolved_is_minor"]
+        # ).rename("root_roman_resolved"),
+    ]
+    feature_df = pd.concat(concatenate_this, axis=1)
+    return feature_df
 
 
 class BassNotes(HarmonyLabels):
@@ -592,7 +662,7 @@ class Articulation(Feature):
 # region Events
 
 
-class NotesFormat(str, Enum):
+class NotesFormat(FriendlyEnum):
     NAME = "NAME"
     FIFTHS = "FIFTHS"
     MIDI = "MIDI"

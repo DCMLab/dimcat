@@ -9,6 +9,7 @@ from typing import Collection, Iterable, Iterator, Literal, Optional, Tuple, ove
 from urllib.parse import urlparse
 
 import pandas as pd
+from dimcat.base import FriendlyEnum
 from dimcat.data.base import AbsolutePathStr
 from tqdm.auto import tqdm
 
@@ -421,3 +422,9 @@ def get_middle_composition_year(
     composed_start.fillna(composed_end, inplace=True)
     composed_end.fillna(composed_start, inplace=True)
     return (composed_start + composed_end) / 2
+
+
+class SortOrder(FriendlyEnum):
+    ASCENDING = "ASCENDING"
+    DESCENDING = "DESCENDING"
+    NONE = "NONE"

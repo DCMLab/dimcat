@@ -190,6 +190,7 @@ def make_bubble_plot(
         x_col:
         y_col:
     """
+    df = df.reset_index()
     xaxis_settings, yaxis_settings = dict(X_AXIS), dict(Y_AXIS)
     if flip:
         x_axis, y_axis = y_axis, x_axis
