@@ -110,7 +110,11 @@ class Grouper(FeatureProcessingStep):
             new_dataset.outputs.replace_package(new_package)
         return new_dataset
 
-    def _post_process_result(self, result: DimcatResource) -> DimcatResource:
+    def _post_process_result(
+        self,
+        result: DimcatResource,
+        original_resource: DimcatResource,
+    ) -> DimcatResource:
         """Change the default_groupby value of the returned Feature."""
         result.update_default_groupby(self.level_name)
         return result

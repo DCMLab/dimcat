@@ -132,7 +132,11 @@ class PipelineStep(DimcatObject):
         )
         return new_dataset
 
-    def _post_process_result(self, result: DimcatResource) -> DimcatResource:
+    def _post_process_result(
+        self,
+        result: DimcatResource,
+        original_resource: DimcatResource,
+    ) -> DimcatResource:
         """Perform some post-processing on a resource after processing it."""
         return result
 
@@ -195,7 +199,7 @@ class PipelineStep(DimcatObject):
         """Apply this PipelineStep to a :class:`Resource` and return a copy containing the output(s)."""
         resource = self._pre_process_resource(resource)
         result = self._make_new_resource(resource)
-        return self._post_process_result(result)
+        return self._post_process_result(result, resource)
 
     def process_resource(self, resource: ResourceSpecs) -> DimcatResource:
         resource = resource_specs2resource(resource)
