@@ -585,19 +585,9 @@ def extend_keys_feature(
         boolean_is_minor_column_to_mode(feature_df.localkey_is_minor).rename(
             "localkey_mode"
         ),
-        (
-            localkey_resolved := ms3.transform(
-                feature_df, ms3.resolve_relative_keys, ["localkey", "localkey_is_minor"]
-            ).rename("localkey_resolved")
-        ),
-        (
-            localkey_resolved_is_minor := localkey_resolved.str.islower().rename(
-                "localkey_resolved_is_minor"
-            )
-        ),
-        boolean_is_minor_column_to_mode(localkey_resolved_is_minor).rename(
-            "localkey_resolved_mode"
-        ),
+        ms3.transform(
+            feature_df, ms3.resolve_relative_keys, ["localkey", "localkey_is_minor"]
+        ).rename("localkey_resolved"),
     ]
     feature_df = pd.concat(concatenate_this, axis=1)
     concatenate_this = [
@@ -622,7 +612,7 @@ def extend_harmony_feature(
         ms3.transform(
             feature_df, ms3.resolve_relative_keys, ["pedal", "localkey_is_minor"]
         ).rename("pedal_resolved"),
-        feature_df[["chord", "localkey_resolved_mode"]]
+        feature_df[["chord", "localkey_mode"]]
         .apply(safe_row_tuple, axis=1)
         .rename("chord_and_mode"),
         # ms3.transform(
