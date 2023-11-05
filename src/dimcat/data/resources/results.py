@@ -54,7 +54,7 @@ class Result(DimcatResource):
     def combine(
         self,
         group_cols: Optional[str | Iterable[str]] = None,
-        sort_order: SortOrder = SortOrder.DESCENDING,
+        sort_order: Optional[SortOrder] = SortOrder.NONE,
     ):
         if group_cols is None:
             group_cols = self.get_default_groupby()

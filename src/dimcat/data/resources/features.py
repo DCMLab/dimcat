@@ -562,7 +562,8 @@ class HarmonyLabels(Annotations):
     def _transform_resource_df(self, feature_df):
         """Called by :meth:`_make_feature_df` to transform the resource dataframe into a feature dataframe."""
         feature_df = super()._transform_resource_df(feature_df)
-        feature_df = transform_harmony_feature(feature_df, self.format)
+        feature_df = extend_keys_feature(feature_df)
+        feature_df = extend_harmony_feature(feature_df)
         return feature_df
 
 
@@ -573,7 +574,7 @@ def safe_row_tuple(row):
         return pd.NA
 
 
-def transform_harmony_feature(
+def extend_keys_feature(
     feature_df,
 ):
     concatenate_this = [
@@ -597,16 +598,30 @@ def transform_harmony_feature(
         boolean_is_minor_column_to_mode(localkey_resolved_is_minor).rename(
             "localkey_resolved_mode"
         ),
+    ]
+    feature_df = pd.concat(concatenate_this, axis=1)
+    concatenate_this = [
+        feature_df,
+        feature_df[["localkey", "globalkey_mode"]]
+        .apply(safe_row_tuple, axis=1)
+        .rename("localkey_and_mode"),
+    ]
+    feature_df = pd.concat(concatenate_this, axis=1)
+    return feature_df
+
+
+def extend_harmony_feature(
+    feature_df,
+):
+    """Requires previous application of transform_keys_feature."""
+    concatenate_this = [
+        feature_df,
         (feature_df.numeral + ("/" + feature_df.relativeroot).fillna("")).rename(
             "root_roman"
         ),
         ms3.transform(
             feature_df, ms3.resolve_relative_keys, ["pedal", "localkey_is_minor"]
         ).rename("pedal_resolved"),
-    ]
-    feature_df = pd.concat(concatenate_this, axis=1)
-    concatenate_this = [
-        feature_df,
         feature_df[["chord", "localkey_resolved_mode"]]
         .apply(safe_row_tuple, axis=1)
         .rename("chord_and_mode"),
@@ -631,7 +646,7 @@ class KeyAnnotations(Annotations):
     _auxiliary_columns = ["globalkey_is_minor", "localkey_is_minor"]
     _feature_columns = ["globalkey", "localkey"]
     _extractable_features = None
-    default_value_column = "localkey"
+    default_value_column = "localkey_and_mode"
 
     def _transform_resource_df(self, feature_df):
         """Called by :meth:`_make_feature_df` to transform the resource dataframe into a feature dataframe."""
@@ -641,12 +656,7 @@ class KeyAnnotations(Annotations):
             feature_df.localkey, groupby=groupby_levels
         )
         feature_df = condense_dataframe_by_groups(feature_df, group_keys)
-        feature_df["globalkey_mode"] = boolean_is_minor_column_to_mode(
-            feature_df.globalkey_is_minor
-        )
-        feature_df["localkey_mode"] = boolean_is_minor_column_to_mode(
-            feature_df.localkey_is_minor
-        )
+        feature_df = extend_keys_feature(feature_df)
         return feature_df
 
 
