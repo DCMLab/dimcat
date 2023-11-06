@@ -517,7 +517,7 @@ class Annotations(Feature):
 class HarmonyLabelsFormat(FriendlyEnum):
     ROMAN = "ROMAN"
     FIFTHS = "FIFTHS"
-    DEGREE = "DEGREE"
+    SCALE_DEGREE = "SCALE_DEGREE"
     INTERVAL = "INTERVAL"
 
 
@@ -698,7 +698,7 @@ class NotesFormat(FriendlyEnum):
     NAME = "NAME"
     FIFTHS = "FIFTHS"
     MIDI = "MIDI"
-    DEGREE = "DEGREE"
+    SCALE_DEGREE = "SCALE_DEGREE"
     INTERVAL = "INTERVAL"
 
 
