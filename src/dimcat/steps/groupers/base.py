@@ -30,7 +30,7 @@ class Grouper(FeatureProcessingStep):
     class Schema(FeatureProcessingStep.Schema):
         level_name = mm.fields.Str()
 
-    def __init__(self, level_name: str = "grouper", **kwargs):
+    def __init__(self, level_name: str = "group", **kwargs):
         super().__init__(**kwargs)
         self._level_name: str = None
         self.level_name = level_name

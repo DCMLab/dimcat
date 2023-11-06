@@ -788,6 +788,7 @@ DimcatResource.__init__(
         """
         return PieceIndex.from_resource(self, max_levels=max_levels)
 
+    @cache
     def get_slice_intervals(
         self, round: Optional[int] = None, level_name: Optional[str] = None
     ) -> SliceIntervals:
