@@ -324,6 +324,10 @@ class FeatureProcessingStep(PipelineStep):
         feature_specs = self.get_feature_specs()
         return dataset.iter_features(feature_specs)
 
+    def _iter_resources(self, dataset: Dataset) -> Iterator[Tuple[str, DimcatResource]]:
+        """Iterate over all resources in the dataset's OutputCatalog."""
+        return dataset.outputs.iter_resources()
+
     def get_feature_specs(self) -> List[DimcatConfig]:
         """Return a list of feature names required for this PipelineStep."""
         return self.features

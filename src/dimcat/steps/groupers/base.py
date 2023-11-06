@@ -1,15 +1,6 @@
 import logging
 from collections import defaultdict
-from typing import (
-    Dict,
-    Hashable,
-    Iterator,
-    List,
-    MutableMapping,
-    Optional,
-    Sequence,
-    Tuple,
-)
+from typing import Dict, Hashable, List, MutableMapping, Optional, Sequence
 
 import marshmallow as mm
 import pandas as pd
@@ -71,10 +62,6 @@ class Grouper(FeatureProcessingStep):
             df=results,
             resource_name=result_name,
         )
-
-    def _iter_resources(self, dataset: Dataset) -> Iterator[Tuple[str, DimcatResource]]:
-        """Iterate over all resources in the dataset's OutputCatalog."""
-        return dataset.outputs.iter_resources()
 
     def _process_dataset(self, dataset: Dataset) -> Dataset:
         """Apply this PipelineStep to a :class:`Dataset` and return a copy containing the output(s)."""
