@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from functools import cache, cached_property
 from itertools import product
 from typing import Iterable, List, Optional
 
@@ -13,8 +14,11 @@ from dimcat.plotting import (
     make_bubble_plot,
     make_lof_bar_plot,
     make_lof_bubble_plot,
+    make_transition_heatmap_plots,
 )
 from dimcat.utils import SortOrder
+from matplotlib import pyplot as plt
+from matplotlib.figure import Figure as MatplotlibFigure
 from plotly import graph_objs as go
 
 from .dc import DimcatResource
@@ -32,6 +36,14 @@ def clean_axis_labels(*labels: str) -> dict:
         A dictionary with the cleaned labels.
     """
     return {label: label.replace("_", " ") for label in labels}
+
+
+def tuple2str(tup: tuple) -> str:
+    """Used for displaying n-grams on axes."""
+    try:
+        return ", ".join(str(e) for e in tup)
+    except TypeError:
+        return str(tup)
 
 
 class ResultName(ObjectEnum):
@@ -333,6 +345,75 @@ class NgramTable(Result):
         self.feature_column_names: List[str] = []
         self.auxiliary_column_names: List[str] = []
 
+    @cached_property
+    def ngram_levels(self) -> List[str]:
+        return list(self.df.columns.levels[0])
+
+    def make_bigram_tuples(
+        self,
+        columns: Optional[str | List[str]] = None,
+        split: int = -1,
+        as_string: bool = False,
+    ) -> pd.DataFrame:
+        """Get a list of bigram tuples where each tuple contains two tuples the values of which correspond to the
+        specified columns.
+
+        Args:
+            columns: Columns from which to construct bigrams. Defaults to feature columns.
+            split:
+                Relevant only for NgramAnalyzer with n > 2: Then the value can be modified to decide how many
+                elements are to be part of the left and the right gram. Defaults to -1, i.e. the last element is
+                used as the right gram. This is a useful default for settings where the (n-1) previous elements are
+                the context for predicting the next element.
+
+
+        Returns:
+            Like :meth:`make_ngram_tuples`, but condensed to two columns.
+        """
+        if len(self.ngram_levels) == 2:
+            result = self.make_ngram_tuples(columns=columns)
+        else:
+            ngram_tuples = self.make_ngram_tuples(columns=columns).itertuples(
+                index=False, name=None
+            )
+            data = [
+                (ngram_tuple[:split], ngram_tuple[split:])
+                for ngram_tuple in ngram_tuples
+            ]
+            result = pd.DataFrame(data, columns=["a", "b"], index=self.df.index)
+        if as_string:
+            result = result.map(tuple2str)
+        return result
+
+    def get_transitions(
+        self,
+        columns: Optional[str | List[str]] = None,
+        split: int = -1,
+        as_string: bool = False,
+    ) -> pd.DataFrame:
+        """Get a Series that counts for each context the number of transitions to each possible following element.
+
+        Args:
+            columns: Columns from which to construct bigrams. Defaults to feature columns.
+            split:
+                Relevant only for NgramAnalyzer with n > 2: Then the value can be modified to decide how many
+                elements are to be part of the left and the right gram. Defaults to -1, i.e. the last element is
+                used as the right gram. This is a useful default for settings where the (n-1) previous elements are
+                the context for predicting the next element.
+            smooth: Initial count value of all transitions
+            as_string: Set to True to convert the tuples to strings.
+
+        Returns:
+            Dataframe with columns 'count' and 'proportion', showing each (n-1) previous elements (index level 0),
+            the count and proportion of transitions to each possible following element (index level 1).
+        """
+        bigrams = self.make_bigram_tuples(
+            columns=columns, split=split, as_string=as_string
+        )
+        gpb = bigrams.groupby("a").b
+        return pd.concat([gpb.value_counts(), gpb.value_counts(normalize=True)], axis=1)
+
+    @cache
     def make_ngram_tuples(
         self,
         columns: Optional[str | List[str]] = None,
@@ -356,18 +437,68 @@ class NgramTable(Result):
             columns = [columns]
         else:
             columns = list(columns)
-        ngram_levels = self.df.columns.levels[0]
         if n is not None:
             n = int(n)
-            assert 1 < n <= len(ngram_levels)
-            selected_levels = ngram_levels[:n]
+            assert 1 < n <= len(self.ngram_levels)
+            selected_levels = self.ngram_levels[:n]
         else:
-            selected_levels = ngram_levels
+            selected_levels = self.ngram_levels
         selected_columns = list(product(selected_levels, columns))
         selection = self.df[selected_columns]
         return selection.groupby(level=0, axis=1).apply(
             lambda df: df.apply(tuple, axis=1)
         )
+
+    def plot_grouped(
+        self,
+        title: Optional[str] = None,
+        labels: Optional[dict] = None,
+        hover_data: Optional[List[str]] = None,
+        height: Optional[int] = None,
+        width: Optional[int] = None,
+        layout: Optional[dict] = None,
+        x_axis: Optional[dict] = None,
+        y_axis: Optional[dict] = None,
+        color_axis: Optional[dict] = None,
+        traces_settings: Optional[dict] = None,
+        output: Optional[str] = None,
+        **kwargs,
+    ) -> MatplotlibFigure:
+        """The arguments are currently ignored because the heatmaps have not been implemented in Plotly yet."""
+        transitions = self.get_transitions(self.x_column, as_string=True)
+        transition_matrix = transitions.proportion.unstack(fill_value=0.0)
+        unigram_stats = (
+            transitions.groupby("a", sort=False)["count"]
+            .sum()
+            .sort_values(ascending=False)
+        )
+        unigram_stats /= unigram_stats.sum()
+
+        def sort_by_prevalence(index):
+            missing = index.difference(unigram_stats.index)
+            if len(missing) > 0:
+                highest = unigram_stats.max()
+                shared = index.intersection(unigram_stats.index)
+                result = unigram_stats.loc[shared].reindex(
+                    index, fill_value=highest + 1
+                )
+            else:
+                result = unigram_stats.loc[index]
+            return pd.Index(result.values, name=index.name)
+
+        transition_matrix = (
+            transition_matrix.sort_index(
+                key=sort_by_prevalence, ascending=False
+            ).sort_index(axis=1, key=sort_by_prevalence, ascending=False)
+        ) * 100
+        fig = make_transition_heatmap_plots(
+            left_transition_matrix=transition_matrix,
+            left_unigrams=unigram_stats,
+            frequencies=True,
+        )
+        if output is not None:
+            plt.savefig(output, dpi=400)
+        return fig
 
 
 class PitchClassDurations(Durations):
