@@ -32,7 +32,9 @@ from dimcat.data.resources.base import (
 )
 from dimcat.data.resources.utils import (
     align_with_grouping,
+    apply_slice_intervals_to_resource_df,
     ensure_level_named_piece,
+    get_time_spans_from_resource_df,
     infer_schema_from_df,
     load_fl_resource,
     load_index_from_fl_resource,
@@ -617,6 +619,20 @@ DimcatResource.__init__(
             return pd.DataFrame(index=grouping)
         return align_with_grouping(self.df, grouping, sort_index=sort_index)
 
+    def apply_slice_intervals(
+        self,
+        slice_intervals: SliceIntervals | pd.MultiIndex,
+    ) -> pd.DataFrame:
+        """"""
+        if isinstance(slice_intervals, DimcatIndex):
+            slice_intervals = slice_intervals.index
+        if self.is_empty:
+            self.logger.warning(f"Resource {self.name} is empty.")
+            return pd.DataFrame(index=slice_intervals)
+        return apply_slice_intervals_to_resource_df(
+            df=self.df, slice_intervals=slice_intervals, logger=self.logger
+        )
+
     def apply_steps(self, steps: StepSpecs | Iterable[StepSpecs]) -> DimcatResource:
         Constructor = get_class("Pipeline")
         pipeline = Constructor(steps=steps)
@@ -771,6 +787,49 @@ DimcatResource.__init__(
             An index of the pieces described by the resource.
         """
         return PieceIndex.from_resource(self, max_levels=max_levels)
+
+    def get_slice_intervals(
+        self, round: Optional[int] = None, level_name: Optional[str] = None
+    ) -> SliceIntervals:
+        time_spans = self.get_time_spans(round=round, to_float=True, dropna=True)
+        relevant_subset = time_spans[["start", "end"]]
+        index_tuples, erroneous = [], []
+        if level_name is None:
+            level_name = f"{self.name.lower()}_slice"
+        level_names = list(time_spans.index.names[:-1]) + [level_name]
+        for idx, start, end in relevant_subset.itertuples(index=True, name=None):
+            if end < start:
+                erroneous.append(idx)
+                continue
+            interval = pd.Interval(start, end, closed="left")
+            idx_tuple = idx[:-1] + (interval,)
+            index_tuples.append(idx_tuple)
+        return SliceIntervals.from_tuples(index_tuples, level_names=level_names)
+
+    def get_time_spans(
+        self, round: Optional[int] = None, to_float: bool = True, dropna: bool = False
+    ) -> pd.DataFrame:
+        """Returns a dataframe with start ('left') and end ('end') positions of the events represented by this
+        resource's rows.
+
+        Args:
+            round:
+                To how many decimal places to round the intervals' boundary values. Setting a value automatically sets
+                ``to_float=True``.
+            to_float: Set to True to turn the time span values into floats.
+
+        Returns:
+
+        """
+        return get_time_spans_from_resource_df(
+            df=self.df,
+            start_column_name="quarterbeats",
+            duration_column_name="duration_qb",
+            round=round,
+            to_float=to_float,
+            dropna=dropna,
+            logger=self.logger,
+        )
 
     def load(self, force_reload: bool = False) -> None:
         """Tries to load the data from disk into RAM. If successful, the .is_loaded property will be True.
@@ -977,7 +1036,7 @@ class DimcatIndex(Generic[IX], Data):
 
     @classmethod
     def from_dataframe(cls, df: SomeDataframe) -> Self:
-        """Create a DimcatIndex from a dataframe."""
+        """Create a DimcatIndex from a dataframe's index."""
         return cls.from_index(df.index)
 
     @classmethod
@@ -1135,6 +1194,10 @@ class DimcatIndex(Generic[IX], Data):
     def to_resource(self, **kwargs) -> DimcatResource:
         """Create a DimcatResource from this index."""
         return DimcatResource.from_index(self, **kwargs)
+
+
+class SliceIntervals(DimcatIndex):
+    pass
 
 
 class PieceIndex(DimcatIndex[IX]):
