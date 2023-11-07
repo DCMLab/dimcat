@@ -248,7 +248,7 @@ class Dataset(Data):
         self._pipeline.add_step(feature_extractor)
         return extracted
 
-    def get_feature(self, feature: FeatureSpecs) -> Feature:
+    def get_feature(self, feature: Optional[FeatureSpecs] = None) -> Feature:
         """High-level method that first looks up a feature fitting the specs in the outputs catalog,
         and adds a FeatureExtractor to the dataset's pipeline otherwise."""
         feature_config = feature_specs2config(feature)
@@ -298,6 +298,13 @@ class Dataset(Data):
     def get_metadata(self) -> SomeDataframe:
         metadata = self.inputs.get_metadata()
         return metadata
+
+    def load(
+        self,
+        package: PackageSpecs,
+    ):
+        """High-level method that tries to infer what it is that you want to load."""
+        self.load_package(package=package)
 
     def load_package(
         self,

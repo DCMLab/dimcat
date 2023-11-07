@@ -146,6 +146,17 @@ class FilePathNotDefinedError(DimcatError):
     }
 
 
+class GrouperNotSetUpError(DimcatError):
+    """optional args: (grouper_name,)"""
+
+    nargs2message = {
+        0: "The grouper has not been setup. Applying it would result in empty features. Set the attribute "
+        "'grouped_pieces'.",
+        1: lambda name: f"The {name!r} has not been setup. Applying it would result in empty features. "
+        f"Set the attribute 'grouped_pieces'.",
+    }
+
+
 class InvalidResourcePathError(DimcatError):
     """optional args: (filepath, basepath)"""
 
@@ -183,11 +194,12 @@ class NoFeaturesActiveError(DimcatError):
 
 
 class NoMatchingResourceFoundError(DimcatError):
-    """optional args: (config,)"""
+    """optional args: (config, package_name)"""
 
     nargs2message = {
         0: "No matching resource found.",
         1: lambda config: f"No matching resource found for {config!r}.",
+        2: lambda config, package_name: f"Found no resource in in {package_name!r} that matches {config!r}.",
     }
 
 
@@ -254,6 +266,16 @@ class PotentiallyUnrelatedDescriptorError(DimcatError):
         f".from_descriptor_path().",
         2: lambda name, path: f"There is a potentially unrelated descriptor for {name!r} on disk. You can "
         f"load it via .from_descriptor_path({path!r}).",
+    }
+
+
+class ResourceAlreadyTransformed(DimcatError):
+    """optional args: (name, processor)"""
+
+    nargs2message = {
+        0: "Resource has already been processed.",
+        1: lambda name: f"Resource {name!r} has already been processed.",
+        2: lambda name, processor: f"Resource {name!r} has already been processed by a {processor!r}.",
     }
 
 
@@ -364,4 +386,15 @@ class ResourceNotProcessableError(DimcatError):
         1: lambda name: f"Cannot process {name!r}.",
         2: lambda name, step: f"{step!r} cannot process Resource {name!r}.",
         3: lambda name, step, resource_type: f"{step!r} cannot process Resource {name!r} of type {resource_type!r}.",
+    }
+
+
+class SlicerNotSetUpError(DimcatError):
+    """optional args: (slicer_name,)"""
+
+    nargs2message = {
+        0: "The slicer has not been setup. Applying it would result in empty features. Set the attribute "
+        "'slice_intervals'.",
+        1: lambda name: f"The {name!r} has not been setup. Applying it would result in empty features. "
+        f"Set the attribute 'slice_intervals'.",
     }

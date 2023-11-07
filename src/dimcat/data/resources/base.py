@@ -333,6 +333,7 @@ class Resource(Data):
             **kwargs: Subclasses can use this method.
         """
         basepath, descriptor_filename = os.path.split(descriptor_path)
+        basepath = resolve_path(basepath)  # could be relative
         if "basepath" in kwargs:
             kw_basepath = kwargs.pop("basepath")
             if kw_basepath != basepath:

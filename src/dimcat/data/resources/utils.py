@@ -12,15 +12,18 @@ from typing import (
     Dict,
     Iterable,
     List,
+    Literal,
     Optional,
     Set,
     Tuple,
     TypeVar,
+    overload,
 )
 from zipfile import ZipFile
 
 import frictionless as fl
 import ms3
+import numpy as np
 import pandas as pd
 import yaml
 from dimcat.base import get_setting
@@ -31,6 +34,7 @@ from dimcat.dc_warnings import (
 )
 from marshmallow.fields import Boolean
 from ms3 import reduce_dataframe_duration_to_first_row
+from numpy._typing import NDArray
 
 module_logger = logging.getLogger(__name__)
 
@@ -70,6 +74,49 @@ def align_with_grouping(
     if sort_index:
         return result.sort_index()
     return result
+
+
+def apply_slice_intervals_to_resource_df(
+    df: pd.DataFrame,
+    slice_intervals: pd.MultiIndex,
+    start_column_name: str = "quarterbeats",
+    duration_column_name: str = "duration_qb",
+    logger: Optional[logging.Logger] = None,
+) -> pd.DataFrame:
+    if logger is None:
+        logger = module_logger
+    *grouping_levels, slice_name = list(slice_intervals.names)
+    interval_index_level = slice_intervals.get_level_values(-1)
+    group2intervals: Dict[tuple, pd.IntervalIndex] = interval_index_level.groupby(
+        slice_intervals.droplevel(-1)
+    )
+
+    sliced_dfs = {}
+    for group, group_df in df.groupby(grouping_levels):
+        ivls = group2intervals.get(group)
+        if ivls is None:
+            logger.info(
+                f"{group!r}: No slice intervals present, group will not be omitted in the sliced resource."
+            )
+            continue
+        time_spans, clean_group_df = get_time_spans_from_resource_df(
+            df=group_df,
+            start_column_name=start_column_name,
+            duration_column_name=duration_column_name,
+            dropna=True,
+            return_df=True,
+            logger=logger,
+        )
+        sliced_dfs[group] = overlapping_chunk_per_interval_cutoff_direct(
+            df=clean_group_df.droplevel(grouping_levels),
+            lefts=time_spans.start.values,
+            rights=time_spans.end.values,
+            intervals=ivls,
+            start_column_name=start_column_name,
+            duration_column_name=duration_column_name,
+            logger=logger,
+        )
+    return pd.concat(sliced_dfs, names=grouping_levels)
 
 
 def boolean_is_minor_column_to_mode(S: pd.Series) -> pd.Series:
@@ -284,6 +331,108 @@ def get_existing_normpath(fl_resource) -> str:
     return normpath
 
 
+@overload
+def get_time_spans_from_resource_df(
+    df: pd.DataFrame,
+    start_column_name: str,
+    duration_column_name: str,
+    round: Optional[int],
+    to_float: bool,
+    dropna: bool,
+    return_df: Literal[False],
+    logger: Optional[logging.Logger],
+) -> pd.DataFrame:
+    ...
+
+
+@overload
+def get_time_spans_from_resource_df(
+    df: pd.DataFrame,
+    start_column_name: str,
+    duration_column_name: str,
+    round: Optional[int],
+    to_float: bool,
+    dropna: bool,
+    return_df: Literal[True],
+    logger: Optional[logging.Logger],
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    ...
+
+
+def get_time_spans_from_resource_df(
+    df,
+    start_column_name: str = "quarterbeats",
+    duration_column_name: str = "duration_qb",
+    round: Optional[int] = None,
+    to_float: bool = True,
+    dropna: bool = False,
+    return_df: bool = False,
+    logger: Optional[logging.Logger] = None,
+) -> pd.DataFrame | Tuple[pd.DataFrame, pd.DataFrame]:
+    """Returns a dataframe with start ('left') and end ('end') positions of the events represented by this
+    resource's rows.
+
+    Args:
+        round:
+            To how many decimal places to round the intervals' boundary values. Setting a value automatically sets
+            ``to_float=True``.
+        to_float: Set to True to turn the time span values into floats.
+
+    Returns:
+
+    """
+    if logger is None:
+        logger = module_logger
+    if not all(c in df.columns for c in (start_column_name, duration_column_name)):
+        missing = [
+            c for c in (start_column_name, duration_column_name) if c not in df.columns
+        ]
+        plural = "s" if len(missing) > 1 else ""
+        raise RuntimeError(
+            f"Column{plural} not present in DataFrame: {', '.join(missing)}"
+        )
+    available_mask = (
+        df[start_column_name].notna()
+        & (df[start_column_name] != "")
+        & df[duration_column_name].notna()
+        & (df[duration_column_name] != "")
+    )
+    if available_mask.sum() == 0:
+        raise ValueError("No dimensions found for computing time spans.")
+    some_are_missing = not available_mask.all()
+    if some_are_missing:
+        n_missing = (~available_mask).sum()
+        msg = f"{n_missing} rows are coming without without time spans"
+        if dropna:
+            msg += " and have been dropped"
+        msg += f":\n{df.index[~available_mask].to_list()}"
+        logger.warning(msg)
+        if not dropna:
+            original_index = df.index
+        df = df[available_mask].copy()
+    start = df[start_column_name]
+    duration_col = df[duration_column_name]
+    end = start + duration_col
+    if to_float or round is not None:
+        start = start.astype(float)
+        end = end.astype(float)
+        if round is not None:
+            start, end = start.round(round), end.round(round)
+    result = pd.DataFrame(
+        {
+            "start": start,
+            "end": end,
+            # duration_column_name: duration_col
+        },
+        index=df.index,
+    )
+    if some_are_missing and not dropna:
+        result = result.reindex(original_index)
+    if return_df:
+        return result, df
+    return result
+
+
 def infer_piece_col_position(
     column_name: List[str],
     recognized_piece_columns: Optional[Iterable[str]] = None,
@@ -323,6 +472,8 @@ def infer_schema_from_df(
 
     """
     column_names = list(df.columns)
+    if isinstance(column_names[0], tuple):
+        column_names = [", ".join(col) for col in column_names]
     if include_index_levels:
         index_levels = list(df.index.names)
         column_names = index_levels + column_names
@@ -418,7 +569,7 @@ def load_fl_resource(
         dataframe = pd.read_csv(
             file,
             sep="\t",
-            usecols=usecols_names,
+            usecols=lambda x: x in usecols_names,
             parse_dates=parse_dates,
             dtype=dtypes,
             converters=converters,
@@ -677,7 +828,8 @@ def make_index_from_grouping_dict(
 
     Args:
         grouping: A dictionary where keys are group names and values are lists of index tuples.
-        level_names: Names for the levels of the MultiIndex, i.e. one for the group level and one per grouped level.
+        level_names:
+            Names for the levels of the MultiIndex, i.e. one for the group level and one per level in the tuples.
         sort: By default the returned MultiIndex is sorted. Set False to disable sorting.
         raise_if_multiple_membership: If True, raises a ValueError if a member is in multiple groups.
 
@@ -754,6 +906,69 @@ def nan_eq(a, b):
     return (a == b) | (pd.isnull(a) & pd.isnull(b))
 
 
+def overlapping_chunk_per_interval_cutoff_direct(
+    df: pd.DataFrame,
+    lefts: NDArray,
+    rights: NDArray,
+    intervals: pd.IntervalIndex,
+    start_column_name: str = "quarterbeats",
+    duration_column_name: str = "duration_qb",
+    logger: Optional[logging.Logger] = None,
+) -> pd.DataFrame:
+    """
+
+    Args:
+        df: DataFrame to be sliced.
+        lefts: Same-length array expressing the start point of every row.
+        rights: Same-length array expressing the end point (exclusive) of every row.
+        duration_column_name:
+            Name of the column in the chunk dfs where the new event durations will be stored as floats. Defaults to
+            "duration_qb", resulting in the existing values being updated.
+        intervals:
+            The pairs are interpreted as left-closed, right-open intervals that demarcate the boundaries of the
+            returned DataFrame chunks. These intervals are assumed to be non-overlapping and monotonically
+            increasing, which allows us to speed up this expensive operation.
+
+    Returns:
+        For each interval, the corresponding chunk of the DataFrame. Each chunk comes with a
+        :obj`pandas.IntervalIndex` reflecting the new lefts and rights including those that reflect the slicing of
+        events which overlapped the embracing interval. The only values that are changed, compared to the original
+        DataFrame, are those in the column
+    """
+    if logger is None:
+        logger = module_logger
+    if not intervals.is_non_overlapping_monotonic:
+        logger.warning(
+            f"Intervals are not non-overlapping and/or not monotonically increasing:\n{intervals}"
+        )
+    n = len(df.index)
+    chunks = {}  # slice_iv -> mask
+    current_start_mask = np.ones(n, dtype=bool)
+    for interval in intervals:
+        # never again check events ending before the current interval's start
+        l, r = interval.left, interval.right
+        not_ending_before_l = rights >= l
+        lefts = lefts[not_ending_before_l]
+        rights = rights[not_ending_before_l]
+        current_start_mask[current_start_mask] = not_ending_before_l
+        starting_before_r = r > lefts
+        not_ending_on_l_except_empty = (rights != l) | (lefts == l)
+        overlapping = starting_before_r & not_ending_on_l_except_empty
+        bool_mask = current_start_mask.copy()
+        bool_mask[current_start_mask] = overlapping
+        new_lefts, new_rights = lefts[overlapping], rights[overlapping]
+        starting_before_l, ending_after_r = (new_lefts < l), (new_rights > r)
+        chunk = df[bool_mask].copy()
+        if starting_before_l.sum() > 0 or ending_after_r.sum() > 0:
+            new_lefts[starting_before_l] = l
+            new_rights[ending_after_r] = r
+            chunk[start_column_name] = new_lefts
+            chunk[duration_column_name] = (new_rights - new_lefts).round(5)
+        chunks[interval] = chunk
+    level_names = [intervals.name] + df.index.names
+    return pd.concat(chunks, names=level_names)
+
+
 def resolve_columns_argument(
     columns: Optional[int | str | List[int | str]],
     column_names: List[str],
@@ -780,12 +995,10 @@ def resolve_columns_argument(
     for str_or_int in columns:
         if isinstance(str_or_int, int):
             result.append(column_names[str_or_int])
-        else:
-            if str_or_int not in column_names:
-                raise ValueError(
-                    f"Column {str_or_int!r} not found in field names {column_names}."
-                )
+        elif str_or_int in column_names:
             result.append(str_or_int)
+        else:
+            pass
     result_set = set(result)
     if len(result_set) != len(result):
         raise ValueError(f"Duplicate column names in {columns}.")

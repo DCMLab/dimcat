@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+from collections import defaultdict
+from itertools import repeat
 from typing import (
     ClassVar,
     Iterable,
@@ -11,10 +13,13 @@ from typing import (
     Optional,
     Tuple,
     Type,
+    TypeAlias,
     TypeVar,
+    Union,
     overload,
 )
 
+import pandas as pd
 from dimcat.base import DimcatConfig, DimcatObject, get_class
 from dimcat.data.base import Data
 from dimcat.data.datasets.base import Dataset
@@ -22,6 +27,7 @@ from dimcat.data.packages.dc import DimcatPackage
 from dimcat.data.resources.base import Resource, ResourceSpecs, resource_specs2resource
 from dimcat.data.resources.dc import DimcatResource
 from dimcat.data.resources.features import (
+    Feature,
     FeatureName,
     FeatureSpecs,
     features_argument2config_list,
@@ -31,6 +37,7 @@ from dimcat.dc_exceptions import (
     EmptyResourceError,
     FeatureUnavailableError,
     NoFeaturesActiveError,
+    ResourceAlreadyTransformed,
     ResourceNotProcessableError,
 )
 from marshmallow import fields, pre_load
@@ -130,7 +137,11 @@ class PipelineStep(DimcatObject):
         )
         return new_dataset
 
-    def _post_process_result(self, result: DimcatResource) -> DimcatResource:
+    def _post_process_result(
+        self,
+        result: DimcatResource,
+        original_resource: DimcatResource,
+    ) -> DimcatResource:
         """Perform some post-processing on a resource after processing it."""
         return result
 
@@ -193,7 +204,7 @@ class PipelineStep(DimcatObject):
         """Apply this PipelineStep to a :class:`Resource` and return a copy containing the output(s)."""
         resource = self._pre_process_resource(resource)
         result = self._make_new_resource(resource)
-        return self._post_process_result(result)
+        return self._post_process_result(result, resource)
 
     def process_resource(self, resource: ResourceSpecs) -> DimcatResource:
         resource = resource_specs2resource(resource)
@@ -318,6 +329,10 @@ class FeatureProcessingStep(PipelineStep):
         feature_specs = self.get_feature_specs()
         return dataset.iter_features(feature_specs)
 
+    def _iter_resources(self, dataset: Dataset) -> Iterator[Tuple[str, DimcatResource]]:
+        """Iterate over all resources in the dataset's OutputCatalog."""
+        return dataset.outputs.iter_resources()
+
     def get_feature_specs(self) -> List[DimcatConfig]:
         """Return a list of feature names required for this PipelineStep."""
         return self.features
@@ -355,3 +370,94 @@ class FeatureProcessingStep(PipelineStep):
             new_dataset.outputs.extend_package(new_package)
         new_dataset._pipeline.add_step(self)
         return new_dataset
+
+
+class ResourceTransformation(FeatureProcessingStep):
+    """The subclasses either transform the features specified upon initialization, returning a Dataset containing
+    only these, or, if no features are specified, transform all resources in the outputs catalog.
+    """
+
+    def _make_new_resource(self, resource: Feature) -> Feature:
+        """Create a new resource by transforming the existing one."""
+        result_constructor = self._get_new_resource_type(resource)
+        result_df = self.transform_resource(resource)
+        result_name = self.resource_name_factory(resource)
+        try:
+            new_resource = result_constructor.from_dataframe(
+                df=result_df,
+                resource_name=result_name,
+            )
+        except Exception:
+            print(result_df)
+            print(resource.get_level_names())
+            raise
+        self.logger.debug(
+            f"Created new resource {new_resource} of type {result_constructor.name}."
+        )
+        return new_resource
+
+    def _process_dataset(self, dataset: Dataset) -> Dataset:
+        """Apply this PipelineStep to a :class:`Dataset` and return a copy containing the output(s)."""
+        new_dataset = self._make_new_dataset(dataset)
+        self.fit_to_dataset(new_dataset)
+        new_dataset._pipeline.add_step(self)
+        feature_specs = self.get_feature_specs()
+        if feature_specs:
+            resource_iterator = self._iter_features(new_dataset)
+            package_name_resource_iterator = zip(repeat("features"), resource_iterator)
+        else:
+            package_name_resource_iterator = self._iter_resources(new_dataset)
+        processed_resources = defaultdict(list)
+        for package_name, resource in package_name_resource_iterator:
+            try:
+                new_resource = self.process_resource(resource)
+            except ResourceNotProcessableError as e:
+                self.logger.warning(
+                    f"Resource {resource.resource_name!r} could not be transformed and is not included in "
+                    f"the new Dataset due to the following error: {e!r}"
+                )
+                continue
+            except ResourceAlreadyTransformed:
+                new_resource = resource
+            processed_resources[package_name].append(new_resource)
+        for package_name, resources in processed_resources.items():
+            new_package = self._make_new_package(package_name)
+            new_package.extend(resources)
+            n_processed = len(resources)
+            if new_package.n_resources < n_processed:
+                if new_package.n_resources == 0:
+                    self.logger.warning(
+                        f"None of the {n_processed} {package_name} were successfully transformed."
+                    )
+                else:
+                    self.logger.warning(
+                        f"Transformation was successful only on {new_package.n_resources} of the "
+                        f"{n_processed} features."
+                    )
+            new_dataset.outputs.replace_package(new_package)
+        return new_dataset
+
+    def transform_resource(self, resource: DimcatResource) -> pd.DataFrame:
+        """Apply the Transformation to a Feature and return the transformed dataframe."""
+        return resource.df
+
+
+StepSpecs: TypeAlias = Union[
+    PipelineStep | Type[PipelineStep] | DimcatConfig | dict | str
+]
+
+
+def step_specs2step(step_specs: StepSpecs) -> PipelineStep:
+    if isinstance(step_specs, PipelineStep):
+        return step_specs
+    if isinstance(step_specs, type) and issubclass(step_specs, PipelineStep):
+        return step_specs()
+    if isinstance(step_specs, DimcatConfig):
+        obj = step_specs.create()
+    if isinstance(step_specs, dict):
+        obj = DimcatConfig(step_specs).create()
+    if isinstance(step_specs, str):
+        obj = get_class(step_specs)()
+    if isinstance(obj, PipelineStep):
+        return obj
+    raise TypeError(f"Expected PipelineStep, got {type(step_specs)}")

@@ -8,6 +8,7 @@ from typing import (
     ClassVar,
     Dict,
     Generic,
+    Hashable,
     Iterable,
     List,
     Optional,
@@ -31,7 +32,9 @@ from dimcat.data.resources.base import (
 )
 from dimcat.data.resources.utils import (
     align_with_grouping,
+    apply_slice_intervals_to_resource_df,
     ensure_level_named_piece,
+    get_time_spans_from_resource_df,
     infer_schema_from_df,
     load_fl_resource,
     load_index_from_fl_resource,
@@ -49,10 +52,13 @@ from dimcat.dc_exceptions import (
 from dimcat.dc_warnings import PotentiallyUnrelatedDescriptorUserWarning
 from dimcat.utils import check_name
 from frictionless import FrictionlessException
+from plotly import graph_objs as go
 from typing_extensions import Self
 
 if TYPE_CHECKING:
     from dimcat.data.resources.features import Feature, FeatureName
+    from dimcat.data.resources.results import Result
+    from dimcat.steps.base import StepSpecs
 
 
 class UnitOfAnalysis(FriendlyEnum):
@@ -105,6 +111,14 @@ class DimcatResource(Resource, Generic[D]):
     DimcatPackage will take care of the serialization and not store an individual resource descriptor.
     """
 
+    default_analyzer: ClassVar[str] = "Proportions"
+    """Name of the Analyzer that is used by default for plotting the resource. Needs to return a :obj:`Result`."""
+    default_value_column: Optional[ClassVar[str]] = None
+    """Name of the column containing representative values for this resource. For example, they could be chosen as
+    values to be tallied up and displayed along the x-axis of a bar plot. If the :attr:`value_column` has not been set,
+    it returns this column name. For :obj:`Features <Feature>`, the value defaults to the last element of
+    :attr:`_feature_columns`.
+    """
     _extractable_features: Optional[ClassVar[Tuple[FeatureName, ...]]] = None
 
     @classmethod
@@ -197,13 +211,14 @@ class DimcatResource(Resource, Generic[D]):
             basepath=basepath,
             descriptor_filename=descriptor_filename,
             auto_validate=auto_validate,
-            default_groupby=default_groupby,
         )
         if resource_name is not None:
             new_object.resource_name = resource_name
         new_object._df = df
         new_object._resource.schema = infer_schema_from_df(df)
         new_object._update_status()
+        if default_groupby is not None:
+            new_object.default_groupby = default_groupby
         return new_object
 
     @classmethod
@@ -399,6 +414,7 @@ DimcatResource.__init__(
         self._df: D = None
         self.auto_validate = True if auto_validate else False  # catches None
         self._default_groupby: List[str] = []
+        self._value_column: Optional[str] = None
         super().__init__(
             resource=resource,
             descriptor_filename=descriptor_filename,
@@ -566,6 +582,27 @@ DimcatResource.__init__(
             return True
         return super().is_valid
 
+    @property
+    def value_column(self) -> str:
+        """The name of the column that contains the values of the resource. May depend on format
+        settings.
+        """
+        if self._value_column is not None:
+            return self._value_column
+        if self.default_value_column is not None:
+            return self.default_value_column
+        return self.column_schema.field_names[-1]
+
+    @value_column.setter
+    def value_column(self, value_column: str):
+        if not isinstance(value_column, str):
+            raise TypeError(f"Expected a string, got {type(value_column)}")
+        if value_column not in self.field_names:
+            raise ValueError(
+                f"Column {value_column!r} does not exist in the resource's schema."
+            )
+        self._value_column = value_column
+
     def align_with_grouping(
         self,
         grouping: DimcatIndex | pd.MultiIndex,
@@ -581,6 +618,25 @@ DimcatResource.__init__(
             self.logger.warning(f"Resource {self.name} is empty.")
             return pd.DataFrame(index=grouping)
         return align_with_grouping(self.df, grouping, sort_index=sort_index)
+
+    def apply_slice_intervals(
+        self,
+        slice_intervals: SliceIntervals | pd.MultiIndex,
+    ) -> pd.DataFrame:
+        """"""
+        if isinstance(slice_intervals, DimcatIndex):
+            slice_intervals = slice_intervals.index
+        if self.is_empty:
+            self.logger.warning(f"Resource {self.name} is empty.")
+            return pd.DataFrame(index=slice_intervals)
+        return apply_slice_intervals_to_resource_df(
+            df=self.df, slice_intervals=slice_intervals, logger=self.logger
+        )
+
+    def apply_steps(self, steps: StepSpecs | Iterable[StepSpecs]) -> DimcatResource:
+        Constructor = get_class("Pipeline")
+        pipeline = Constructor(steps=steps)
+        return pipeline.process_resource(self)
 
     def extract_feature(
         self,
@@ -676,6 +732,11 @@ DimcatResource.__init__(
             self._status = ResourceStatus.PACKAGED_LOADED
         return dataframe
 
+    @cache
+    def get_default_analysis(self) -> Result:
+        """Returns the default analysis of the resource."""
+        return self.apply_steps(self.default_analyzer)
+
     def get_default_groupby(self) -> List[str]:
         """Returns the default index levels for grouping the resource."""
         if not self.default_groupby:
@@ -687,13 +748,12 @@ DimcatResource.__init__(
     ) -> List[str]:
         """Returns the levels of the grouping index, i.e., all levels until and including 'piece'."""
         smallest_unit = UnitOfAnalysis(smallest_unit)
-        if smallest_unit is UnitOfAnalysis.SLICE:
+        if smallest_unit == UnitOfAnalysis.SLICE:
             return self.get_level_names()[:-1]
-        if smallest_unit is UnitOfAnalysis.PIECE:
+        if smallest_unit in (UnitOfAnalysis.PIECE, UnitOfAnalysis.SLICE):
             return self.get_piece_index(max_levels=0).names
-        if smallest_unit is UnitOfAnalysis.GROUP:
+        if smallest_unit == UnitOfAnalysis.GROUP:
             return self.get_default_groupby()
-        raise NotImplementedError(smallest_unit)
 
     def get_index(self) -> DimcatIndex:
         """Returns the index of the resource based on the ``primaryKey`` of the :obj:`frictionless.Schema`."""
@@ -728,6 +788,50 @@ DimcatResource.__init__(
         """
         return PieceIndex.from_resource(self, max_levels=max_levels)
 
+    @cache
+    def get_slice_intervals(
+        self, round: Optional[int] = None, level_name: Optional[str] = None
+    ) -> SliceIntervals:
+        time_spans = self.get_time_spans(round=round, to_float=True, dropna=True)
+        relevant_subset = time_spans[["start", "end"]]
+        index_tuples, erroneous = [], []
+        if level_name is None:
+            level_name = f"{self.name.lower()}_slice"
+        level_names = list(time_spans.index.names[:-1]) + [level_name]
+        for idx, start, end in relevant_subset.itertuples(index=True, name=None):
+            if end < start:
+                erroneous.append(idx)
+                continue
+            interval = pd.Interval(start, end, closed="left")
+            idx_tuple = idx[:-1] + (interval,)
+            index_tuples.append(idx_tuple)
+        return SliceIntervals.from_tuples(index_tuples, level_names=level_names)
+
+    def get_time_spans(
+        self, round: Optional[int] = None, to_float: bool = True, dropna: bool = False
+    ) -> pd.DataFrame:
+        """Returns a dataframe with start ('left') and end ('end') positions of the events represented by this
+        resource's rows.
+
+        Args:
+            round:
+                To how many decimal places to round the intervals' boundary values. Setting a value automatically sets
+                ``to_float=True``.
+            to_float: Set to True to turn the time span values into floats.
+
+        Returns:
+
+        """
+        return get_time_spans_from_resource_df(
+            df=self.df,
+            start_column_name="quarterbeats",
+            duration_column_name="duration_qb",
+            round=round,
+            to_float=to_float,
+            dropna=dropna,
+            logger=self.logger,
+        )
+
     def load(self, force_reload: bool = False) -> None:
         """Tries to load the data from disk into RAM. If successful, the .is_loaded property will be True.
         If the resource hadn't been loaded before, its .status property will be updated.
@@ -738,6 +842,26 @@ DimcatResource.__init__(
     def _make_empty_fl_resource(self):
         """Create an empty frictionless resource object with a minimal descriptor."""
         return make_tsv_resource()
+
+    def plot(
+        self,
+        steps: Optional[StepSpecs | Iterable[StepSpecs]] = None,
+        **kwargs,
+    ) -> go.Figure:
+        if steps is None:
+            result = self.get_default_analysis()
+        else:
+            result = self.apply_steps(steps)
+        return result.plot(**kwargs)
+
+    def plot_grouped(
+        self, steps: Optional[StepSpecs | Iterable[StepSpecs]] = None, **kwargs
+    ) -> go.Figure:
+        if steps is None:
+            result: Result = self.get_default_analysis()
+        else:
+            result: Result = self.apply_steps(steps)
+        return result.plot_grouped(**kwargs)
 
     def set_basepath(
         self,
@@ -913,13 +1037,13 @@ class DimcatIndex(Generic[IX], Data):
 
     @classmethod
     def from_dataframe(cls, df: SomeDataframe) -> Self:
-        """Create a DimcatIndex from a dataframe."""
+        """Create a DimcatIndex from a dataframe's index."""
         return cls.from_index(df.index)
 
     @classmethod
     def from_grouping(
         cls,
-        grouping: Dict[str, List[tuple]],
+        grouping: Dict[Hashable, List[tuple]],
         level_names: Sequence[str] = ("piece_group", "corpus", "piece"),
         sort: bool = False,
         raise_if_multiple_membership: bool = False,
@@ -928,7 +1052,8 @@ class DimcatIndex(Generic[IX], Data):
 
         Args:
         grouping: A dictionary where keys are group names and values are lists of index tuples.
-        names: Names for the levels of the MultiIndex, i.e. one for the group level and one per level in the tuples.
+        level_names:
+            Names for the levels of the MultiIndex, i.e. one for the group level and one per level in the tuples.
         sort: By default the returned MultiIndex is not sorted. Set False to enable sorting.
         raise_if_multiple_membership: If True, raises a ValueError if a member is in multiple groups.
         """
@@ -972,19 +1097,19 @@ class DimcatIndex(Generic[IX], Data):
     def from_tuples(
         cls,
         tuples: Iterable[tuple],
-        names: Sequence[str],
+        level_names: Sequence[str],
     ) -> Self:
         list_of_tuples = list(tuples)
         if len(list_of_tuples) == 0:
-            return cls()
+            return cls(pd.MultiIndex.from_tuples([], names=level_names))
         first_tuple = list_of_tuples[0]
         if not isinstance(first_tuple, tuple):
             raise ValueError(f"Expected tuples, got {type(first_tuple)!r}.")
-        if len(first_tuple) != len(names):
+        if len(first_tuple) != len(level_names):
             raise ValueError(
-                f"Expected tuples of length {len(names)}, got {len(first_tuple)}."
+                f"Expected tuples of length {len(level_names)}, got {len(first_tuple)}."
             )
-        multiindex = pd.MultiIndex.from_tuples(list_of_tuples, names=names)
+        multiindex = pd.MultiIndex.from_tuples(list_of_tuples, names=level_names)
         return cls(multiindex)
 
     def __init__(
@@ -1072,6 +1197,10 @@ class DimcatIndex(Generic[IX], Data):
         return DimcatResource.from_index(self, **kwargs)
 
 
+class SliceIntervals(DimcatIndex):
+    pass
+
+
 class PieceIndex(DimcatIndex[IX]):
     """A unique DimcatIndex where the last (i.e. right-most) level is named `piece`."""
 
@@ -1122,9 +1251,9 @@ class PieceIndex(DimcatIndex[IX]):
     def from_tuples(
         cls,
         tuples: Iterable[tuple],
-        names: Sequence[str] = ("corpus", "piece"),
+        level_names: Sequence[str] = ("corpus", "piece"),
     ) -> Self:
-        return super().from_tuples(tuples, names)
+        return super().from_tuples(tuples, level_names)
 
     def __init__(self, index: Optional[IX] = None):
         if index is None:

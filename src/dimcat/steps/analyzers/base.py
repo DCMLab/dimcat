@@ -24,18 +24,15 @@ class AnalyzerName(ObjectEnum):
     """Identifies the available analyzers."""
 
     Analyzer = "Analyzer"
+    BigramAnalyzer = "BigramAnalyzer"
     Counter = "Counter"
     PitchClassVectors = "PitchClassVectors"
+    Proportions = "Proportions"
 
 
 class DispatchStrategy(str, Enum):
     GROUPBY_APPLY = "GROUPBY_APPLY"
     ITER_STACK = "ITER_STACK"
-
-
-class Orientation(str, Enum):
-    WIDE = "WIDE"
-    LONG = "LONG"
 
 
 class Analyzer(FeatureProcessingStep):
@@ -122,7 +119,6 @@ class Analyzer(FeatureProcessingStep):
     class Schema(FeatureProcessingStep.Schema):
         strategy = mm.fields.Enum(DispatchStrategy, metadata={"expose": False})
         smallest_unit = mm.fields.Enum(UnitOfAnalysis, metadata={"expose": False})
-        orientation = mm.fields.Enum(Orientation, metadata={"expose": False})
         fill_na = mm.fields.Raw(allow_none=True, metadata={"expose": False})
 
         @mm.pre_load()
@@ -141,7 +137,6 @@ class Analyzer(FeatureProcessingStep):
         features: Optional[FeatureSpecs | Iterable[FeatureSpecs]] = None,
         strategy: DispatchStrategy = DispatchStrategy.GROUPBY_APPLY,
         smallest_unit: UnitOfAnalysis = UnitOfAnalysis.SLICE,
-        orientation: Orientation = Orientation.WIDE,
         fill_na: Any = None,
     ):
         super().__init__(features=features)
@@ -149,8 +144,6 @@ class Analyzer(FeatureProcessingStep):
         self.strategy = strategy
         self._smallest_unit: UnitOfAnalysis = None
         self.smallest_unit = smallest_unit
-        self._orientation: Orientation = None
-        self.orientation = orientation
         self.fill_na: Any = fill_na
 
     @property
@@ -173,16 +166,6 @@ class Analyzer(FeatureProcessingStep):
             smallest_unit = UnitOfAnalysis(smallest_unit)
         self._smallest_unit = smallest_unit
 
-    @property
-    def orientation(self) -> Orientation:
-        return self._orientation
-
-    @orientation.setter
-    def orientation(self, orientation: Orientation):
-        if not isinstance(orientation, Orientation):
-            orientation = Orientation(orientation)
-        self._orientation = orientation
-
     def _make_new_resource(self, resource: Feature) -> Result:
         """Dispatch the passed resource to the appropriate method."""
         if self.strategy == DispatchStrategy.ITER_STACK:  # more cases to follow
@@ -192,10 +175,13 @@ class Analyzer(FeatureProcessingStep):
         result_constructor = self._get_new_resource_type(resource)
         results = self.groupby_apply(resource)
         result_name = self.resource_name_factory(resource)
-        return result_constructor.from_dataframe(
+        result = result_constructor.from_dataframe(
             df=results,
             resource_name=result_name,
+            default_groupby=resource.get_default_groupby(),
         )
+        result.default_value_column = resource.value_column
+        return result
 
     def groupby_apply(self, feature: Feature, groupby: SomeSeries = None, **kwargs):
         """Performs the computation on a groupby. The value of ``groupby`` needs to be

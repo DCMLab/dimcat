@@ -22,10 +22,9 @@ from .base import (
     get_class,
     get_schema,
 )
+from .data import catalogs, datasets, packages, resources
 from .data.datasets.base import Dataset
-from .data.resources.dc import PieceIndex
-from .steps.extractors.base import FeatureExtractor  # required
-from .steps.loaders.base import PackageLoader
+from .steps import analyzers, extractors, groupers, loaders, pipelines, slicers
 from .steps.pipelines.base import Pipeline
 
 logger = logging.getLogger(__name__)

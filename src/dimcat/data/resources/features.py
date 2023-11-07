@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from enum import Enum
 from functools import cache, cached_property
 from typing import (
     ClassVar,
@@ -16,15 +15,26 @@ from typing import (
 
 import frictionless as fl
 import marshmallow as mm
-from dimcat.base import DimcatConfig, ObjectEnum, get_class, get_setting, is_subclass_of
+import ms3
+import pandas as pd
+from dimcat.base import (
+    DimcatConfig,
+    FriendlyEnum,
+    ObjectEnum,
+    get_class,
+    get_setting,
+    is_subclass_of,
+)
 from dimcat.data.resources.base import D, ResourceStatus
 from dimcat.data.resources.dc import DimcatResource
 from dimcat.data.resources.utils import (
     boolean_is_minor_column_to_mode,
     condense_dataframe_by_groups,
     ensure_level_named_piece,
+    infer_schema_from_df,
     load_fl_resource,
     make_adjacency_groups,
+    resolve_recognized_piece_columns_argument,
 )
 from dimcat.dc_exceptions import (
     ResourceIsMissingFeatureColumnError,
@@ -59,6 +69,8 @@ class Feature(DimcatResource):
     _enum_type = FeatureName
     _auxiliary_columns: Optional[ClassVar[List[str]]] = None
     _feature_columns: Optional[ClassVar[List[str]]] = None
+    """Feature columns should be able to fully define an individual object. When creating the resource, any row
+    containing a missing value in one of the feature columns is dropped."""
 
     # region constructors
 
@@ -338,7 +350,7 @@ class Feature(DimcatResource):
     def auxiliary_column_names(self):
         if self._auxiliary_columns is None:
             return []
-        return [col for col in self._auxiliary_columns if col in self.field_names]
+        return list(self._auxiliary_columns)
 
     @property
     def context_column_names(self) -> List[str]:
@@ -351,6 +363,11 @@ class Feature(DimcatResource):
         elif self.is_frozen:
             resource_df = self.get_dataframe()
             feature_df = self._make_feature_df(resource_df)
+            self._resource.schema = infer_schema_from_df(
+                feature_df
+            )  # ToDo: the new schema should be attributed via
+            # self.column_schema = ... but for that, the detachment from the feature from the original resource needs
+            # to be implemented, which involves adapting the status
         else:
             RuntimeError(f"No dataframe accessible for this {self.name}:\n{self}")
         return feature_df
@@ -358,6 +375,7 @@ class Feature(DimcatResource):
     @property
     def feature_column_names(self) -> List[str]:
         """List of column names that this feature uses."""
+
         if self._feature_columns is None:
             available_columns = [
                 col
@@ -369,6 +387,29 @@ class Feature(DimcatResource):
                 excluded_columns += self._auxiliary_columns
             return [col for col in available_columns if col not in excluded_columns]
         return list(self._feature_columns)
+
+    @property
+    def value_column(self) -> str:
+        """The name of the column that contains the values of the resource. May depend on format
+        settings.
+        """
+        if self._value_column is not None:
+            return self._value_column
+        if self.default_value_column is not None:
+            return self.default_value_column
+        if self._feature_columns is not None:
+            return self._feature_columns[-1]
+        return self.column_schema.field_names[-1]
+
+    @value_column.setter
+    def value_column(self, value_column: str):
+        if not isinstance(value_column, str):
+            raise TypeError(f"Expected a string, got {type(value_column)}")
+        if value_column not in self.field_names:
+            raise ValueError(
+                f"Column {value_column!r} does not exist in the resource's schema."
+            )
+        self._value_column = value_column
 
     def get_column_names(self, include_index_levels: bool = False) -> List[str]:
         """Retrieve the names of [index_levels] + auxiliary_column_names + feature_column_names"""
@@ -393,6 +434,12 @@ class Feature(DimcatResource):
         dataframe = load_fl_resource(
             self._resource, index_col=index_levels, usecols=usecols
         )
+        if not index_levels:
+            dataframe.index.rename("i", inplace=True)
+            recognized_piece_columns = resolve_recognized_piece_columns_argument()
+            if not any(col in dataframe.columns for col in recognized_piece_columns):
+                piece_name = self.filepath.split(".")[0]
+                dataframe = pd.concat([dataframe], keys=[piece_name], names=["piece"])
         if "piece" not in dataframe.index.names:
             dataframe.index, _ = ensure_level_named_piece(dataframe.index)
         if self.status == ResourceStatus.STANDALONE_NOT_LOADED:
@@ -405,11 +452,11 @@ class Feature(DimcatResource):
         self,
         resource_df: D,
     ):
+        len_before = len(resource_df)
+        feature_df = self._transform_resource_df(resource_df)
         columns = self.get_column_names()
-        feature_df = resource_df[columns]
-        len_before = len(feature_df)
-        result = self._transform_resource_df(feature_df)
-        len_after = len(result)
+        feature_df = feature_df[columns]
+        len_after = len(feature_df)
         if len_before == len_after:
             self.logger.debug(
                 f"Made {self.dtype} dataframe for {self.resource_name} with {len_after} non-empty rows."
@@ -419,7 +466,7 @@ class Feature(DimcatResource):
                 f"Made {self.dtype} dataframe for {self.resource_name} dropping {len_before - len_after} "
                 f"rows with missing values."
             )
-        return result
+        return feature_df
 
     def _modify_name(self):
         """Modify the :attr:`resource_name` to reflect the feature."""
@@ -468,12 +515,33 @@ class Annotations(Feature):
     pass
 
 
+class HarmonyLabelsFormat(FriendlyEnum):
+    ROMAN = "ROMAN"
+    FIFTHS = "FIFTHS"
+    SCALE_DEGREE = "SCALE_DEGREE"
+    INTERVAL = "INTERVAL"
+
+
 class HarmonyLabels(Annotations):
-    _auxiliary_columns = ["globalkey", "localkey"]  # for inheritance
+    _auxiliary_columns = [
+        "globalkey",
+        "localkey",
+        "globalkey_mode",
+        "localkey_mode",
+        "localkey_resolved",
+        "localkey_and_mode",
+        "root_roman",
+        "chord_and_mode",
+    ]
     _extractable_features = HARMONY_FEATURE_NAMES
+    default_value_column = "chord_and_mode"
+
+    class Schema(Annotations.Schema):
+        format = mm.fields.Enum(HarmonyLabelsFormat)
 
     def __init__(
         self,
+        format: HarmonyLabelsFormat = HarmonyLabelsFormat.ROMAN,
         resource: fl.Resource = None,
         descriptor_filename: Optional[str] = None,
         basepath: Optional[str] = None,
@@ -503,20 +571,85 @@ class HarmonyLabels(Annotations):
             auto_validate=auto_validate,
             default_groupby=default_groupby,
         )
+        self._format = HarmonyLabelsFormat(format)
+
+    @property
+    def format(self) -> HarmonyLabelsFormat:
+        return self._format
 
     def _transform_resource_df(self, feature_df):
         """Called by :meth:`_make_feature_df` to transform the resource dataframe into a feature dataframe."""
         feature_df = super()._transform_resource_df(feature_df)
-        feature_df["globalkey_mode"] = boolean_is_minor_column_to_mode(
-            feature_df.globalkey_is_minor
-        )
-        feature_df["localkey_mode"] = boolean_is_minor_column_to_mode(
-            feature_df.localkey_is_minor
-        )
+        feature_df = extend_keys_feature(feature_df)
+        feature_df = extend_harmony_feature(feature_df)
         return feature_df
 
 
+def safe_row_tuple(row):
+    try:
+        return ", ".join(row)
+    except TypeError:
+        return pd.NA
+
+
+def extend_keys_feature(
+    feature_df,
+):
+    concatenate_this = [
+        feature_df,
+        boolean_is_minor_column_to_mode(feature_df.globalkey_is_minor).rename(
+            "globalkey_mode"
+        ),
+        boolean_is_minor_column_to_mode(feature_df.localkey_is_minor).rename(
+            "localkey_mode"
+        ),
+        ms3.transform(
+            feature_df, ms3.resolve_relative_keys, ["localkey", "localkey_is_minor"]
+        ).rename("localkey_resolved"),
+    ]
+    feature_df = pd.concat(concatenate_this, axis=1)
+    concatenate_this = [
+        feature_df,
+        feature_df[["localkey", "globalkey_mode"]]
+        .apply(safe_row_tuple, axis=1)
+        .rename("localkey_and_mode"),
+    ]
+    feature_df = pd.concat(concatenate_this, axis=1)
+    return feature_df
+
+
+def extend_harmony_feature(
+    feature_df,
+):
+    """Requires previous application of transform_keys_feature."""
+    concatenate_this = [
+        feature_df,
+        (feature_df.numeral + ("/" + feature_df.relativeroot).fillna("")).rename(
+            "root_roman"
+        ),
+        ms3.transform(
+            feature_df, ms3.resolve_relative_keys, ["pedal", "localkey_is_minor"]
+        ).rename("pedal_resolved"),
+        feature_df[["chord", "localkey_mode"]]
+        .apply(safe_row_tuple, axis=1)
+        .rename("chord_and_mode"),
+        # ms3.transform(
+        #     feature_df, ms3.rel2abs_key, ["numeral", "localkey_resolved", "localkey_resolved_is_minor"]
+        # ).rename("root_roman_resolved"),
+    ]
+    feature_df = pd.concat(concatenate_this, axis=1)
+    return feature_df
+
+
 class BassNotes(HarmonyLabels):
+    _auxiliary_columns = [
+        "globalkey",
+        "localkey",
+        "globalkey_mode",
+        "localkey_mode",
+        "localkey_resolved",
+        "localkey_and_mode",
+    ]
     _feature_columns = ["bass_note"]
     _extractable_features = None
 
@@ -526,9 +659,17 @@ class BassNotes(HarmonyLabels):
 
 
 class KeyAnnotations(Annotations):
-    _auxiliary_columns = ["globalkey_is_minor", "localkey_is_minor"]
+    _auxiliary_columns = [
+        "globalkey_is_minor",
+        "localkey_is_minor",
+        "globalkey_mode",
+        "localkey_mode",
+        "localkey_resolved",
+        "localkey_and_mode",
+    ]
     _feature_columns = ["globalkey", "localkey"]
     _extractable_features = None
+    default_value_column = "localkey_and_mode"
 
     def _transform_resource_df(self, feature_df):
         """Called by :meth:`_make_feature_df` to transform the resource dataframe into a feature dataframe."""
@@ -538,12 +679,7 @@ class KeyAnnotations(Annotations):
             feature_df.localkey, groupby=groupby_levels
         )
         feature_df = condense_dataframe_by_groups(feature_df, group_keys)
-        feature_df["globalkey_mode"] = boolean_is_minor_column_to_mode(
-            feature_df.globalkey_is_minor
-        )
-        feature_df["localkey_mode"] = boolean_is_minor_column_to_mode(
-            feature_df.localkey_is_minor
-        )
+        feature_df = extend_keys_feature(feature_df)
         return feature_df
 
 
@@ -559,15 +695,18 @@ class Articulation(Feature):
 # region Events
 
 
-class NotesFormat(str, Enum):
+class NotesFormat(FriendlyEnum):
     NAME = "NAME"
     FIFTHS = "FIFTHS"
     MIDI = "MIDI"
-    DEGREE = "DEGREE"
+    SCALE_DEGREE = "SCALE_DEGREE"
     INTERVAL = "INTERVAL"
 
 
 class Notes(Feature):
+    default_analyzer = "PitchClassVectors"
+    default_value_column = "tpc"
+
     class Schema(Feature.Schema):
         format = mm.fields.Enum(NotesFormat)
         merge_ties = mm.fields.Boolean(

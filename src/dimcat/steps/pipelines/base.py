@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from inspect import isclass
 from typing import Iterable, Iterator, List, Literal, Optional, Type, overload
 
 from dimcat import Dataset, DimcatConfig
 from dimcat.base import DimcatObject, DimcatObjectField, get_class
 from dimcat.data.resources.dc import DimcatResource
-from dimcat.steps.base import PipelineStep
+from dimcat.steps.base import PipelineStep, StepSpecs, step_specs2step
 from marshmallow import fields
 
 
@@ -29,9 +28,7 @@ class Pipeline(PipelineStep):
 
     def __init__(
         self,
-        steps: Optional[
-            PipelineStep | DimcatConfig | Iterable[PipelineStep | DimcatConfig]
-        ] = None,
+        steps: Optional[StepSpecs | Iterable[StepSpecs]] = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -53,24 +50,15 @@ class Pipeline(PipelineStep):
     @steps.setter
     def steps(
         self,
-        steps: PipelineStep | DimcatConfig | Iterable[PipelineStep | DimcatConfig],
+        steps: StepSpecs | Iterable[StepSpecs],
     ) -> None:
-        if isinstance(steps, (DimcatObject, dict)):
+        if isinstance(steps, (DimcatObject, dict, type, str)):
             steps = [steps]
         for step in steps:
             self.add_step(step)
 
-    def add_step(self, step: PipelineStep | DimcatConfig) -> None:
-        if isinstance(step, dict):
-            assert "dtype" in step, (
-                "PipelineStep dict must be config-like and have a 'dtype' key mapping to the "
-                "name of a PipelineStep."
-            )
-            step = DimcatConfig(step)
-        if isinstance(step, DimcatConfig):
-            step = step.create()
-        if not isinstance(step, PipelineStep):
-            raise TypeError(f"Pipeline accepts only PipelineSteps, not {type(step)}.")
+    def add_step(self, step: StepSpecs) -> None:
+        step = step_specs2step(step)
         self._steps.append(step)
 
     @overload
@@ -106,7 +94,7 @@ class Pipeline(PipelineStep):
         skip_step_types: Optional[Iterable[Type[PipelineStep] | str]] = None,
     ) -> DimcatResource:
         if skip_step_types:
-            if isinstance(skip_step_types, str) or isclass(skip_step_types):
+            if isinstance(skip_step_types, (str, type)):
                 skip_step_types = [skip_step_types]
             ignored_types = [
                 get_class(dtype) if isinstance(dtype, str) else dtype
@@ -125,11 +113,10 @@ class Pipeline(PipelineStep):
         for step in pipeline_steps:
             previous_resource = processed_resource
             try:
-                processed_resource = step._make_new_resource(previous_resource)
+                processed_resource = step._process_resource(previous_resource)
             except Exception:
                 if ignore_exceptions:
                     continue
                 raise
-            # ToDo: Pipeline checks the compatibility of steps and data first, uses step._process_resource()
             # ToDo: Check the processed resource and handle errors
         return processed_resource

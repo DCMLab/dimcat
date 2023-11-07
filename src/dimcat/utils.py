@@ -5,10 +5,22 @@ import logging
 import os
 import re
 from pathlib import Path
-from typing import Collection, Iterable, Iterator, Literal, Optional, Tuple, overload
+from typing import (
+    Any,
+    Collection,
+    Iterable,
+    Iterator,
+    List,
+    Literal,
+    Optional,
+    Tuple,
+    overload,
+)
 from urllib.parse import urlparse
 
+import numpy as np
 import pandas as pd
+from dimcat.base import FriendlyEnum
 from dimcat.data.base import AbsolutePathStr
 from tqdm.auto import tqdm
 
@@ -53,30 +65,33 @@ def nest_level(obj, include_tuples=False):
     return max_level + 1
 
 
-def grams(list_of_sequences, n=2):
+def grams(lists_of_symbols, n=2, to_string: bool = False):
     """Returns a list of n-gram tuples for given list. List can be nested.
+
     Use nesting to exclude transitions between pieces or other units.
-    Uses: nest_level()
 
     """
-    if nest_level(list_of_sequences) > 1:
+    if nest_level(lists_of_symbols) > 1:
         ngrams = []
         no_sublists = []
-        for item in list_of_sequences:
+        for item in lists_of_symbols:
             if isinstance(item, list):
-                ngrams.extend(grams(item, n))
+                ngrams.extend(grams(item, n, to_string=to_string))
             else:
                 no_sublists.append(item)
         if len(no_sublists) > 0:
-            ngrams.extend(grams(no_sublists, n))
+            ngrams.extend(grams(no_sublists, n, to_string=to_string))
         return ngrams
     else:
         # if len(l) < n:
         #    print(f"{l} is too small for a {n}-gram.")
         # ngrams = [l[i:(i+n)] for i in range(len(l)-n+1)]
-        ngrams = list(zip(*(list_of_sequences[i:] for i in range(n))))
+        ngrams = list(zip(*(lists_of_symbols[i:] for i in range(n))))
         # convert to tuple of strings
-        return [tuple(str(g) for g in gram) for gram in ngrams]
+        if to_string:
+            return [tuple(str(g) for g in gram) for gram in ngrams]
+        else:
+            return ngrams
 
 
 def get_composition_year(metadata_dict):
@@ -157,6 +172,112 @@ def make_suffix(*params):
             as_str += str(p)
         param_strings.append(as_str)
     return "-".join(param_strings)
+
+
+def make_transition_matrix(
+    nested_sequences: Optional[list] = None,
+    ngrams: Optional[List[tuple]] = None,
+    n: int = 2,
+    k: Optional[int] = None,
+    smooth: int = 0,
+    normalize: bool = False,
+    IC: bool = False,
+    excluded_grams: Optional[Any] = None,
+    distinct_only: bool = False,
+    sort: bool = False,
+    percent: bool = False,
+    decimals: Optional[int] = None,
+):
+    """Returns a transition table from a list of symbols or from a list of n-grams.
+
+    Column index is the last item of grams, row index the n-1 preceding items.
+
+    Args:
+        nested_sequences:
+            List of elements between which the transitions are calculated. If specified, ``ngrams`` must be None.
+            List can be nested.
+        ngrams: List of tuples being n-grams. If specified, ``nested_sequences`` must be None.
+        n: Make n-grams. Only relevant if ``nested_sequences`` is specified.
+        k: Number of rows and columns that you want to keep. Defaults to all.
+        smooth: Initial count value of all transitions
+        normalize: Set to True to divide every row by the sum of the row.
+        IC: Set True to calculate information content.
+        excluded_grams:
+            Elements you want to exclude from the table. All ngrams containing at least one of the elements will be
+            filtered out.
+        distinct_only: if True, n-grams consisting only of identical elements are filtered out
+        sort: By default, the indices are ordered by gram frequency. Pass True to sort by bigram counts.
+        percent: Pass True to multiply the matrix by 100 before rounding to ``decimals``
+        decimals: To how many decimals you want to round the matrix.
+
+    Returns:
+        For each (n-1) previous elements (index), the number or proportion of transitions to each possible following
+        element (columns).
+    """
+    if ngrams is None:
+        assert n > 0, f"Cannot print {n}-grams"
+        ngrams = grams(nested_sequences, n=n, to_string=True)
+    elif nested_sequences is not None:
+        assert True, "Specify either l or gs, not both."
+
+    if excluded_grams:
+        ngrams = list(filter(lambda n: not any(g in excluded_grams for g in n), ngrams))
+    if distinct_only:
+        ngrams = list(filter(lambda tup: any(e != tup[0] for e in tup), ngrams))
+    ngrams = pd.Series(ngrams).value_counts()
+    if n > 2:
+        ngrams.index = [(" ".join(t[:-1]), t[-1]) for t in ngrams.index.tolist()]
+    context = pd.Index(set([ix[0] for ix in ngrams.index]))
+    consequent = pd.Index(set([ix[1] for ix in ngrams.index]))
+    df = pd.DataFrame(smooth, index=context, columns=consequent)
+
+    for (cont, cons), n_gram_count in ngrams.items():
+        try:
+            df.loc[cont, cons] += n_gram_count
+        except Exception:
+            continue
+
+    if k is not None:
+        sort = True
+
+    if sort:
+        h_sort = list(df.max().sort_values(ascending=False).index.values)
+        v_sort = list(df.max(axis=1).sort_values(ascending=False).index.values)
+        df = df[h_sort].loc[v_sort]
+    else:
+        frequency = df.sum(axis=1).sort_values(ascending=False).index
+        aux_index = frequency.intersection(df.columns, sort=False)
+        aux_index = aux_index.union(
+            df.columns.difference(frequency, sort=False), sort=False
+        )
+        df = df[aux_index].loc[frequency]
+
+    SU = df.sum(axis=1)
+    if normalize or IC:
+        df = df.div(SU, axis=0)
+
+    if IC:
+        ic = np.log2(1 / df)
+        ic["entropy"] = (ic * df).sum(axis=1)
+        # ############# Identical calculations:
+        # ic['entropy2'] = scipy.stats.entropy(df.transpose(),base=2)
+        # ic['entropy3'] = -(df * np.log2(df)).sum(axis=1)
+        df = ic
+        if normalize:
+            df["entropy"] = df["entropy"] / np.log2(len(df.columns) - 1)
+    # else:
+    #     df['total'] = SU
+
+    if k is not None:
+        df = df.iloc[:k, :k]
+
+    if percent:
+        df.iloc[:, :-1] *= 100
+
+    if decimals is not None:
+        df = df.round(decimals)
+
+    return df
 
 
 def interval_index2interval(ix):
@@ -408,3 +529,22 @@ def make_extension_regex(
     else:
         regex = f"(?:{'|'.join(extensions)})$"
     return re.compile(regex, re.IGNORECASE)
+
+
+def get_middle_composition_year(
+    metadata: pd.DataFrame,
+    composed_start_column: str = "composed_start",
+    composed_end_column: str = "composed_end",
+) -> pd.Series:
+    """Returns the middle of the composition year range."""
+    composed_start = pd.to_numeric(metadata[composed_start_column], errors="coerce")
+    composed_end = pd.to_numeric(metadata[composed_end_column], errors="coerce")
+    composed_start.fillna(composed_end, inplace=True)
+    composed_end.fillna(composed_start, inplace=True)
+    return (composed_start + composed_end) / 2
+
+
+class SortOrder(FriendlyEnum):
+    ASCENDING = "ASCENDING"
+    DESCENDING = "DESCENDING"
+    NONE = "NONE"
