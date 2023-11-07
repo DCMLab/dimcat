@@ -995,12 +995,10 @@ def resolve_columns_argument(
     for str_or_int in columns:
         if isinstance(str_or_int, int):
             result.append(column_names[str_or_int])
-        else:
-            if str_or_int not in column_names:
-                raise ValueError(
-                    f"Column {str_or_int!r} not found in field names {column_names}."
-                )
+        elif str_or_int in column_names:
             result.append(str_or_int)
+        else:
+            pass
     result_set = set(result)
     if len(result_set) != len(result):
         raise ValueError(f"Duplicate column names in {columns}.")

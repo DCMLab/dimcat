@@ -350,7 +350,7 @@ class Feature(DimcatResource):
     def auxiliary_column_names(self):
         if self._auxiliary_columns is None:
             return []
-        return [col for col in self._auxiliary_columns if col in self.field_names]
+        return list(self._auxiliary_columns)
 
     @property
     def context_column_names(self) -> List[str]:
@@ -375,6 +375,7 @@ class Feature(DimcatResource):
     @property
     def feature_column_names(self) -> List[str]:
         """List of column names that this feature uses."""
+
         if self._feature_columns is None:
             available_columns = [
                 col
