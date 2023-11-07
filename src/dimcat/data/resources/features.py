@@ -451,11 +451,11 @@ class Feature(DimcatResource):
         self,
         resource_df: D,
     ):
+        len_before = len(resource_df)
+        feature_df = self._transform_resource_df(resource_df)
         columns = self.get_column_names()
-        feature_df = resource_df[columns]
-        len_before = len(feature_df)
-        result = self._transform_resource_df(feature_df)
-        len_after = len(result)
+        feature_df = feature_df[columns]
+        len_after = len(feature_df)
         if len_before == len_after:
             self.logger.debug(
                 f"Made {self.dtype} dataframe for {self.resource_name} with {len_after} non-empty rows."
@@ -465,7 +465,7 @@ class Feature(DimcatResource):
                 f"Made {self.dtype} dataframe for {self.resource_name} dropping {len_before - len_after} "
                 f"rows with missing values."
             )
-        return result
+        return feature_df
 
     def _modify_name(self):
         """Modify the :attr:`resource_name` to reflect the feature."""

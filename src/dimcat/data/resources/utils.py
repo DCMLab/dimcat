@@ -569,7 +569,7 @@ def load_fl_resource(
         dataframe = pd.read_csv(
             file,
             sep="\t",
-            usecols=usecols_names,
+            usecols=lambda x: x in usecols_names,
             parse_dates=parse_dates,
             dtype=dtypes,
             converters=converters,
