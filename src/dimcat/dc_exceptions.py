@@ -269,6 +269,16 @@ class PotentiallyUnrelatedDescriptorError(DimcatError):
     }
 
 
+class ResourceAlreadyTransformed(DimcatError):
+    """optional args: (name, processor)"""
+
+    nargs2message = {
+        0: "Resource has already been processed.",
+        1: lambda name: f"Resource {name!r} has already been processed.",
+        2: lambda name, processor: f"Resource {name!r} has already been processed by a {processor!r}.",
+    }
+
+
 class ResourceDescriptorHasWrongTypeError(DimcatError):
     """optional args: (expected_type, actual_type, name)"""
 

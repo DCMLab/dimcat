@@ -1,23 +1,20 @@
 import logging
-from collections import defaultdict
 from typing import Dict, Hashable, List, MutableMapping, Optional, Sequence
 
 import marshmallow as mm
 import pandas as pd
 from dimcat.base import is_subclass_of
-from dimcat.data.datasets.base import Dataset
 from dimcat.data.datasets.processed import GroupedDataset
 from dimcat.data.resources.dc import DimcatIndex, DimcatResource, PieceIndex
-from dimcat.data.resources.features import Feature
-from dimcat.dc_exceptions import GrouperNotSetUpError, ResourceNotProcessableError
-from dimcat.steps.base import FeatureProcessingStep
+from dimcat.dc_exceptions import GrouperNotSetUpError, ResourceAlreadyTransformed
+from dimcat.steps.base import ResourceTransformation
 from dimcat.utils import check_name
 from typing_extensions import Self
 
 logger = logging.getLogger(__name__)
 
 
-class Grouper(FeatureProcessingStep):
+class Grouper(ResourceTransformation):
     # inherited from PipelineStep:
     new_dataset_type = GroupedDataset
     new_resource_type = None  # same as input
@@ -27,7 +24,7 @@ class Grouper(FeatureProcessingStep):
     output_package_name = None  # transform 'features'
     requires_at_least_one_feature = False
 
-    class Schema(FeatureProcessingStep.Schema):
+    class Schema(ResourceTransformation.Schema):
         level_name = mm.fields.Str()
 
     def __init__(self, level_name: str = "group", **kwargs):
@@ -44,58 +41,10 @@ class Grouper(FeatureProcessingStep):
         check_name(level_name)
         self._level_name = level_name
 
-    def apply_grouper(self, resource: Feature) -> pd.DataFrame:
-        """Apply the grouper to a Feature."""
-        return pd.concat([resource.df], keys=[self.level_name], names=[self.level_name])
-
-    def _make_new_resource(self, resource: Feature) -> Feature:
-        """Apply the grouper to a Feature."""
+    def check_resource(self, resource: DimcatResource) -> None:
+        super().check_resource(resource)
         if self.level_name in resource.get_level_names():
-            self.logger.debug(
-                f"Resource {resource.resource_name!r} already has a level named {self.level_name!r}."
-            )
-            return resource
-        result_constructor = self._get_new_resource_type(resource)
-        results = self.apply_grouper(resource)
-        result_name = self.resource_name_factory(resource)
-        return result_constructor.from_dataframe(
-            df=results,
-            resource_name=result_name,
-        )
-
-    def _process_dataset(self, dataset: Dataset) -> Dataset:
-        """Apply this PipelineStep to a :class:`Dataset` and return a copy containing the output(s)."""
-        new_dataset = self._make_new_dataset(dataset)
-        self.fit_to_dataset(new_dataset)
-        new_dataset._pipeline.add_step(self)
-        package_name_resource_iterator = self._iter_resources(new_dataset)
-        processed_resources = defaultdict(list)
-        for package_name, resource in package_name_resource_iterator:
-            try:
-                new_resource = self.process_resource(resource)
-            except ResourceNotProcessableError as e:
-                self.logger.warning(
-                    f"Resource {resource.resource_name!r} could not be grouped and is not included in "
-                    f"the new Dataset due to the following error: {e!r}"
-                )
-                continue
-            processed_resources[package_name].append(new_resource)
-        for package_name, resources in processed_resources.items():
-            new_package = self._make_new_package(package_name)
-            new_package.extend(resources)
-            n_processed = len(resources)
-            if new_package.n_resources < n_processed:
-                if new_package.n_resources == 0:
-                    self.logger.warning(
-                        f"None of the {n_processed} {package_name} were successfully transformed."
-                    )
-                else:
-                    self.logger.warning(
-                        f"Transformation was successful only on {new_package.n_resources} of the "
-                        f"{n_processed} features."
-                    )
-            new_dataset.outputs.replace_package(new_package)
-        return new_dataset
+            raise ResourceAlreadyTransformed(resource.resource_name, self.name)
 
     def _post_process_result(
         self,
@@ -105,6 +54,10 @@ class Grouper(FeatureProcessingStep):
         """Change the default_groupby value of the returned Feature."""
         result.update_default_groupby(self.level_name)
         return result
+
+    def transform_resource(self, resource: DimcatResource) -> pd.DataFrame:
+        """Apply the grouper to a Feature."""
+        return pd.concat([resource.df], keys=[self.level_name], names=[self.level_name])
 
 
 class CorpusGrouper(Grouper):
@@ -185,7 +138,7 @@ class CustomPieceGrouper(Grouper):
             )
         self._grouped_pieces = grouped_pieces
 
-    def apply_grouper(self, resource: Feature) -> pd.DataFrame:
+    def transform_resource(self, resource: DimcatResource) -> pd.DataFrame:
         """Apply the grouper to a Feature."""
         return resource.align_with_grouping(self.grouped_pieces)
 

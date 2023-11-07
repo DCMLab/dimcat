@@ -2,11 +2,13 @@ from typing import Optional
 
 import marshmallow as mm
 import pandas as pd
-from dimcat.data.resources import DimcatResource, Feature, FeatureName
+from dimcat.data.resources import DimcatResource, FeatureName
 from dimcat.steps.groupers.base import Grouper
 
 
 class ColumnGrouper(Grouper):
+    """This grouper and its subclasses groups resources by a particular column, if they contain it."""
+
     class Schema(Grouper.Schema):
         grouped_column = mm.fields.Str()
 
@@ -28,7 +30,7 @@ class ColumnGrouper(Grouper):
                 f"Expected {self.grouped_column} column in {resource.name}"
             )
 
-    def apply_grouper(self, resource: Feature) -> pd.DataFrame:
+    def transform_resource(self, resource: DimcatResource) -> pd.DataFrame:
         """Apply the grouper to a Feature."""
         resource_df = resource.df
         grouped_df = pd.concat(
