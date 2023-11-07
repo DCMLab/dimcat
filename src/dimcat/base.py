@@ -431,6 +431,8 @@ class DimcatConfig(MutableMapping, DimcatObject):
     ):
         if isinstance(options, DimcatConfig):
             options = options.options
+        elif isinstance(options, str) and dtype is None:
+            options = dict(dtype=options)
         options = dict(options, **kwargs)
         if dtype is None:
             if "dtype" not in options:
