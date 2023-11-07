@@ -11,7 +11,18 @@ from enum import Enum
 from functools import cache
 from inspect import isclass
 from pprint import pformat
-from typing import Any, ClassVar, Dict, List, MutableMapping, Optional, Type
+from typing import (
+    Any,
+    ClassVar,
+    Dict,
+    List,
+    Literal,
+    MutableMapping,
+    Optional,
+    Tuple,
+    Type,
+    overload,
+)
 
 import marshmallow as mm
 
@@ -97,8 +108,8 @@ class DimcatSchema(mm.Schema):
 
 
 class DimcatObject(ABC):
-    """All DiMCAT classes derive from DimcatObject, except for the nested Schema(DimcatSchema) class that they define or
-    inherit."""
+    """All DiMCAT classes derive from DimcatObject, except for the nested Schema(DimcatSchema) class
+    that they define or inherit."""
 
     _enum_type: ClassVar[Type[Enum]] = None
     """If a class specifies an Enum, its 'dtype' property returns the Enum member corresponding to its 'name'."""
@@ -121,7 +132,7 @@ class DimcatObject(ABC):
     @classmethod
     @property
     def name(cls) -> str:
-        return cls.__name__
+        return str(cls.__name__)
 
     @classmethod
     @property
@@ -131,6 +142,10 @@ class DimcatObject(ABC):
 
     @classmethod
     def from_dict(cls, options, **kwargs) -> Self:
+        """Creates a new object from a config-like dict.
+        Concretely, the received ``options`` will be updated with the **kwargs and enriched with a
+        'dtype' key corresponding to this object, before deserializing the dict using the
+        corresponding marshmallow schema."""
         options = dict(options, **kwargs)
         if "dtype" not in options:
             cls.logger.debug(f"Added option {{'dtype': {cls.name}}}.")
@@ -147,7 +162,11 @@ class DimcatObject(ABC):
             raise ValidationError(msg)
 
     @classmethod
-    def from_config(cls, config: DimcatConfig, **kwargs):
+    def from_config(cls, config: DimcatConfig, **kwargs) -> Self:
+        """Creates a new object from a DimcatConfig.
+        Concretely, the config's ``options`` will be updated with the **kwargs and the 'dtype' key
+        will be replaced according to this object, before deserializing the dict using the
+        corresponding marshmallow schema."""
         return cls.from_dict(config._options, **kwargs)
 
     @classmethod
@@ -160,6 +179,12 @@ class DimcatObject(ABC):
         with open(filepath, "r", encoding="utf-8") as f:
             json_data = f.read()
         return cls.from_json(json_data)
+
+    class PickleSchema:
+        def __init__(self):
+            raise NotImplementedError(
+                "This object does not support automatic pickling to a basepath (yet)."
+            )
 
     class Schema(DimcatSchema):
         @mm.post_load()
@@ -183,7 +208,9 @@ class DimcatObject(ABC):
             if report:
                 raise mm.ValidationError(
                     f"Dump of {data['dtype']} created with a {self.name} could not be validated by "
-                    f"{dtype_schema.name} :\n{report}"
+                    f"{dtype_schema.name}."
+                    f"\n\nDUMP:\n{pformat(data, sort_dicts=False)}"
+                    f"\n\nREPORT:\n{pformat(report, sort_dicts=False)}"
                 )
             return dict(data)
 
@@ -210,13 +237,35 @@ class DimcatObject(ABC):
         return id(self)
 
     def __repr__(self):
-        return f"{pformat(self.to_dict(), sort_dicts=False)}"
+        return self.info(return_str=True)
 
     def __str__(self):
         return f"{__name__}.{self.name}"
 
     def filename_factory(self):
         return self.name
+
+    @overload
+    def info(self, return_str: Literal[False]) -> None:
+        ...
+
+    @overload
+    def info(self, return_str: Literal[True]) -> str:
+        ...
+
+    def info(self, return_str: bool = False) -> Optional[str]:
+        """Returns a summary of the dataset."""
+        summary = self.summary_dict()
+        title = self.name
+        title += f"\n{'=' * len(title)}\n"
+        summary_str = f"{title}{pformat(summary, sort_dicts=False, width=120)}"
+        if return_str:
+            return summary_str
+        print(summary_str)
+
+    def summary_dict(self) -> dict:
+        """Returns a summary of the object."""
+        return self.to_dict()
 
     def to_dict(self) -> dict:
         return self.schema.dump(self)
@@ -233,20 +282,29 @@ class DimcatObject(ABC):
         return self.schema.dumps(self)
 
     def to_json_file(self, filepath: str, indent: int = 2, **kwargs):
-        """Serialize object to file.
+        """Serialize object to JSON file.
 
         Args:
             filepath: Path to the text file to (over)write.
             indent: Prettify the JSON layout. Default indentation: 2 spaces
             **kwargs: Keyword arguments passed to :meth:`json.dumps`.
-
-        Returns:
-
         """
         as_dict = self.to_dict()
         as_dict.update(**kwargs)
+        if is_default_descriptor_path(filepath):
+            frictionless = (
+                ""
+                if not hasattr(self, "store_descriptor")
+                else f" Use {self.name}.store_descriptor() "
+                f"to store a frictionless descriptor."
+            )
+            raise ValueError(
+                f"The JSON path {filepath!r} corresponds to the name of frictionless descriptor and "
+                f"mustn't be used for a 'normal' DiMCAT serialization.{frictionless}"
+            )
         with open(filepath, "w", encoding="utf-8") as f:
             json.dump(as_dict, f, indent=indent, **kwargs)
+        self.logger.info(f"{self.name} has been serialized to {filepath!r}")
 
 
 class DimcatObjectField(fields.Field):
@@ -262,7 +320,8 @@ class DimcatObjectField(fields.Field):
 
 
 class FriendlyEnum(str, Enum):
-    """Members of this Enum can be created from and compared to strings in a case-insensitive manner."""
+    """Members of this Enum can be created from and compared to strings in a case-insensitive
+    manner."""
 
     @classmethod
     def _missing_(cls, value) -> Self:
@@ -372,6 +431,8 @@ class DimcatConfig(MutableMapping, DimcatObject):
     ):
         if isinstance(options, DimcatConfig):
             options = options.options
+        elif isinstance(options, str) and dtype is None:
+            options = dict(dtype=options)
         options = dict(options, **kwargs)
         if dtype is None:
             if "dtype" not in options:
@@ -462,9 +523,6 @@ class DimcatConfig(MutableMapping, DimcatObject):
     def __len__(self):
         return len(self._options)
 
-    def __repr__(self):
-        return f"{self.name}({pformat(self._options, sort_dicts=False)})"
-
     def __setitem__(self, key, value):
         if key == "dtype" and value != self._options["dtype"]:
             tmp_schema = get_schema(value)
@@ -485,7 +543,13 @@ class DimcatConfig(MutableMapping, DimcatObject):
         self._options[key] = value
 
     @property
-    def options_dtype(self):
+    def options_class(self):
+        """The class of the described DimcatObject."""
+        return get_class(self.options_dtype)
+
+    @property
+    def options_dtype(self) -> str:
+        """The dtype (i.e. class name) of the described DimcatObject."""
         return self._options["dtype"]
 
     @property
@@ -527,6 +591,9 @@ class DimcatConfig(MutableMapping, DimcatObject):
                 return False
         return True
 
+    def summary_dict(self) -> dict:
+        return self._options
+
     def validate(self, partial=False) -> Dict[str, List[str]]:
         """Validates the current status of the config in terms of ability to create an object. Empty dict == valid."""
         return self.options_schema.validate(self._options, many=False, partial=partial)
@@ -564,12 +631,31 @@ def is_name_of_dimcat_class(name) -> bool:
 
 
 @cache
+def is_instance_of(obj, class_or_tuple: Type | Tuple[Type | str, ...]):
+    """Returns True if the given object is an instance of the given class or one of the given classes."""
+    if not isinstance(class_or_tuple, tuple):
+        class_or_tuple = (class_or_tuple,)
+    classes = tuple(get_class(c) if isinstance(c, str) else c for c in class_or_tuple)
+    return isinstance(obj, classes)
+
+
+@cache
 def is_subclass_of(name: str, parent: str | Type[DimcatObject]) -> bool:
     """Returns True if the DimcatObject with the given name is a subclass of the given parent."""
     cls = get_class(name)
     if isinstance(parent, str):
         parent = get_class(parent)
     return issubclass(cls, parent)
+
+
+@cache
+def get_pickle_schema(name, init=True):
+    """Caches the intialized schema for each class. Pass init=False to retrieve the schema constructor."""
+    dc_class = get_class(name)
+    dc_schema = dc_class.PickleSchema
+    if init:
+        return dc_schema()
+    return dc_schema
 
 
 @cache
@@ -612,18 +698,132 @@ def deserialize_json_file(json_file) -> DimcatObject:
 
 @dataclass
 class DimcatSettings(DimcatObject):
-    """Settings for the dimcat library."""
+    """This is a dataclass that stores the default settings for the dimcat library.
+    The current settings can be loaded anywhere in the code by calling :func:`get_setting`.
+    Defining a new setting means adding it in three places:
 
+    1. as a class attribute with type annotation (=dataclass field)  and default (factory)
+    2. as a marshmallow field in the Schema with the same name and corresponding type, which
+       gives access to marshmallow's full serialization and validation functionality. By default,
+       we add ``required=True`` to all settings.
+    3. to the file ``settings.ini``, using Python's config file syntax
+    """
+
+    auto_make_dirs: bool = True
+    context_columns: List[str] = dataclass_field(
+        default_factory=lambda: [
+            "mc",
+            "mn",
+            "quarterbeats",
+            "quarterbeats_all_endings",
+            "duration_qb",
+            "duration",
+            "mc_onset",
+            "mn_onset",
+            "timesig",
+            "staff",
+            "voice",
+        ]
+    )
+    default_basepath: str = "~/dimcat_data"
+    """where to serialize data if no other basepath is specified"""
+    default_figure_path: str = "~/dimcat_data"
+    """where to store figures if no other path was specified"""
+    default_figure_format: str = ".png"
+    """default format for all figures stored by DiMCAT."""
+    default_figure_width: int = 2880
+    """default width in pixels for figures stored by DiMCAT"""
+    default_figure_height: int = 1620
+    """default height in pixels for figures stored by DiMCAT"""
+    default_resource_name: str = "unnamed"
     never_store_unvalidated_data: bool = True
     """setting this to False allows for skipping mandatory validations; set to True for production"""
     recognized_piece_columns: List[str] = dataclass_field(
         default_factory=lambda: ["piece", "pieces", "fname", "fnames"]
     )
     """column names that are recognized as piece identifiers and automatically renamed to 'piece' when needed"""
+    package_descriptor_endings: List[str] = dataclass_field(
+        default_factory=lambda: ["package.json", "package.yaml"]
+    )
+    resource_descriptor_endings: List[str] = dataclass_field(
+        default_factory=lambda: ["resource.json", "resource.yaml"]
+    )
+    """file endings that are recognized as frictionless resource descriptors"""
 
     class Schema(DimcatObject.Schema):
-        never_store_unvalidated_data = mm.fields.Boolean(required=True)
-        recognized_piece_columns = mm.fields.List(mm.fields.String(), required=True)
+        auto_make_dirs = mm.fields.Boolean(
+            required=True,
+            metadata={
+                "description": "whether to automatically create directories, e.g. when indicating basepaths"
+            },
+        )
+        context_columns = mm.fields.List(
+            mm.fields.String(),
+            required=True,
+            metadata={
+                "description": "the columns that are considered essential for locating elements horizontally and "
+                "vertically and which are therefore always copied, if present, and moved to the left "
+                "of the new dataframe in the given order"
+            },
+        )
+        default_basepath = mm.fields.String(
+            required=True,
+            metadata={
+                "description": "where to serialize data if no other basepath is specified"
+            },
+        )
+        default_figure_path = mm.fields.String(
+            required=True,
+            metadata={
+                "description": "where to store figures if no other path was specified"
+            },
+        )
+        default_figure_format = mm.fields.String(
+            required=True,
+            metadata={"description": "default format for all figures stored by DiMCAT"},
+        )
+        default_figure_width = mm.fields.Integer(
+            required=True,
+            metadata={
+                "description": "default width in pixels for figures stored by DiMCAT"
+            },
+        )
+        default_figure_height = mm.fields.Integer(
+            required=True,
+            metadata={
+                "description": "default height in pixels for figures stored by DiMCAT"
+            },
+        )
+        default_resource_name = mm.fields.String(required=True)
+        never_store_unvalidated_data = mm.fields.Boolean(
+            required=True,
+            metadata={
+                "description": "setting this to False allows for "
+                "skipping mandatory validations; set to True for production"
+            },
+        )
+        recognized_piece_columns = mm.fields.List(
+            mm.fields.String(),
+            required=True,
+            metadata={
+                "description": "column names that are recognized as piece "
+                "identifiers and automatically renamed to 'piece' when needed"
+            },
+        )
+        package_descriptor_endings = mm.fields.List(
+            mm.fields.String(),
+            required=True,
+            metadata={
+                "description": "file endings that are recognized as frictionless package descriptors"
+            },
+        )
+        resource_descriptor_endings = mm.fields.List(
+            mm.fields.String(),
+            required=True,
+            metadata={
+                "description": "file endings that are recognized as frictionless resource descriptors"
+            },
+        )
 
 
 def parse_config_file(config_filepath: str) -> ConfigParser:
@@ -659,47 +859,74 @@ def make_settings_from_config_parser(config: ConfigParser) -> DimcatConfig:
             if len(split_value) > 1:
                 settings[key] = split_value
             else:
-                setting_field = setting_fields[key]
+                try:
+                    setting_field = setting_fields[key]
+                except KeyError:
+                    logger.warning(
+                        f"Ignoring unrecognized setting '{key}'. In order to add it to the library, "
+                        f"it needs to be added to the DimcatSettings dataclass and to its Schema."
+                    )
+                    continue
                 if isinstance(setting_field, mm.fields.Boolean):
                     value = value in setting_field.truthy
                 settings[key] = value
     return settings
 
 
-def make_settings_from_config_file(config_filepath: str) -> DimcatConfig:
+def make_settings_from_config_file(
+    config_filepath: str,
+    fallback_to_default: bool = True,
+) -> DimcatConfig:
     """Make a DimcatSettings object from a config file."""
     try:
         config = parse_config_file(config_filepath)
     except FileNotFoundError:
-        logger.warning(
+        if not fallback_to_default:
+            raise
+        logger.error(
             f"Config file '{config_filepath}' not found. Falling back to default settings."
         )
         return make_default_settings()
     try:
         return make_settings_from_config_parser(config)
     except Exception as e:
-        logger.warning(
+        if not fallback_to_default:
+            raise
+        logger.error(
             f"Error while parsing config file '{config_filepath}': {e}. Falling back to default settings."
         )
         return make_default_settings()
 
 
-def load_settings(config_filepath: Optional[str] = None) -> DimcatConfig:
+def load_settings(
+    config_filepath: Optional[str] = None,
+    raise_exception: bool = False,
+) -> DimcatConfig:
     """Get the DimcatSettings object."""
+    fallback_to_default = not raise_exception
     if config_filepath is None:
         dir_path = os.path.dirname(os.path.realpath(__file__))
         config_filepath = os.path.join(dir_path, "settings.ini")
         if os.path.isfile(config_filepath):
-            settings = make_settings_from_config_file(config_filepath)
+            settings = make_settings_from_config_file(
+                config_filepath, fallback_to_default=fallback_to_default
+            )
             logger.info(f"Loaded default config file at '{config_filepath}'.")
             return settings
-        else:
+        elif fallback_to_default:
             logger.warning(
                 f"No config file path was provided and the default config file was not found: "
                 f"{config_filepath}. Falling back to default."
             )
             return make_default_settings()
-    settings = make_settings_from_config_file(config_filepath)
+        else:
+            raise FileNotFoundError(
+                f"No config file path was provided and the default config file was not found: "
+                f"{config_filepath}. Falling back to default."
+            )
+    settings = make_settings_from_config_file(
+        config_filepath, fallback_to_default=fallback_to_default
+    )
     logger.info(f"Loaded config file at '{config_filepath}'.")
     return settings
 
@@ -713,12 +940,28 @@ def get_setting(key: str) -> Any:
 
 def change_setting(key: str, value: Any) -> None:
     SETTINGS[key] = value
+    logger.info(f"Changed setting {key!r} to {value!r}.")
 
 
 def reset_settings(config_filepath: Optional[str] = None) -> None:
-    """Reset the DiMCAT settings to the default or to those found in the settings.ini file at the given path."""
+    """Reset the DiMCAT settings to the default or to those found in the settings.ini file at the
+    given path."""
     global SETTINGS
     SETTINGS = load_settings(config_filepath)
 
 
 # endregion DimcatSettings
+# region helper function
+
+
+def is_default_descriptor_path(filepath: str) -> bool:
+    rde = get_setting("resource_descriptor_endings")
+    pde = get_setting("package_descriptor_endings")
+    default_descriptor_endings = rde + pde
+    for ending in default_descriptor_endings:
+        if filepath.endswith(ending):
+            return True
+    return False
+
+
+# endregion helper function

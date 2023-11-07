@@ -2,7 +2,7 @@
 dimcat
 ======
 
-This is the documentation of **dimcat**. Mostly, it hasn't been written yet.
+This is the documentation of **DiMCAT**, the **Di**gital **M**usicology **C**orpus **A**nalysis **T**oolkit.
 
 Contents
 ========
@@ -11,7 +11,7 @@ Contents
    :maxdepth: 3
 
    Overview <readme>
-   manual
+   manual/index
    Module Reference <api/modules>
    Contributions & Help <contributing>
    License <LICENSE>

@@ -1,7 +1,6 @@
 import logging
 
-from .base import Analyzer, AnalyzerName, DispatchStrategy, Orientation, UnitOfAnalysis
-from .counters import Counter
-from .pitch import PitchClassVectors
+from .counters import BigramAnalyzer, Counter, NgramAnalyzer
+from .proportions import PitchClassVectors, Proportions
 
 logger = logging.getLogger(__name__)

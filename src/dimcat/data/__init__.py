@@ -1,56 +1,5 @@
 import logging
 
-from .base import Data
-from .dataset import (
-    AddingBehaviour,
-    AnalyzedDataset,
-    Dataset,
-    DimcatCatalog,
-    DimcatPackage,
-    GroupedAnalyzedDataset,
-    GroupedDataset,
-    InputsCatalog,
-    OutputsCatalog,
-    PackageSpecs,
-    PackageStatus,
-    SlicedAnalyzedDataset,
-    SlicedDataset,
-    SlicedGroupedAnalyzedDataset,
-    SlicedGroupedDataset,
-)
-from .resources import (  # .resources.base; .resources.features; .resources.results; .resources.utils
-    Annotations,
-    DimcatIndex,
-    DimcatResource,
-    Feature,
-    FeatureName,
-    FeatureSpecs,
-    IndexField,
-    KeyAnnotations,
-    Metadata,
-    Notes,
-    PieceIndex,
-    ResourceStatus,
-    Result,
-    ResultName,
-    align_with_grouping,
-    check_rel_path,
-    ensure_level_named_piece,
-    features_argument2config_list,
-    fl_fields2pandas_params,
-    get_existing_normpath,
-    get_pickle_schema,
-    infer_piece_col_position,
-    infer_schema_from_df,
-    load_fl_resource,
-    load_index_from_fl_resource,
-    make_boolean_mask_from_set_of_tuples,
-    make_index_from_grouping_dict,
-    make_rel_path,
-    make_tsv_resource,
-    resolve_columns_argument,
-    resolve_levels_argument,
-    resolve_recognized_piece_columns_argument,
-)
+from .resources import features
 
 logger = logging.getLogger(__name__)

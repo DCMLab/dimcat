@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Diagram>
+  <ID>Python</ID>
+  <OriginalElement>dimcat.steps.base.PipelineStep</OriginalElement>
+  <nodes>
+    <node x="446.0" y="902.0">dimcat.steps.analyzers.base.Analyzer</node>
+    <node x="79.0" y="568.0">dimcat.steps.base.FeatureProcessingStep</node>
+    <node x="96.0" y="-16.0">dimcat.steps.base.PipelineStep</node>
+    <node x="-213.0" y="964.5">dimcat.steps.groupers.base.Grouper</node>
+    <node x="158.0" y="1066.0">dimcat.steps.slicers.base.Slicer</node>
+  </nodes>
+  <notes />
+  <edges>
+    <edge source="dimcat.steps.analyzers.base.Analyzer" target="dimcat.steps.base.FeatureProcessingStep" relationship="REALIZATION">
+      <point x="0.0" y="-179.5" />
+      <point x="654.5" y="877.0" />
+      <point x="292.0" y="877.0" />
+      <point x="0.0" y="142.0" />
+    </edge>
+    <edge source="dimcat.steps.groupers.base.Grouper" target="dimcat.steps.base.FeatureProcessingStep" relationship="REALIZATION">
+      <point x="0.0" y="-117.0" />
+      <point x="-37.5" y="877.0" />
+      <point x="292.0" y="877.0" />
+      <point x="0.0" y="142.0" />
+    </edge>
+    <edge source="dimcat.steps.base.FeatureProcessingStep" target="dimcat.steps.base.PipelineStep" relationship="REALIZATION">
+      <point x="0.0" y="-142.0" />
+      <point x="0.0" y="267.0" />
+    </edge>
+    <edge source="dimcat.steps.slicers.base.Slicer" target="dimcat.steps.base.FeatureProcessingStep" relationship="REALIZATION">
+      <point x="0.0" y="-15.5" />
+      <point x="0.0" y="142.0" />
+    </edge>
+  </edges>
+  <settings layout="Hierarchic" zoom="0.5960464477539062" showDependencies="false" x="-4.0" y="690.3207936" />
+  <SelectedNodes />
+  <Categories>
+    <Category>Methods</Category>
+  </Categories>
+</Diagram>

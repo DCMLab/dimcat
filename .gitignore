@@ -11,8 +11,12 @@
 __pycache__/*
 .cache/*
 .*.swp
-.ipynb_checkpoints/*
 .DS_Store
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+.jupyter_cache/
 
 # Project files
 .ropeproject

@@ -1,6 +1,5 @@
 import logging
-
-from importlib_metadata import PackageNotFoundError, version  # pragma: no cover
+from importlib.metadata import PackageNotFoundError, version  # pragma: no cover
 
 try:
     # Change here if project is renamed and does not equal the package name
@@ -11,10 +10,22 @@ except PackageNotFoundError:  # pragma: no cover
 finally:
     del version, PackageNotFoundError
 
-
-from .base import DimcatConfig, get_class, get_schema
-from .data.dataset import Dataset
-from .steps.pipelines import Pipeline
+# modules of dimcat.data are not allowed to import from dimcat.steps, so when they do, they use get_class() which
+# requires that the respective step was already "seen" and is part of the registry. Hence, although the main purpose
+# of the imports here is syntactic sugar, some are required.
+from .base import (
+    DimcatConfig,
+    deserialize_config,
+    deserialize_dict,
+    deserialize_json_file,
+    deserialize_json_str,
+    get_class,
+    get_schema,
+)
+from .data import catalogs, datasets, packages, resources
+from .data.datasets.base import Dataset
+from .steps import analyzers, extractors, groupers, loaders, pipelines, slicers
+from .steps.pipelines.base import Pipeline
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(

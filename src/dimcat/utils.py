@@ -4,13 +4,51 @@ from __future__ import annotations
 import logging
 import os
 import re
-from typing import Collection, Optional
+from pathlib import Path
+from typing import (
+    Any,
+    Collection,
+    Iterable,
+    Iterator,
+    List,
+    Literal,
+    Optional,
+    Tuple,
+    overload,
+)
+from urllib.parse import urlparse
 
-import ms3
+import numpy as np
 import pandas as pd
-from frictionless.settings import NAME_PATTERN as FRICTIONLESS_NAME_PATTERN
+from dimcat.base import FriendlyEnum
+from dimcat.data.base import AbsolutePathStr
+from tqdm.auto import tqdm
 
 logger = logging.getLogger(__name__)
+
+FRICTIONLESS_NAME_PATTERN = (
+    r"^([-a-z0-9._/])+$"  # from frictionless.settings import NAME_PATTERN
+)
+FRICTIONLESS_INVERSE = r"[^-a-z0-9._/]"
+
+
+def make_valid_frictionless_name(name: str, replace_char="_") -> str:
+    if not isinstance(name, str):
+        raise TypeError(f"Name must be a string, not {type(name)}")
+    name = name.lower()
+    if not re.match(FRICTIONLESS_NAME_PATTERN, name):
+        name = re.sub(FRICTIONLESS_INVERSE, replace_char, name)
+    return name
+
+
+def make_valid_frictionless_name_from_filepath(
+    path: str, include_extension=True, replace_char="_"
+) -> str:
+    file = os.path.basename(path)
+    if include_extension:
+        return make_valid_frictionless_name(file, replace_char=replace_char)
+    name, _ = os.path.splitext(file)
+    return make_valid_frictionless_name(name, replace_char=replace_char)
 
 
 def nest_level(obj, include_tuples=False):
@@ -27,30 +65,33 @@ def nest_level(obj, include_tuples=False):
     return max_level + 1
 
 
-def grams(list_of_sequences, n=2):
+def grams(lists_of_symbols, n=2, to_string: bool = False):
     """Returns a list of n-gram tuples for given list. List can be nested.
+
     Use nesting to exclude transitions between pieces or other units.
-    Uses: nest_level()
 
     """
-    if nest_level(list_of_sequences) > 1:
+    if nest_level(lists_of_symbols) > 1:
         ngrams = []
         no_sublists = []
-        for item in list_of_sequences:
+        for item in lists_of_symbols:
             if isinstance(item, list):
-                ngrams.extend(grams(item, n))
+                ngrams.extend(grams(item, n, to_string=to_string))
             else:
                 no_sublists.append(item)
         if len(no_sublists) > 0:
-            ngrams.extend(grams(no_sublists, n))
+            ngrams.extend(grams(no_sublists, n, to_string=to_string))
         return ngrams
     else:
         # if len(l) < n:
         #    print(f"{l} is too small for a {n}-gram.")
         # ngrams = [l[i:(i+n)] for i in range(len(l)-n+1)]
-        ngrams = list(zip(*(list_of_sequences[i:] for i in range(n))))
+        ngrams = list(zip(*(lists_of_symbols[i:] for i in range(n))))
         # convert to tuple of strings
-        return [tuple(str(g) for g in gram) for gram in ngrams]
+        if to_string:
+            return [tuple(str(g) for g in gram) for gram in ngrams]
+        else:
+            return ngrams
 
 
 def get_composition_year(metadata_dict):
@@ -133,6 +174,112 @@ def make_suffix(*params):
     return "-".join(param_strings)
 
 
+def make_transition_matrix(
+    nested_sequences: Optional[list] = None,
+    ngrams: Optional[List[tuple]] = None,
+    n: int = 2,
+    k: Optional[int] = None,
+    smooth: int = 0,
+    normalize: bool = False,
+    IC: bool = False,
+    excluded_grams: Optional[Any] = None,
+    distinct_only: bool = False,
+    sort: bool = False,
+    percent: bool = False,
+    decimals: Optional[int] = None,
+):
+    """Returns a transition table from a list of symbols or from a list of n-grams.
+
+    Column index is the last item of grams, row index the n-1 preceding items.
+
+    Args:
+        nested_sequences:
+            List of elements between which the transitions are calculated. If specified, ``ngrams`` must be None.
+            List can be nested.
+        ngrams: List of tuples being n-grams. If specified, ``nested_sequences`` must be None.
+        n: Make n-grams. Only relevant if ``nested_sequences`` is specified.
+        k: Number of rows and columns that you want to keep. Defaults to all.
+        smooth: Initial count value of all transitions
+        normalize: Set to True to divide every row by the sum of the row.
+        IC: Set True to calculate information content.
+        excluded_grams:
+            Elements you want to exclude from the table. All ngrams containing at least one of the elements will be
+            filtered out.
+        distinct_only: if True, n-grams consisting only of identical elements are filtered out
+        sort: By default, the indices are ordered by gram frequency. Pass True to sort by bigram counts.
+        percent: Pass True to multiply the matrix by 100 before rounding to ``decimals``
+        decimals: To how many decimals you want to round the matrix.
+
+    Returns:
+        For each (n-1) previous elements (index), the number or proportion of transitions to each possible following
+        element (columns).
+    """
+    if ngrams is None:
+        assert n > 0, f"Cannot print {n}-grams"
+        ngrams = grams(nested_sequences, n=n, to_string=True)
+    elif nested_sequences is not None:
+        assert True, "Specify either l or gs, not both."
+
+    if excluded_grams:
+        ngrams = list(filter(lambda n: not any(g in excluded_grams for g in n), ngrams))
+    if distinct_only:
+        ngrams = list(filter(lambda tup: any(e != tup[0] for e in tup), ngrams))
+    ngrams = pd.Series(ngrams).value_counts()
+    if n > 2:
+        ngrams.index = [(" ".join(t[:-1]), t[-1]) for t in ngrams.index.tolist()]
+    context = pd.Index(set([ix[0] for ix in ngrams.index]))
+    consequent = pd.Index(set([ix[1] for ix in ngrams.index]))
+    df = pd.DataFrame(smooth, index=context, columns=consequent)
+
+    for (cont, cons), n_gram_count in ngrams.items():
+        try:
+            df.loc[cont, cons] += n_gram_count
+        except Exception:
+            continue
+
+    if k is not None:
+        sort = True
+
+    if sort:
+        h_sort = list(df.max().sort_values(ascending=False).index.values)
+        v_sort = list(df.max(axis=1).sort_values(ascending=False).index.values)
+        df = df[h_sort].loc[v_sort]
+    else:
+        frequency = df.sum(axis=1).sort_values(ascending=False).index
+        aux_index = frequency.intersection(df.columns, sort=False)
+        aux_index = aux_index.union(
+            df.columns.difference(frequency, sort=False), sort=False
+        )
+        df = df[aux_index].loc[frequency]
+
+    SU = df.sum(axis=1)
+    if normalize or IC:
+        df = df.div(SU, axis=0)
+
+    if IC:
+        ic = np.log2(1 / df)
+        ic["entropy"] = (ic * df).sum(axis=1)
+        # ############# Identical calculations:
+        # ic['entropy2'] = scipy.stats.entropy(df.transpose(),base=2)
+        # ic['entropy3'] = -(df * np.log2(df)).sum(axis=1)
+        df = ic
+        if normalize:
+            df["entropy"] = df["entropy"] / np.log2(len(df.columns) - 1)
+    # else:
+    #     df['total'] = SU
+
+    if k is not None:
+        df = df.iloc[:k, :k]
+
+    if percent:
+        df.iloc[:, :-1] *= 100
+
+    if decimals is not None:
+        df = df.round(decimals)
+
+    return df
+
+
 def interval_index2interval(ix):
     """Takes an interval index and returns the interval corresponding to [min(left), max(right))."""
     left = ix.left.min()
@@ -175,8 +322,12 @@ def check_file_path(
 
     Returns:
         The path turned into an absolute path.
+
+    Raises:
+        FileNotFoundError: If the file does not exist and must_exist is True.
+        ValueError: If the file does not have one of the specified extensions, if any.
     """
-    path = ms3.resolve_dir(filepath)
+    path = resolve_path(filepath)
     if must_exist and not os.path.isfile(path):
         raise FileNotFoundError(f"File {path} does not exist.")
     if extensions is not None:
@@ -187,10 +338,6 @@ def check_file_path(
             _, file_ext = os.path.splitext(path)
             raise ValueError(f"File {path} has extension {file_ext}, not {plural}.")
     return path
-
-
-def get_default_basepath():
-    return os.getcwd()
 
 
 def check_name(name: str) -> None:
@@ -205,9 +352,199 @@ def check_name(name: str) -> None:
         )
 
 
-def clean_basepath(path: str) -> str:
-    """If a basepath starts with the (home) directory that "~" resolves to, replace that part with "~"."""
-    home = os.path.expanduser("~")
-    if path.startswith(home):
-        path = "~" + path[len(home) :]
-    return path
+def _set_new_basepath(basepath: str, other_logger=None) -> None:
+    if basepath is None:
+        return
+    basepath_arg = resolve_path(basepath)
+    if not os.path.isdir(basepath_arg):
+        raise NotADirectoryError(
+            f"basepath {basepath_arg!r} is not an existing directory."
+        )
+    if other_logger is None:
+        other_logger = logger
+    other_logger.debug(f"The basepath been set to {basepath_arg!r}")
+    return basepath_arg
+
+
+def resolve_path(path) -> Optional[AbsolutePathStr]:
+    """Resolves '~' to HOME directory and turns ``path`` into an absolute path."""
+    if path is None:
+        return None
+    if isinstance(path, str):
+        pass
+    elif isinstance(path, Path):
+        path = str(path)
+    else:
+        raise TypeError(f"Expected str or Path, got {type(path)}")
+    if "~" in path:
+        path = os.path.expanduser(path)
+    else:
+        path = os.path.abspath(path)
+    path = path.rstrip("/\\")
+    return AbsolutePathStr(path)
+
+
+def is_uri(path: str) -> bool:
+    """Solution from https://stackoverflow.com/a/38020041"""
+    try:
+        result = urlparse(path)
+        return all([result.scheme, result.netloc])
+    except Exception:
+        return False
+
+
+@overload
+def scan_directory(
+    directory,
+    extensions,
+    file_re,
+    folder_re,
+    exclude_re,
+    recursive,
+    return_tuples: Literal[False],
+    progress,
+    exclude_files_only,
+) -> Iterator[str]:
+    ...
+
+
+@overload
+def scan_directory(
+    directory,
+    extensions,
+    file_re,
+    folder_re,
+    exclude_re,
+    recursive,
+    return_tuples: Literal[True],
+    progress,
+    exclude_files_only,
+) -> Iterator[Tuple[str, str]]:
+    ...
+
+
+def scan_directory(
+    directory: str,
+    extensions: Optional[str | Iterable[str]] = None,
+    file_re: Optional[str] = None,
+    folder_re: Optional[str] = None,
+    exclude_re: str = r"^(\.|_)",
+    recursive: bool = True,
+    return_tuples: bool = False,
+    progress: bool = False,
+    exclude_files_only: bool = False,
+) -> Iterator[str] | Iterator[Tuple[str, str]]:
+    """Depth-first generator of filtered file paths in ``directory``.
+
+    Args:
+      directory: Directory to be scanned for files.
+      extensions: File extensions to be included (with or without leading dot). Defaults to all extensions.
+      file_re, folder_re:
+          Regular expressions for filtering certain file names or folder names.
+          The regEx are checked with search(), not match(), allowing for fuzzy search.
+      exclude_re:
+          Exclude files and folders (unless ``exclude_files_only=True``) containing this regular expression.
+          Excludes files starting with a dot or underscore by default, prevent by setting to None or ''.
+      recursive: By default, subdirectories are recursively scanned. Pass False to scan only ``dir``.
+      return_tuples: By default, full file paths are returned. Pass True to return (path, name) tuples instead.
+      progress: Pass True to display the progress (useful for large directories).
+      exclude_files_only:
+          By default, ``exclude_re`` excludes files and folder. Pass True to exclude only files matching the regEx.
+
+    Yields:
+      Full file path or, if ``return_tuples=True``, (path, file_name) pairs in random order.
+    """
+    if file_re is None:
+        file_re = r".*"
+    if folder_re is None:
+        folder_re = r".*"
+    extensions_regex = ".*" if extensions is None else make_extension_regex(extensions)
+
+    def traverse(d):
+        nonlocal counter
+
+        def check_regex(reg, s, excl=exclude_re):
+            try:
+                passing = re.search(reg, s) is not None and re.search(excl, s) is None
+            except Exception:
+                logger.error(reg)
+                raise
+            return passing
+
+        for dir_entry in os.scandir(d):
+            name = dir_entry.name
+            path = os.path.join(d, name)
+            if dir_entry.is_dir():
+                if not recursive:
+                    continue
+                if exclude_files_only:
+                    if not check_regex(folder_re, name, excl="^$"):
+                        continue
+                else:
+                    if not check_regex(folder_re, name):
+                        continue
+                for res in traverse(path):
+                    yield res
+            else:
+                if pbar is not None:
+                    pbar.update()
+
+                if (
+                    dir_entry.is_file()
+                    and check_regex(extensions_regex, name)
+                    and check_regex(file_re, name)
+                ):
+                    counter += 1
+                    if pbar is not None:
+                        pbar.set_postfix({"selected": counter})
+                    if return_tuples:
+                        yield d, name
+                    else:
+                        yield path
+
+    if exclude_re is None or exclude_re == "":
+        exclude_re = "^$"
+    directory = resolve_path(directory)
+    counter = 0
+    if not os.path.isdir(directory):
+        raise NotADirectoryError("Not an existing directory: " + directory)
+    pbar = tqdm(desc="Scanning files", unit=" files") if progress else None
+    return traverse(directory)
+
+
+def make_extension_regex(
+    extensions: Iterable[str],
+    enforce_initial_dot: bool = False,
+) -> re.Pattern:
+    """Turns file extensions into a regular expression."""
+    if not extensions:
+        return re.compile(".*")
+    if isinstance(extensions, str):
+        extensions = [extensions]
+    else:
+        extensions = list(extensions)
+    if enforce_initial_dot:
+        dot = r"\."
+        regex = f"(?:{'|'.join(dot + e.lstrip('.') for e in extensions)})$"
+    else:
+        regex = f"(?:{'|'.join(extensions)})$"
+    return re.compile(regex, re.IGNORECASE)
+
+
+def get_middle_composition_year(
+    metadata: pd.DataFrame,
+    composed_start_column: str = "composed_start",
+    composed_end_column: str = "composed_end",
+) -> pd.Series:
+    """Returns the middle of the composition year range."""
+    composed_start = pd.to_numeric(metadata[composed_start_column], errors="coerce")
+    composed_end = pd.to_numeric(metadata[composed_end_column], errors="coerce")
+    composed_start.fillna(composed_end, inplace=True)
+    composed_end.fillna(composed_start, inplace=True)
+    return (composed_start + composed_end) / 2
+
+
+class SortOrder(FriendlyEnum):
+    ASCENDING = "ASCENDING"
+    DESCENDING = "DESCENDING"
+    NONE = "NONE"

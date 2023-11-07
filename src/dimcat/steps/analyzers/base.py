@@ -7,11 +7,12 @@ from typing import Any, ClassVar, Iterable, Optional, Type, TypeVar
 
 import marshmallow as mm
 from dimcat.base import ObjectEnum
-from dimcat.data.dataset.processed import AnalyzedDataset
-from dimcat.data.resources.base import DimcatResource, SomeSeries
+from dimcat.data.datasets.processed import AnalyzedDataset
+from dimcat.data.resources.base import SomeSeries
+from dimcat.data.resources.dc import DimcatResource, UnitOfAnalysis
 from dimcat.data.resources.features import Feature, FeatureSpecs
 from dimcat.data.resources.results import Result
-from dimcat.steps.base import PipelineStep
+from dimcat.steps.base import FeatureProcessingStep
 
 logger = logging.getLogger(__name__)
 
@@ -23,8 +24,10 @@ class AnalyzerName(ObjectEnum):
     """Identifies the available analyzers."""
 
     Analyzer = "Analyzer"
+    BigramAnalyzer = "BigramAnalyzer"
     Counter = "Counter"
     PitchClassVectors = "PitchClassVectors"
+    Proportions = "Proportions"
 
 
 class DispatchStrategy(str, Enum):
@@ -32,18 +35,7 @@ class DispatchStrategy(str, Enum):
     ITER_STACK = "ITER_STACK"
 
 
-class UnitOfAnalysis(str, Enum):
-    SLICE = "SLICE"
-    PIECE = "PIECE"
-    GROUP = "GROUP"
-
-
-class Orientation(str, Enum):
-    WIDE = "WIDE"
-    LONG = "LONG"
-
-
-class Analyzer(PipelineStep):
+class Analyzer(FeatureProcessingStep):
     """Analyzers are PipelineSteps that process data and store the results in Data.processed.
     The base class performs no analysis, instantiating it serves mere testing purpose.
     """
@@ -124,10 +116,9 @@ class Analyzer(PipelineStep):
     #         excluded_names = ", ".join(e.__name__ for e in excluded)
     #         raise ValueError(f"{cls.name} cannot be applied after {excluded_names}.")
 
-    class Schema(PipelineStep.Schema):
+    class Schema(FeatureProcessingStep.Schema):
         strategy = mm.fields.Enum(DispatchStrategy, metadata={"expose": False})
         smallest_unit = mm.fields.Enum(UnitOfAnalysis, metadata={"expose": False})
-        orientation = mm.fields.Enum(Orientation, metadata={"expose": False})
         fill_na = mm.fields.Raw(allow_none=True, metadata={"expose": False})
 
         @mm.pre_load()
@@ -146,7 +137,6 @@ class Analyzer(PipelineStep):
         features: Optional[FeatureSpecs | Iterable[FeatureSpecs]] = None,
         strategy: DispatchStrategy = DispatchStrategy.GROUPBY_APPLY,
         smallest_unit: UnitOfAnalysis = UnitOfAnalysis.SLICE,
-        orientation: Orientation = Orientation.WIDE,
         fill_na: Any = None,
     ):
         super().__init__(features=features)
@@ -154,8 +144,6 @@ class Analyzer(PipelineStep):
         self.strategy = strategy
         self._smallest_unit: UnitOfAnalysis = None
         self.smallest_unit = smallest_unit
-        self._orientation: Orientation = None
-        self.orientation = orientation
         self.fill_na: Any = fill_na
 
     @property
@@ -178,37 +166,39 @@ class Analyzer(PipelineStep):
             smallest_unit = UnitOfAnalysis(smallest_unit)
         self._smallest_unit = smallest_unit
 
-    @property
-    def orientation(self) -> Orientation:
-        return self._orientation
-
-    @orientation.setter
-    def orientation(self, orientation: Orientation):
-        if not isinstance(orientation, Orientation):
-            orientation = Orientation(orientation)
-        self._orientation = orientation
-
-    def dispatch(self, resource: Feature) -> Result:
+    def _make_new_resource(self, resource: Feature) -> Result:
         """Dispatch the passed resource to the appropriate method."""
         if self.strategy == DispatchStrategy.ITER_STACK:  # more cases to follow
             raise NotImplementedError()
         if not self.strategy == DispatchStrategy.GROUPBY_APPLY:
             raise ValueError(f"Unknown dispatch strategy '{self.strategy!r}'")
-        result_constructor = self.get_new_resource_type(resource)
+        result_constructor = self._get_new_resource_type(resource)
         results = self.groupby_apply(resource)
         result_name = self.resource_name_factory(resource)
-        return result_constructor.from_dataframe(
+        result = result_constructor.from_dataframe(
             df=results,
             resource_name=result_name,
+            default_groupby=resource.get_default_groupby(),
         )
+        result.default_value_column = resource.value_column
+        return result
 
     def groupby_apply(self, feature: Feature, groupby: SomeSeries = None, **kwargs):
         """Performs the computation on a groupby. The value of ``groupby`` needs to be
         a Series of the same length as ``feature`` or otherwise work as positional argument to feature.groupby().
         """
         if groupby is None:
-            groupby = feature.get_default_groupby()
+            groupby = feature.get_grouping_levels(self.smallest_unit)
+            self.logger.debug(
+                f"Using the {feature.resource_name}'s default groupby {groupby!r}"
+            )
         return feature.groupby(groupby).apply(self.compute, **self.to_dict())
+
+    def _pre_process_resource(self, resource: DimcatResource) -> DimcatResource:
+        """Perform some pre-processing on a resource before processing it."""
+        resource = super()._pre_process_resource(resource)
+        resource.load()
+        return resource
 
     def resource_name_factory(self, resource: DimcatResource) -> str:
         """Returns a name for the resource based on its name and the name of the pipeline step."""

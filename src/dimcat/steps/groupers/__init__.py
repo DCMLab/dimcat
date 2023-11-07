@@ -1,5 +1,7 @@
 import logging
 
-from .base import CustomPieceGrouper, Grouper
+from .base import CorpusGrouper, CustomPieceGrouper
+from .columns import ColumnGrouper, MeasureGrouper, ModeGrouper
+from .metadata import YearGrouper
 
 logger = logging.getLogger(__name__)
