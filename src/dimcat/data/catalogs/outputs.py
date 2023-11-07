@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Iterator, Tuple
+from typing import Iterator, Optional, Tuple
 
 from dimcat.data.catalogs.base import DimcatCatalog
 from dimcat.data.resources.dc import DimcatResource
@@ -8,7 +8,7 @@ from dimcat.data.resources.features import FeatureSpecs, feature_specs2config
 
 
 class OutputsCatalog(DimcatCatalog):
-    def get_feature(self, feature: FeatureSpecs) -> DimcatResource:
+    def get_feature(self, feature: Optional[FeatureSpecs] = None) -> DimcatResource:
         """Looks up the given feature in the "features" package and returns it.
 
         Raises:
@@ -16,6 +16,8 @@ class OutputsCatalog(DimcatCatalog):
             NoMatchingResourceFoundError: If no resource matching the specs is found in the "features" package.
         """
         package = self.get_package_by_name("features")
+        if feature is None:
+            return package.get_resource_by_name()
         feature_config = feature_specs2config(feature)
         return package.get_resource_by_config(feature_config)
 
