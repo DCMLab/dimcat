@@ -387,3 +387,14 @@ class ResourceNotProcessableError(DimcatError):
         2: lambda name, step: f"{step!r} cannot process Resource {name!r}.",
         3: lambda name, step, resource_type: f"{step!r} cannot process Resource {name!r} of type {resource_type!r}.",
     }
+
+
+class SlicerNotSetUpError(DimcatError):
+    """optional args: (slicer_name,)"""
+
+    nargs2message = {
+        0: "The slicer has not been setup. Applying it would result in empty features. Set the attribute "
+        "'slice_intervals'.",
+        1: lambda name: f"The {name!r} has not been setup. Applying it would result in empty features. "
+        f"Set the attribute 'slice_intervals'.",
+    }
