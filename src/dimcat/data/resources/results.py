@@ -3,9 +3,10 @@ from __future__ import annotations
 import logging
 from functools import cache, cached_property
 from itertools import product
-from typing import Iterable, List, Optional
+from typing import ClassVar, Iterable, List, Optional, Tuple
 
 import frictionless as fl
+import ms3
 import pandas as pd
 from dimcat.base import ObjectEnum
 from dimcat.plotting import (
@@ -22,6 +23,7 @@ from matplotlib.figure import Figure as MatplotlibFigure
 from plotly import graph_objs as go
 
 from .dc import DimcatResource
+from .features import BassNotesFormat, NotesFormat
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +55,7 @@ class ResultName(ObjectEnum):
     NgramTable = "NgramTable"
     Result = "Result"
     PitchClassDurations = "PitchClassDurations"
+    ScaleDegreeDurations = "ScaleDegreeDurations"
 
 
 class Result(DimcatResource):
@@ -501,7 +504,33 @@ class NgramTable(Result):
         return fig
 
 
-class PitchClassDurations(Durations):
+class FifthsDurations(Durations):
+    default_format: Optional[ClassVar[BassNotesFormat | NotesFormat]] = None
+    default_group_modes: ClassVar[Tuple[GroupMode, ...]] = (
+        GroupMode.ROWS,
+        GroupMode.COLUMNS,
+    )
+
+    def get_fifths_transform(self):
+        if self.default_format is None:
+            fifths_transform = None
+        elif self.default_format == "FIFTHS":
+            fifths_transform = None
+        elif self.default_format == "INTERVAL":
+            fifths_transform = ms3.fifths2iv
+        elif self.default_format == "NAME":
+            fifths_transform = ms3.fifths2name
+        else:
+            raise NotImplementedError(
+                f"Don't know how to turn x-axis into format {self.default_format!r}."
+            )
+        return fifths_transform
+
+    def get_color_midpoint(self) -> int:
+        if self.default_format == "NAME":
+            return 2
+        return 0
+
     def make_bar_plot(
         self,
         df: Optional[pd.DataFrame] = None,
@@ -608,3 +637,11 @@ class PitchClassDurations(Durations):
             output=output,
             **kwargs,
         )
+
+
+class PitchClassDurations(FifthsDurations):
+    default_format = NotesFormat.NAME
+
+
+class ScaleDegreeDurations(FifthsDurations):
+    default_format = BassNotesFormat.INTERVAL
