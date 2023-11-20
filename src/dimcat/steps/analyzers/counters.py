@@ -33,7 +33,7 @@ class Counter(Analyzer):
 
     def resource_name_factory(self, resource: DimcatResource) -> str:
         """Returns a name for the resource based on its name and the name of the pipeline step."""
-        return f"{resource.resource_name}_counted"
+        return f"{resource.resource_name}.counted"
 
 
 class NgramTableFormat(FriendlyEnum):
@@ -155,10 +155,10 @@ class NgramAnalyzer(Analyzer):
 
     def resource_name_factory(self, resource: DimcatResource) -> str:
         """Returns a name for the resource based on its name and the name of the pipeline step."""
-        return f"{resource.resource_name}_ngram_table"
+        return f"{resource.resource_name}.ngram_table"
 
 
 class BigramAnalyzer(NgramAnalyzer):
     def resource_name_factory(self, resource: DimcatResource) -> str:
         """Returns a name for the resource based on its name and the name of the pipeline step."""
-        return f"{resource.resource_name}_bigram_table"
+        return f"{resource.resource_name}.bigram_table"

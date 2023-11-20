@@ -202,7 +202,7 @@ class Analyzer(FeatureProcessingStep):
 
     def resource_name_factory(self, resource: DimcatResource) -> str:
         """Returns a name for the resource based on its name and the name of the pipeline step."""
-        return f"{resource.resource_name}_analyzed"
+        return f"{resource.resource_name}.analyzed"
 
 
 # def typestrings2types(
