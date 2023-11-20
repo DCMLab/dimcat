@@ -6,6 +6,7 @@ import os
 import warnings
 from collections import Counter
 from operator import itemgetter
+from pprint import pformat
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -479,6 +480,15 @@ def infer_schema_from_df(
         column_names = index_levels + column_names
     else:
         index_levels = None
+    n_columns = len(column_names)
+    n_unique = len(set(column_names))
+    if n_unique < n_columns:
+        non_unique = {
+            name: occ for name, occ in Counter(column_names).items() if occ > 1
+        }
+        raise RuntimeError(
+            f"The following columns are non-unique:\n{pformat(non_unique)}"
+        )
     descriptor = make_frictionless_schema_descriptor(
         column_names=column_names,
         primary_key=index_levels,
