@@ -16,6 +16,7 @@ from dimcat.plotting import (
     make_lof_bar_plot,
     make_lof_bubble_plot,
     make_transition_heatmap_plots,
+    update_plot_grouping_settings,
 )
 from dimcat.utils import SortOrder
 from matplotlib import pyplot as plt
@@ -26,18 +27,6 @@ from .dc import DimcatResource
 from .features import BassNotesFormat, NotesFormat
 
 logger = logging.getLogger(__name__)
-
-
-def clean_axis_labels(*labels: str) -> dict:
-    """Clean axis labels for Plotly plots.
-
-    Args:
-        *labels: Labels to clean.
-
-    Returns:
-        A dictionary with the cleaned labels.
-    """
-    return {label: label.replace("_", " ") for label in labels}
 
 
 def tuple2str(tup: tuple) -> str:
@@ -60,9 +49,15 @@ class ResultName(ObjectEnum):
 
 class Result(DimcatResource):
     _enum_type = ResultName
+    default_group_modes: ClassVar[Tuple[GroupMode, ...]] = (
+        GroupMode.COLOR,
+        GroupMode.ROWS,
+        GroupMode.COLUMNS,
+    )
 
     @property
     def x_column(self) -> str:
+        """Result column from which to create one marker per distinct value to show over the x-axis."""
         return self.value_column
 
     @property
@@ -82,6 +77,19 @@ class Result(DimcatResource):
             group_cols = list(group_cols)
         groupby = group_cols + [self.x_column]
         combined_result = self.df.groupby(groupby).sum()
+        group_proportions = (
+            combined_result / combined_result.groupby(group_cols).sum()
+        ).rename(columns=lambda x: "proportion")
+        group_proportions_str = (
+            group_proportions.mul(100)
+            .round(2)
+            .astype(str)
+            .add(" %")
+            .rename(columns=lambda x: "proportion_%")
+        )
+        combined_result = pd.concat(
+            [combined_result, group_proportions, group_proportions_str], axis=1
+        )
         if sort_order is None or sort_order == SortOrder.NONE:
             return combined_result
         if not group_cols:
@@ -117,14 +125,11 @@ class Result(DimcatResource):
         unit_of_analysis = self.get_grouping_levels()
         y_col = unit_of_analysis[-1]
         x_col = self.value_column
-        labels_settings = clean_axis_labels(x_col, y_col)
-        if labels is not None:
-            labels_settings.update(labels)
         return self.make_bubble_plot(
             x_col=x_col,
             y_col=y_col,
             title=title,
-            labels=labels_settings,
+            labels=labels,
             hover_data=hover_data,
             height=height,
             width=width,
@@ -140,11 +145,7 @@ class Result(DimcatResource):
     def plot_grouped(
         self,
         group_cols: Optional[str | Iterable[str]] = None,
-        group_modes: Iterable[GroupMode] = (
-            GroupMode.COLOR,
-            GroupMode.ROWS,
-            GroupMode.COLUMNS,
-        ),
+        group_modes: Optional[GroupMode | Iterable[GroupMode]] = None,
         title: Optional[str] = None,
         labels: Optional[dict] = None,
         hover_data: Optional[List[str]] = None,
@@ -158,59 +159,53 @@ class Result(DimcatResource):
         output: Optional[str] = None,
         **kwargs,
     ) -> go.Figure:
-        if group_cols is None:
-            group_cols = self.get_default_groupby()
-        elif isinstance(group_cols, str):
-            group_cols = [group_cols]
-        else:
-            group_cols = list(group_cols)
-        if not group_cols:
-            x_col = self.x_column
-            y_col = self.y_column
-            labels_settings = clean_axis_labels(x_col, y_col)
-            if labels is not None:
-                labels_settings.update(labels)
-            combined_result = self.combine()
-            return self.make_bar_plot(
-                df=combined_result,
-                x_col=x_col,
-                group_cols=group_cols,
-                group_modes=group_modes,
-                title=title,
-                labels=labels_settings,
-                hover_data=hover_data,
-                height=height,
-                width=width,
-                layout=layout,
-                x_axis=x_axis,
-                y_axis=y_axis,
-                color_axis=color_axis,
-                traces_settings=traces_settings,
-                output=output,
-                **kwargs,
-            )
-        else:
-            y_col = group_cols[-1]
-            x_col = self.x_column
-            labels_settings = clean_axis_labels(x_col, y_col)
-            if labels is not None:
-                labels_settings.update(labels)
-            return self.make_bubble_plot(
-                x_col=x_col,
-                y_col=y_col,
-                title=title,
-                labels=labels_settings,
-                hover_data=hover_data,
-                height=height,
-                width=width,
-                layout=layout,
-                x_axis=x_axis,
-                y_axis=y_axis,
-                color_axis=color_axis,
-                traces_settings=traces_settings,
-                output=output,
-                **kwargs,
-            )
+        x_col = self.x_column
+        y_col = self.y_column
+        combined_result = self.combine()
+        return self.make_bar_plot(
+            df=combined_result,
+            x_col=x_col,
+            y_col=y_col,
+            group_cols=group_cols,
+            group_modes=group_modes,
+            title=title,
+            labels=labels,
+            hover_data=hover_data,
+            height=height,
+            width=width,
+            layout=layout,
+            x_axis=x_axis,
+            y_axis=y_axis,
+            color_axis=color_axis,
+            traces_settings=traces_settings,
+            output=output,
+            **kwargs,
+        )
+        # # in principle, group distributions can also be displayed as bubble plots:
+        # if not group_cols:
+        #     ... # bar plot code
+        # else:
+        #     y_col = group_cols[-1]
+        #     x_col = self.x_column
+        #     labels_settings = clean_axis_labels(x_col, y_col)
+        #     if labels is not None:
+        #         labels_settings.update(labels)
+        #     return self.make_bubble_plot(
+        #         x_col=x_col,
+        #         y_col=y_col,
+        #         title=title,
+        #         labels=labels_settings,
+        #         hover_data=hover_data,
+        #         height=height,
+        #         width=width,
+        #         layout=layout,
+        #         x_axis=x_axis,
+        #         y_axis=y_axis,
+        #         color_axis=color_axis,
+        #         traces_settings=traces_settings,
+        #         output=output,
+        #         **kwargs,
+        #     )
 
     def make_bar_plot(
         self,
@@ -218,11 +213,7 @@ class Result(DimcatResource):
         x_col: Optional[str] = None,
         y_col: Optional[str] = None,
         group_cols: Optional[str | Iterable[str]] = None,
-        group_modes: Iterable[GroupMode] = (
-            GroupMode.COLOR,
-            GroupMode.ROWS,
-            GroupMode.COLUMNS,
-        ),
+        group_modes: Optional[GroupMode | Iterable[GroupMode]] = None,
         title: Optional[str] = None,
         labels: Optional[dict] = None,
         hover_data: Optional[List[str]] = None,
@@ -247,8 +238,21 @@ class Result(DimcatResource):
         """
         if df is None:
             df = self.df
+        if x_col is None:
+            x_col = self.x_column
         if y_col is None:
             y_col = self.y_column
+        if group_cols is None:
+            group_cols = self.get_default_groupby()
+        elif isinstance(group_cols, str):
+            group_cols = [group_cols]
+        if group_modes is None:
+            group_modes = self.default_group_modes
+        layout_update = dict()
+        if layout is not None:
+            layout_update.update(layout)
+        if "xaxis_type" not in layout_update:
+            layout_update["xaxis_type"] = "category"
         return make_bar_plot(
             df=df,
             x_col=x_col,
@@ -260,7 +264,7 @@ class Result(DimcatResource):
             hover_data=hover_data,
             height=height,
             width=width,
-            layout=layout,
+            layout=layout_update,
             x_axis=x_axis,
             y_axis=y_axis,
             color_axis=color_axis,
@@ -298,8 +302,15 @@ class Result(DimcatResource):
         Returns:
             A Plotly Figure object.
         """
+        if x_col is None:
+            x_col = self.x_column
         if y_col is None:
             y_col = self.y_column
+        layout_update = dict()
+        if layout is not None:
+            layout_update.update(layout)
+        if "yaxis_type" not in layout_update:
+            layout_update["yaxis_type"] = "category"
         return make_bubble_plot(
             df=self.df,
             normalize=normalize,
@@ -312,7 +323,7 @@ class Result(DimcatResource):
             hover_data=hover_data,
             width=width,
             height=height,
-            layout=layout,
+            layout=layout_update,
             x_axis=x_axis,
             y_axis=y_axis,
             color_axis=color_axis,
@@ -534,14 +545,10 @@ class FifthsDurations(Durations):
     def make_bar_plot(
         self,
         df: Optional[pd.DataFrame] = None,
-        x_col="tpc",
+        x_col=None,
         y_col=None,
         group_cols: Optional[str | Iterable[str]] = None,
-        group_modes: Iterable[GroupMode] = (
-            GroupMode.COLOR,
-            GroupMode.ROWS,
-            GroupMode.COLUMNS,
-        ),
+        group_modes: Optional[GroupMode | Iterable[GroupMode]] = None,
         title: Optional[str] = None,
         labels: Optional[dict] = None,
         hover_data: Optional[List[str]] = None,
@@ -566,14 +573,33 @@ class FifthsDurations(Durations):
         """
         if df is None:
             df = self.df
+        if x_col is None:
+            x_col = self.x_column
         if y_col is None:
             y_col = self.y_column
+        if group_cols is None:
+            group_cols = self.get_default_groupby()
+        elif isinstance(group_cols, str):
+            group_cols = [group_cols]
+        if group_modes is None:
+            group_modes = self.default_group_modes
+        if group_cols:
+            update_plot_grouping_settings(kwargs, group_cols, group_modes)
+        layout_update = dict()
+        if layout is not None:
+            layout_update.update(layout)
+        if "xaxis_type" not in layout_update:
+            layout_update["xaxis_type"] = "category"
+        fifths_transform = self.get_fifths_transform()
+        color_midpoint = self.get_color_midpoint()
         return make_lof_bar_plot(
             df=df,
+            fifths_transform=fifths_transform,
             x_col=x_col,
             y_col=y_col,
             title=title,
             labels=labels,
+            shift_color_midpoint=color_midpoint,
             hover_data=hover_data,
             height=height,
             width=width,
@@ -590,7 +616,7 @@ class FifthsDurations(Durations):
         self,
         normalize: bool = True,
         flip: bool = False,
-        x_col: Optional[str] = "tpc",
+        x_col: Optional[str] = None,
         y_col: Optional[str] = None,
         duration_column: str = "duration_qb",
         title: Optional[str] = None,
@@ -615,21 +641,33 @@ class FifthsDurations(Durations):
         Returns:
             A Plotly Figure object.
         """
+        if x_col is None:
+            x_col = self.x_column
         if y_col is None:
             y_col = self.y_column
+        layout_update = dict()
+        if layout is not None:
+            layout_update.update(layout)
+        if "yaxis_type" not in layout_update:
+            layout_update["yaxis_type"] = "category"
+        fifths_transform = self.get_fifths_transform()
+        color_midpoint = self.get_color_midpoint()
         return make_lof_bubble_plot(
             df=self.df,
             normalize=normalize,
             flip=flip,
-            x_col=x_col,
+            fifths_col=x_col,
             y_col=y_col,
             duration_column=duration_column,
+            fifths_transform=fifths_transform,
+            x_names_col=None,
             title=title,
             labels=labels,
             hover_data=hover_data,
+            shift_color_midpoint=color_midpoint,
             width=width,
             height=height,
-            layout=layout,
+            layout=layout_update,
             x_axis=x_axis,
             y_axis=y_axis,
             color_axis=color_axis,

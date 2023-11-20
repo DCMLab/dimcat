@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Iterable, List, Optional
+from typing import Any, Callable, Iterable, List, Optional
 
 import ms3
 import numpy as np
@@ -48,6 +48,28 @@ GROUPMODE2BAR_PLOT_SETTING = {
 }
 
 
+def clean_axis_labels(*labels: str) -> dict:
+    """Clean axis labels for Plotly plots by removing all underscores ('_') with spaces.
+
+    Args:
+        *labels: Labels to clean.
+
+    Returns:
+        A dictionary mapping the original to the cleaned labels.
+    """
+    default_labels = {"duration_qb": "duration in 𝅘𝅥"}
+    result = {}
+    for label in labels:
+        if pd.isnull(label):
+            continue
+        if label in default_labels:
+            cleaned_label = default_labels[label]
+        else:
+            cleaned_label = label.replace("_", " ")
+        result[label] = cleaned_label
+    return result
+
+
 def get_pitch_class_distribution(
     df,
     pitch_column="tpc",
@@ -81,25 +103,42 @@ def make_plot_settings(
     plot_settings = dict(
         title=title,
         y=y_col,
-        labels=labels,
         hover_data=hover_data,
         height=height,
         width=width,
     )
     if group_cols is not None:
-        if isinstance(group_cols, str):
-            group_cols = [group_cols]
-        for group_col, group_mode in zip(group_cols, group_modes):
-            setting_key = GROUPMODE2BAR_PLOT_SETTING[group_mode]
-            if setting_key in plot_settings:
-                raise ValueError(
-                    f"Trying to set {setting_key!r} to {group_col!r} but it is already set to "
-                    f"{plot_settings[setting_key]!r}."
-                )
-            plot_settings[setting_key] = group_col
+        update_plot_grouping_settings(plot_settings, group_cols, group_modes)
     if "x" not in plot_settings:
         plot_settings["x"] = x_col
+    label_settings = clean_axis_labels(*df.columns)
+    if labels is not None:
+        label_settings.update(labels)
+    plot_settings["labels"] = label_settings
     return plot_settings
+
+
+def update_plot_grouping_settings(
+    plot_settings: dict,
+    group_cols: Optional[str | Iterable[str]] = None,
+    group_modes: Iterable[GroupMode] = (
+        GroupMode.COLOR,
+        GroupMode.ROWS,
+        GroupMode.COLUMNS,
+    ),
+):
+    if isinstance(group_cols, str):
+        group_cols = [group_cols]
+    if isinstance(group_modes, str):
+        group_modes = [group_modes]
+    for group_col, group_mode in zip(group_cols, group_modes):
+        setting_key = GROUPMODE2BAR_PLOT_SETTING[group_mode]
+        if setting_key in plot_settings:
+            raise ValueError(
+                f"Trying to set {setting_key!r} to {group_col!r} but it is already set to "
+                f"{plot_settings[setting_key]!r}."
+            )
+        plot_settings[setting_key] = group_col
 
 
 def make_bar_plot(
@@ -147,6 +186,12 @@ def make_bar_plot(
         height=height,
         width=width,
     )
+    if "barmode" not in kwargs:
+        kwargs[
+            "barmode"
+        ] = "group"  # Plotly's default: "relative" (meaning stacked); other option: "overlay"]
+    if "text" not in kwargs and "proportion_%" in df.columns:
+        kwargs["text"] = "proportion_%"
     fig = px.bar(
         df,
         **plot_settings,
@@ -159,7 +204,6 @@ def make_bar_plot(
         y_axis=y_axis,
         color_axis=color_axis,
         traces_settings=traces_settings,
-        xaxis_type="category",
     )
     if output is not None:
         write_image(fig=fig, filename=output, width=width, height=height)
@@ -256,13 +300,13 @@ def make_bubble_plot(
 
 def make_lof_bar_plot(
     df: pd.DataFrame,
-    fifth_transform=ms3.fifths2name,
-    shift_color_midpoint=2,
     x_col="tpc",
     y_col="duration_qb",
+    fifths_transform: Optional[Callable[[int], Any]] = ms3.fifths2name,
     title=None,
     labels=None,
     hover_data: Optional[List[str]] = None,
+    shift_color_midpoint: int = 0,
     height: Optional[int] = None,
     width: Optional[int] = None,
     layout: Optional[dict] = None,
@@ -275,28 +319,29 @@ def make_lof_bar_plot(
 ):
     """Like :func:`make_bar_plot` but coloring the bars along the Line of Fifths.
     bar_data with x_col ('tpc'), y_col ('duration_qb')"""
-    if title is None:
-        title = "Pitch-class distribution"
     if labels is None:
         labels = {str(x_col): "Tonal pitch class", str(y_col): "Duration in ♩"}
     df = df.reset_index()
     color_values = df[x_col].to_list()
-    x_values = sorted(set(color_values))
-    x_names = list(map(fifth_transform, x_values))
-    figure_layout = dict(showlegend=False)
-    if layout is not None:
-        figure_layout.update(layout)
     xaxis_settings = dict(
         gridcolor="lightgrey",
         zerolinecolor="grey",
-        tickmode="array",
-        tickvals=x_values,
-        ticktext=x_names,
         dtick=1,
         ticks="outside",
         tickcolor="black",
         minor=dict(dtick=6, gridcolor="grey", showgrid=True),
     )
+    if fifths_transform is not None:
+        x_values = sorted(set(color_values))
+        x_names = list(map(fifths_transform, x_values))
+        xaxis_settings.update(
+            tickmode="array",
+            tickvals=x_values,
+            ticktext=x_names,
+        )
+    figure_layout = dict(showlegend=False)
+    if layout is not None:
+        figure_layout.update(layout)
     if x_axis is not None:
         xaxis_settings.update(x_axis)
     c_axis = dict(showscale=False)
@@ -317,7 +362,6 @@ def make_lof_bar_plot(
         color_axis=c_axis,
         traces_settings=traces_settings,
         output=output,
-        # **kwargs:
         color=color_values,
         color_continuous_scale="RdBu_r",
         color_continuous_midpoint=shift_color_midpoint,
@@ -329,12 +373,15 @@ def make_lof_bubble_plot(
     df: pd.Series | pd.DataFrame,
     normalize: bool = False,
     flip: bool = False,
-    x_col: Optional[str] = "tpc",
+    fifths_col: Optional[str] = "tpc",
     y_col: Optional[str] = "piece",
     duration_column: str = "duration_qb",
-    title="Pitch class durations",
+    fifths_transform: Optional[Callable[[int], Any]] = ms3.fifths2name,
+    x_names_col: Optional[str] = None,
+    title: Optional[str] = None,
     labels: Optional[dict] = None,
     hover_data: Optional[List[str]] = None,
+    shift_color_midpoint: int = 0,
     width: Optional[int] = 1200,
     height: Optional[int] = 1500,
     layout: Optional[dict] = None,
@@ -352,24 +399,29 @@ def make_lof_bubble_plot(
     as keyword argument 'hover_data'.
     """
     df = df.reset_index()
-    fifths = df[x_col].to_list()
-    x_vals = sorted(set(fifths))
-    x_names = ms3.fifths2name(x_vals)
-    xaxis_settings = dict(tickvals=x_vals, ticktext=x_names)
+    fifths = df[fifths_col].to_list()
+    xaxis_settings = dict()
+    if x_names_col is not None:
+        x_names = df[x_names_col].values
+        xaxis_settings = dict(tickmode="array", tickvals=fifths, ticktext=x_names)
+    elif fifths_transform is not None:
+        x_vals = sorted(set(fifths))
+        x_names = list(map(fifths_transform, x_vals))
+        xaxis_settings = dict(tickmode="array", tickvals=x_vals, ticktext=x_names)
     if x_axis is not None:
         xaxis_settings.update(x_axis)
-    df["pitch class"] = ms3.fifths2name(fifths)
     if hover_data is None:
         hover_data = []
     elif isinstance(hover_data, str):
         hover_data = [hover_data]
-    hover_data.append("pitch class")
-    color_col = x_col
+    # df["pitch class"] = ms3.fifths2name(fifths)
+    # hover_data.append("pitch class")
+    color_col = fifths_col
     return make_bubble_plot(
         df=df,
         normalize=normalize,
         flip=flip,
-        x_col=x_col,
+        x_col=fifths_col,
         y_col=y_col,
         duration_column=duration_column,
         title=title,
@@ -386,7 +438,7 @@ def make_lof_bubble_plot(
         # **kwargs:
         color=color_col,
         color_continuous_scale="RdBu_r",
-        color_continuous_midpoint=2,
+        color_continuous_midpoint=shift_color_midpoint,
         **kwargs,
     )
 
@@ -653,6 +705,7 @@ def plot_pitch_class_distribution(
     duration_column="duration_qb",
     title="Pitch class distribution",
     fifths_transform=ms3.fifths2name,
+    shift_color_midpoint: int = 2,
     width=None,
     height=None,
     labels=None,
@@ -674,7 +727,8 @@ def plot_pitch_class_distribution(
         y_col=y_col,
         labels=labels,
         title=title,
-        fifth_transform=fifths_transform,
+        fifths_transform=fifths_transform,
+        shift_color_midpoint=shift_color_midpoint,
         width=width,
         height=height,
         output=output,
