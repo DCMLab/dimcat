@@ -56,6 +56,21 @@ class BaseFilePathMismatchError(DimcatError):
     }
 
 
+class DataframeIsMissingExpectedColumnsError(DimcatError):
+    """optional args: (missing_columns, present_columns)
+
+    Different from ResourceIsMissingFeatureColumnError in that it can be raised by a function that has access only to
+    the dataframe, not the resource.
+    """
+
+    nargs2message = {
+        0: "The dataframe is missing an expected column.",
+        1: lambda missing_columns: f"The dataframe is missing the expected column(s) {missing_columns!r}.",
+        2: lambda missing_columns, present_columns: f"The dataframe is missing the expected column(s) "
+        f"{missing_columns!r}:\n{present_columns!r}.",
+    }
+
+
 class DuplicateIDError(DimcatError):
     """optional args: (id, facet)"""
 

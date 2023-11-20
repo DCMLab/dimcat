@@ -37,6 +37,7 @@ from dimcat.data.resources.utils import (
     resolve_recognized_piece_columns_argument,
 )
 from dimcat.dc_exceptions import (
+    DataframeIsMissingExpectedColumnsError,
     ResourceIsMissingFeatureColumnError,
     ResourceNotProcessableError,
 )
@@ -511,8 +512,83 @@ class Metadata(Feature):
 # region Annotations
 
 
+def extend_keys_feature(
+    feature_df,
+):
+    expected_columns = ("localkey", "localkey_is_minor", "globalkey_is_minor")
+    if not all(col in feature_df.columns for col in expected_columns):
+        raise DataframeIsMissingExpectedColumnsError(
+            [col for col in expected_columns if col not in feature_df.columns],
+            feature_df.columns.to_list(),
+        )
+    concatenate_this = [
+        feature_df,
+        boolean_is_minor_column_to_mode(feature_df.globalkey_is_minor).rename(
+            "globalkey_mode"
+        ),
+        boolean_is_minor_column_to_mode(feature_df.localkey_is_minor).rename(
+            "localkey_mode"
+        ),
+        ms3.transform(
+            feature_df, ms3.resolve_relative_keys, ["localkey", "localkey_is_minor"]
+        ).rename("localkey_resolved"),
+    ]
+    feature_df = pd.concat(concatenate_this, axis=1)
+    concatenate_this = [
+        feature_df,
+        feature_df[["localkey", "globalkey_mode"]]
+        .apply(safe_row_tuple, axis=1)
+        .rename("localkey_and_mode"),
+    ]
+    feature_df = pd.concat(concatenate_this, axis=1)
+    return feature_df
+
+
 class Annotations(Feature):
     pass
+
+
+class DcmlAnnotations(Annotations):
+    _auxiliary_columns = [
+        "globalkey",
+        "localkey",
+        "globalkey_is_minor",
+        "localkey_is_minor",
+        "globalkey_mode",
+        "localkey_mode",
+        "localkey_resolved",
+        "localkey_and_mode",
+    ]
+    _extractable_features = HARMONY_FEATURE_NAMES
+
+    def _transform_resource_df(self, feature_df):
+        """Called by :meth:`_make_feature_df` to transform the resource dataframe into a feature dataframe."""
+        feature_df = super()._transform_resource_df(feature_df)
+        feature_df = extend_keys_feature(feature_df)
+        return feature_df
+
+
+def extend_harmony_feature(
+    feature_df,
+):
+    """Requires previous application of :func:`transform_keys_feature`."""
+    concatenate_this = [
+        feature_df,
+        (feature_df.numeral + ("/" + feature_df.relativeroot).fillna("")).rename(
+            "root_roman"
+        ),
+        ms3.transform(
+            feature_df, ms3.resolve_relative_keys, ["pedal", "localkey_is_minor"]
+        ).rename("pedal_resolved"),
+        feature_df[["chord", "localkey_mode"]]
+        .apply(safe_row_tuple, axis=1)
+        .rename("chord_and_mode"),
+        # ms3.transform(
+        #     feature_df, ms3.rel2abs_key, ["numeral", "localkey_resolved", "localkey_resolved_is_minor"]
+        # ).rename("root_roman_resolved"),
+    ]
+    feature_df = pd.concat(concatenate_this, axis=1)
+    return feature_df
 
 
 class HarmonyLabelsFormat(FriendlyEnum):
@@ -522,21 +598,10 @@ class HarmonyLabelsFormat(FriendlyEnum):
     INTERVAL = "INTERVAL"
 
 
-class HarmonyLabels(Annotations):
-    _auxiliary_columns = [
-        "globalkey",
-        "localkey",
-        "globalkey_mode",
-        "localkey_mode",
-        "localkey_resolved",
-        "localkey_and_mode",
-        "root_roman",
-        "chord_and_mode",
-    ]
-    _extractable_features = HARMONY_FEATURE_NAMES
+class HarmonyLabels(DcmlAnnotations):
     default_value_column = "chord_and_mode"
 
-    class Schema(Annotations.Schema):
+    class Schema(DcmlAnnotations.Schema):
         format = mm.fields.Enum(HarmonyLabelsFormat)
 
     def __init__(
@@ -580,7 +645,6 @@ class HarmonyLabels(Annotations):
     def _transform_resource_df(self, feature_df):
         """Called by :meth:`_make_feature_df` to transform the resource dataframe into a feature dataframe."""
         feature_df = super()._transform_resource_df(feature_df)
-        feature_df = extend_keys_feature(feature_df)
         feature_df = extend_harmony_feature(feature_df)
         return feature_df
 
@@ -592,73 +656,90 @@ def safe_row_tuple(row):
         return pd.NA
 
 
-def extend_keys_feature(
+def extend_bass_notes_feature(
     feature_df,
 ):
+    """Requires previous application of :func:`transform_keys_feature`."""
+    expected_columns = ("bass_note", "localkey_is_minor", "localkey_mode")
+    if not all(col in feature_df.columns for col in expected_columns):
+        raise DataframeIsMissingExpectedColumnsError(
+            [col for col in expected_columns if col not in feature_df.columns],
+            feature_df.columns.to_list(),
+        )
     concatenate_this = [
         feature_df,
-        boolean_is_minor_column_to_mode(feature_df.globalkey_is_minor).rename(
-            "globalkey_mode"
-        ),
-        boolean_is_minor_column_to_mode(feature_df.localkey_is_minor).rename(
-            "localkey_mode"
+        ms3.transform(feature_df.bass_note, ms3.fifths2iv).rename(
+            "bass_note_over_local_tonic"
         ),
         ms3.transform(
-            feature_df, ms3.resolve_relative_keys, ["localkey", "localkey_is_minor"]
-        ).rename("localkey_resolved"),
+            feature_df, ms3.fifths2sd, ["bass_note", "localkey_is_minor"]
+        ).rename("bass_degree"),
     ]
     feature_df = pd.concat(concatenate_this, axis=1)
     concatenate_this = [
         feature_df,
-        feature_df[["localkey", "globalkey_mode"]]
+        feature_df[["bass_degree", "localkey_mode"]]
         .apply(safe_row_tuple, axis=1)
-        .rename("localkey_and_mode"),
+        .rename("bass_degree_and_mode"),
     ]
     feature_df = pd.concat(concatenate_this, axis=1)
     return feature_df
 
 
-def extend_harmony_feature(
-    feature_df,
-):
-    """Requires previous application of transform_keys_feature."""
-    concatenate_this = [
-        feature_df,
-        (feature_df.numeral + ("/" + feature_df.relativeroot).fillna("")).rename(
-            "root_roman"
-        ),
-        ms3.transform(
-            feature_df, ms3.resolve_relative_keys, ["pedal", "localkey_is_minor"]
-        ).rename("pedal_resolved"),
-        feature_df[["chord", "localkey_mode"]]
-        .apply(safe_row_tuple, axis=1)
-        .rename("chord_and_mode"),
-        # ms3.transform(
-        #     feature_df, ms3.rel2abs_key, ["numeral", "localkey_resolved", "localkey_resolved_is_minor"]
-        # ).rename("root_roman_resolved"),
-    ]
-    feature_df = pd.concat(concatenate_this, axis=1)
-    return feature_df
+class BassNotesFormat(FriendlyEnum):
+    BASS_DEGREE = "BASS_DEGREE"
+    FIFTHS = "FIFTHS"
+    INTERVAL = "INTERVAL"
 
 
-class BassNotes(HarmonyLabels):
-    _auxiliary_columns = [
-        "globalkey",
-        "localkey",
-        "globalkey_mode",
-        "localkey_mode",
-        "localkey_resolved",
-        "localkey_and_mode",
-    ]
+class BassNotes(DcmlAnnotations):
+    default_analyzer = "ScaleDegreeVectors"
+    default_value_column = "bass_note_over_local_tonic"
     _feature_columns = ["bass_note"]
+    _auxiliary_columns = DcmlAnnotations._auxiliary_columns + [
+        "bass_degree",
+        "bass_note_over_local_tonic",
+        "bass_degree_and_mode",
+    ]
     _extractable_features = None
+
+    class Schema(DcmlAnnotations.Schema):
+        format = mm.fields.Enum(BassNotesFormat)
+
+    def __init__(
+        self,
+        format: NotesFormat = BassNotesFormat.INTERVAL,
+        resource: Optional[fl.Resource | str] = None,
+        descriptor_filename: Optional[str] = None,
+        basepath: Optional[str] = None,
+        auto_validate: bool = True,
+        default_groupby: Optional[str | list[str]] = None,
+    ) -> None:
+        super().__init__(
+            resource=resource,
+            descriptor_filename=descriptor_filename,
+            basepath=basepath,
+            auto_validate=auto_validate,
+            default_groupby=default_groupby,
+        )
+        self._format = NotesFormat(format)
+
+    @property
+    def format(self) -> BassNotesFormat:
+        return self._format
 
     def _modify_name(self):
         """Modify the :attr:`resource_name` to reflect the feature."""
         self.resource_name = f"{self.resource_name}.bass_notes"
 
+    def _transform_resource_df(self, feature_df):
+        """Called by :meth:`_make_feature_df` to transform the resource dataframe into a feature dataframe."""
+        feature_df = super()._transform_resource_df(feature_df)
+        feature_df = extend_bass_notes_feature(feature_df)
+        return feature_df
 
-class KeyAnnotations(Annotations):
+
+class KeyAnnotations(DcmlAnnotations):
     _auxiliary_columns = [
         "globalkey_is_minor",
         "localkey_is_minor",
@@ -679,7 +760,6 @@ class KeyAnnotations(Annotations):
             feature_df.localkey, groupby=groupby_levels
         )
         feature_df = condense_dataframe_by_groups(feature_df, group_keys)
-        feature_df = extend_keys_feature(feature_df)
         return feature_df
 
 
