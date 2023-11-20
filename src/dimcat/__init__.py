@@ -24,6 +24,7 @@ from .base import (
 )
 from .data import catalogs, datasets, packages, resources
 from .data.datasets.base import Dataset
+from .data.resources import PieceIndex
 from .steps import analyzers, extractors, groupers, loaders, pipelines, slicers
 from .steps.pipelines.base import Pipeline
 

@@ -40,6 +40,7 @@ def tuple2str(tup: tuple) -> str:
 class ResultName(ObjectEnum):
     """Identifies the available analyzers."""
 
+    Counts = "Counts"
     Durations = "Durations"
     NgramTable = "NgramTable"
     Result = "Result"
@@ -57,12 +58,18 @@ class Result(DimcatResource):
 
     @property
     def x_column(self) -> str:
-        """Result column from which to create one marker per distinct value to show over the x-axis."""
+        """Name of the result column from which to create one marker per distinct value to show over the x-axis."""
         return self.value_column
 
     @property
     def y_column(self) -> str:
+        """Name of the numerical result column used for determining each marker's dimension along the y-axis."""
         return self.df.columns[-1]
+
+    @property
+    def z_column(self) -> str:
+        """Name of the numerical result column used for the third dimension, e.g., bubble size in bubble plots."""
+        return "duration_qb"
 
     def combine(
         self,
@@ -279,7 +286,7 @@ class Result(DimcatResource):
         flip: bool = False,
         x_col: Optional[str] = None,
         y_col: Optional[str] = None,
-        duration_column: str = "duration_qb",
+        duration_column: Optional[str] = None,
         title: Optional[str] = None,
         labels: Optional[dict] = None,
         hover_data: Optional[List[str]] = None,
@@ -306,6 +313,8 @@ class Result(DimcatResource):
             x_col = self.x_column
         if y_col is None:
             y_col = self.y_column
+        if duration_column is None:
+            duration_column = self.z_column
         layout_update = dict()
         if layout is not None:
             layout_update.update(layout)
@@ -331,6 +340,12 @@ class Result(DimcatResource):
             output=output,
             **kwargs,
         )
+
+
+class Counts(Result):
+    @property
+    def z_column(self) -> str:
+        return "count"
 
 
 class Durations(Result):
@@ -440,7 +455,7 @@ class FifthsDurations(Durations):
         flip: bool = False,
         x_col: Optional[str] = None,
         y_col: Optional[str] = None,
-        duration_column: str = "duration_qb",
+        duration_column: Optional[str] = None,
         title: Optional[str] = None,
         labels: Optional[dict] = None,
         hover_data: Optional[List[str]] = None,
@@ -467,6 +482,8 @@ class FifthsDurations(Durations):
             x_col = self.x_column
         if y_col is None:
             y_col = self.y_column
+        if duration_column is None:
+            duration_column = self.z_column
         layout_update = dict()
         if layout is not None:
             layout_update.update(layout)

@@ -7,13 +7,15 @@ from dimcat.base import FriendlyEnum
 from dimcat.data.resources.base import SomeDataframe, SomeSeries
 from dimcat.data.resources.dc import DimcatResource, UnitOfAnalysis
 from dimcat.data.resources.features import Feature, FeatureSpecs
-from dimcat.data.resources.results import NgramTable
+from dimcat.data.resources.results import Counts, NgramTable
 from dimcat.steps.analyzers.base import Analyzer, DispatchStrategy
 
 logger = logging.getLogger(__name__)
 
 
 class Counter(Analyzer):
+    new_resource_type = Counts
+
     @staticmethod
     def compute(feature: DimcatResource | SomeDataframe, **kwargs) -> int:
         return len(feature.index)
@@ -27,9 +29,10 @@ class Counter(Analyzer):
             self.logger.debug(
                 f"Using the {feature.resource_name}'s default groupby {groupby!r}"
             )
-        return (
-            feature.groupby(groupby).size().to_frame(f"{feature.resource_name} counts")
-        )
+        groupby += [feature.value_column]
+        result = feature.groupby(groupby).size()
+        result = result.to_frame("count")
+        return result
 
     def resource_name_factory(self, resource: DimcatResource) -> str:
         """Returns a name for the resource based on its name and the name of the pipeline step."""
