@@ -337,6 +337,176 @@ class Durations(Result):
     pass
 
 
+class FifthsDurations(Durations):
+    default_format: Optional[ClassVar[BassNotesFormat | NotesFormat]] = None
+    default_group_modes: ClassVar[Tuple[GroupMode, ...]] = (
+        GroupMode.ROWS,
+        GroupMode.COLUMNS,
+    )
+
+    def get_fifths_transform(self):
+        if self.default_format is None:
+            fifths_transform = None
+        elif self.default_format == "FIFTHS":
+            fifths_transform = None
+        elif self.default_format == "INTERVAL":
+            fifths_transform = ms3.fifths2iv
+        elif self.default_format == "NAME":
+            fifths_transform = ms3.fifths2name
+        else:
+            raise NotImplementedError(
+                f"Don't know how to turn x-axis into format {self.default_format!r}."
+            )
+        return fifths_transform
+
+    def get_color_midpoint(self) -> int:
+        if self.default_format == "NAME":
+            return 2
+        return 0
+
+    def make_bar_plot(
+        self,
+        df: Optional[pd.DataFrame] = None,
+        x_col=None,
+        y_col=None,
+        group_cols: Optional[str | Iterable[str]] = None,
+        group_modes: Optional[GroupMode | Iterable[GroupMode]] = None,
+        title: Optional[str] = None,
+        labels: Optional[dict] = None,
+        hover_data: Optional[List[str]] = None,
+        height: Optional[int] = None,
+        width: Optional[int] = None,
+        layout: Optional[dict] = None,
+        x_axis: Optional[dict] = None,
+        y_axis: Optional[dict] = None,
+        color_axis: Optional[dict] = None,
+        traces_settings: Optional[dict] = None,
+        output: Optional[str] = None,
+        **kwargs,
+    ) -> go.Figure:
+        """
+
+        Args:
+            layout: Keyword arguments passed to fig.update_layout()
+            **kwargs: Keyword arguments passed to the Plotly plotting function.
+
+        Returns:
+            A Plotly Figure object.
+        """
+        if df is None:
+            df = self.df
+        if x_col is None:
+            x_col = self.x_column
+        if y_col is None:
+            y_col = self.y_column
+        if group_cols is None:
+            group_cols = self.get_default_groupby()
+        elif isinstance(group_cols, str):
+            group_cols = [group_cols]
+        if group_modes is None:
+            group_modes = self.default_group_modes
+        if group_cols:
+            update_plot_grouping_settings(kwargs, group_cols, group_modes)
+        layout_update = dict()
+        if layout is not None:
+            layout_update.update(layout)
+        if "xaxis_type" not in layout_update:
+            layout_update["xaxis_type"] = "category"
+        fifths_transform = self.get_fifths_transform()
+        color_midpoint = self.get_color_midpoint()
+        return make_lof_bar_plot(
+            df=df,
+            fifths_transform=fifths_transform,
+            x_col=x_col,
+            y_col=y_col,
+            title=title,
+            labels=labels,
+            shift_color_midpoint=color_midpoint,
+            hover_data=hover_data,
+            height=height,
+            width=width,
+            layout=layout,
+            x_axis=x_axis,
+            y_axis=y_axis,
+            color_axis=color_axis,
+            traces_settings=traces_settings,
+            output=output,
+            **kwargs,
+        )
+
+    def make_bubble_plot(
+        self,
+        normalize: bool = True,
+        flip: bool = False,
+        x_col: Optional[str] = None,
+        y_col: Optional[str] = None,
+        duration_column: str = "duration_qb",
+        title: Optional[str] = None,
+        labels: Optional[dict] = None,
+        hover_data: Optional[List[str]] = None,
+        width: Optional[int] = None,
+        height: Optional[int] = None,
+        layout: Optional[dict] = None,
+        x_axis: Optional[dict] = None,
+        y_axis: Optional[dict] = None,
+        color_axis: Optional[dict] = None,
+        traces_settings: Optional[dict] = None,
+        output: Optional[str] = None,
+        **kwargs,
+    ) -> go.Figure:
+        """
+
+        Args:
+            layout: Keyword arguments passed to fig.update_layout()
+            **kwargs: Keyword arguments passed to the Plotly plotting function.
+
+        Returns:
+            A Plotly Figure object.
+        """
+        if x_col is None:
+            x_col = self.x_column
+        if y_col is None:
+            y_col = self.y_column
+        layout_update = dict()
+        if layout is not None:
+            layout_update.update(layout)
+        if "yaxis_type" not in layout_update:
+            layout_update["yaxis_type"] = "category"
+        fifths_transform = self.get_fifths_transform()
+        color_midpoint = self.get_color_midpoint()
+        return make_lof_bubble_plot(
+            df=self.df,
+            normalize=normalize,
+            flip=flip,
+            fifths_col=x_col,
+            y_col=y_col,
+            duration_column=duration_column,
+            fifths_transform=fifths_transform,
+            x_names_col=None,
+            title=title,
+            labels=labels,
+            hover_data=hover_data,
+            shift_color_midpoint=color_midpoint,
+            width=width,
+            height=height,
+            layout=layout_update,
+            x_axis=x_axis,
+            y_axis=y_axis,
+            color_axis=color_axis,
+            traces_settings=traces_settings,
+            output=output,
+            **kwargs,
+        )
+
+
+class PitchClassDurations(FifthsDurations):
+    default_format = NotesFormat.NAME
+
+
+class ScaleDegreeDurations(FifthsDurations):
+    default_format = BassNotesFormat.INTERVAL
+
+
 class NgramTable(Result):
     def __init__(
         self,
@@ -513,173 +683,3 @@ class NgramTable(Result):
         if output is not None:
             plt.savefig(output, dpi=400)
         return fig
-
-
-class FifthsDurations(Durations):
-    default_format: Optional[ClassVar[BassNotesFormat | NotesFormat]] = None
-    default_group_modes: ClassVar[Tuple[GroupMode, ...]] = (
-        GroupMode.ROWS,
-        GroupMode.COLUMNS,
-    )
-
-    def get_fifths_transform(self):
-        if self.default_format is None:
-            fifths_transform = None
-        elif self.default_format == "FIFTHS":
-            fifths_transform = None
-        elif self.default_format == "INTERVAL":
-            fifths_transform = ms3.fifths2iv
-        elif self.default_format == "NAME":
-            fifths_transform = ms3.fifths2name
-        else:
-            raise NotImplementedError(
-                f"Don't know how to turn x-axis into format {self.default_format!r}."
-            )
-        return fifths_transform
-
-    def get_color_midpoint(self) -> int:
-        if self.default_format == "NAME":
-            return 2
-        return 0
-
-    def make_bar_plot(
-        self,
-        df: Optional[pd.DataFrame] = None,
-        x_col=None,
-        y_col=None,
-        group_cols: Optional[str | Iterable[str]] = None,
-        group_modes: Optional[GroupMode | Iterable[GroupMode]] = None,
-        title: Optional[str] = None,
-        labels: Optional[dict] = None,
-        hover_data: Optional[List[str]] = None,
-        height: Optional[int] = None,
-        width: Optional[int] = None,
-        layout: Optional[dict] = None,
-        x_axis: Optional[dict] = None,
-        y_axis: Optional[dict] = None,
-        color_axis: Optional[dict] = None,
-        traces_settings: Optional[dict] = None,
-        output: Optional[str] = None,
-        **kwargs,
-    ) -> go.Figure:
-        """
-
-        Args:
-            layout: Keyword arguments passed to fig.update_layout()
-            **kwargs: Keyword arguments passed to the Plotly plotting function.
-
-        Returns:
-            A Plotly Figure object.
-        """
-        if df is None:
-            df = self.df
-        if x_col is None:
-            x_col = self.x_column
-        if y_col is None:
-            y_col = self.y_column
-        if group_cols is None:
-            group_cols = self.get_default_groupby()
-        elif isinstance(group_cols, str):
-            group_cols = [group_cols]
-        if group_modes is None:
-            group_modes = self.default_group_modes
-        if group_cols:
-            update_plot_grouping_settings(kwargs, group_cols, group_modes)
-        layout_update = dict()
-        if layout is not None:
-            layout_update.update(layout)
-        if "xaxis_type" not in layout_update:
-            layout_update["xaxis_type"] = "category"
-        fifths_transform = self.get_fifths_transform()
-        color_midpoint = self.get_color_midpoint()
-        return make_lof_bar_plot(
-            df=df,
-            fifths_transform=fifths_transform,
-            x_col=x_col,
-            y_col=y_col,
-            title=title,
-            labels=labels,
-            shift_color_midpoint=color_midpoint,
-            hover_data=hover_data,
-            height=height,
-            width=width,
-            layout=layout,
-            x_axis=x_axis,
-            y_axis=y_axis,
-            color_axis=color_axis,
-            traces_settings=traces_settings,
-            output=output,
-            **kwargs,
-        )
-
-    def make_bubble_plot(
-        self,
-        normalize: bool = True,
-        flip: bool = False,
-        x_col: Optional[str] = None,
-        y_col: Optional[str] = None,
-        duration_column: str = "duration_qb",
-        title: Optional[str] = None,
-        labels: Optional[dict] = None,
-        hover_data: Optional[List[str]] = None,
-        width: Optional[int] = None,
-        height: Optional[int] = None,
-        layout: Optional[dict] = None,
-        x_axis: Optional[dict] = None,
-        y_axis: Optional[dict] = None,
-        color_axis: Optional[dict] = None,
-        traces_settings: Optional[dict] = None,
-        output: Optional[str] = None,
-        **kwargs,
-    ) -> go.Figure:
-        """
-
-        Args:
-            layout: Keyword arguments passed to fig.update_layout()
-            **kwargs: Keyword arguments passed to the Plotly plotting function.
-
-        Returns:
-            A Plotly Figure object.
-        """
-        if x_col is None:
-            x_col = self.x_column
-        if y_col is None:
-            y_col = self.y_column
-        layout_update = dict()
-        if layout is not None:
-            layout_update.update(layout)
-        if "yaxis_type" not in layout_update:
-            layout_update["yaxis_type"] = "category"
-        fifths_transform = self.get_fifths_transform()
-        color_midpoint = self.get_color_midpoint()
-        return make_lof_bubble_plot(
-            df=self.df,
-            normalize=normalize,
-            flip=flip,
-            fifths_col=x_col,
-            y_col=y_col,
-            duration_column=duration_column,
-            fifths_transform=fifths_transform,
-            x_names_col=None,
-            title=title,
-            labels=labels,
-            hover_data=hover_data,
-            shift_color_midpoint=color_midpoint,
-            width=width,
-            height=height,
-            layout=layout_update,
-            x_axis=x_axis,
-            y_axis=y_axis,
-            color_axis=color_axis,
-            traces_settings=traces_settings,
-            output=output,
-            **kwargs,
-        )
-
-
-class PitchClassDurations(FifthsDurations):
-    default_format = NotesFormat.NAME
-
-
-class ScaleDegreeDurations(FifthsDurations):
-    default_format = BassNotesFormat.INTERVAL

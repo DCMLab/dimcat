@@ -522,6 +522,9 @@ def make_transition_heatmap_plots(
     left_margin=0.085,
 ) -> MatplotlibFigure:
     """
+    Adapted from https://zenodo.org/records/2764889/files/reproduce_ABC.ipynb?download=1 which is the Jupyter notebook
+    accompanying Moss FC, Neuwirth M, Harasim D, Rohrmeier M (2019) Statistical characteristics of tonal harmony: A
+    corpus study of Beethoven’s string quartets. PLOS ONE 14(6): e0217242. https://doi.org/10.1371/journal.pone.0217242
 
     Args:
         left_unigrams:
