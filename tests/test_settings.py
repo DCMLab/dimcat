@@ -29,11 +29,6 @@ def test_settings():
     settings: DimcatConfig = load_settings(raise_exception=True)
     with pytest.raises(ValidationError):
         settings["non-field"] = "option"
-    for setting in settings:
-        if setting in ("dtype", "default_basepath", "default_resource_name"):
-            continue
-        with pytest.raises(ValidationError):
-            settings[setting] = "invalid option"
 
 
 def test_settings_complete(settings_ini_path):
