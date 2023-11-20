@@ -138,6 +138,12 @@ class PackageSchema(Data.Schema):
     auto_validate = mm.fields.Boolean(metadata={"expose": False})
     # ToDo: accept the rest as additional metadata dict as the "custom" field
 
+    @mm.pre_load
+    def catch_package_name_argument(self, data, **kwargs):
+        if "package_name" in data:
+            data["name"] = data.pop("package_name")
+        return data
+
     # def get_package_descriptor(self, obj: Package):
     #     return obj.make_descriptor()
     #

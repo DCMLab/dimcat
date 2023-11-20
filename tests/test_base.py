@@ -7,7 +7,6 @@ from itertools import product
 from pprint import pprint
 from typing import List, Tuple, Type
 
-import frictionless as fl
 import pandas as pd
 import pytest
 from dimcat.base import (
@@ -30,11 +29,7 @@ from dimcat.steps.loaders.base import Loader
 from marshmallow import ValidationError, fields
 from marshmallow.class_registry import _registry as MM_REGISTRY
 
-from .conftest import (
-    CORPUS_PATH,
-    datapackage_json_path,
-    single_resource_descriptor_path,
-)
+from .conftest import CORPUS_PATH
 
 
 class TestBaseObjects:
@@ -90,7 +85,7 @@ class TestBaseObjects:
         assert isinstance(obj, dimcat_class)
 
 
-DUMMY_CONFIG_OPTIONS = dict(dtype="DimcatObject")
+DUMMY_CONFIG_OPTIONS = dict(dtype="Feature")
 
 
 def dummy_config() -> DimcatConfig:
@@ -106,12 +101,12 @@ DIMCAT_OBJECT_TEST_CASES: List[Tuple[Type[DimcatObject], dict]] = [
     (Resource, {}),
     (
         DimcatResource,
-        dict(resource=fl.Resource(name="empty_resource", path="empty_resource.tsv")),
+        {},
     ),
-    (Notes, dict(resource=single_resource_descriptor_path())),
+    (Notes, {}),
     (Analyzer, dict(features=dummy_config())),
     (Counter, dict(features=dummy_config())),
-    (DimcatPackage, dict(package=datapackage_json_path())),
+    (DimcatPackage, dict(package_name="test_package")),
     (DimcatCatalog, {}),
     (Loader, dict(basepath=CORPUS_PATH)),
 ]
