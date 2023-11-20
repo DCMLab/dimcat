@@ -387,9 +387,12 @@ class ResourceTransformation(FeatureProcessingStep):
                 df=result_df,
                 resource_name=result_name,
             )
-        except Exception:
+        except Exception as e:
+            print(
+                f"Calling {result_constructor.name}.from_dataframe() on the following DataFrame that has the index "
+                f"levels {resource.get_level_names()} resulted in the exception {e}:"
+            )
             print(result_df)
-            print(resource.get_level_names())
             raise
         self.logger.debug(
             f"Created new resource {new_resource} of type {result_constructor.name}."

@@ -319,8 +319,6 @@ def make_lof_bar_plot(
 ):
     """Like :func:`make_bar_plot` but coloring the bars along the Line of Fifths.
     bar_data with x_col ('tpc'), y_col ('duration_qb')"""
-    if labels is None:
-        labels = {str(x_col): "Tonal pitch class", str(y_col): "Duration in ♩"}
     df = df.reset_index()
     color_values = df[x_col].to_list()
     xaxis_settings = dict(

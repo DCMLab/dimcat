@@ -404,7 +404,7 @@ class DimcatResource(Resource, Generic[D]):
         self.logger.debug(
             f"""
 DimcatResource.__init__(
-    resource={resource!r},
+    resource={type(resource)},
     descriptor_filename={descriptor_filename!r},
     basepath={basepath!r},
     auto_validate={auto_validate!r},

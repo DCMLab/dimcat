@@ -523,7 +523,7 @@ class Resource(Data):
         self.logger.debug(
             f"""
 Resource.__init__(
-    resource={resource},
+    resource={type(resource)},
     descriptor_filename={descriptor_filename},
     basepath={basepath},
     **kwargs={kwargs},
@@ -1239,7 +1239,7 @@ class PathResource(Resource):
         self.logger.debug(
             f"""
 PathResource.__init__(
-    resource={resource},
+    resource={type(resource)},
     descriptor_filename={descriptor_filename},
     basepath={basepath},
 )"""

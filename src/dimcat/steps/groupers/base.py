@@ -5,6 +5,7 @@ import marshmallow as mm
 import pandas as pd
 from dimcat.base import is_subclass_of
 from dimcat.data.datasets.processed import GroupedDataset
+from dimcat.data.resources import Resource
 from dimcat.data.resources.dc import DimcatIndex, DimcatResource, PieceIndex
 from dimcat.dc_exceptions import GrouperNotSetUpError, ResourceAlreadyTransformed
 from dimcat.steps.base import ResourceTransformation
@@ -43,7 +44,7 @@ class Grouper(ResourceTransformation):
 
     def check_resource(self, resource: DimcatResource) -> None:
         super().check_resource(resource)
-        if self.level_name in resource.get_level_names():
+        if self.level_name in resource.get_default_groupby():
             raise ResourceAlreadyTransformed(resource.resource_name, self.name)
 
     def _post_process_result(
@@ -63,6 +64,15 @@ class Grouper(ResourceTransformation):
 class CorpusGrouper(Grouper):
     def __init__(self, level_name: str = "corpus", **kwargs):
         super().__init__(level_name=level_name, **kwargs)
+
+    def _process_resource(self, resource: Resource) -> Resource:
+        """Apply this PipelineStep to a :class:`Resource` and return a copy containing the output(s)."""
+        resource = self._pre_process_resource(resource)
+        if self.level_name not in resource.get_level_names():
+            result = self._make_new_resource(resource)
+        else:
+            result = resource
+        return self._post_process_result(result, resource)
 
 
 class CustomPieceGrouper(Grouper):
