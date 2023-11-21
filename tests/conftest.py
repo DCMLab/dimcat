@@ -40,7 +40,7 @@ logger.debug(f"CORPUS_DIR: {CORPUS_DIR!r}. Contents: {os.listdir(CORPUS_DIR)}")
 
 def retrieve_and_check_corpus_path():
     """Compose the paths for the test corpora."""
-    repo_name, test_commit = ("unittest_metacorpus", "bb8bb60")
+    repo_name, test_commit = ("unittest_metacorpus", "aeebac1")
     path = os.path.join(CORPUS_DIR, repo_name)
     path = os.path.expanduser(path)
     assert os.path.isdir(path)

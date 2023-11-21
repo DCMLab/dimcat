@@ -21,11 +21,11 @@ class TestBaseResource:
         return request.param
 
     @pytest.fixture(params=[None, -1, -2], ids=["no_bp", "bp-1", "bp-2"])
-    def init_basepath(self, request, corpus_path):
+    def init_basepath(self, request, score_path):
         """Different basepath arguments for initilizing objects."""
         if request.param is None:
             return None
-        basepath, _ = os.path.split(corpus_path)
+        basepath, _ = os.path.split(score_path)
         init_basepath = os.sep.join(basepath.split(os.sep)[: request.param])
         return init_basepath
 
@@ -111,21 +111,23 @@ class TestResourceFromScorePath(TestBaseResource):
         return request.param
 
     @pytest.fixture(params=[None, -2], ids=["no_bp", "bp-2"])
-    def init_basepath(self, request, corpus_path):
+    def init_basepath(self, request, score_path):
         """Different basepath arguments for initilizing objects.
         In the case of absolute path resources this works only if basepath is None or -2;
         in the latter case, the unittest_corpus path, two levels up, is "site-packages" so it
         works as a common ancestor for the music21 score paths"""
         if request.param is None:
             return None
-        basepath, _ = os.path.split(corpus_path)
+        basepath, _ = os.path.split(score_path)
         init_basepath = os.sep.join(basepath.split(os.sep)[: request.param])
         return init_basepath
 
     @pytest.fixture()
     def resource_obj(self, resource_constructor, score_path, init_basepath):
         # if request.node.callspec.params["init_basepath"] != -1:
-        return resource_constructor.from_resource_path(score_path)
+        return resource_constructor.from_resource_path(
+            score_path, basepath=init_basepath
+        )
 
     @pytest.fixture()
     def expected_basepath(self, init_basepath, score_path):
@@ -145,8 +147,7 @@ class TestResourceFromScorePath(TestBaseResource):
 
     @pytest.fixture()
     def expected_resource_name(self, expected_filepath):
-        resource_name, _ = os.path.splitext(expected_filepath)
-        return make_valid_frictionless_name(resource_name)
+        return make_valid_frictionless_name(expected_filepath)
 
     @pytest.fixture()
     def expected_status(self):
@@ -188,7 +189,7 @@ class TestResourceFromDescriptorPath(TestBaseResource):
 
     @pytest.fixture()
     def expected_status(self):
-        return ResourceStatus.PATH_ONLY
+        return ResourceStatus.STANDALONE_NOT_LOADED
 
     @pytest.fixture()
     def expected_normpath(self, fl_resource):
@@ -200,9 +201,16 @@ class TestResourceFromDescriptorPath(TestBaseResource):
 
 class TestResourceFromDescriptor(TestResourceFromDescriptorPath):
     @pytest.fixture()
+    def init_basepath(self, request, resource_descriptor_path):
+        """When initializing from descriptor, the basepath always needs to be accurate so that the descriptor's
+        'filepath' property resolves to the existing file."""
+        basepath, _ = os.path.split(resource_descriptor_path)
+        return basepath
+
+    @pytest.fixture()
     def resource_obj(self, fl_resource, init_basepath):
         descriptor = fl_resource.to_dict()
-        return Resource.from_descriptor(
+        return PathResource.from_descriptor(
             descriptor=descriptor,
             basepath=init_basepath,
         )

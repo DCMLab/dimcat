@@ -44,10 +44,9 @@ def make_valid_frictionless_name(name: str, replace_char="_") -> str:
 def make_valid_frictionless_name_from_filepath(
     path: str, include_extension=True, replace_char="_"
 ) -> str:
-    file = os.path.basename(path)
     if include_extension:
-        return make_valid_frictionless_name(file, replace_char=replace_char)
-    name, _ = os.path.splitext(file)
+        return make_valid_frictionless_name(path, replace_char=replace_char)
+    name, _ = os.path.splitext(path)
     return make_valid_frictionless_name(name, replace_char=replace_char)
 
 
