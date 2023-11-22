@@ -61,7 +61,7 @@ if TYPE_CHECKING:
     from dimcat.data.resources.results import Result
     from dimcat.steps.base import StepSpecs
 
-resource_status_logger = logging.getLogger(f"{__name__}.ResourceStatus")
+resource_status_logger = logging.getLogger("dimcat.data.resources.ResourceStatus")
 
 
 class UnitOfAnalysis(FriendlyEnum):
@@ -484,7 +484,7 @@ DimcatResource.__init__(
         if self.status != status_before:
             resource_status_logger.debug(
                 f"After setting the column schema of {self.resource_name!r}, the status has been "
-                f"set to {self._status!r}."
+                f"changed from {status_before!r} to {self._status!r}."
             )
         if self.auto_validate:
             _ = self.validate(raise_exception=True)
@@ -549,10 +549,11 @@ DimcatResource.__init__(
                 self.logger.error(f"Could not infer schema from {type(df)}:\n{df}")
                 raise
         if self.status != ResourceStatus.DATAFRAME:
+            status_before = self.status
             self._status = ResourceStatus.DATAFRAME
             resource_status_logger.debug(
                 f"After setting the .df property of {self.resource!r}, the status has been "
-                f"changed to {self.status!r}."
+                f"changed from {status_before!r} to {self.status!r}."
             )
         if self.auto_validate:
             _ = self.validate(raise_exception=True)
@@ -750,7 +751,7 @@ DimcatResource.__init__(
         if self.status != status_before:
             resource_status_logger.debug(
                 f"After loading the frictionless resource of {self.resource_name} for the first "
-                f"time, the status has been set to {self._status!r}."
+                f"time, the status has been changed from {status_before!r} to {self._status!r}."
             )
         return dataframe
 
@@ -953,9 +954,10 @@ DimcatResource.__init__(
                     )
                 self.logger.warning(msg)
         if self.status != ResourceStatus.STANDALONE_LOADED:
+            status_before = self.status
             self._status = ResourceStatus.STANDALONE_LOADED
             resource_status_logger.debug(
-                f"After writing {self.resource_name} to disk, the status has been set to "
+                f"After writing {self.resource_name} to disk, the status has been changed from {status_before!r} to "
                 f"{self.status!r}"
             )
 
@@ -1026,18 +1028,20 @@ DimcatResource.__init__(
             report = tmp_resource.validate()
         if report.valid:
             if self.status < ResourceStatus.VALIDATED:
+                status_before = self.status
                 self._status = ResourceStatus.VALIDATED
                 resource_status_logger.debug(
-                    f"After successful validation, the status of {self.resource_name!r} has been "
-                    f"set to {self.status!r}"
+                    f"After successful validation, the status of {self.resource_name!r} has been changed from "
+                    f"{status_before!r} to {self.status!r}"
                 )
         else:
             errors = [err.message for task in report.tasks for err in task.errors]
             if self.status == ResourceStatus.VALIDATED:
+                status_before = self.status
                 self._status = ResourceStatus.DATAFRAME
                 resource_status_logger.debug(
-                    f"After unsuccessful validation, the status of {self.resource_name!r} has been "
-                    f"set to {self.status!r}"
+                    f"After unsuccessful validation, the status of {self.resource_name!r} has been changed from "
+                    f"{status_before!r} to {self.status!r}"
                 )
             if get_setting("never_store_unvalidated_data") and raise_exception:
                 raise fl.FrictionlessException("\n".join(errors))

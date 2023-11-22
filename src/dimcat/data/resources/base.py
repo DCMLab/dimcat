@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import logging
 import os
 import shutil
@@ -62,6 +63,7 @@ except ImportError:
     SomeIndex: TypeAlias = pd.Index
 
 logger = logging.getLogger(__name__)
+resource_status_logger = logging.getLogger("dimcat.data.resources.ResourceStatus")
 
 D = TypeVar("D", bound=SomeDataframe)
 S = TypeVar("S", bound=SomeSeries)
@@ -257,7 +259,9 @@ class Resource(Data):
                 Relative filepath for using a different JSON/YAML descriptor filename than the default
                 :func:`get_descriptor_filename`. Needs to on one of the file extensions defined in the
                 setting ``package_descriptor_endings`` (by default 'resource.json' or 'resource.yaml').
-            basepath: Where the file would be serialized.
+            basepath:
+                Where the file would be serialized and, important for an existing resource, the path against which the
+                descriptor's 'filepath' property can be resolved.
             **kwargs: Subclasses can use this method.
 
         Raises:
@@ -664,7 +668,8 @@ Resource(
     @property
     def is_packaged(self) -> bool:
         """Returns True if the resource is packaged, i.e. its descriptor_filename is the one of
-        the :class:`Package` it belongs to. Also means that the resource is passive."""
+        the :class:`Package` that the resource is a part of. Also means that the resource is passive.
+        """
         return (
             self.descriptor_filename is not None
         ) and is_default_package_descriptor_path(self.descriptor_filename)
@@ -727,6 +732,10 @@ Resource(
     def status(self) -> ResourceStatus:
         if self._status == ResourceStatus.EMPTY and self._resource.schema.fields:
             self._status = ResourceStatus.SCHEMA_ONLY
+            resource_status_logger.debug(
+                f"When requesting the status of {self.resource_name}, a column schema was found and the status "
+                f"has been changed from {ResourceStatus.EMPTY!r} to {self.status!r}."
+            )
         return self._status
 
     def copy(self) -> Self:
@@ -832,6 +841,28 @@ Resource(
         if new_resource.filepath.endswith(".zip"):
             new_resource.resource.compression = "zip"
         return new_resource
+
+    def _detach_from_basepath(self):
+        self._basepath = None
+        self._resource.basepath = None
+        self.logger.debug(
+            f"Detached {self.resource_name!r} from basepath by setting the property .basepath to None."
+        )
+
+    def detach_from_basepath(self):
+        self._detach_from_basepath()
+        self._update_status()
+
+    def _detach_from_descriptor(self):
+        self._resource.metadata_descriptor_path = None
+        self.logger.debug(
+            f"Detached {self.resource_name!r} from descriptor by setting the property "
+            f".descriptor_filename to None."
+        )
+
+    def detach_from_descriptor(self):
+        self._detach_from_descriptor()
+        self._update_status()
 
     def get_corpus_name(self) -> str:
         """Returns the value of :attr:`corpus_name` or, if not set, a name derived from the
@@ -1107,7 +1138,15 @@ Resource(
         return descriptor_dict
 
     def _update_status(self) -> None:
+        status_before = self.status
         self._status = self._get_current_status()
+        if self.status != status_before:
+            _, filename, lineno, caller, *_ = inspect.stack()[1]
+            resource_status_logger.debug(
+                f"{self.name}._update_status() was called by {caller}() in {filename!r} ({lineno}).\n"
+                f"As a result, the status of {self.resource_name} has been changed {status_before!r} to "
+                f"{self.status!r}."
+            )
 
     def validate(
         self,
