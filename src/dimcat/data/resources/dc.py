@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import warnings
 from functools import cache
@@ -59,6 +60,8 @@ if TYPE_CHECKING:
     from dimcat.data.resources.features import Feature, FeatureName
     from dimcat.data.resources.results import Result
     from dimcat.steps.base import StepSpecs
+
+resource_status_logger = logging.getLogger(f"{__name__}.ResourceStatus")
 
 
 class UnitOfAnalysis(FriendlyEnum):
@@ -473,10 +476,16 @@ DimcatResource.__init__(
                 message="Cannot set schema on a resource whose valid descriptor has been written to disk."
             )
         self._resource.schema = new_schema
+        status_before = self.status
         if self.status < ResourceStatus.SCHEMA_ONLY:
             self._status = ResourceStatus.SCHEMA_ONLY
         elif self.status >= ResourceStatus.VALIDATED:
             self._status = ResourceStatus.DATAFRAME
+        if self.status != status_before:
+            resource_status_logger.debug(
+                f"After setting the column schema of {self.resource_name!r}, the status has been "
+                f"set to {self._status!r}."
+            )
         if self.auto_validate:
             _ = self.validate(raise_exception=True)
 
@@ -539,7 +548,12 @@ DimcatResource.__init__(
             except FrictionlessException:
                 self.logger.error(f"Could not infer schema from {type(df)}:\n{df}")
                 raise
-        self._status = ResourceStatus.DATAFRAME
+        if self.status != ResourceStatus.DATAFRAME:
+            self._status = ResourceStatus.DATAFRAME
+            resource_status_logger.debug(
+                f"After setting the .df property of {self.resource!r}, the status has been "
+                f"changed to {self.status!r}."
+            )
         if self.auto_validate:
             _ = self.validate(raise_exception=True)
 
@@ -568,9 +582,11 @@ DimcatResource.__init__(
 
     @property
     def is_loaded(self) -> bool:
-        return self._df is not None or self.status in (
-            ResourceStatus.STANDALONE_LOADED,
-            ResourceStatus.PACKAGED_LOADED,
+        return (
+            self._df is not None
+            or ResourceStatus.SCHEMA_ONLY
+            < self.status
+            < ResourceStatus.STANDALONE_NOT_LOADED
         )
 
     @property
@@ -726,10 +742,16 @@ DimcatResource.__init__(
             The dataframe or DimcatResource.
         """
         dataframe = load_fl_resource(self._resource)
+        status_before = self.status
         if self.status == ResourceStatus.STANDALONE_NOT_LOADED:
             self._status = ResourceStatus.STANDALONE_LOADED
         elif self.status == ResourceStatus.PACKAGED_NOT_LOADED:
             self._status = ResourceStatus.PACKAGED_LOADED
+        if self.status != status_before:
+            resource_status_logger.debug(
+                f"After loading the frictionless resource of {self.resource_name} for the first "
+                f"time, the status has been set to {self._status!r}."
+            )
         return dataframe
 
     @cache
@@ -930,7 +952,12 @@ DimcatResource.__init__(
                         + "\nThe file was deleted because of the 'never_store_unvalidated_data' setting."
                     )
                 self.logger.warning(msg)
-        self._status = ResourceStatus.STANDALONE_LOADED
+        if self.status != ResourceStatus.STANDALONE_LOADED:
+            self._status = ResourceStatus.STANDALONE_LOADED
+            resource_status_logger.debug(
+                f"After writing {self.resource_name} to disk, the status has been set to "
+                f"{self.status!r}"
+            )
 
     def summary_dict(self) -> dict:
         summary = self.to_dict()
@@ -1000,10 +1027,18 @@ DimcatResource.__init__(
         if report.valid:
             if self.status < ResourceStatus.VALIDATED:
                 self._status = ResourceStatus.VALIDATED
+                resource_status_logger.debug(
+                    f"After successful validation, the status of {self.resource_name!r} has been "
+                    f"set to {self.status!r}"
+                )
         else:
             errors = [err.message for task in report.tasks for err in task.errors]
             if self.status == ResourceStatus.VALIDATED:
                 self._status = ResourceStatus.DATAFRAME
+                resource_status_logger.debug(
+                    f"After unsuccessful validation, the status of {self.resource_name!r} has been "
+                    f"set to {self.status!r}"
+                )
             if get_setting("never_store_unvalidated_data") and raise_exception:
                 raise fl.FrictionlessException("\n".join(errors))
         return report

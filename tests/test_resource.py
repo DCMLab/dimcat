@@ -21,11 +21,11 @@ class TestBaseResource:
         return request.param
 
     @pytest.fixture(params=[None, -1, -2], ids=["no_bp", "bp-1", "bp-2"])
-    def init_basepath(self, request, score_path):
+    def init_basepath(self, request, corpus_path):
         """Different basepath arguments for initilizing objects."""
         if request.param is None:
             return None
-        basepath, _ = os.path.split(score_path)
+        basepath, _ = os.path.split(corpus_path)
         init_basepath = os.sep.join(basepath.split(os.sep)[: request.param])
         return init_basepath
 
@@ -308,6 +308,7 @@ class TestDiskDimcatResource(TestEmptyDimcatResource):
     expected_resource_status = ResourceStatus.STANDALONE_NOT_LOADED
     should_be_frozen: bool = True
     should_be_serialized = True
+    should_be_loaded: bool = False
     should_have_descriptor = True
 
     @pytest.fixture()
