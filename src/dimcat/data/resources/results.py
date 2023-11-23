@@ -84,9 +84,13 @@ class Result(DimcatResource):
             group_cols = list(group_cols)
         groupby = group_cols + [self.x_column]
         combined_result = self.df.groupby(groupby).sum()
-        group_proportions = (
-            combined_result / combined_result.groupby(group_cols).sum()
-        ).rename(columns=lambda x: "proportion")
+        if group_cols:
+            normalize_by = combined_result.groupby(group_cols).sum()
+        else:
+            normalize_by = combined_result.sum()
+        group_proportions = (combined_result / normalize_by).rename(
+            columns=lambda x: "proportion"
+        )
         group_proportions_str = (
             group_proportions.mul(100)
             .round(2)
