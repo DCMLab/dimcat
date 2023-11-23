@@ -71,6 +71,22 @@ class DataframeIsMissingExpectedColumnsError(DimcatError):
     }
 
 
+class DataframeIncompatibleWithColumnSchemaError(DimcatError):
+    """optional args: (resource_name, validation_error, schema_field_names, df_column_names)"""
+
+    nargs2message = {
+        0: "The dataframe is incompatible with the column schema.",
+        1: lambda name: f"The dataframe is incompatible with the column schema of {name!r}.",
+        2: lambda name, validation_error: f"The dataframe is incompatible with the column schema of {name!r}:\n"
+        f"{validation_error!r}.",
+        3: lambda name, validation_error, schema_field_names: f"The dataframe is incompatible with the column schema "
+        f"of {name!r} which specifies the fields {schema_field_names!r}:\n{validation_error!r}.",
+        4: lambda name, validation_error, schema_field_names, df_column_names: f"The dataframe with the columns "
+        f"{df_column_names!r} is incompatible with the column schema of {name!r} which specifies the fields "
+        f"{schema_field_names!r}:\n{validation_error!r}.",
+    }
+
+
 class DuplicateIDError(DimcatError):
     """optional args: (id, facet)"""
 

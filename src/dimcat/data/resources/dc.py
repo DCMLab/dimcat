@@ -45,6 +45,7 @@ from dimcat.data.resources.utils import (
 )
 from dimcat.dc_exceptions import (
     BasePathNotDefinedError,
+    DataframeIncompatibleWithColumnSchemaError,
     FeatureUnavailableError,
     FilePathNotDefinedError,
     PotentiallyUnrelatedDescriptorError,
@@ -217,9 +218,7 @@ class DimcatResource(Resource, Generic[D]):
         )
         if resource_name is not None:
             new_object.resource_name = resource_name
-        new_object._df = df
-        new_object._resource.schema = infer_schema_from_df(df)
-        new_object._update_status()
+        new_object.set_dataframe(df)
         if default_groupby is not None:
             new_object.default_groupby = default_groupby
         return new_object
@@ -521,42 +520,8 @@ DimcatResource.__init__(
         return resource_df
 
     @df.setter
-    def df(self, df: D):
-        if self.descriptor_exists:
-            raise PotentiallyUnrelatedDescriptorError(
-                message=f"Cannot set dataframe on a resource whose valid descriptor has been written to disk. "
-                f"Create a new resource via {self.name}.from_descriptor({self.get_descriptor_path()!r})."
-            )
-        if self.resource_exists:
-            raise ResourceIsFrozenError(
-                message=f"Cannot set dataframe on a resource {self.resource_name} that's pointing to an existing "
-                f"resource {self.normpath}. "
-            )
-        if self.is_loaded:
-            raise RuntimeError("This resource already includes a dataframe.")
-        if isinstance(df, DimcatResource):
-            df = df.df
-        if isinstance(df, pd.Series):
-            df = df.to_frame()
-            self.logger.info(
-                f"Got a series, converted it into a dataframe with column name {df.columns[0]}."
-            )
-        self._df = df
-        if not self.column_schema.fields:
-            try:
-                self.column_schema = infer_schema_from_df(df)
-            except FrictionlessException:
-                self.logger.error(f"Could not infer schema from {type(df)}:\n{df}")
-                raise
-        if self.status != ResourceStatus.DATAFRAME:
-            status_before = self.status
-            self._status = ResourceStatus.DATAFRAME
-            resource_status_logger.debug(
-                f"After setting the .df property of {self.resource!r}, the status has been "
-                f"changed from {status_before!r} to {self.status!r}."
-            )
-        if self.auto_validate:
-            _ = self.validate(raise_exception=True)
+    def df(self, df: D) -> None:
+        self.set_dataframe(df)
 
     @property
     def extractable_features(self) -> Tuple[FeatureName, ...]:
@@ -895,6 +860,47 @@ DimcatResource.__init__(
             basepath=basepath,
             reconcile=reconcile,
         )
+        if self.auto_validate:
+            _ = self.validate(raise_exception=True)
+
+    def _set_dataframe(self, df):
+        if isinstance(df, DimcatResource):
+            df = df.df
+        if isinstance(df, pd.Series):
+            df = df.to_frame()
+            self.logger.info(
+                f"Got a series, converted it into a dataframe with column name {df.columns[0]}."
+            )
+        self._df = df
+        if not self.column_schema.fields:
+            try:
+                self.column_schema = infer_schema_from_df(df)
+            except FrictionlessException:
+                self.logger.error(f"Could not infer schema from {type(df)}:\n{df}")
+                raise
+        else:
+            try:
+                self.validate(raise_exception=True)
+            except FrictionlessException as e:
+                raise DataframeIncompatibleWithColumnSchemaError(
+                    self.resource_name, e, self.field_names, df.columns
+                )
+        self._update_status()
+
+    def set_dataframe(self, df):
+        if self.descriptor_exists:
+            raise PotentiallyUnrelatedDescriptorError(
+                message=f"Cannot set dataframe on a resource whose valid descriptor has been written to disk. "
+                f"Create a new resource via {self.name}.from_descriptor({self.get_descriptor_path()!r})."
+            )
+        if self.resource_exists:
+            raise ResourceIsFrozenError(
+                message=f"Cannot set dataframe on a resource {self.resource_name} that's pointing to an existing "
+                f"resource {self.normpath}. "
+            )
+        if self.is_loaded:
+            raise RuntimeError("This resource already includes a dataframe.")
+        self._set_dataframe(df)
         if self.auto_validate:
             _ = self.validate(raise_exception=True)
 
