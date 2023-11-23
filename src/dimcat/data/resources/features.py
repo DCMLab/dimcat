@@ -371,6 +371,9 @@ class Feature(DimcatResource):
             )  # ToDo: the new schema should be attributed via
             # self.column_schema = ... but for that, the detachment from the feature from the original resource needs
             # to be implemented, which involves adapting the status
+            self._df = feature_df
+            self._detach_from_basepath()  # skips ._update_status()
+            self.detach_from_descriptor()  # executes ._update_status()
         else:
             raise RuntimeError(f"No dataframe accessible for this {self.name}:\n{self}")
         return feature_df
