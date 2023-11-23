@@ -40,12 +40,18 @@ class Counter(Analyzer):
 
 
 class NgramTableFormat(FriendlyEnum):
-    """The format of the ngram table."""
+    """The format of the ngram table determining how many columns are copied for each of the n-1 shifts.
+    The original columns are always copied.
+    This setting my have a significant effect on the performance when creating the NgramTable.
+    """
 
     FEATURES = "FEATURES"
     FEATURES_CONTEXT = "FEATURES_CONTEXT"
+    CONVENIENCE = "CONVENIENCE"
+    CONVENIENCE_CONTEXT = "CONVENIENCE_CONTEXT"
     AUXILIARY = "AUXILIARY"
     AUXILIARY_CONTEXT = "AUXILIARY_CONTEXT"
+    FULL_WITHOUT_CONTEXT = "FULL_WITHOUT_CONTEXT"
     FULL = "FULL"
 
 
@@ -59,13 +65,13 @@ class NgramAnalyzer(Analyzer):
     class Schema(Analyzer.Schema):
         n = mm.fields.Integer(load_default=2)
         format = mm.fields.Enum(
-            NgramTableFormat, load_default=NgramTableFormat.AUXILIARY_CONTEXT
+            NgramTableFormat, load_default=NgramTableFormat.CONVENIENCE
         )
 
     def __init__(
         self,
         n: int = 2,
-        format: NgramTableFormat = NgramTableFormat.AUXILIARY_CONTEXT,
+        format: NgramTableFormat = NgramTableFormat.CONVENIENCE,
         features: Optional[FeatureSpecs | Iterable[FeatureSpecs]] = None,
         strategy: DispatchStrategy = DispatchStrategy.GROUPBY_APPLY,
         smallest_unit: UnitOfAnalysis = UnitOfAnalysis.SLICE,
@@ -111,50 +117,39 @@ class NgramAnalyzer(Analyzer):
             self.logger.debug(
                 f"Using the {feature.resource_name}'s default groupby {groupby!r}"
             )
-
-        if self.format in (
-            NgramTableFormat.FEATURES,
+        include_context_columns = self.format in (
             NgramTableFormat.FEATURES_CONTEXT,
-        ):
-            right_df = feature.df[feature.feature_column_names]
-        elif self.format in (
+            NgramTableFormat.CONVENIENCE_CONTEXT,
+            NgramTableFormat.AUXILIARY_CONTEXT,
+            NgramTableFormat.FULL,
+        )
+        include_auxiliary_columns = self.format in (
             NgramTableFormat.AUXILIARY,
             NgramTableFormat.AUXILIARY_CONTEXT,
-        ):
-            right_df = feature.df[
-                feature.auxiliary_column_names + feature.feature_column_names
-            ]
-        elif self.format == NgramTableFormat.FULL:
-            right_df = feature.df[feature.get_column_names()]
-        if self.format in (
-            NgramTableFormat.FEATURES,
-            NgramTableFormat.AUXILIARY,
+            NgramTableFormat.FULL_WITHOUT_CONTEXT,
             NgramTableFormat.FULL,
-        ):
-            left_df = right_df
-        else:
-            left_df = pd.concat(
-                [feature.df[feature.context_column_names], right_df], axis=1
-            )
-        concatenate_this = {"a": left_df}
+        )
+        include_convenience_columns = self.format in (
+            NgramTableFormat.CONVENIENCE,
+            NgramTableFormat.CONVENIENCE_CONTEXT,
+            NgramTableFormat.FULL_WITHOUT_CONTEXT,
+            NgramTableFormat.FULL,
+        )
+        columns_to_shift = feature.get_available_column_names(
+            context_columns=include_context_columns,
+            auxiliary_columns=include_auxiliary_columns,
+            convenience_columns=include_convenience_columns,
+            feature_columns=True,
+        )
+        df_to_shift = feature.df[columns_to_shift]
+        concatenate_this = {"a": feature.df}
         for i in range(1, self.n):
             key = chr(ord("a") + i)
-            right_df = right_df.groupby(groupby, group_keys=False).apply(
+            df_to_shift = df_to_shift.groupby(groupby, group_keys=False).apply(
                 lambda df: df.shift(-1)
             )
-            concatenate_this[key] = right_df
+            concatenate_this[key] = df_to_shift
         return pd.concat(concatenate_this, axis=1)
-
-    def _post_process_result(
-        self,
-        result: NgramTable,
-        original_resource: Feature,
-    ) -> DimcatResource:
-        """Change the default_groupby value of the returned Feature."""
-        result.context_column_names = original_resource.context_column_names
-        result.feature_column_names = original_resource.feature_column_names
-        result.auxiliary_column_names = original_resource.auxiliary_column_names
-        return result
 
     def resource_name_factory(self, resource: DimcatResource) -> str:
         """Returns a name for the resource based on its name and the name of the pipeline step."""
