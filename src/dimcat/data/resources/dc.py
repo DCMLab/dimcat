@@ -500,13 +500,16 @@ DimcatResource.__init__(
             default_groupby = [default_groupby]
         else:
             default_groupby = list(default_groupby)
-        available_levels = self.get_level_names()
-        missing = [level for level in default_groupby if level not in available_levels]
-        if missing:
-            raise ValueError(
-                f"Invalid default_groupby: {missing!r} are not valid levels. "
-                f"Available levels are: {available_levels!r}"
-            )
+        if self.is_loaded:
+            available_levels = self.get_level_names()
+            missing = [
+                level for level in default_groupby if level not in available_levels
+            ]
+            if missing:
+                raise ValueError(
+                    f"Invalid default_groupby: {missing!r} are not valid levels. "
+                    f"Available levels are: {available_levels!r}"
+                )
         self._default_groupby = default_groupby
 
     @property

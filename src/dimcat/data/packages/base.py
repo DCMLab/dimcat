@@ -973,7 +973,7 @@ class Package(Data):
         return resource
 
     def _amend_resource_type(self, resource) -> Resource:
-        """Change the type of the given resource an perform transformations, if needed, before
+        """Change the type of the given resource and perform transformations, if needed, before
         adding it to the package.
 
         Raises:
