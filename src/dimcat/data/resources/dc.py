@@ -323,7 +323,7 @@ class DimcatResource(Resource, Generic[D]):
             default_groupby=default_groupby,
         )
         # copy additional fields
-        for attr in ("_df", "_status", "_corpus_name"):
+        for attr in ("_df", "_status", "_corpus_name", "_default_groupby"):
             if (
                 hasattr(resource, attr)
                 and (value := getattr(resource, attr)) is not None
