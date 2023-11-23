@@ -4,9 +4,9 @@ from typing import Any, Iterable, Optional
 import marshmallow as mm
 import pandas as pd
 from dimcat.base import FriendlyEnum
+from dimcat.data.resources import Feature
 from dimcat.data.resources.base import SomeDataframe, SomeSeries
-from dimcat.data.resources.dc import DimcatResource, UnitOfAnalysis
-from dimcat.data.resources.features import Feature, FeatureSpecs
+from dimcat.data.resources.dc import DimcatResource, FeatureSpecs, UnitOfAnalysis
 from dimcat.data.resources.results import Counts, NgramTable
 from dimcat.steps.analyzers.base import Analyzer, DispatchStrategy
 

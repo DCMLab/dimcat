@@ -27,10 +27,8 @@ from dimcat.data.catalogs.outputs import OutputsCatalog
 from dimcat.data.packages.base import Package, PackageSpecs
 from dimcat.data.packages.dc import DimcatPackage
 from dimcat.data.resources.base import SomeDataframe
-from dimcat.data.resources.dc import DimcatResource
-from dimcat.data.resources.features import (
-    Feature,
-    FeatureSpecs,
+from dimcat.data.resources.dc import DimcatResource, Feature, FeatureSpecs
+from dimcat.data.resources.utils import (
     feature_specs2config,
     features_argument2config_list,
 )

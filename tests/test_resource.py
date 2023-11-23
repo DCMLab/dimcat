@@ -5,7 +5,7 @@ import pytest
 from dimcat.base import deserialize_dict, deserialize_json_file, get_setting
 from dimcat.data.resources.base import PathResource, Resource, ResourceStatus
 from dimcat.data.resources.dc import DimcatIndex, DimcatResource, PieceIndex
-from dimcat.data.resources.utils import make_rel_path
+from dimcat.data.utils import make_rel_path
 from dimcat.dc_exceptions import BasePathNotDefinedError, FilePathNotDefinedError
 from dimcat.utils import make_valid_frictionless_name
 

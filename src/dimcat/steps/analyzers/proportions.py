@@ -1,8 +1,7 @@
 import logging
 
-from dimcat.data.resources.base import SomeDataframe, SomeSeries
-from dimcat.data.resources.dc import DimcatResource
-from dimcat.data.resources.features import Feature, FeatureName
+from dimcat.data.resources.base import FeatureName, SomeDataframe, SomeSeries
+from dimcat.data.resources.dc import DimcatResource, Feature
 from dimcat.data.resources.results import (
     Durations,
     PitchClassDurations,

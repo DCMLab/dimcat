@@ -26,14 +26,14 @@ from dimcat.base import DimcatConfig, DimcatObject, get_class, get_schema
 from dimcat.data.base import Data
 from dimcat.data.datasets.base import Dataset
 from dimcat.data.packages.dc import DimcatPackage
-from dimcat.data.resources.base import Resource, ResourceSpecs, resource_specs2resource
-from dimcat.data.resources.dc import DimcatResource
-from dimcat.data.resources.features import (
-    Feature,
+from dimcat.data.resources.base import (
     FeatureName,
-    FeatureSpecs,
-    features_argument2config_list,
+    Resource,
+    ResourceSpecs,
+    resource_specs2resource,
 )
+from dimcat.data.resources.dc import DimcatResource, Feature, FeatureSpecs
+from dimcat.data.resources.utils import features_argument2config_list
 from dimcat.dc_exceptions import (
     EmptyDatasetError,
     EmptyResourceError,

@@ -9,12 +9,23 @@ import zipfile
 from enum import IntEnum, auto
 from pathlib import Path
 from pprint import pformat
-from typing import Any, Dict, Optional, Tuple, TypeAlias, TypeVar, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Optional,
+    Tuple,
+    Type,
+    TypeAlias,
+    TypeVar,
+    Union,
+)
 
 import frictionless as fl
 import marshmallow as mm
 import pandas as pd
 from dimcat.base import (
+    ObjectEnum,
     get_class,
     get_schema,
     get_setting,
@@ -22,6 +33,16 @@ from dimcat.base import (
     is_subclass_of,
 )
 from dimcat.data.base import Data
+from dimcat.data.utils import (
+    check_descriptor_filename_argument,
+    check_rel_path,
+    is_default_package_descriptor_path,
+    is_default_resource_descriptor_path,
+    make_fl_resource,
+    make_rel_path,
+    store_as_json_or_yaml,
+    warn_about_potentially_unrelated_descriptor,
+)
 from dimcat.dc_exceptions import (
     BaseFilePathMismatchError,
     BasePathNotDefinedError,
@@ -38,19 +59,9 @@ from dimcat.utils import (
     make_valid_frictionless_name_from_filepath,
     replace_ext,
     resolve_path,
+    treat_basepath_argument,
 )
 from typing_extensions import Self
-
-from .utils import (
-    check_descriptor_filename_argument,
-    check_rel_path,
-    is_default_package_descriptor_path,
-    is_default_resource_descriptor_path,
-    make_fl_resource,
-    make_rel_path,
-    store_as_json_or_yaml,
-    warn_about_potentially_unrelated_descriptor,
-)
 
 try:
     import modin.pandas as mpd
@@ -63,6 +74,9 @@ except ImportError:
     SomeDataframe: TypeAlias = pd.DataFrame
     SomeSeries: TypeAlias = pd.Series
     SomeIndex: TypeAlias = pd.Index
+
+if TYPE_CHECKING:
+    from .dc import Feature
 
 logger = logging.getLogger(__name__)
 resource_status_logger = logging.getLogger("dimcat.data.resources.ResourceStatus")
@@ -675,9 +689,14 @@ Resource(
         """Returns True if the resource is packaged, i.e. its descriptor_filename is the one of
         the :class:`Package` that the resource is a part of. Also means that the resource is passive.
         """
-        return (
+        result = (
             self.descriptor_filename is not None
         ) and is_default_package_descriptor_path(self.descriptor_filename)
+        self.logger.debug(
+            f"{self.name} {self.resource_name!r} {'is' if result else 'is not'} packaged because its "
+            f"descriptor_filename is {self.descriptor_filename!r}."
+        )
+        return result
 
     @property
     def is_serialized(self) -> bool:
@@ -998,9 +1017,7 @@ Resource(
         reconcile: bool = False,
     ) -> None:
         if not self._basepath:
-            self._basepath = Data.treat_new_basepath(
-                basepath, self.filepath, other_logger=self.logger
-            )
+            self._basepath = treat_basepath_argument(basepath, other_logger=self.logger)
             self._resource.basepath = self.basepath
             return
         basepath_arg = resolve_path(basepath)
@@ -1042,7 +1059,7 @@ Resource(
         basepath: str,
         reconcile: bool = False,
     ) -> None:
-        if self.is_packaged:
+        if self.basepath is not None and not reconcile and self.is_packaged:
             raise ResourceIsPackagedError(self.resource_name, basepath, "basepath")
         return self._set_basepath(basepath, reconcile=reconcile)
 
@@ -1343,3 +1360,18 @@ def resource_specs2resource(resource: ResourceSpecs) -> Resource:
     raise TypeError(
         f"Expected a Resource, str, or Path. Got {type(resource).__name__!r}."
     )
+
+
+class FeatureName(ObjectEnum):
+    Annotations = "Annotations"
+    Articulation = "Articulation"
+    BassNotes = "BassNotes"
+    DcmlAnnotations = "DcmlAnnotations"
+    HarmonyLabels = "HarmonyLabels"
+    KeyAnnotations = "KeyAnnotations"
+    Measures = "Measures"
+    Metadata = "Metadata"
+    Notes = "Notes"
+
+    def get_class(self) -> Type[Feature]:
+        return get_class(self.name)

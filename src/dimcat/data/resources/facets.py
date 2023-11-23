@@ -4,7 +4,7 @@ from typing import Optional  # , ClassVar, Tuple
 import frictionless as fl
 from dimcat.base import ObjectEnum
 from dimcat.data.resources import DimcatResource, FeatureName, Metadata, Resource
-from dimcat.data.resources.features import HARMONY_FEATURE_NAMES
+from dimcat.data.resources.dc import HARMONY_FEATURE_NAMES
 from typing_extensions import Self
 
 

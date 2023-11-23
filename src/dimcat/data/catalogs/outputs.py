@@ -1,13 +1,35 @@
 from __future__ import annotations
 
-from typing import Iterator, Optional, Tuple
+from typing import Iterator, List, Optional, Tuple
 
+from dimcat.base import get_setting
 from dimcat.data.catalogs.base import DimcatCatalog
-from dimcat.data.resources.dc import DimcatResource
-from dimcat.data.resources.features import FeatureSpecs, feature_specs2config
+from dimcat.data.packages.base import Package, PackageSpecs
+from dimcat.data.resources.dc import DimcatResource, FeatureSpecs
+from dimcat.data.resources.utils import feature_specs2config
 
 
 class OutputsCatalog(DimcatCatalog):
+    def __init__(
+        self,
+        basepath: Optional[str] = None,
+        packages: Optional[PackageSpecs | List[PackageSpecs]] = None,
+    ) -> None:
+        """Creates a DimcatCatalog which is essentially a list of :obj:`Package` objects.
+
+        Args:
+            basepath: The basepath for all packages in the catalog.
+        """
+        self._packages: List[Package] = []
+        super().__init__(basepath=basepath, packages=packages)
+        if self.basepath is None:
+            default_basepath = get_setting("default_basepath")
+            self.logger.info(
+                f"Dataset.outputs.basepath has been set to the default_basepath {default_basepath!r}, based on the "
+                f"current setting. This is where all output packages will be serialized if not specified otherwise."
+            )
+            self.basepath = default_basepath
+
     def get_feature(self, feature: Optional[FeatureSpecs] = None) -> DimcatResource:
         """Looks up the given feature in the "features" package and returns it.
 

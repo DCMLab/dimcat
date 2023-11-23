@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Iterable, Iterator, List, Optional, Type
+from typing import Iterable, Iterator, List, Literal, Optional, Type
 
 import frictionless as fl
 import marshmallow as mm
@@ -8,7 +8,7 @@ from dimcat import DimcatConfig, get_class
 from dimcat.data.base import Data
 from dimcat.data.packages.base import Package, PackageSpecs
 from dimcat.data.resources.base import Resource
-from dimcat.data.resources.features import FeatureSpecs
+from dimcat.data.resources.dc import FeatureSpecs
 from dimcat.dc_exceptions import (
     DuplicatePackageNameError,
     EmptyCatalogError,
@@ -17,7 +17,7 @@ from dimcat.dc_exceptions import (
     PackageNotFoundError,
     ResourceNotFoundError,
 )
-from dimcat.utils import _set_new_basepath
+from dimcat.utils import treat_basepath_argument
 from frictionless import FrictionlessException
 from typing_extensions import Self
 
@@ -75,9 +75,7 @@ class DimcatCatalog(Data):
     @basepath.setter
     def basepath(self, basepath: str) -> None:
         new_catalog = self._basepath is None
-        self._basepath = _set_new_basepath(basepath, self.logger)
-        if not new_catalog:
-            self._set_basepath(basepath, set_packages=False)
+        self._set_basepath(basepath, set_packages=new_catalog)
 
     @property
     def package_names(self) -> List[str]:
@@ -288,9 +286,11 @@ class DimcatCatalog(Data):
 
     def _set_basepath(
         self,
+        basepath: str | Literal[None],
         set_packages: bool = True,
     ) -> None:
         """Sets the basepath for all packages in the catalog (if set_packages=True)."""
+        self._basepath = treat_basepath_argument(basepath, self.logger)
         if not set_packages:
             return
         for package in self._packages:

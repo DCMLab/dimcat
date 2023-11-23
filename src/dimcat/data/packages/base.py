@@ -26,21 +26,17 @@ import frictionless as fl
 import marshmallow as mm
 from dimcat.base import DimcatConfig, FriendlyEnum, get_class
 from dimcat.data.base import Data
+from dimcat.data.resources import Feature, FeatureName
 from dimcat.data.resources.base import (
     PathResource,
     Resource,
     SomeDataframe,
     reconcile_base_and_file,
 )
-from dimcat.data.resources.dc import DimcatResource, PieceIndex
+from dimcat.data.resources.dc import DimcatResource, FeatureSpecs, PieceIndex
 from dimcat.data.resources.facets import Facet, MuseScoreFacet
-from dimcat.data.resources.features import (
-    Feature,
-    FeatureName,
-    FeatureSpecs,
-    feature_specs2config,
-)
-from dimcat.data.resources.utils import (
+from dimcat.data.resources.utils import feature_specs2config
+from dimcat.data.utils import (
     check_descriptor_filename_argument,
     make_rel_path,
     store_as_json_or_yaml,
@@ -63,12 +59,12 @@ from dimcat.dc_exceptions import (
 )
 from dimcat.dc_warnings import PotentiallyMisalignedPackageUserWarning
 from dimcat.utils import (
-    _set_new_basepath,
     check_file_path,
     make_valid_frictionless_name,
     make_valid_frictionless_name_from_filepath,
     resolve_path,
     scan_directory,
+    treat_basepath_argument,
 )
 from typing_extensions import Self
 
@@ -657,7 +653,7 @@ class Package(Data):
     def basepath(self, basepath: str) -> None:
         basepath_arg = resolve_path(basepath)
         if self._basepath is None:
-            self._basepath = _set_new_basepath(basepath_arg, self.logger)
+            self._basepath = treat_basepath_argument(basepath_arg, self.logger)
             self._package.basepath = basepath_arg
             return
         if self.status > PackageStatus.MISALIGNED:
@@ -1315,7 +1311,8 @@ class Package(Data):
                 # resource is currently pointing to a resource file and/or descriptor on disk
                 try:
                     # if the resource basepath is a subpath of the package basepath, we can
-                    # simply create a copy with adapted paths without having to copy the resourceraises if not allowed
+                    # simply create a copy with adapted paths without having to copy the resource
+                    # raises if not allowed
                     adapted_filepath = make_rel_path(
                         resource.normpath, package_basepath
                     )
@@ -1362,12 +1359,15 @@ class Package(Data):
                 else:
                     raise NotImplementedError(f"Unexpected PackageMode {mode!r}.")
         elif not resource_descriptor_filename_ok:
-            # if mode == PackageMode.RAISE:
-            #     raise ResourceIsMisalignedError(
-            #         resource.descriptor_filename, package_descriptor_filename, self.name
-            #     )
-            # elif mode in (PackageMode.RECONCILE_SAFELY, PackageMode.RECONCILE_EVERYTHING):
-            resource._set_descriptor_filename(package_descriptor_filename)
+            if mode == PackageMode.RAISE:
+                raise ResourceIsMisalignedError(
+                    resource.descriptor_filename, package_descriptor_filename, self.name
+                )
+            elif mode in (
+                PackageMode.RECONCILE_SAFELY,
+                PackageMode.RECONCILE_EVERYTHING,
+            ):
+                resource._set_descriptor_filename(package_descriptor_filename)
         return resource
 
     def _set_descriptor_filename(self, descriptor_filename):

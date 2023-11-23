@@ -14,6 +14,7 @@ from typing import (
     Iterable,
     List,
     Literal,
+    MutableMapping,
     Optional,
     Set,
     Tuple,
@@ -26,22 +27,22 @@ import frictionless as fl
 import ms3
 import numpy as np
 import pandas as pd
-import yaml
-from dimcat.base import get_setting
-from dimcat.dc_exceptions import BaseFilePathMismatchError
-from dimcat.dc_warnings import (
-    PotentiallyUnrelatedDescriptorUserWarning,
-    ResourceWithRangeIndexUserWarning,
-)
+from dimcat.base import DimcatConfig, get_setting, is_instance_of, is_subclass_of
+from dimcat.data.utils import make_fl_resource
+from dimcat.dc_exceptions import ResourceNotProcessableError
+from dimcat.dc_warnings import ResourceWithRangeIndexUserWarning
 from marshmallow.fields import Boolean
 from ms3 import reduce_dataframe_duration_to_first_row
 from numpy._typing import NDArray
 
+from .base import FeatureName
+
 module_logger = logging.getLogger(__name__)
+
 
 if TYPE_CHECKING:
     from .base import SomeDataframe, SomeIndex
-    from .dc import DimcatIndex
+    from .dc import DimcatIndex, FeatureSpecs
 
 TRUTHY_VALUES = Boolean.truthy
 FALSY_VALUES = Boolean.falsy
@@ -124,43 +125,6 @@ def boolean_is_minor_column_to_mode(S: pd.Series) -> pd.Series:
     return S.map({True: "minor", False: "major"})
 
 
-def check_descriptor_filename_argument(
-    descriptor_filename,
-) -> str:
-    """Check if the descriptor_filename is a filename  (not path) and warn if it doesn't have the
-    extension .json or .yaml.
-
-    Args:
-        descriptor_filename:
-
-    Raises:
-        ValueError: If the descriptor_filename is absolute.
-    """
-    subfolder, filepath = os.path.split(descriptor_filename)
-    if subfolder not in (".", ""):
-        raise ValueError(
-            f"descriptor_filename needs to be a filename in the basepath, got {descriptor_filename!r}"
-        )
-    _, ext = os.path.splitext(filepath)
-    if ext not in (".json", ".yaml"):
-        warnings.warning(
-            f"You've set a descriptor_filename with extension {ext!r} but "
-            f"frictionless allows only '.json' and '.yaml'.",
-            RuntimeWarning,
-        )
-    return filepath
-
-
-def check_rel_path(rel_path, basepath):
-    if rel_path.startswith(".."):
-        raise ValueError(
-            f"{rel_path!r} points outside the basepath {basepath!r} which is not allowed."
-        )
-    if rel_path.startswith(f".{os.sep}") and len(rel_path) > 2:
-        rel_path = rel_path[2:]
-    return rel_path
-
-
 def condense_dataframe_by_groups(
     df: pd.DataFrame,
     group_keys_series: pd.Series,
@@ -240,6 +204,54 @@ def ensure_level_named_piece(
     if level_names[piece_level_position] != "piece":
         return index.rename("piece", level=piece_level_position), piece_level_position
     return index, piece_level_position
+
+
+def feature_specs2config(feature: FeatureSpecs) -> DimcatConfig:
+    """Converts a feature specification into a dimcat configuration.
+
+    Raises:
+        TypeError: If the feature cannot be converted to a dimcat configuration.
+    """
+    if isinstance(feature, DimcatConfig):
+        feature_config = feature
+    elif is_instance_of(feature, "Feature"):
+        feature_config = feature.to_config()
+    elif isinstance(feature, MutableMapping):
+        feature_config = DimcatConfig(feature)
+    elif isinstance(feature, str):
+        feature_name = FeatureName(feature)
+        feature_config = DimcatConfig(dtype=feature_name)
+    else:
+        raise TypeError(
+            f"Cannot convert the {type(feature).__name__} {feature!r} to DimcatConfig."
+        )
+    if feature_config.options_dtype == "DimcatConfig":
+        feature_config = DimcatConfig(feature_config["options"])
+    if not is_subclass_of(feature_config.options_dtype, "Feature"):
+        raise TypeError(
+            f"DimcatConfig describes a {feature_config.options_dtype}, not a Feature: "
+            f"{feature_config.options}"
+        )
+    return feature_config
+
+
+def features_argument2config_list(
+    features: Optional[FeatureSpecs | Iterable[FeatureSpecs]] = None,
+    allowed_features: Optional[Iterable[str | FeatureName]] = None,
+) -> List[DimcatConfig]:
+    if features is None:
+        return []
+    if is_instance_of(features, (MutableMapping, "Feature", FeatureName, str)):
+        features = [features]
+    configs = []
+    for specs in features:
+        configs.append(feature_specs2config(specs))
+    if allowed_features:
+        allowed_features = [FeatureName(f) for f in allowed_features]
+        for config in configs:
+            if config.options_dtype not in allowed_features:
+                raise ResourceNotProcessableError(config.options_dtype)
+    return configs
 
 
 T = TypeVar("T")
@@ -497,37 +509,11 @@ def infer_schema_from_df(
     return fl.Schema(descriptor)
 
 
-def is_default_package_descriptor_path(filepath: str) -> bool:
-    endings = get_setting("package_descriptor_endings")
-    if len(endings) == 0:
-        warnings.warn(
-            "No default file endings for package descriptors are defined in the current settings.",
-            RuntimeWarning,
-        )
-    for ending in endings:
-        if filepath.endswith(ending):
-            return True
-    return False
-
-
-def is_default_resource_descriptor_path(filepath: str) -> bool:
-    endings = get_setting("resource_descriptor_endings")
-    if len(endings) == 0:
-        warnings.warn(
-            "No default file endings for resource descriptors are defined in the current settings.",
-            RuntimeWarning,
-        )
-    for ending in endings:
-        if filepath.endswith(ending):
-            return True
-    return False
-
-
 def load_fl_resource(
     fl_resource: fl.Resource,
     normpath: Optional[str] = None,
-    index_col: Optional[int | str | List[int | str]] = None,
-    usecols: Optional[int | str | List[int | str]] = None,
+    index_col: Optional[int | str | Iterable[int | str]] = None,
+    usecols: Optional[int | str | Iterable[int | str]] = None,
 ) -> SomeDataframe:
     """Load a dataframe from a :obj:`frictionless.Resource`.
 
@@ -862,34 +848,6 @@ def make_index_from_grouping_dict(
     return pd.MultiIndex.from_tuples(index_tuples, names=level_names)
 
 
-def make_rel_path(path: str, start: str):
-    """Like os.path.relpath() but ensures that path is contained within start."""
-    if not start:
-        raise ValueError(f"start must not be empty, but is {start!r}")
-    rel_path = os.path.relpath(path, start)
-    try:
-        return check_rel_path(rel_path, start)
-    except ValueError as e:
-        raise BaseFilePathMismatchError(start, path) from e
-
-
-def make_fl_resource(
-    name: Optional[str] = None,
-    **options,
-) -> fl.Resource:
-    """Creates a frictionless.Resource by passing the **options to the constructor."""
-    new_resource = fl.Resource(**options)
-    if name is None:
-        new_resource.name = get_setting(
-            "default_resource_name"
-        )  # replacing the default name "memory"
-    else:
-        new_resource.name = name
-    if "path" not in options:
-        new_resource.path = ""
-    return new_resource
-
-
 def make_tsv_resource(name: Optional[str] = None) -> fl.Resource:
     """Returns a frictionless.Resource with the default properties of a TSV file stored to disk."""
     tsv_dialect = fl.Dialect.from_options(
@@ -980,7 +938,7 @@ def overlapping_chunk_per_interval_cutoff_direct(
 
 
 def resolve_columns_argument(
-    columns: Optional[int | str | List[int | str]],
+    columns: Optional[int | str | Iterable[int | str]],
     column_names: List[str],
 ) -> Optional[List[str]]:
     """Resolve the columns argument of a load function to a list of column names.
@@ -1098,29 +1056,3 @@ def value2bool(value: str | float | int | bool) -> bool | str | float | int:
         if converted in FALSY_VALUES:
             return False
     return value
-
-
-def warn_about_potentially_unrelated_descriptor(
-    basepath: str,
-    descriptor_filename: str,
-):
-    descriptor_path = os.path.join(basepath, descriptor_filename)
-    if os.path.isfile(descriptor_path):
-        warnings.warn(
-            f"Another descriptor already exists at {descriptor_path!r} which may lead to it being "
-            f"overwritten.",
-            PotentiallyUnrelatedDescriptorUserWarning,
-        )
-
-
-def store_as_json_or_yaml(descriptor_dict: dict, descriptor_path: str):
-    if descriptor_path.endswith(".yaml"):
-        with open(descriptor_path, "w") as f:
-            yaml.dump(descriptor_dict, f)
-    elif descriptor_path.endswith(".json"):
-        with open(descriptor_path, "w") as f:
-            json.dump(descriptor_dict, f, indent=2)
-    else:
-        raise ValueError(
-            f"Descriptor path must end with .yaml or .json: {descriptor_path}"
-        )

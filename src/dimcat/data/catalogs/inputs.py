@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from dimcat.data.catalogs.base import DimcatCatalog
 from dimcat.data.resources.base import SomeDataframe
-from dimcat.data.resources.features import Feature, FeatureSpecs, feature_specs2config
+from dimcat.data.resources.dc import Feature, FeatureSpecs
+from dimcat.data.resources.utils import feature_specs2config
 
 
 class InputsCatalog(DimcatCatalog):
