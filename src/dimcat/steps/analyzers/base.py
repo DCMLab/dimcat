@@ -176,6 +176,7 @@ class Analyzer(FeatureProcessingStep):
         results = self.groupby_apply(resource)
         result_name = self.resource_name_factory(resource)
         result = result_constructor.from_dataframe(
+            analyzed_resource=resource,
             df=results,
             resource_name=result_name,
             default_groupby=resource.get_default_groupby(),

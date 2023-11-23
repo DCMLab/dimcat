@@ -6,6 +6,7 @@ from itertools import product
 from typing import ClassVar, Iterable, List, Optional, Tuple
 
 import frictionless as fl
+import marshmallow as mm
 import ms3
 import pandas as pd
 from dimcat.base import ObjectEnum
@@ -55,6 +56,29 @@ class Result(DimcatResource):
         GroupMode.ROWS,
         GroupMode.COLUMNS,
     )
+
+    class Schema(DimcatResource.Schema):
+        analyzed_resource: DimcatResource.Schema = mm.fields.Nested(
+            DimcatResource.Schema, required=True
+        )
+
+    def __init__(
+        self,
+        analyzed_resource: DimcatResource,
+        resource: fl.Resource = None,
+        descriptor_filename: Optional[str] = None,
+        basepath: Optional[str] = None,
+        auto_validate: bool = False,
+        default_groupby: Optional[str | list[str]] = None,
+    ) -> None:
+        super().__init__(
+            resource=resource,
+            descriptor_filename=descriptor_filename,
+            basepath=basepath,
+            auto_validate=auto_validate,
+            default_groupby=default_groupby,
+        )
+        self.analyzed_resource = analyzed_resource
 
     @property
     def x_column(self) -> str:
@@ -529,27 +553,6 @@ class ScaleDegreeDurations(FifthsDurations):
 
 
 class NgramTable(Result):
-    def __init__(
-        self,
-        resource: fl.Resource = None,
-        descriptor_filename: Optional[str] = None,
-        basepath: Optional[str] = None,
-        auto_validate: bool = False,
-        default_groupby: Optional[str | list[str]] = None,
-    ) -> None:
-        super().__init__(
-            resource=resource,
-            descriptor_filename=descriptor_filename,
-            basepath=basepath,
-            auto_validate=auto_validate,
-            default_groupby=default_groupby,
-        )
-        # ToDo: These fields need to be added to the schema for pickling. This will mean adding them to the init
-        #  arguments (currently these are added by NgramAnalyzer._post_process_result()).
-        self.context_column_names: List[str] = []
-        self.feature_column_names: List[str] = []
-        self.auxiliary_column_names: List[str] = []
-
     @cached_property
     def ngram_levels(self) -> List[str]:
         return list(self.df.columns.levels[0])
@@ -637,7 +640,7 @@ class NgramTable(Result):
 
         """
         if columns is None:
-            columns = self.feature_column_names
+            columns = self.analyzed_resource._feature_column_names
         elif isinstance(columns, str):
             columns = [columns]
         else:
