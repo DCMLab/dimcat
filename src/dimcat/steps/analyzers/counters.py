@@ -29,7 +29,7 @@ class Counter(Analyzer):
             self.logger.debug(
                 f"Using the {feature.resource_name}'s default groupby {groupby!r}"
             )
-        groupby += [feature.value_column]
+        groupby.append(feature.value_column)
         result = feature.groupby(groupby).size()
         result = result.to_frame("count")
         return result

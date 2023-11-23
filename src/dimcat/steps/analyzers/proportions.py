@@ -32,7 +32,7 @@ class Proportions(Analyzer):
             self.logger.debug(
                 f"Using the {feature.resource_name}'s default groupby {groupby!r}"
             )
-        groupby += [feature.value_column]
+        groupby.append(feature.value_column)
         result = (
             feature.groupby(groupby, group_keys=False).duration_qb.sum().astype(float)
         )
@@ -57,25 +57,8 @@ class ScaleDegreeVectors(Proportions):
     allowed_features = (FeatureName.BassNotes,)
     new_resource_type = ScaleDegreeDurations
 
-    def groupby_apply(self, feature: Feature, groupby: SomeSeries = None, **kwargs):
-        """Performs the computation on a groupby. The value of ``groupby`` needs to be
-        a Series of the same length as ``feature`` or otherwise work as positional argument to feature.groupby().
-        """
-        if groupby is None:
-            groupby = feature.get_grouping_levels(self.smallest_unit)
-            self.logger.debug(
-                f"Using the {feature.resource_name}'s default groupby {groupby!r}"
-            )
-        groupby += [feature.bass_note]
-        result = (
-            feature.groupby(groupby, group_keys=False).duration_qb.sum().astype(float)
-        )
-        result = result.to_frame()
-        return result
-
     def _make_new_resource(self, resource: Feature) -> Result:
         result = super()._make_new_resource(resource)
-        result.default_value_column = "bass_note"
         result.default_format = resource.format
         return result
 

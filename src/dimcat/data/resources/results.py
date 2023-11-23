@@ -431,7 +431,7 @@ class FifthsDurations(Durations):
             layout_update.update(layout)
         if "xaxis_type" not in layout_update:
             layout_update["xaxis_type"] = "category"
-        fifths_transform = self.get_fifths_transform()
+        fifths_transform = None  # self.get_fifths_transform()
         color_midpoint = self.get_color_midpoint()
         return make_lof_bar_plot(
             df=df,
@@ -493,7 +493,7 @@ class FifthsDurations(Durations):
             layout_update.update(layout)
         if "yaxis_type" not in layout_update:
             layout_update["yaxis_type"] = "category"
-        fifths_transform = self.get_fifths_transform()
+        fifths_transform = None  # self.get_fifths_transform()
         color_midpoint = self.get_color_midpoint()
         return make_lof_bubble_plot(
             df=self.df,

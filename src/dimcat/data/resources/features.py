@@ -38,6 +38,7 @@ from dimcat.data.resources.utils import (
 )
 from dimcat.dc_exceptions import (
     DataframeIsMissingExpectedColumnsError,
+    FeatureIsMissingFormatColumnError,
     ResourceIsMissingFeatureColumnError,
     ResourceNotProcessableError,
 )
@@ -59,6 +60,7 @@ class FeatureName(ObjectEnum):
         return get_class(self.name)
 
 
+FIFTH_FEATURE_NAMES = (FeatureName.BassNotes, FeatureName.Notes)
 HARMONY_FEATURE_NAMES = (
     FeatureName.BassNotes,
     FeatureName.HarmonyLabels,
@@ -370,7 +372,7 @@ class Feature(DimcatResource):
             # self.column_schema = ... but for that, the detachment from the feature from the original resource needs
             # to be implemented, which involves adapting the status
         else:
-            RuntimeError(f"No dataframe accessible for this {self.name}:\n{self}")
+            raise RuntimeError(f"No dataframe accessible for this {self.name}:\n{self}")
         return feature_df
 
     @property
@@ -687,9 +689,9 @@ def extend_bass_notes_feature(
 
 
 class BassNotesFormat(FriendlyEnum):
-    BASS_DEGREE = "BASS_DEGREE"
     FIFTHS = "FIFTHS"
     INTERVAL = "INTERVAL"
+    SCALE_DEGREE = "SCALE_DEGREE"
 
 
 class BassNotes(DcmlAnnotations):
@@ -722,11 +724,35 @@ class BassNotes(DcmlAnnotations):
             auto_validate=auto_validate,
             default_groupby=default_groupby,
         )
-        self._format = NotesFormat(format)
+        self._format = BassNotesFormat.INTERVAL
+        self.format = format
 
     @property
     def format(self) -> BassNotesFormat:
         return self._format
+
+    @format.setter
+    def format(self, format: BassNotesFormat):
+        format = BassNotesFormat(format)
+        if self.format == format:
+            pass
+        if format == BassNotesFormat.INTERVAL:
+            new_value_column = "bass_note_over_local_tonic"
+        elif format == BassNotesFormat.FIFTHS:
+            new_value_column = "bass_note"
+        elif format == BassNotesFormat.SCALE_DEGREE:
+            if "mode" in self.get_default_groupby():
+                new_value_column = "bass_degree"
+            else:
+                new_value_column = "bass_degree_and_mode"
+        else:
+            raise NotImplementedError(f"Unknown format {format!r}.")
+        if new_value_column not in self.df.columns:
+            raise FeatureIsMissingFormatColumnError(
+                self.resource_name, new_value_column, format, self.name
+            )
+        self._format = format
+        self.value_column = new_value_column
 
     def _modify_name(self):
         """Modify the :attr:`resource_name` to reflect the feature."""
