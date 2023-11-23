@@ -429,6 +429,12 @@ class ResourceTransformation(FeatureProcessingStep):
         )
         return new_resource
 
+    def _pre_process_resource(self, resource: DimcatResource) -> DimcatResource:
+        """Perform some pre-processing on a resource before processing it."""
+        resource = super()._pre_process_resource(resource)
+        resource.load()
+        return resource
+
     def _process_dataset(self, dataset: Dataset) -> Dataset:
         """Apply this PipelineStep to a :class:`Dataset` and return a copy containing the output(s)."""
         new_dataset = self._make_new_dataset(dataset)
@@ -487,10 +493,12 @@ def step_specs2step(step_specs: StepSpecs) -> PipelineStep:
         return step_specs()
     if isinstance(step_specs, DimcatConfig):
         obj = step_specs.create()
-    if isinstance(step_specs, dict):
+    elif isinstance(step_specs, dict):
         obj = DimcatConfig(step_specs).create()
-    if isinstance(step_specs, str):
+    elif isinstance(step_specs, str):
         obj = get_class(step_specs)()
+    else:
+        obj = step_specs
     if isinstance(obj, PipelineStep):
         return obj
     raise TypeError(f"Expected PipelineStep, got {type(step_specs)}")
