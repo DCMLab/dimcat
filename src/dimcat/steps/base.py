@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from collections import defaultdict
 from itertools import repeat
+from pprint import pformat
 from typing import (
     ClassVar,
     Iterable,
@@ -19,8 +20,9 @@ from typing import (
     overload,
 )
 
+import marshmallow as mm
 import pandas as pd
-from dimcat.base import DimcatConfig, DimcatObject, get_class
+from dimcat.base import DimcatConfig, DimcatObject, get_class, get_schema
 from dimcat.data.base import Data
 from dimcat.data.datasets.base import Dataset
 from dimcat.data.packages.dc import DimcatPackage
@@ -66,7 +68,30 @@ class PipelineStep(DimcatObject):
     for PipelineSteps that are dependent on the data, e.g. because they use :meth:`fit_to_dataset`."""
 
     class Schema(DimcatObject.Schema):
-        pass
+        """PipelineSteps do not depend on previously serialized data, so their serialization can be validated by
+        default after dumping them to a dict-like structure. For Data objects, this default is safe only for their
+        PickleSchema, which PipelineSteps do not use.
+        """
+
+        @mm.post_dump()
+        def validate_dump(self, data, **kwargs):
+            """Make sure to never return invalid serialization data."""
+            if "dtype" not in data:
+                msg = (
+                    f"{self.name}: The serialized data doesn't have a 'dtype' field, meaning that DiMCAT would "
+                    f"not be able to deserialize it."
+                )
+                raise mm.ValidationError(msg)
+            dtype_schema = get_schema(data["dtype"])
+            report = dtype_schema.validate(data)
+            if report:
+                raise mm.ValidationError(
+                    f"Dump of {data['dtype']} created with a {self.name} could not be validated by "
+                    f"{dtype_schema.name}."
+                    f"\n\nDUMP:\n{pformat(data, sort_dicts=False)}"
+                    f"\n\nREPORT:\n{pformat(report, sort_dicts=False)}"
+                )
+            return dict(data)
 
     @property
     def is_transformation(self) -> Literal[False]:
@@ -394,6 +419,11 @@ class ResourceTransformation(FeatureProcessingStep):
             )
             print(result_df)
             raise
+        # new_resource = result_constructor.from_dataframe(
+        #     df=result_df,
+        #     resource_name=result_name,
+        # )
+        # print(f"NEW RESOURCE STATUS: {new_resource.status}")
         self.logger.debug(
             f"Created new resource {new_resource} of type {result_constructor.name}."
         )

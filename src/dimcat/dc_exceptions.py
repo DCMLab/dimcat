@@ -40,7 +40,7 @@ class BasePathNotDefinedError(DimcatError):
     """No optional args."""
 
     nargs2message = {
-        0: "The base path is not defined.",
+        0: "The basepath is not defined.",
     }
 
 
@@ -140,6 +140,21 @@ class ExcludedFileExtensionError(DimcatError):
         1: lambda extension: f"File extension {extension!r} is excluded.",
         2: lambda extension, permissible_extensions: f"File extension {extension!r} is excluded. "
         f"Pass one of {permissible_extensions!r}.",
+    }
+
+
+class FeatureIsMissingFormatColumnError(DimcatError):
+    """optional args: (feature_name, missing_column(s), format, feature_type)"""
+
+    nargs2message = {
+        0: "The feature is missing the column corresponding to this format.",
+        1: lambda name: f"Feature {name!r} is missing the column corresponding to this format.",
+        2: lambda name, missing_columns: f"Feature {name!r} is missing the column(s) {missing_columns!r} "
+        f"corresponding to this format.",
+        3: lambda name, missing_columns, format: f"Feature {name!r} is missing the column(s) {missing_columns!r} "
+        f"corresponding to {format!r}.",
+        4: lambda name, missing_columns, format, feature_type: f"Feature {name!r} of type {feature_type!r} is missing "
+        f"the column(s) {missing_columns!r} corresponding to {format!r}.",
     }
 
 

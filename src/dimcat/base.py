@@ -51,10 +51,18 @@ class DimcatSchema(mm.Schema):
     """
     The base class of all Schema() classes that are defined or inherited as nested classes
     for all :class:`DimcatObjects <DimcatObject>`. This class holds the logic for serializing/deserializing DiMCAT
-    objects. However, nested Schema() classes should never inherit directly from DimcatSchema but instead
-    from DimcatObject.Schema because it defines the post_load hook init_object() and the post_dump hook
-    validate_dump(). The parent class DimcatSchema does not do it so that DimcatConfig can define these two
-    differently. In marshmallow, hooks are additive and do not replace hooks of parent schemas.
+    objects. However, nested Schema() classes should generally not inherit directly from DimcatSchema but instead
+    from DimcatObject.Schema because it defines the post_load hook init_object() for deserializing Dimcat objects. The
+    parent class DimcatSchema does not define it, allowing DimcatConfig to define it differently. In marshmallow,
+    hooks are additive and do not replace hooks of parent schemas.
+
+    Overall, this requires careful planning at what point in the object hierarchy the hooks are introduced in the
+    corresponding nested Schema classes: Hooks of parent Schemas can be called via super() but they cannot be not
+    called by omitting super(). For example, the post_dump hook validate_dump() is introduced in PipelineStep.Schema
+    to automatically validate any serialized object right away (frictionless does that basically by trying if it can
+    load the serialization data). For Data.Schema, however, this is not a safe default because most Data objects can
+    be successfully validate only once their data has been stored to disk. Therefore, the post_dump hook is introduced
+    in a second type of schema that all Data objects have, called PickleSchema.
 
     The arbitrary metadata of the fields currently use the keys:
 
@@ -193,26 +201,6 @@ class DimcatObject(ABC):
             obj_name = data.pop("dtype")
             Constructor = get_class(obj_name)
             return Constructor(**data)
-
-        @mm.post_dump()
-        def validate_dump(self, data, **kwargs):
-            """Make sure to never return invalid serialization data."""
-            if "dtype" not in data:
-                msg = (
-                    f"{self.name}: The serialized data doesn't have a 'dtype' field, meaning that DiMCAT would "
-                    f"not be able to deserialize it."
-                )
-                raise mm.ValidationError(msg)
-            dtype_schema = get_schema(data["dtype"])
-            report = dtype_schema.validate(data)
-            if report:
-                raise mm.ValidationError(
-                    f"Dump of {data['dtype']} created with a {self.name} could not be validated by "
-                    f"{dtype_schema.name}."
-                    f"\n\nDUMP:\n{pformat(data, sort_dicts=False)}"
-                    f"\n\nREPORT:\n{pformat(report, sort_dicts=False)}"
-                )
-            return dict(data)
 
     def __init__(self):
         super().__init__()

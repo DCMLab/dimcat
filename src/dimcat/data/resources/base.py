@@ -8,6 +8,7 @@ import warnings
 import zipfile
 from enum import IntEnum, auto
 from pathlib import Path
+from pprint import pformat
 from typing import Any, Dict, Optional, Tuple, TypeAlias, TypeVar, Union
 
 import frictionless as fl
@@ -15,6 +16,7 @@ import marshmallow as mm
 import pandas as pd
 from dimcat.base import (
     get_class,
+    get_schema,
     get_setting,
     is_default_descriptor_path,
     is_subclass_of,
@@ -164,8 +166,9 @@ class ResourceStatus(IntEnum):
 
 
 class ResourceSchema(Data.Schema):
-    """Several fields are serialized through the frictionless descriptor "resource" because
-    many of the :class:`Resource` object's properties use the wrapped fl.Resource object's fields.
+    """Since Resource objects function partially as a wrapper around a frictionless.Resource object, many properties are
+    serialized by the means of the frictionless descriptor corresponding to it, which is provided by the
+    frictionless library.
     For example, :attr:`resource_name` uses ``.resource.name`` under the hood.
     """
 
@@ -173,13 +176,6 @@ class ResourceSchema(Data.Schema):
     #     ordered = True
     #     unknown = mm.INCLUDE # unknown fields allowed because frictionless descriptors can come with custom metadata
 
-    basepath = mm.fields.Str(
-        required=False,
-        allow_none=True,
-        metadata=dict(
-            description="The directory where the resource is or would be stored."
-        ),
-    )
     descriptor_filename = mm.fields.String(allow_none=True, metadata={"expose": False})
     resource = mm.fields.Method(
         serialize="get_frictionless_descriptor",
@@ -222,18 +218,17 @@ class ResourceSchema(Data.Schema):
 
     @mm.post_load
     def init_object(self, data, **kwargs):
-        if "resource" not in data or data["resource"] is None:
-            # probably manually compiled data
+        if data.get("resource") is not None:
+            if not isinstance(data["resource"], fl.Resource):
+                data["resource"] = fl.Resource.from_descriptor(data["resource"])
             if "dtype" not in data:
-                data["dtype"] = "Resource"
-            return super().init_object(data, **kwargs)
-        if not isinstance(data["resource"], fl.Resource):
-            data["resource"] = fl.Resource.from_descriptor(data["resource"])
-        if "dtype" not in data:
-            if data["resource"].schema.fields:
-                data["dtype"] = "DimcatResource"
-            else:
-                data["dtype"] = "Resource"
+                if data["resource"].schema.fields:
+                    data["dtype"] = "DimcatResource"
+                else:
+                    data["dtype"] = "Resource"
+        elif "dtype" not in data:
+            # probably manually compiled data
+            data["dtype"] = "Resource"
         return super().init_object(data, **kwargs)
 
 
@@ -502,9 +497,19 @@ class Resource(Data):
                         f"{desc_basepath!r} contain the file {filepath!r}."
                     )
             squashed_data.update(data)
+            # the following corresponds to DimcatObject.Schema.validate_dump()
+            dtype_schema = get_schema(squashed_data["dtype"])
+            report = dtype_schema.validate(squashed_data)
+            if report:
+                raise mm.ValidationError(
+                    f"Dump of {squashed_data['dtype']} created with a {self.name} could not be validated by "
+                    f"{dtype_schema.name}."
+                    f"\n\nDUMP:\n{pformat(squashed_data, sort_dicts=False)}"
+                    f"\n\nREPORT:\n{pformat(report, sort_dicts=False)}"
+                )
             return squashed_data
 
-    class Schema(ResourceSchema):
+    class Schema(ResourceSchema, Data.Schema):
         pass
 
     def __init__(

@@ -1066,13 +1066,16 @@ class DimcatIndex(Generic[IX], Data):
     `pd.DataFrame(index=dc_index.index)`.
     """
 
-    class Schema(Data.Schema):
+    class PickleSchema(Data.Schema):
         index = IndexField(required=True)
         names = mm.fields.List(mm.fields.Str(), required=True)
 
         @mm.post_load
         def init_object(self, data, **kwargs) -> pd.MultiIndex:
             return pd.MultiIndex.from_tuples(data["index"], names=data["names"])
+
+    class Schema(PickleSchema, Data.Schema):
+        pass
 
     @classmethod
     def from_dataframe(cls, df: SomeDataframe) -> Self:

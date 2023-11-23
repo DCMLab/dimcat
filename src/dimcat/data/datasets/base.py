@@ -101,7 +101,7 @@ class Dataset(Data):
         dataset.load_package(package=package)
         return dataset
 
-    class Schema(Data.Schema):
+    class PickleSchema(Data.Schema):
         """Dataset serialization schema."""
 
         inputs = mm.fields.Nested(DimcatCatalog.Schema, required=True)
@@ -118,6 +118,9 @@ class Dataset(Data):
                 inputs=data["inputs"],
                 outputs=data["outputs"],
             )
+
+    class Schema(PickleSchema, Data.Schema):
+        pass
 
     def __init__(
         self,

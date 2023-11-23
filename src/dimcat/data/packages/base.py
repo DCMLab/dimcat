@@ -127,13 +127,6 @@ class PackageSchema(Data.Schema):
         metadata=dict(description="The name of the package."),
         data_key="name",
     )
-    basepath = mm.fields.Str(
-        required=False,
-        allow_none=True,
-        metadata=dict(
-            description="The basepath where the package is or would be stored."
-        ),
-    )
     descriptor_filename = mm.fields.String(allow_none=True, metadata={"expose": False})
     auto_validate = mm.fields.Boolean(metadata={"expose": False})
     # ToDo: accept the rest as additional metadata dict as the "custom" field
@@ -583,7 +576,7 @@ class Package(Data):
         def raw(self, data):
             return data
 
-    class Schema(PackageSchema):
+    class Schema(PackageSchema, Data.Schema):
         pass
 
     def __init__(
@@ -781,7 +774,11 @@ class Package(Data):
         if n_exist == 0:
             return False
         if self.descriptor_exists:
-            existing, missing = self.get_descriptor_path(), self.normpath
+            existing = self.get_descriptor_path()
+            missing = dict(
+                basepath=self.basepath,
+                filepath=self.filepath,
+            )
         else:
             existing, missing = self.normpath, self.get_descriptor_path()
         raise PackageInconsistentlySerializedError(self.package_name, existing, missing)

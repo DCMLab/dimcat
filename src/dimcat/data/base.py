@@ -3,10 +3,17 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
+from pprint import pformat
 from typing import Optional
 
 import marshmallow as mm
-from dimcat.base import DimcatConfig, DimcatObject, get_pickle_schema, get_setting
+from dimcat.base import (
+    DimcatConfig,
+    DimcatObject,
+    get_pickle_schema,
+    get_schema,
+    get_setting,
+)
 from dimcat.dc_exceptions import BaseFilePathMismatchError
 
 logger = logging.getLogger(__name__)
@@ -72,10 +79,36 @@ class Data(DimcatObject):
     @classmethod
     @property
     def pickle_schema(cls):
-        """Returns the (instantiated) PickleSchema singleton object for this class. It is different from the 'noremal'
+        """Returns the (instantiated) PickleSchema singleton object for this class. It is different from the 'normal'
         Schema in that it stores the tabular data to disk and returns the path to its descriptor.
         """
         return get_pickle_schema(cls.dtype)
+
+    class PickleSchema(DimcatObject.Schema):
+        """When serializing data objects, the basepath is used as location, but it is not included in the
+        descriptor, according to the frictionless specification."""
+
+        @mm.post_dump()
+        def validate_dump(self, data, **kwargs):
+            """
+            Make sure to never return invalid serialization data. Identical with PipelineStep.Schema.validate_dump().
+            """
+            if "dtype" not in data:
+                msg = (
+                    f"{self.name}: The serialized data doesn't have a 'dtype' field, meaning that DiMCAT would "
+                    f"not be able to deserialize it."
+                )
+                raise mm.ValidationError(msg)
+            dtype_schema = get_schema(data["dtype"])
+            report = dtype_schema.validate(data)
+            if report:
+                raise mm.ValidationError(
+                    f"Dump of {data['dtype']} created with a {self.name} could not be validated by "
+                    f"{dtype_schema.name}."
+                    f"\n\nDUMP:\n{pformat(data, sort_dicts=False)}"
+                    f"\n\nREPORT:\n{pformat(report, sort_dicts=False)}"
+                )
+            return dict(data)
 
     class Schema(DimcatObject.Schema):
         basepath = mm.fields.Str(

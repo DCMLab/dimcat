@@ -29,18 +29,16 @@ class DimcatCatalog(Data):
     Nevertheless, a DimcatCatalog can be stored as and created from a Catalog descriptor (ToDo).
     """
 
-    class Schema(Data.Schema):
-        basepath = mm.fields.Str(
-            required=False,
-            allow_none=True,
-            metadata=dict(description="The basepath for all packages in the catalog."),
-        )
+    class PickleSchema(Data.PickleSchema):
         packages = mm.fields.List(
             mm.fields.Nested(Package.Schema),
             required=False,
             allow_none=True,
             metadata=dict(description="The packages in the catalog."),
         )
+
+    class Schema(PickleSchema, Data.Schema):
+        pass
 
     def __init__(
         self,
