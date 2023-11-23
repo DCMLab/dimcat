@@ -43,8 +43,9 @@ class FeatureExtractor(FeatureProcessingStep):
         """Dispatch the passed resource to the appropriate method."""
         resource_constructor = self._get_new_resource_type(resource)
         if resource.__class__ == resource_constructor:
-            # this is the typical case when the FeatureExtractor simply iterates over features that have already been
-            # extracted from the Dataset. In this case there is no need to create a copy
+            # this is the typical case when the FeatureExtractor simply iterates over features that have been
+            # extracted from the Dataset using Dataset._extract_feature(). In this case there is no need to create a
+            # copy.
             return resource
         # when we get here it's probably because process_resource() was called directly
         resource_name = self.resource_name_factory(resource)

@@ -114,8 +114,13 @@ class Pipeline(PipelineStep):
             previous_resource = processed_resource
             try:
                 processed_resource = step._process_resource(previous_resource)
-            except Exception:
+            except Exception as e:
                 if ignore_exceptions:
+                    self.logger.info(
+                        f"{step.name!r}._process_resource() failed on {previous_resource.resource_name!r} and "
+                        f"ignore_exceptions=True, so the {previous_resource.name} will not have been processed by "
+                        f"this PipelineStep. Exception:\n{e!r}"
+                    )
                     continue
                 raise
             # ToDo: Check the processed resource and handle errors
