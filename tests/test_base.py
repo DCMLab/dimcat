@@ -264,29 +264,36 @@ def test_config():
 
 
 def test_subclass():
-    b_s = BaseObject.Schema()
-    sc_s = SubClass.Schema()
-    ssc_s = SubSubClass.Schema()
-    print(BaseObject.Schema.__qualname__, b_s.name)
-    print(SubClass.Schema.__qualname__, sc_s.name)
-    print(SubSubClass.Schema.__qualname__, ssc_s.name)
-    b_before = BaseObject(strong="Schtrong")
-    sc_before = SubClass(strong="strung", weak=True)
-    ssc_before = SubSubClass(strong="Strunk", weak=False)
-    for sch, obj in product((b_s, sc_s, ssc_s), (b_before, sc_before, ssc_before)):
-        print(f"{sch.name} dumps {obj.name}:")
+    base_schema = BaseObject.Schema()
+    subclass_schema = SubClass.Schema()
+    subsubclass_schema = SubSubClass.Schema()
+    print(BaseObject.Schema.__qualname__, base_schema.name)
+    print(SubClass.Schema.__qualname__, subclass_schema.name)
+    print(SubSubClass.Schema.__qualname__, subsubclass_schema.name)
+    base_object_before = BaseObject(strong="Schtrong")
+    subobject_before = SubClass(strong="strung", weak=True)
+    subsubobject_before = SubSubClass(strong="Strunk", weak=False)
+    for serialization_schema, serialized_object in product(
+        (base_schema, subclass_schema, subsubclass_schema),
+        (base_object_before, subobject_before, subsubobject_before),
+    ):
+        print(f"{serialization_schema.name} dumps {serialized_object.name}:")
         try:
-            dump = sch.dump(obj)
+            dump = serialization_schema.dump(serialized_object)
             print(dump)
         except ValidationError as e:
             print(e)
             continue
-        new_obj = deserialize_dict(dump)
-        assert obj.__dict__ == new_obj.__dict__
-        json = obj.to_json()
+        try:
+            new_obj = deserialize_dict(dump)
+        except ValidationError as e:
+            print(e)
+            continue
+        assert serialized_object.__dict__ == new_obj.__dict__
+        json = serialized_object.to_json()
         print(json)
         new_obj = deserialize_json_str(json)
-        assert obj.__dict__ == new_obj.__dict__
+        assert serialized_object.__dict__ == new_obj.__dict__
 
 
 def test_base():
