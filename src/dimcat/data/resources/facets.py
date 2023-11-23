@@ -2,9 +2,14 @@ from pathlib import Path
 from typing import Optional  # , ClassVar, Tuple
 
 import frictionless as fl
-from dimcat.base import ObjectEnum
+from dimcat.base import DimcatConfig, ObjectEnum
 from dimcat.data.resources import DimcatResource, FeatureName, Metadata, Resource
+from dimcat.data.resources.base import D
 from dimcat.data.resources.dc import HARMONY_FEATURE_NAMES
+from dimcat.data.resources.utils import (
+    condense_dataframe_by_groups,
+    make_adjacency_groups,
+)
 from typing_extensions import Self
 
 
@@ -114,7 +119,23 @@ class MuseScoreChords(MuseScoreFacet, ControlsFacet):
 
 
 class MuseScoreHarmonies(MuseScoreFacet, AnnotationsFacet):
-    _extractable_features = HARMONY_FEATURE_NAMES
+    _extractable_features = ("DcmlAnnotations",) + HARMONY_FEATURE_NAMES
+
+    def _prepare_feature_df(self, feature_config: DimcatConfig) -> D:
+        Constructor = feature_config.options_class
+        columns_to_load_if_available = Constructor.get_default_column_names()
+        feature_df = self.get_dataframe(usecols=tuple(columns_to_load_if_available))
+        return feature_df
+
+    def _transform_feature_df(self, feature_df: D, feature_config: DimcatConfig) -> D:
+        feature_name = FeatureName(feature_config.options_dtype)
+        if feature_name == FeatureName.KeyAnnotations:
+            groupby_levels = feature_df.index.names[:-1]
+            group_keys, _ = make_adjacency_groups(
+                feature_df.localkey, groupby=groupby_levels
+            )
+            feature_df = condense_dataframe_by_groups(feature_df, group_keys)
+        return feature_df
 
 
 class MuseScoreMeasures(MuseScoreFacet, StructureFacet):

@@ -1,279 +1,26 @@
 from __future__ import annotations
 
 import logging
-from functools import cache, cached_property
-from typing import (
-    ClassVar,
-    Iterable,
-    List,
-    MutableMapping,
-    Optional,
-    Type,
-    TypeAlias,
-    Union,
-)
+from typing import Optional
 
 import frictionless as fl
 import marshmallow as mm
 import ms3
 import pandas as pd
-from dimcat.base import (
-    DimcatConfig,
-    FriendlyEnum,
-    ObjectEnum,
-    get_class,
-    get_setting,
-    is_subclass_of,
-)
-from dimcat.data.resources.base import D, ResourceStatus
-from dimcat.data.resources.dc import DimcatResource
+from dimcat.base import FriendlyEnum
+from dimcat.data.resources.base import D
+from dimcat.data.resources.dc import HARMONY_FEATURE_NAMES, Feature
 from dimcat.data.resources.utils import (
     boolean_is_minor_column_to_mode,
     condense_dataframe_by_groups,
-    ensure_level_named_piece,
-    infer_schema_from_df,
-    load_fl_resource,
     make_adjacency_groups,
-    resolve_recognized_piece_columns_argument,
 )
 from dimcat.dc_exceptions import (
     DataframeIsMissingExpectedColumnsError,
     FeatureIsMissingFormatColumnError,
-    ResourceIsMissingFeatureColumnError,
-    ResourceNotProcessableError,
 )
 
 logger = logging.getLogger(__name__)
-
-
-class FeatureName(ObjectEnum):
-    Annotations = "Annotations"
-    Articulation = "Articulation"
-    BassNotes = "BassNotes"
-    HarmonyLabels = "HarmonyLabels"
-    KeyAnnotations = "KeyAnnotations"
-    Measures = "Measures"
-    Metadata = "Metadata"
-    Notes = "Notes"
-
-    def get_class(self) -> Type[Feature]:
-        return get_class(self.name)
-
-
-FIFTH_FEATURE_NAMES = (FeatureName.BassNotes, FeatureName.Notes)
-HARMONY_FEATURE_NAMES = (
-    FeatureName.BassNotes,
-    FeatureName.HarmonyLabels,
-    FeatureName.KeyAnnotations,
-)
-
-
-class Feature(DimcatResource):
-    _enum_type = FeatureName
-    _auxiliary_columns: Optional[ClassVar[List[str]]] = None
-    _feature_columns: Optional[ClassVar[List[str]]] = None
-    """Feature columns should be able to fully define an individual object. When creating the resource, any row
-    containing a missing value in one of the feature columns is dropped."""
-
-    def __init__(
-        self,
-        resource: fl.Resource = None,
-        descriptor_filename: Optional[str] = None,
-        basepath: Optional[str] = None,
-        auto_validate: bool = False,
-        default_groupby: Optional[str | list[str]] = None,
-        **kwargs,
-    ) -> None:
-        """
-
-        Args:
-            resource: An existing :obj:`frictionless.Resource`.
-            descriptor_filename:
-                Relative filepath for using a different JSON/YAML descriptor filename than the default
-                :func:`get_descriptor_filename`. Needs to on one of the file extensions defined in the
-                setting ``package_descriptor_endings`` (by default 'resource.json' or 'resource.yaml').
-            basepath: Where the file would be serialized.
-            auto_validate:
-                By default, the DimcatResource will not be validated upon instantiation or change (but always before
-                writing to disk). Set True to raise an exception during creation or modification of the resource,
-                e.g. replacing the :attr:`column_schema`.
-            default_groupby:
-                Pass a list of column names or index levels to groupby something else than the default (by piece).
-            **kwargs: Keyword arguments passed to :meth:`_init_feature`.
-        """
-        super().__init__(
-            resource=resource,
-            descriptor_filename=descriptor_filename,
-            basepath=basepath,
-            auto_validate=auto_validate,
-            default_groupby=default_groupby,
-        )
-        self._context_column_names: List[str] = []
-        """Context columns present in this resource. Depend on the setting 'context_columns'."""
-        self._feature_column_names: List[str] = []
-        """Feature columns present in this resource."""
-        self._treat_columns()
-        self._modify_name()
-
-    @property
-    def auxiliary_column_names(self):
-        if self._auxiliary_columns is None:
-            return []
-        return list(self._auxiliary_columns)
-
-    @property
-    def context_column_names(self) -> List[str]:
-        return list(self._context_column_names)
-
-    @cached_property
-    def df(self) -> D:
-        if self._df is not None:
-            feature_df = self._df
-        elif self.is_frozen:
-            resource_df = self.get_dataframe()
-            feature_df = self._make_feature_df(resource_df)
-            self._resource.schema = infer_schema_from_df(
-                feature_df
-            )  # ToDo: the new schema should be attributed via
-            # self.column_schema = ... but for that, the detachment from the feature from the original resource needs
-            # to be implemented, which involves adapting the status
-            self._df = feature_df
-            self._detach_from_basepath()  # skips ._update_status()
-            self.detach_from_descriptor()  # executes ._update_status()
-        else:
-            raise RuntimeError(f"No dataframe accessible for this {self.name}:\n{self}")
-        return feature_df
-
-    @property
-    def feature_column_names(self) -> List[str]:
-        """List of column names that this feature uses."""
-
-        if self._feature_columns is None:
-            available_columns = [
-                col
-                for col in self.field_names
-                if col not in self.column_schema.primary_key
-            ]
-            excluded_columns = list(self._context_column_names)
-            if self._auxiliary_columns is not None:
-                excluded_columns += self._auxiliary_columns
-            return [col for col in available_columns if col not in excluded_columns]
-        return list(self._feature_columns)
-
-    @property
-    def value_column(self) -> str:
-        """The name of the column that contains the values of the resource. May depend on format
-        settings.
-        """
-        if self._value_column is not None:
-            return self._value_column
-        if self.default_value_column is not None:
-            return self.default_value_column
-        if self._feature_columns is not None:
-            return self._feature_columns[-1]
-        return self.column_schema.field_names[-1]
-
-    @value_column.setter
-    def value_column(self, value_column: str):
-        if not isinstance(value_column, str):
-            raise TypeError(f"Expected a string, got {type(value_column)}")
-        if self.is_loaded and value_column not in self.field_names:
-            raise ValueError(
-                f"Column {value_column!r} does not exist in the resource's schema."
-            )
-        self._value_column = value_column
-
-    def get_column_names(self, include_index_levels: bool = False) -> List[str]:
-        """Retrieve the names of [index_levels] + auxiliary_column_names + feature_column_names"""
-        column_names = self.column_schema.primary_key if include_index_levels else []
-        column_names += (
-            self.context_column_names
-            + self.auxiliary_column_names
-            + self.feature_column_names
-        )
-        return column_names
-
-    @cache
-    def get_dataframe(self) -> D:
-        """
-        Load the dataframe from disk based on the descriptor's normpath.
-
-        Returns:
-            The dataframe or DimcatResource.
-        """
-        index_levels = self.column_schema.primary_key
-        usecols = self.get_column_names()
-        dataframe = load_fl_resource(
-            self._resource, index_col=index_levels, usecols=usecols
-        )
-        if not index_levels:
-            dataframe.index.rename("i", inplace=True)
-            recognized_piece_columns = resolve_recognized_piece_columns_argument()
-            if not any(col in dataframe.columns for col in recognized_piece_columns):
-                piece_name = self.filepath.split(".")[0]
-                dataframe = pd.concat([dataframe], keys=[piece_name], names=["piece"])
-        if "piece" not in dataframe.index.names:
-            dataframe.index, _ = ensure_level_named_piece(dataframe.index)
-        if self.status == ResourceStatus.STANDALONE_NOT_LOADED:
-            self._status = ResourceStatus.STANDALONE_LOADED
-        elif self.status == ResourceStatus.PACKAGED_NOT_LOADED:
-            self._status = ResourceStatus.PACKAGED_LOADED
-        return dataframe
-
-    def _make_feature_df(
-        self,
-        resource_df: D,
-    ):
-        len_before = len(resource_df)
-        feature_df = self._transform_resource_df(resource_df)
-        columns = self.get_column_names()
-        feature_df = feature_df[columns]
-        len_after = len(feature_df)
-        if len_before == len_after:
-            self.logger.debug(
-                f"Made {self.dtype} dataframe for {self.resource_name} with {len_after} non-empty rows."
-            )
-        else:
-            self.logger.debug(
-                f"Made {self.dtype} dataframe for {self.resource_name} dropping {len_before - len_after} "
-                f"rows with missing values."
-            )
-        return feature_df
-
-    def _modify_name(self):
-        """Modify the :attr:`resource_name` to reflect the feature."""
-        pass
-
-    def _transform_resource_df(self, feature_df):
-        """Called by :meth:`_make_feature_df` to transform the resource dataframe into a feature dataframe."""
-        if self._feature_columns is None:
-            result = feature_df.copy()
-        else:
-            result = feature_df.dropna(subset=self._feature_columns, how="any")
-        return result
-
-    def _treat_columns(self) -> None:
-        """Check which columns exist in the original resource and store the one that this feature uses."""
-        if self.is_empty:
-            return
-        available_columns = self.field_names
-        assert len(self.field_names), "No column schema defined for the given resource."
-        context_column_names = get_setting("context_columns")
-        if self._feature_columns is not None:
-            missing = [
-                col for col in self._feature_columns if col not in available_columns
-            ]
-            if missing:
-                raise ResourceIsMissingFeatureColumnError(
-                    self.resource_name, missing, self.name
-                )
-            # make sure context columns do not include feature columns
-            context_column_names = [
-                col for col in context_column_names if col not in self._feature_columns
-            ]
-        self._context_column_names = [
-            col for col in context_column_names if col in available_columns
-        ]
 
 
 class Metadata(Feature):
@@ -281,6 +28,15 @@ class Metadata(Feature):
 
 
 # region Annotations
+
+KEY_CONVENIENCE_COLUMNS = [
+    "globalkey_is_minor",
+    "globalkey_mode",
+    "localkey_and_mode",
+    "localkey_is_minor",
+    "localkey_mode",
+    "localkey_resolved",
+]
 
 
 def extend_keys_feature(
@@ -320,21 +76,43 @@ class Annotations(Feature):
 
 
 class DcmlAnnotations(Annotations):
-    _auxiliary_columns = [
-        "globalkey",
-        "localkey",
+    _auxiliary_column_names = [
+        "color",
+        "color_a",
+        "color_b",
+        "color_g",
+        "color_r",
+    ]
+    _convenience_column_names = [
+        "added_tones",
+        "bass_note",
+        "cadence",
+        "changes",
+        "chord_tones",
+        "chord_type",
+        "figbass",
+        "form",
         "globalkey_is_minor",
-        "localkey_is_minor",
         "globalkey_mode",
+        "localkey_and_mode",
+        "localkey_is_minor",
         "localkey_mode",
         "localkey_resolved",
-        "localkey_and_mode",
+        "numeral",
+        "pedal",
+        "pedalend",
+        "phraseend",
+        "relativeroot",
+        "root",
+        "special",
     ]
+    _feature_column_names = ["label"]
+    default_value_column = "label"
     _extractable_features = HARMONY_FEATURE_NAMES
 
-    def _transform_resource_df(self, feature_df):
-        """Called by :meth:`_make_feature_df` to transform the resource dataframe into a feature dataframe."""
-        feature_df = super()._transform_resource_df(feature_df)
+    def _format_dataframe(self, feature_df: D) -> D:
+        """Called by :meth:`_prepare_feature_df` to transform the resource dataframe into a feature dataframe."""
+        feature_df = super()._format_dataframe(feature_df)
         feature_df = extend_keys_feature(feature_df)
         return feature_df
 
@@ -370,6 +148,32 @@ class HarmonyLabelsFormat(FriendlyEnum):
 
 
 class HarmonyLabels(DcmlAnnotations):
+    _auxiliary_column_names = DcmlAnnotations._auxiliary_column_names + [
+        "cadence",
+        "label",
+        "phraseend",
+    ]
+    _convenience_column_names = KEY_CONVENIENCE_COLUMNS + [
+        "added_tones",
+        "bass_note",
+        "changes",
+        "chord_and_mode",
+        "chord_tones",
+        "chord_type",
+        "figbass",
+        "form",
+        "numeral",
+        "pedal",
+        "pedalend",
+        "relativeroot",
+        "root",
+        "special",
+    ]
+    _feature_column_names = [
+        "globalkey",
+        "localkey",
+        "chord",
+    ]
     default_value_column = "chord_and_mode"
 
     class Schema(DcmlAnnotations.Schema):
@@ -413,9 +217,9 @@ class HarmonyLabels(DcmlAnnotations):
     def format(self) -> HarmonyLabelsFormat:
         return self._format
 
-    def _transform_resource_df(self, feature_df):
-        """Called by :meth:`_make_feature_df` to transform the resource dataframe into a feature dataframe."""
-        feature_df = super()._transform_resource_df(feature_df)
+    def _format_dataframe(self, feature_df: D) -> D:
+        """Called by :meth:`_prepare_feature_df` to transform the resource dataframe into a feature dataframe."""
+        feature_df = super()._format_dataframe(feature_df)
         feature_df = extend_harmony_feature(feature_df)
         return feature_df
 
@@ -466,12 +270,13 @@ class BassNotesFormat(FriendlyEnum):
 class BassNotes(DcmlAnnotations):
     default_analyzer = "ScaleDegreeVectors"
     default_value_column = "bass_note_over_local_tonic"
-    _feature_columns = ["bass_note"]
-    _auxiliary_columns = DcmlAnnotations._auxiliary_columns + [
+    _convenience_column_names = KEY_CONVENIENCE_COLUMNS + [
         "bass_degree",
         "bass_note_over_local_tonic",
         "bass_degree_and_mode",
     ]
+    _feature_column_names = ["bass_note"]
+    default_value_column = "bass_note_over_local_tonic"
     _extractable_features = None
 
     class Schema(DcmlAnnotations.Schema):
@@ -527,15 +332,16 @@ class BassNotes(DcmlAnnotations):
         """Modify the :attr:`resource_name` to reflect the feature."""
         self.resource_name = f"{self.resource_name}.bass_notes"
 
-    def _transform_resource_df(self, feature_df):
-        """Called by :meth:`_make_feature_df` to transform the resource dataframe into a feature dataframe."""
-        feature_df = super()._transform_resource_df(feature_df)
+    def _format_dataframe(self, feature_df: D) -> D:
+        """Called by :meth:`_prepare_feature_df` to transform the resource dataframe into a feature dataframe."""
+        feature_df = super()._format_dataframe(feature_df)
         feature_df = extend_bass_notes_feature(feature_df)
         return feature_df
 
 
 class KeyAnnotations(DcmlAnnotations):
-    _auxiliary_columns = [
+    _auxiliary_column_names = ["label"]
+    _convenience_column_names = [
         "globalkey_is_minor",
         "localkey_is_minor",
         "globalkey_mode",
@@ -543,13 +349,13 @@ class KeyAnnotations(DcmlAnnotations):
         "localkey_resolved",
         "localkey_and_mode",
     ]
-    _feature_columns = ["globalkey", "localkey"]
+    _feature_column_names = ["globalkey", "localkey"]
     _extractable_features = None
     default_value_column = "localkey_and_mode"
 
-    def _transform_resource_df(self, feature_df):
-        """Called by :meth:`_make_feature_df` to transform the resource dataframe into a feature dataframe."""
-        feature_df = super()._transform_resource_df(feature_df)
+    def _format_dataframe(self, feature_df: D) -> D:
+        """Called by :meth:`_prepare_feature_df` to transform the resource dataframe into a feature dataframe."""
+        feature_df = super()._format_dataframe(feature_df)
         groupby_levels = feature_df.index.names[:-1]
         group_keys, _ = make_adjacency_groups(
             feature_df.localkey, groupby=groupby_levels
@@ -645,56 +451,6 @@ class Measures(Feature):
 
 # endregion Structure
 # region helpers
-
-FeatureSpecs: TypeAlias = Union[MutableMapping, Feature, FeatureName, str]
-
-
-def feature_specs2config(feature: FeatureSpecs) -> DimcatConfig:
-    """Converts a feature specification into a dimcat configuration.
-
-    Raises:
-        TypeError: If the feature cannot be converted to a dimcat configuration.
-    """
-    if isinstance(feature, DimcatConfig):
-        feature_config = feature
-    elif isinstance(feature, Feature):
-        feature_config = feature.to_config()
-    elif isinstance(feature, MutableMapping):
-        feature_config = DimcatConfig(feature)
-    elif isinstance(feature, str):
-        feature_name = FeatureName(feature)
-        feature_config = DimcatConfig(dtype=feature_name)
-    else:
-        raise TypeError(
-            f"Cannot convert the {type(feature).__name__} {feature!r} to DimcatConfig."
-        )
-    if feature_config.options_dtype == "DimcatConfig":
-        feature_config = DimcatConfig(feature_config["options"])
-    if not is_subclass_of(feature_config.options_dtype, Feature):
-        raise TypeError(
-            f"DimcatConfig describes a {feature_config.options_dtype}, not a Feature: "
-            f"{feature_config.options}"
-        )
-    return feature_config
-
-
-def features_argument2config_list(
-    features: Optional[FeatureSpecs | Iterable[FeatureSpecs]] = None,
-    allowed_features: Optional[Iterable[str | FeatureName]] = None,
-) -> List[DimcatConfig]:
-    if features is None:
-        return []
-    if isinstance(features, (MutableMapping, Feature, FeatureName, str)):
-        features = [features]
-    configs = []
-    for specs in features:
-        configs.append(feature_specs2config(specs))
-    if allowed_features:
-        allowed_features = [FeatureName(f) for f in allowed_features]
-        for config in configs:
-            if config.options_dtype not in allowed_features:
-                raise ResourceNotProcessableError(config.options_dtype)
-    return configs
 
 
 # endregion helpers

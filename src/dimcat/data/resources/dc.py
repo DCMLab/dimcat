@@ -12,9 +12,12 @@ from typing import (
     Hashable,
     Iterable,
     List,
+    MutableMapping,
     Optional,
     Sequence,
     Tuple,
+    TypeAlias,
+    Union,
 )
 
 import frictionless as fl
@@ -26,6 +29,7 @@ from dimcat.data.base import Data
 from dimcat.data.resources.base import (
     IX,
     D,
+    FeatureName,
     Resource,
     ResourceStatus,
     SomeDataframe,
@@ -35,6 +39,7 @@ from dimcat.data.resources.utils import (
     align_with_grouping,
     apply_slice_intervals_to_resource_df,
     ensure_level_named_piece,
+    feature_specs2config,
     get_time_spans_from_resource_df,
     infer_schema_from_df,
     load_fl_resource,
@@ -58,9 +63,10 @@ from plotly import graph_objs as go
 from typing_extensions import Self
 
 if TYPE_CHECKING:
-    from dimcat.data.resources.features import Feature, FeatureName
     from dimcat.data.resources.results import Result
     from dimcat.steps.base import StepSpecs
+
+# region DimcatResource
 
 resource_status_logger = logging.getLogger("dimcat.data.resources.ResourceStatus")
 
@@ -115,6 +121,16 @@ class DimcatResource(Resource, Generic[D]):
     DimcatPackage will take care of the serialization and not store an individual resource descriptor.
     """
 
+    _auxiliary_column_names: Optional[ClassVar[List[str]]] = None
+    """Names of columns that specify additional properties of the objects (each row is one object) but which are not
+    required. E.g., the color of an annotation label."""
+    _convenience_column_names: Optional[ClassVar[List[str]]] = None
+    """Names of columns containing other representations of the objects (each row is one object) which can be computed
+    from the feature columns in case they are missing."""
+    _feature_column_names: Optional[ClassVar[List[str]]] = None
+    """Name(s) of the column(s) which are required to fully define an individual object (each row is an object). When
+    creating the resource, any row containing a missing value in one of the feature columns is dropped."""
+    _extractable_features: Optional[ClassVar[Tuple[FeatureName, ...]]] = None
     default_analyzer: ClassVar[str] = "Proportions"
     """Name of the Analyzer that is used by default for plotting the resource. Needs to return a :obj:`Result`."""
     default_value_column: Optional[ClassVar[str]] = None
@@ -123,7 +139,6 @@ class DimcatResource(Resource, Generic[D]):
     it returns this column name. For :obj:`Features <Feature>`, the value defaults to the last element of
     :attr:`_feature_columns`.
     """
-    _extractable_features: Optional[ClassVar[Tuple[FeatureName, ...]]] = None
 
     @classmethod
     def from_descriptor(
@@ -194,6 +209,7 @@ class DimcatResource(Resource, Generic[D]):
         basepath: Optional[str] = None,
         auto_validate: bool = False,
         default_groupby: Optional[str | list[str]] = None,
+        **kwargs,
     ) -> Self:
         """Create a DimcatResource from a dataframe, specifying its name and, optionally, at what path it is to be
         serialized.
@@ -215,12 +231,12 @@ class DimcatResource(Resource, Generic[D]):
             basepath=basepath,
             descriptor_filename=descriptor_filename,
             auto_validate=auto_validate,
+            default_groupby=default_groupby,
+            **kwargs,
         )
         if resource_name is not None:
             new_object.resource_name = resource_name
         new_object.set_dataframe(df)
-        if default_groupby is not None:
-            new_object.default_groupby = default_groupby
         return new_object
 
     @classmethod
@@ -516,8 +532,9 @@ DimcatResource.__init__(
     def df(self) -> D:
         if self._df is not None:
             resource_df = self._df
-        elif self.is_frozen:
+        elif self.is_serialized:
             resource_df = self.get_dataframe()
+            self._df = resource_df
         else:
             RuntimeError(f"No dataframe accessible for this {self.name}:\n{self}")
         return resource_df
@@ -576,13 +593,15 @@ DimcatResource.__init__(
             return self._value_column
         if self.default_value_column is not None:
             return self.default_value_column
+        if self._feature_column_names is not None:
+            return self._feature_column_names[-1]
         return self.column_schema.field_names[-1]
 
     @value_column.setter
     def value_column(self, value_column: str):
         if not isinstance(value_column, str):
             raise TypeError(f"Expected a string, got {type(value_column)}")
-        if value_column not in self.field_names:
+        if self.is_loaded and value_column not in self.field_names:
             raise ValueError(
                 f"Column {value_column!r} does not exist in the resource's schema."
             )
@@ -623,20 +642,26 @@ DimcatResource.__init__(
         pipeline = Constructor(steps=steps)
         return pipeline.process_resource(self)
 
-    def extract_feature(
-        self,
-        feature_config: DimcatConfig,
-        new_name: Optional[str] = None,
-    ) -> Feature:
+    def _check_feature_config(self, feature_config: DimcatConfig) -> None:
+        """
+        Check whether a feature that is compatible with the given configuration can be extracted from this resource.
+        """
         feature_name = feature_config.options_dtype
         if feature_name not in self.extractable_features:
             raise FeatureUnavailableError(feature_name, self.resource_name)
-        # ToDo: here we'll have a method for checking the compatibility of the requested Config settings
+
+    def extract_feature(
+        self,
+        feature: FeatureSpecs,
+        new_name: Optional[str] = None,
+    ) -> Feature:
+        feature_config = feature_specs2config(feature)
+        self._check_feature_config(feature_config)
         return self._extract_feature(feature_config=feature_config, new_name=new_name)
 
     def _extract_feature(
         self,
-        feature_config: DimcatConfig,
+        feature_config: FeatureSpecs,
         new_name: Optional[str] = None,
     ) -> Feature:
         """The internal part of the feature extraction that subclasses can override to perform certain transformations
@@ -646,7 +671,29 @@ DimcatResource.__init__(
         Constructor = get_class(feature_name)
         if new_name is None:
             new_name = f"{self.resource_name}.{feature_name.lower()}"
-        return Constructor.from_resource(self, resource_name=new_name)
+        feature_df = self._prepare_feature_df(feature_config)
+        len_before = len(feature_df)
+        feature_df = self._transform_feature_df(feature_df, feature_config)
+        feature = Constructor.from_dataframe(
+            df=feature_df,
+            resource_name=new_name,
+            descriptor_filename=None,
+            basepath=None,
+            auto_validate=self.auto_validate,
+            default_groupby=self.default_groupby,
+        )
+        len_after = len(feature.df)
+        self.logger.debug(
+            f"Create {Constructor.name} with {len_after} rows from {self.name} {self.resource_name!r} of length "
+            f"{len_before}."
+        )
+        return feature
+
+    def _format_dataframe(self, df: D) -> D:
+        """Format the dataframe before it is set for this resource. The method is called by :meth:`_set_dataframe`
+        and typically adds convenience columns."""
+        # TODO: implant this where appropriate: df.dropna(subset=self._feature_column_names, how="any")
+        return df
 
     def _get_current_status(self) -> ResourceStatus:
         if self.is_packaged:
@@ -703,24 +750,28 @@ DimcatResource.__init__(
                 return ResourceStatus.EMPTY
 
     @cache
-    def get_dataframe(self) -> D:
+    def get_dataframe(
+        self,
+        index_col: Optional[int | str | Tuple[int | str]] = None,
+        usecols: Optional[int | str | Tuple[int | str]] = None,
+    ) -> D:
         """
         Load the dataframe from disk based on the descriptor's normpath.
+
+        Args:
+            index_col:
+                Can be used to override the primary_key(s) specified in the resource's schema.
+                Value(s) can be column name(s) or column position(s), or both.
+            usecols:
+                If only a subset of the fields specified in the resource's schema is to be loaded,
+                the names or positions of the subset.
 
         Returns:
             The dataframe or DimcatResource.
         """
-        dataframe = load_fl_resource(self._resource)
-        status_before = self.status
-        if self.status == ResourceStatus.STANDALONE_NOT_LOADED:
-            self._status = ResourceStatus.STANDALONE_LOADED
-        elif self.status == ResourceStatus.PACKAGED_NOT_LOADED:
-            self._status = ResourceStatus.PACKAGED_LOADED
-        if self.status != status_before:
-            resource_status_logger.debug(
-                f"After loading the frictionless resource of {self.resource_name} for the first "
-                f"time, the status has been changed from {status_before!r} to {self._status!r}."
-            )
+        dataframe = load_fl_resource(
+            self._resource, index_col=index_col, usecols=usecols
+        )
         return dataframe
 
     @cache
@@ -783,6 +834,11 @@ DimcatResource.__init__(
     def get_slice_intervals(
         self, round: Optional[int] = None, level_name: Optional[str] = None
     ) -> SliceIntervals:
+        """Returns a :class:`SliceIntervals` object based on the result of :meth:`get_time_spans`.
+        Effectively, this is this resource's :class:`DimcatIndex` with an appended level containing
+        the time spans of the events represented by the resource's rows. This object can be used to
+        slice any other resource that has pieces in common.
+        """
         time_spans = self.get_time_spans(round=round, to_float=True, dropna=True)
         relevant_subset = time_spans[["start", "end"]]
         index_tuples, erroneous = [], []
@@ -800,7 +856,7 @@ DimcatResource.__init__(
 
     def get_time_spans(
         self, round: Optional[int] = None, to_float: bool = True, dropna: bool = False
-    ) -> pd.DataFrame:
+    ) -> D:
         """Returns a dataframe with start ('left') and end ('end') positions of the events represented by this
         resource's rows.
 
@@ -813,9 +869,14 @@ DimcatResource.__init__(
         Returns:
 
         """
+        df = self.df
+        if "quarterbeats_all_endings" in df.columns:
+            start_col = "quarterbeats_all_endings"
+        else:
+            start_col = "quarterbeats"
         return get_time_spans_from_resource_df(
             df=self.df,
-            start_column_name="quarterbeats",
+            start_column_name=start_col,
             duration_column_name="duration_qb",
             round=round,
             to_float=to_float,
@@ -833,6 +894,12 @@ DimcatResource.__init__(
     def _make_empty_fl_resource(self):
         """Create an empty frictionless resource object with a minimal descriptor."""
         return make_tsv_resource()
+
+    def _prepare_feature_df(self, feature_config: DimcatConfig) -> D:
+        """Prepare this resources dataframe for the extraction of a feature. This frequently involves subselecting
+        relevant columns.
+        """
+        return self.df
 
     def plot(
         self,
@@ -874,6 +941,7 @@ DimcatResource.__init__(
             self.logger.info(
                 f"Got a series, converted it into a dataframe with column name {df.columns[0]}."
             )
+        df = self._format_dataframe(df)
         self._df = df
         if not self.column_schema.fields:
             try:
@@ -893,8 +961,9 @@ DimcatResource.__init__(
     def set_dataframe(self, df):
         if self.descriptor_exists:
             raise PotentiallyUnrelatedDescriptorError(
-                message=f"Cannot set dataframe on a resource whose valid descriptor has been written to disk. "
-                f"Create a new resource via {self.name}.from_descriptor({self.get_descriptor_path()!r})."
+                message=f"Cannot set dataframe on a resource the points to an existing descriptor file, because that "
+                f"could lead to a discrepancy between the dataframe and the descriptor."
+                f"Maybe you want to create a new resource via {self.name}.from_dataframe(<dataframe>)?"
             )
         if self.resource_exists:
             raise ResourceIsFrozenError(
@@ -969,6 +1038,11 @@ DimcatResource.__init__(
                 f"After writing {self.resource_name} to disk, the status has been changed from {status_before!r} to "
                 f"{self.status!r}"
             )
+
+    def _transform_feature_df(self, feature_df: D, feature_config: DimcatConfig) -> D:
+        """Transform the dataframe after it has been prepared for feature extraction. This frequently involves
+        dropping rows."""
+        return feature_df
 
     def summary_dict(self) -> dict:
         summary = self.to_dict()
@@ -1055,6 +1129,10 @@ DimcatResource.__init__(
             if get_setting("never_store_unvalidated_data") and raise_exception:
                 raise fl.FrictionlessException("\n".join(errors))
         return report
+
+
+# endregion DimcatResource
+# region DimcatIndex
 
 
 class IndexField(mm.fields.Field):
@@ -1315,3 +1393,63 @@ class PieceIndex(DimcatIndex[IX]):
                 index.names[-1] == "piece"
             ), f"Expected last level to be named 'piece', got {index.names[-1]!r}."
         super().__init__(index)
+
+
+# endregion DimcatIndex
+# region Feature
+
+
+FIFTH_FEATURE_NAMES = (FeatureName.BassNotes, FeatureName.Notes)
+HARMONY_FEATURE_NAMES = (
+    FeatureName.BassNotes,
+    FeatureName.HarmonyLabels,
+    FeatureName.KeyAnnotations,
+)
+
+
+class Feature(DimcatResource):
+    _enum_type = FeatureName
+
+    @classmethod
+    def get_default_column_names(
+        cls, include_context_columns: bool = True
+    ) -> List[str]:
+        """Returns the default column names for a DimcatResource."""
+        column_names = []
+        if include_context_columns:
+            column_names.extend(get_setting("context_columns"))
+        if cls._auxiliary_column_names:
+            column_names.extend(cls._auxiliary_column_names)
+        if cls._convenience_column_names:
+            column_names.extend(cls._convenience_column_names)
+        if cls._feature_column_names:
+            column_names.extend(cls._feature_column_names)
+        return column_names
+
+    def get_available_column_names(
+        self,
+        index_levels: bool = False,
+        context_columns: bool = True,
+        auxiliary_columns: bool = True,
+        convenience_columns: bool = True,
+        feature_columns: bool = True,
+    ):
+        """Returns the column names that are available on the resource."""
+        column_names = []
+        if context_columns:
+            column_names.extend(get_setting("context_columns"))
+        if auxiliary_columns and self._auxiliary_column_names:
+            column_names.extend(self._auxiliary_column_names)
+        if convenience_columns and self._convenience_column_names:
+            column_names.extend(self._convenience_column_names)
+        if feature_columns and self._feature_column_names:
+            column_names.extend(self._feature_column_names)
+        available_columns = [col for col in column_names if col in self.df.columns]
+        if index_levels:
+            available_columns = self.get_level_names() + available_columns
+        return available_columns
+
+
+FeatureSpecs: TypeAlias = Union[MutableMapping, Feature, FeatureName, str]
+
+# endregion Feature
