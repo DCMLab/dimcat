@@ -268,11 +268,23 @@ The top level of the `src/dimcat` directory consists of the two packages ``data`
 files which, here, we call ``base``.
 
 * All modules can import from ``base`` and ``data``.
-* ``data`` modules should not import from ``steps``. The only case where currently it would have been required so far
-  are the classes :class:`dimcat.steps.base.Pipeline` and :class:`dimcat.steps.extractors.FeatureExtractor`, which
-  :class:`dimcat.data.dataset.Dataset` uses explicitly. In these cases, importing from ``steps`` is circumvented using
-  the :func:`dimcat.base.get_class` function.
-* All modules can import from ``dimcat.utils`` except for ``dimcat.base``.
+* ``data`` modules should not import from ``steps``. Whenever a step is needed, its constructor can be retrieved using :func:`dimcat.base.get_class` function.
+* All modules can import from ``dimcat.utils`` except for ``dimcat.base``. Likewise, the ``base`` module of any package cannot import from its sibling ``.utils``.
+  This makes it possible to pull up those elements would otherwise be defined in one of the adjacent modules (which generally do import ``.utils``),
+  but which are required by one or several utility functions. For example, the Enum ``dimcat.data.resources.base.FeatureName``, conceptually, belongs into
+  ``dimcat.data.resources.dc``, where the ``Feature`` class is defined. However, since ``dimcat.data.resources.utils.feature_specs2config()`` needs to import the Enum,
+  it is moved up to ``dimcat.data.resources.base``. Hence, no base module shall ever import from ``.utils``. Any utility functions it requires can go into the ``utils``
+  of its parent -- or ``dimcat.utils``.
+
+Order of module members
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* imports
+* constants
+* one or several groups, enclosed in ``# region <name>`` and ``# endregion <name>`` comments:
+
+  * classes
+  * functions
 
 Order of attributes and methods
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -283,18 +295,20 @@ are sorted as if they didn't have a leading underscore.
 * class members
 
   * class variables
-  * `@staticmethod`
-  * `@classmethod
-     @property`
-  * `@classmethod`
-  * nested classes (esp. `Schema()`)
+  * ``@staticmethod``
+  * @classmethod
+    @property
+  * ``@classmethod``
+  * nested classes (esp. ``Schema()``)
 
 * instance members
 
-  * `__init__()`
+  * ``__init__()``
   * magic methods
-  * `@property` and setters
+  * ``@property`` and setters
   * public and private methods
+
+
 
 
 Troubleshooting
