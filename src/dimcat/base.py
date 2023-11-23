@@ -8,7 +8,7 @@ from configparser import ConfigParser
 from dataclasses import dataclass
 from dataclasses import field as dataclass_field
 from enum import Enum
-from functools import cache
+from functools import cache, cached_property
 from inspect import isclass
 from pprint import pformat
 from typing import (
@@ -334,6 +334,7 @@ class FriendlyEnum(str, Enum):
 
 
 class ObjectEnum(FriendlyEnum):
+    @cache
     def get_class(self) -> Type[DimcatObject]:
         return get_class(self.name)
 
@@ -530,7 +531,7 @@ class DimcatConfig(MutableMapping, DimcatObject):
                 raise ValidationError(msg)
         self._options[key] = value
 
-    @property
+    @cached_property
     def options_class(self):
         """The class of the described DimcatObject."""
         return get_class(self.options_dtype)
@@ -618,7 +619,6 @@ def is_name_of_dimcat_class(name) -> bool:
         return False
 
 
-@cache
 def is_instance_of(obj, class_or_tuple: Type | Tuple[Type | str, ...]):
     """Returns True if the given object is an instance of the given class or one of the given classes."""
     if not isinstance(class_or_tuple, tuple):
@@ -711,8 +711,11 @@ class DimcatSettings(DimcatObject):
             "timesig",
             "staff",
             "voice",
+            "volta",
         ]
     )
+    """the columns that are considered essential for locating elements horizontally and vertically and which are
+    therefore always copied, if present, and moved to the left of the new dataframe in the order given here"""
     default_basepath: str = "~/dimcat_data"
     """where to serialize data if no other basepath is specified"""
     default_figure_path: str = "~/dimcat_data"
