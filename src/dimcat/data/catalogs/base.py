@@ -103,6 +103,7 @@ class DimcatCatalog(Data):
         self,
         package: PackageSpecs,
         basepath: Optional[str] = None,
+        copy: bool = False,
     ):
         """Adds a :obj:`Package` to the catalog."""
         if isinstance(package, fl.Package):
@@ -110,7 +111,10 @@ class DimcatCatalog(Data):
         elif isinstance(package, str):
             dc_package = Package.from_descriptor_path(package)
         elif isinstance(package, Package):
-            dc_package = package.copy()
+            if copy:
+                dc_package = package.copy()
+            else:
+                dc_package = package
         else:
             msg = f"{self.name}.add_package() takes a package, not {type(package)!r}."
             raise TypeError(msg)
