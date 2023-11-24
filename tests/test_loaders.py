@@ -42,26 +42,7 @@ MuseScoreLoader(
     assert len(os.listdir(tmp_package_path)) > 1
 
 
-def test_music21_single_filepath(corpus_path, score_path, tmp_package_path):
-    L = Music21Loader.from_filepaths(
-        filepaths=score_path,
-        package_name="music21_single_resource",
-        basepath=tmp_package_path,
-    )
-    logger.info(
-        f"""
-Music21Loader.from_filepaths(
-    filepaths={score_path!r},
-    package_name="music21_single_resource",
-    basepath={tmp_package_path!r},
-)"""
-    )
-    L.parse_and_extract()
-    logger.info(f"Loader.processed_ids: {L.processed_ids}")
-    assert len(L.processed_ids) == 1
-
-
-def test_music21_single_resource(corpus_path, score_path, tmp_package_path):
+def test_music21_single_filepath(score_path, tmp_package_path):
     L = Music21Loader.from_filepaths(
         filepaths=score_path,
         package_name="music21_single_resource",
@@ -86,6 +67,25 @@ Music21Loader.from_filepaths(
 )
 def m21_path_resource(request):
     return PathResource.from_resource_path(request.param)
+
+
+def test_music21_single_resource(m21_path_resource, tmp_package_path):
+    L = Music21Loader.from_resources(
+        resources=m21_path_resource,
+        package_name="music21_single_resource",
+        basepath=tmp_package_path,
+    )
+    logger.info(
+        f"""
+Music21Loader.from_resources(
+    resources={m21_path_resource!r},
+    package_name="music21_single_resource",
+    basepath={tmp_package_path!r},
+)"""
+    )
+    L.parse_and_extract()
+    logger.info(f"Loader.processed_ids: {L.processed_ids}")
+    assert len(L.processed_ids) == 1
 
 
 def test_music21_list_of_paths(list_of_m21_score_paths, tmp_package_path):
@@ -134,7 +134,7 @@ Pipeline([
 def test_package_loader(corpus_path):
     L = PackageLoader.from_directory(corpus_path)
     D = L.create_dataset()
-    logger.info(f"Dataset after loading package:\n{D}")
+    print(f"Dataset after loading package:\n{D}")
     assert len(D.inputs) == 1
     assert D.inputs.package_names == ["unittest_metacorpus"]
 

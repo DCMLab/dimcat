@@ -29,10 +29,7 @@ from dimcat.data.packages.base import Package, PathPackage
 from dimcat.data.packages.dc import DimcatPackage
 from dimcat.data.packages.score import ScorePathPackage
 from dimcat.data.resources.base import PathResource, Resource
-from dimcat.data.resources.utils import (
-    is_default_package_descriptor_path,
-    make_rel_path,
-)
+from dimcat.data.utils import is_default_package_descriptor_path, make_rel_path
 from dimcat.dc_exceptions import (
     DuplicateIDError,
     DuplicateResourceIDsError,
@@ -506,6 +503,39 @@ class ScoreLoader(Loader):
         )
         loader.add_package(package)
         return loader
+
+    @classmethod
+    def from_resources(
+        cls,
+        resources: Iterable[PathResource] | PathResource,
+        package_name: str,
+        auto_validate: bool = False,
+        basepath: Optional[str] = None,
+        loader_name: Optional[str] = None,
+        overwrite: bool = False,
+    ) -> Self:
+        """Create a loader from a :obj:`ScorePackage` created on the fly from an iterable of PathResources.
+
+        Args:
+            resources: The :class:`PathResource` objects that will be turned into a package.
+            package_name: The name of the new package.
+            auto_validate: Set True to validate the new package after copying it.
+            basepath: The basepath where the new package will be stored. If None, the basepath of the original package
+        """
+        if isinstance(resources, Resource):
+            resources = [resources]
+        new_package = ScorePathPackage.from_resources(
+            resources=resources,
+            package_name=package_name,
+            auto_validate=auto_validate,
+            basepath=basepath,
+        )
+        return cls.from_package(
+            package=new_package,
+            basepath=basepath,
+            loader_name=loader_name,
+            overwrite=overwrite,
+        )
 
     class Schema(Loader.Schema):
         loader_name = mm.fields.Str(

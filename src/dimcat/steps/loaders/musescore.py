@@ -28,6 +28,7 @@ class MuseScoreLoader(ScoreLoader):
         ".xml",
     )
     """Convertible file formats accepted if a MuseScore executable is specified (parameter ``ms``)."""
+    default_loader_name = "musescore"
 
     class Schema(Loader.Schema):
         pass

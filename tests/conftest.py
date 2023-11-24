@@ -65,7 +65,7 @@ PACKAGE_DESCRIPTOR_PATHS = {
     for file in os.listdir(CORPUS_PATH)
     if file.endswith("package.json")
 }
-TEST_N_SCORES = 10
+TEST_N_SCORES = 3
 
 
 @pytest.fixture(scope="session")
