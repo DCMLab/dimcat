@@ -8,6 +8,7 @@ from dimcat.data.resources.results import (
     Result,
     ScaleDegreeDurations,
 )
+from dimcat.dc_exceptions import FeatureWithUndefinedValueColumnError
 from dimcat.steps.analyzers.base import Analyzer
 
 logger = logging.getLogger(__name__)
@@ -21,6 +22,14 @@ class Proportions(Analyzer):
         result = feature.groupby(feature.value_column).duration_qb.sum().astype(float)
         result = result.to_frame()
         return result
+
+    def check_resource(self, resource: DimcatResource) -> None:
+        """Check if the resource has a value column."""
+        super().check_resource(resource)
+        if resource.value_column is None:
+            raise FeatureWithUndefinedValueColumnError(
+                resource.resource_name, resource.name
+            )
 
     def groupby_apply(self, feature: Feature, groupby: SomeSeries = None, **kwargs):
         """Performs the computation on a groupby. The value of ``groupby`` needs to be
