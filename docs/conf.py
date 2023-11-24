@@ -76,7 +76,17 @@ extensions = [
     "myst_nb",         # rendering Jupyter notebooks (including in MyST Markdown syntax)
     "jupyter_sphinx",  # rendering interactive Plotly in notebooks
 ]
-# pip install myst-nb
+
+source_suffix = {
+    '.rst': 'restructuredtext',
+    '.md': 'myst-nb',
+}
+
+# MyST-NB configuration https://myst-nb.readthedocs.io/en/latest/configuration.html
+myst_enable_extensions = [
+    "colon_fence",
+    "linkify",
+]
 
 # MyST-NB configuration https://myst-nb.readthedocs.io/en/latest/configuration.html
 nb_execution_timeout = 180
@@ -137,6 +147,8 @@ exclude_patterns = [
     ".DS_Store",
     ".venv",
     "notebooks*",
+    "tutorial*",
+    "mwe*",
 ]
 
 # The reST default role (used for this markup: `text`) to use for all documents.
