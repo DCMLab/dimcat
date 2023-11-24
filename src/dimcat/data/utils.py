@@ -116,7 +116,13 @@ def warn_about_potentially_unrelated_descriptor(
         )
 
 
-def store_as_json_or_yaml(descriptor_dict: dict, descriptor_path: str):
+def store_as_json_or_yaml(
+    descriptor_dict: dict,
+    descriptor_path: str,
+    create_dirs: bool = True,
+):
+    if create_dirs:
+        os.makedirs(os.path.dirname(descriptor_path), exist_ok=True)
     if descriptor_path.endswith(".yaml"):
         with open(descriptor_path, "w") as f:
             yaml.dump(descriptor_dict, f)
