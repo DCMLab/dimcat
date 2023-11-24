@@ -535,6 +535,7 @@ DimcatResource.__init__(
         elif self.is_serialized:
             resource_df = self.get_dataframe()
             self._df = resource_df
+            self._update_status()
         else:
             RuntimeError(f"No dataframe accessible for this {self.name}:\n{self}")
         return resource_df
@@ -756,7 +757,7 @@ DimcatResource.__init__(
         usecols: Optional[int | str | Tuple[int | str]] = None,
     ) -> D:
         """
-        Load the dataframe from disk based on the descriptor's normpath.
+        Load the dataframe from disk based on the descriptor's normpath. This does not change the resource's status.
 
         Args:
             index_col:
