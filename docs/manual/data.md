@@ -52,12 +52,12 @@ The `sweelinck_keyboard` repository contains a single MuseScore file (in the fol
 Let's load it:
 
 ```{code-cell}
-from dimcat.data.resource import DimcatResource, PathResource
+from dimcat import resources
 ```
 
 ```{code-cell}
 score_resource = os.path.join(sweelinck_dir, "MS3", "SwWV258_fantasia_cromatica.mscx")
-score_resource = PathResource.from_resource_path(score_resource)
+score_resource = resources.PathResource.from_resource_path(score_resource)
 score_resource.get_path_dict()
 ```
 
@@ -86,13 +86,13 @@ score_resource.descriptor_exists
 To underline the functionality of the path resource, even the new descriptor can be treated as a resource:
 
 ```{code-cell}
-PathResource.from_resource_path(score_descriptor_path)
+resources.PathResource.from_resource_path(score_descriptor_path)
 ```
 
 Which is different from creating the original PathResource from the created descriptor:
 
 ```{code-cell}
-PathResource.from_descriptor_path(score_descriptor_path)
+resources.PathResource.from_descriptor_path(score_descriptor_path)
 ```
 
 Note that the `descriptor_filename` is now set to keep track of the existing one the resource originates from.
@@ -137,7 +137,7 @@ Let's create one from a TSV resource descriptor:
 
 ```{code-cell}
 notes_descriptor_path = os.path.join(sweelinck_dir, "notes", "SwWV258_fantasia_cromatica.notes.resource.json")
-notes_resource = DimcatResource.from_descriptor_path(notes_descriptor_path)
+notes_resource = resources.DimcatResource.from_descriptor_path(notes_descriptor_path)
 notes_resource
 ```
 
@@ -172,11 +172,11 @@ Just like resources, packages have a basepath and may be stored as a frictionles
 For starters, let's assemble a package from scratch:
 
 ```{code-cell}
-from dimcat.data.package import PathPackage, DimcatPackage
+from dimcat import packages
 ```
 
 ```{code-cell}
-path_package = PathPackage(package_name="scratch")
+path_package = packages.PathPackage(package_name="scratch")
 path_package
 ```
 
@@ -202,7 +202,7 @@ path_package.store_descriptor()
 We can also create a package directly from a resource:
 
 ```{code-cell}
-dimcat_package = DimcatPackage.from_resources([notes_resource], package_name="pack")
+dimcat_package = packages.DimcatPackage.from_resources([notes_resource], package_name="pack")
 dimcat_package
 ```
 
@@ -228,13 +228,13 @@ score_resource.to_config().create()
 
 ```{code-cell}
 notes_descriptor_path = os.path.join(sweelinck_dir, "notes", "SwWV258_fantasia_cromatica.notes.resource.json")
-notes_path_resource = Resource.from_descriptor_path(notes_descriptor_path)
-notes_path_resource = PathResource.from_descriptor_path(notes_descriptor_path)
+notes_path_resource = resources.Resource.from_descriptor_path(notes_descriptor_path)
+notes_path_resource = resources.PathResource.from_descriptor_path(notes_descriptor_path)
 notes_path_resource
 ```
 
 ```{code-cell}
-notes_resource = Resource.from_descriptor_path(notes_descriptor_path)
+notes_resource = resources.Resource.from_descriptor_path(notes_descriptor_path)
 notes_resource
 ```
 
