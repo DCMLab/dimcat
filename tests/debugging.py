@@ -1,25 +1,18 @@
-import dimcat
-from dimcat import deserialize_dict
+import os
+
+from dimcat.data import packages
+
+
+def resource_names(path):
+    return os.sep.join(path.split(os.sep)[-2:])
+
 
 if __name__ == "__main__":
-    package_path = "/home/laser/git/dimcat/docs/mwe/dcml_corpora.datapackage.json"
-    D = dimcat.Dataset.from_package(package_path)
-    pipeline_specs = {
-        "dtype": "Pipeline",
-        "steps": [
-            {
-                "dtype": "ModeGrouper",
-                "features": [],
-                "level_name": "mode",
-                "grouped_column": "localkey_mode",
-            },
-            {
-                "dtype": "FeatureExtractor",
-                "features": [
-                    {"dtype": "DimcatConfig", "options": {"dtype": "BassNotes"}}
-                ],
-            },
-        ],
-    }
-    PL = deserialize_dict(pipeline_specs)
-    processed_D = PL.process(D)
+    corpus_path = "/home/laser/git/dimcat/unittest_metacorpus"
+
+    package = packages.Package.from_directory(
+        corpus_path,
+        package_name="unittest_corpus",
+        exclude_re="(?:yml|py)$",  # needed as long as the three corpora contain the .github/workflow
+        resource_names=resource_names,
+    )

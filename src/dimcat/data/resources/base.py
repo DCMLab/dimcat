@@ -457,8 +457,10 @@ class Resource(Data):
         if is_default_descriptor_path(resource_path):
             warnings.warn(
                 f"You have passed the descriptor path {resource_path!r} to {cls.name}.from_resource_path()"
-                f" meaning that the descriptor itself will be treated like a resource and not the resource "
-                f"it describes. You may want to use {cls.name}.from_descriptor_path() instead.",
+                f" meaning that the descriptor file itself will be treated like a resource (which could get its own "
+                f"descriptor) rather than as the resource it describes. To avoid this warning, instead of Resource use "
+                f"either PathResource (to treat the descriptor as a mere path) or DimcatResource (to evaluate the "
+                f"descriptor and access the data it describes).",
                 SyntaxWarning,
             )
         basepath, resource_path = reconcile_base_and_file(basepath, resource_path)

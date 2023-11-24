@@ -189,7 +189,7 @@ class Package(Data):
     """Determines which files are detected by :meth:`from_directory` if ``extensions`` is not specified.
     If None, all files are detected.
     """
-    default_mode: ClassVar[PackageMode] = PackageMode.RAISE
+    default_mode: ClassVar[PackageMode] = PackageMode.ALLOW_MISALIGNMENT
     """How the class deals with newly added resources. See :class:`PackageMode` for details."""
 
     store_zipped: ClassVar[bool] = True

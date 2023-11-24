@@ -26,9 +26,9 @@ class TestPackage:
         return request.param
 
     @pytest.fixture()
-    def expected_basepath(self):
+    def expected_basepath(self, tmp_package_path):
         """The expected basepath of the resource after initialization."""
-        return None
+        return tmp_package_path
 
     @pytest.fixture()
     def expected_package_status(self, package_constructor):
@@ -51,8 +51,9 @@ class TestPackage:
     def package_obj(self, package_constructor, tmp_package_path):
         """For each subclass of TestDimcatPackage, this fixture should be overridden and yield the
         tested DimcatPackage object."""
-        change_setting("default_basepath", tmp_package_path)
-        return package_constructor(package_name="empty_package")
+        return package_constructor(
+            package_name="empty_package", basepath=tmp_package_path
+        )
 
     def test_basepath_after_init(self, package_obj, expected_basepath):
         assert package_obj.basepath == expected_basepath
@@ -107,9 +108,10 @@ class TestPackageFromFilePaths(TestPackage):
     ):
         """For each subclass of TestDimcatPackage, this fixture should be overridden and yield the
         tested DimcatPackage object."""
-        change_setting("default_basepath", tmp_package_path)
         package = package_constructor.from_filepaths(
-            filepaths=list_of_mixed_score_paths, package_name="mixed_files"
+            basepath=tmp_package_path,
+            filepaths=list_of_mixed_score_paths,
+            package_name="mixed_files",
         )
         return package
 
@@ -122,7 +124,7 @@ class TestPackageFromFileDirectory(TestPackage):
     @pytest.fixture()
     def expected_package_status(self, package_constructor):
         if package_constructor == Package:
-            return PackageStatus.ALIGNED
+            return PackageStatus.MISALIGNED
         else:
             return PackageStatus.PATHS_ONLY
 
