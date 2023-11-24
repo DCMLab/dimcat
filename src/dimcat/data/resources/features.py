@@ -28,6 +28,18 @@ class Metadata(Feature):
 
 
 # region Annotations
+AUXILIARY_HARMONYLABEL_COLUMNS = [
+    "cadence",
+    "label",
+    "phraseend",
+    "chord_tones",
+    "chord_type",
+    "figbass",
+    "form",
+    "numeral",
+]
+"""These columns are included in sub-features of HarmonyLabels to enable more means of investigation,
+such as groupers."""
 
 KEY_CONVENIENCE_COLUMNS = [
     "globalkey_is_minor",
@@ -37,6 +49,8 @@ KEY_CONVENIENCE_COLUMNS = [
     "localkey_mode",
     "localkey_resolved",
 ]
+"""These columns are computed by default for all Annotations that include keys, where global keys are given as note
+names, and local keys are given as Roman numerals. In both cases, lowercase strings are interpreted as minor keys."""
 
 
 def extend_keys_feature(
@@ -267,15 +281,22 @@ class BassNotesFormat(FriendlyEnum):
     SCALE_DEGREE = "SCALE_DEGREE"
 
 
-class BassNotes(DcmlAnnotations):
+class BassNotes(HarmonyLabels):
     default_analyzer = "ScaleDegreeVectors"
     default_value_column = "bass_note_over_local_tonic"
+    _auxiliary_column_names = (
+        DcmlAnnotations._auxiliary_column_names + AUXILIARY_HARMONYLABEL_COLUMNS
+    )
     _convenience_column_names = KEY_CONVENIENCE_COLUMNS + [
         "bass_degree",
         "bass_note_over_local_tonic",
         "bass_degree_and_mode",
     ]
-    _feature_column_names = ["bass_note"]
+    _feature_column_names = [
+        "globalkey",
+        "localkey",
+        "bass_note",
+    ]
     default_value_column = "bass_note_over_local_tonic"
     _extractable_features = None
 
