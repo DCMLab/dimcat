@@ -73,7 +73,8 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
     "sphinx.ext.githubpages",
-    "myst_nb"
+    "myst_nb",         # rendering Jupyter notebooks (including in MyST Markdown syntax)
+    "jupyter_sphinx",  # rendering interactive Plotly in notebooks
 ]
 # pip install myst-nb
 
