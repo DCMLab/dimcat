@@ -1,6 +1,6 @@
-============
-Contributing
-============
+===================
+Contributing & Help
+===================
 
 Welcome to ``DiMCAT`` contributor's guide.
 
