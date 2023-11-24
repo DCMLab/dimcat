@@ -121,24 +121,33 @@ class DimcatResource(Resource, Generic[D]):
     DimcatPackage will take care of the serialization and not store an individual resource descriptor.
     """
 
+    # region column name class variables
     _auxiliary_column_names: ClassVar[Optional[List[str]]] = None
     """Names of columns that specify additional properties of the objects (each row is one object) but which are not
     required. E.g., the color of an annotation label."""
     _convenience_column_names: ClassVar[Optional[List[str]]] = None
     """Names of columns containing other representations of the objects (each row is one object) which can be computed
     from the feature columns in case they are missing."""
-    _feature_column_names: ClassVar[Optional[List[str]]] = None
-    """Name(s) of the column(s) which are required to fully define an individual object (each row is an object). When
-    creating the resource, any row containing a missing value in one of the feature columns is dropped."""
-    _extractable_features: ClassVar[Optional[Tuple[FeatureName, ...]]] = None
-    _default_analyzer: ClassVar[str] = "Proportions"
-    """Name of the Analyzer that is used by default for plotting the resource. Needs to return a :obj:`Result`."""
     _default_value_column: Optional[ClassVar[str]] = None
     """Name of the column containing representative values for this resource. For example, they could be chosen as
     values to be tallied up and displayed along the x-axis of a bar plot. If the :attr:`value_column` has not been set,
-    it returns this column name. For :obj:`Features <Feature>`, the value defaults to the last element of
-    :attr:`_feature_columns`.
+    it returns this column name. For :obj:`Features <Feature>`, the value may default to the last element of
+    :attr:`_feature_columns`, if defined.
     """
+    _default_formatted_column: Optional[ClassVar[str]] = None
+    """A secondary value column that represents the :attr:`_default_value_column` in a different format. This is
+    often one of the :attr:`_convenience_column_names`."""
+    _feature_column_names: ClassVar[Optional[List[str]]] = None
+    """Name(s) of the column(s) which are required to fully define an individual object (each row is an object). When
+    creating the resource, any row containing a missing value in one of the feature columns is dropped."""
+    # endregion column name class variables
+    # region associated object types
+    _extractable_features: ClassVar[Optional[Tuple[FeatureName, ...]]] = None
+    """Tuple of :obj:`FeatureNames <FeatureName>` corresponding to the features that can be extracted from this
+    resource. If None, no features can be extracted."""
+    _default_analyzer: ClassVar[str] = "Proportions"
+    """Name of the Analyzer that is used by default for plotting the resource. Needs to return a :obj:`Result`."""
+    # endregion associated object types
 
     @classmethod
     def from_descriptor(
@@ -148,6 +157,7 @@ class DimcatResource(Resource, Generic[D]):
         basepath: Optional[str] = None,
         auto_validate: bool = False,
         default_groupby: Optional[str | list[str]] = None,
+        **kwargs,
     ) -> Self:
         """Create a DimcatResource by loading its frictionless descriptor from disk.
         The descriptor's directory is used as ``basepath``. ``descriptor_path`` is expected to end in
@@ -173,6 +183,7 @@ class DimcatResource(Resource, Generic[D]):
             basepath=basepath,
             auto_validate=auto_validate,
             default_groupby=default_groupby,
+            **kwargs,
         )
 
     @classmethod
@@ -181,6 +192,7 @@ class DimcatResource(Resource, Generic[D]):
         descriptor_path: str,
         auto_validate: bool = False,
         default_groupby: Optional[str | list[str]] = None,
+        **kwargs,
     ) -> Self:
         """Create a Resource from a frictionless descriptor file on disk.
 
@@ -198,6 +210,7 @@ class DimcatResource(Resource, Generic[D]):
             descriptor_path=descriptor_path,
             auto_validate=auto_validate,
             default_groupby=default_groupby,
+            **kwargs,
         )
 
     @classmethod
@@ -433,6 +446,7 @@ DimcatResource.__init__(
         self.auto_validate = True if auto_validate else False  # catches None
         self._default_groupby: List[str] = []
         self._value_column: Optional[str] = None
+        self._formatted_column: Optional[str] = None
         super().__init__(
             resource=resource,
             descriptor_filename=descriptor_filename,
@@ -556,6 +570,17 @@ DimcatResource.__init__(
         return self.column_schema.field_names
 
     @property
+    def formatted_column(self) -> Optional[str]:
+        """A secondary value column that represents the :attr:`value_column` in a different format. If it hasn't been
+        set, it defaults to :attr:`_default_formatted_column`, falling back to :attr:`value_column`.
+        """
+        if self._formatted_column is not None:
+            return self._formatted_column
+        if self._default_formatted_column is not None:
+            return self._default_formatted_column
+        return
+
+    @property
     def innerpath(self) -> str:
         """The innerpath is the resource_name plus the extension .tsv and is used as filename within a .zip archive."""
         if self.resource_name.endswith(".tsv"):
@@ -586,9 +611,9 @@ DimcatResource.__init__(
         return super().is_valid
 
     @property
-    def value_column(self) -> str:
-        """The name of the column that contains the values of the resource. May depend on format
-        settings.
+    def value_column(self) -> Optional[str]:
+        """Name of the column containing representative values for this resource. If not set, it defaults to
+        :attr:`_default_value_column`, falling back to the last element of :attr:`_feature_columns`, if defined.
         """
         if self._value_column is not None:
             return self._value_column
@@ -596,17 +621,7 @@ DimcatResource.__init__(
             return self._default_value_column
         if self._feature_column_names is not None:
             return self._feature_column_names[-1]
-        return self.column_schema.field_names[-1]
-
-    @value_column.setter
-    def value_column(self, value_column: str):
-        if not isinstance(value_column, str):
-            raise TypeError(f"Expected a string, got {type(value_column)}")
-        if self.is_loaded and value_column not in self.field_names:
-            raise ValueError(
-                f"Column {value_column!r} does not exist in the resource's schema."
-            )
-        self._value_column = value_column
+        return
 
     def align_with_grouping(
         self,
@@ -1426,6 +1441,28 @@ class Feature(DimcatResource):
         if cls._feature_column_names:
             column_names.extend(cls._feature_column_names)
         return column_names
+
+    def __init__(
+        self,
+        format=None,
+        resource: Optional[fl.Resource | str] = None,
+        descriptor_filename: Optional[str] = None,
+        basepath: Optional[str] = None,
+        auto_validate: bool = True,
+        default_groupby: Optional[str | list[str]] = None,
+    ) -> None:
+        super().__init__(
+            resource=resource,
+            descriptor_filename=descriptor_filename,
+            basepath=basepath,
+            auto_validate=auto_validate,
+            default_groupby=default_groupby,
+        )
+        self._format = format
+
+    @property
+    def format(self) -> None:
+        return self._format
 
     def get_available_column_names(
         self,

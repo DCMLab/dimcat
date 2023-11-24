@@ -30,6 +30,11 @@ class Counter(Analyzer):
                 f"Using the {feature.resource_name}'s default groupby {groupby!r}"
             )
         groupby.append(feature.value_column)
+        if (
+            feature.formatted_column is not None
+            and feature.formatted_column not in groupby
+        ):
+            groupby.append(feature.formatted_column)
         result = feature.groupby(groupby).size()
         result = result.to_frame("count")
         return result

@@ -233,7 +233,7 @@ class HarmonyLabels(DcmlAnnotations):
 
     def _format_dataframe(self, feature_df: D) -> D:
         """Called by :meth:`_prepare_feature_df` to transform the resource dataframe into a feature dataframe."""
-        feature_df = super()._format_dataframe(feature_df)
+        feature_df = extend_keys_feature()
         feature_df = extend_harmony_feature(feature_df)
         return feature_df
 
@@ -283,7 +283,8 @@ class BassNotesFormat(FriendlyEnum):
 
 class BassNotes(HarmonyLabels):
     _default_analyzer = "ScaleDegreeVectors"
-    _default_value_column = "bass_note_over_local_tonic"
+    _default_formatted_column = "bass_note_over_local_tonic"
+    _default_value_column = "bass_note"
     _auxiliary_column_names = (
         DcmlAnnotations._auxiliary_column_names + AUXILIARY_HARMONYLABEL_COLUMNS
     )
@@ -297,7 +298,6 @@ class BassNotes(HarmonyLabels):
         "localkey",
         "bass_note",
     ]
-    _default_value_column = "bass_note_over_local_tonic"
     _extractable_features = None
 
     class Schema(DcmlAnnotations.Schema):
@@ -332,22 +332,22 @@ class BassNotes(HarmonyLabels):
         if self.format == format:
             pass
         if format == BassNotesFormat.INTERVAL:
-            new_value_column = "bass_note_over_local_tonic"
+            new_formatted_column = "bass_note_over_local_tonic"
         elif format == BassNotesFormat.FIFTHS:
-            new_value_column = "bass_note"
+            new_formatted_column = "bass_note"
         elif format == BassNotesFormat.SCALE_DEGREE:
             if "mode" in self.get_default_groupby():
-                new_value_column = "bass_degree"
+                new_formatted_column = "bass_degree"
             else:
-                new_value_column = "bass_degree_and_mode"
+                new_formatted_column = "bass_degree_and_mode"
         else:
             raise NotImplementedError(f"Unknown format {format!r}.")
-        if self.is_loaded and new_value_column not in self.df.columns:
+        if self.is_loaded and new_formatted_column not in self.field_names:
             raise FeatureIsMissingFormatColumnError(
-                self.resource_name, new_value_column, format, self.name
+                self.resource_name, new_formatted_column, format, self.name
             )
         self._format = format
-        self.value_column = new_value_column
+        self._formatted_column = new_formatted_column
 
     def _modify_name(self):
         """Modify the :attr:`resource_name` to reflect the feature."""
@@ -355,7 +355,7 @@ class BassNotes(HarmonyLabels):
 
     def _format_dataframe(self, feature_df: D) -> D:
         """Called by :meth:`_prepare_feature_df` to transform the resource dataframe into a feature dataframe."""
-        feature_df = super()._format_dataframe(feature_df)
+        feature_df = extend_keys_feature(feature_df)
         feature_df = extend_bass_notes_feature(feature_df)
         return feature_df
 

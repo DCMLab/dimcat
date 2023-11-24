@@ -108,7 +108,9 @@ class Result(DimcatResource):
             group_cols = [group_cols]
         else:
             group_cols = list(group_cols)
-        groupby = group_cols + [self.x_column]
+        groupby = group_cols + [self.value_column]
+        if self.formatted_column:
+            groupby.append(self.formatted_column)
         combined_result = self.df.groupby(groupby).sum()
         if group_cols:
             normalize_by = combined_result.groupby(group_cols).sum()
@@ -382,7 +384,7 @@ class Durations(Result):
     pass
 
 
-class FifthsDurations(Durations):
+class LineOfFifthsDistribution(Result):
     _default_format: ClassVar[Optional[BassNotesFormat | NotesFormat]] = None
     _default_group_modes: ClassVar[Tuple[GroupMode, ...]] = (
         GroupMode.ROWS,
@@ -546,11 +548,11 @@ class FifthsDurations(Durations):
         )
 
 
-class PitchClassDurations(FifthsDurations):
+class PitchClassDurations(LineOfFifthsDistribution):
     _default_format = NotesFormat.NAME
 
 
-class ScaleDegreeDurations(FifthsDurations):
+class ScaleDegreeDurations(LineOfFifthsDistribution):
     _default_format = BassNotesFormat.INTERVAL
 
 
