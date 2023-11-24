@@ -1,6 +1,6 @@
 import logging
 
-from dimcat.data.resources.base import FeatureName, SomeDataframe, SomeSeries
+from dimcat.data.resources.base import D, FeatureName, SomeSeries
 from dimcat.data.resources.dc import DimcatResource, Feature
 from dimcat.data.resources.results import (
     Durations,
@@ -15,11 +15,22 @@ logger = logging.getLogger(__name__)
 
 
 class Proportions(Analyzer):
+    _dimension_column_name = "duration_qb"
     _new_resource_type = Durations
 
     @staticmethod
-    def compute(feature: DimcatResource | SomeDataframe, **kwargs) -> int:
-        result = feature.groupby(feature.value_column).duration_qb.sum().astype(float)
+    def compute(feature: Feature, **kwargs) -> D:
+        groupby = [feature.value_column]
+        if (
+            feature.formatted_column is not None
+            and feature.formatted_column not in groupby
+        ):
+            groupby.append(feature.formatted_column)
+        result = (
+            feature.groupby(groupby)[Proportions._dimension_column_name]
+            .sum()
+            .astype(float)
+        )
         result = result.to_frame()
         return result
 
@@ -47,7 +58,9 @@ class Proportions(Analyzer):
         ):
             groupby.append(feature.formatted_column)
         result = (
-            feature.groupby(groupby, group_keys=False).duration_qb.sum().astype(float)
+            feature.groupby(groupby, group_keys=False)[self._dimension_column_name]
+            .sum()
+            .astype(float)
         )
         result = result.to_frame()
         return result

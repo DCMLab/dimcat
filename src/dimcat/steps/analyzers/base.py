@@ -40,6 +40,9 @@ class Analyzer(FeatureProcessingStep):
     The base class performs no analysis, instantiating it serves mere testing purpose.
     """
 
+    _dimension_column_name: ClassVar[Optional[str]] = None
+    """Name of a column, contained in the Results produced by this analyzer, containing some dimension,
+    e.g. one to be interpreted as quantity (durations, counts, etc.) or as color."""
     _enum_type: ClassVar[Type[Enum]] = AnalyzerName
     _new_dataset_type = AnalyzedDataset
     _new_resource_type = Result
@@ -172,16 +175,23 @@ class Analyzer(FeatureProcessingStep):
             raise NotImplementedError()
         if not self.strategy == DispatchStrategy.GROUPBY_APPLY:
             raise ValueError(f"Unknown dispatch strategy '{self.strategy!r}'")
-        result_constructor = self._get_new_resource_type(resource)
+        result_constructor: Type[Result] = self._get_new_resource_type(resource)
         results = self.groupby_apply(resource)
         result_name = self.resource_name_factory(resource)
+        value_column = resource.value_column
+        if resource.formatted_column and resource.formatted_column != value_column:
+            formatted_column = resource.formatted_column
+        else:
+            formatted_column = None
         result = result_constructor.from_dataframe(
             analyzed_resource=resource,
+            value_column=value_column,
+            dimension_column=self._dimension_column_name,
+            formatted_column=formatted_column,
             df=results,
             resource_name=result_name,
             default_groupby=resource.get_default_groupby(),
         )
-        result._default_value_column = resource.value_column
         return result
 
     def groupby_apply(self, feature: Feature, groupby: SomeSeries = None, **kwargs):

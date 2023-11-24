@@ -60,13 +60,17 @@ class Result(DimcatResource):
     columns to determine how the data will be grouped for the plot."""
 
     class Schema(DimcatResource.Schema):
-        analyzed_resource: DimcatResource.Schema = mm.fields.Nested(
-            DimcatResource.Schema, required=True
-        )
+        analyzed_resource = mm.fields.Nested(DimcatResource.Schema, required=True)
+        value_column = mm.fields.Str(required=True)
+        dimension_column = mm.fields.Str(required=True)
+        formatted_column = mm.fields.Str(required=False)
 
     def __init__(
         self,
         analyzed_resource: DimcatResource,
+        value_column: Optional[str],
+        dimension_column: Optional[str],
+        formatted_column: Optional[str] = None,
         resource: fl.Resource = None,
         descriptor_filename: Optional[str] = None,
         basepath: Optional[str] = None,
@@ -80,7 +84,43 @@ class Result(DimcatResource):
             auto_validate=auto_validate,
             default_groupby=default_groupby,
         )
-        self.analyzed_resource = analyzed_resource
+        # self._formatted_column and self._value_column are already set by super().__init__()
+        self.formatted_column = formatted_column
+        self.value_column = value_column
+        self.analyzed_resource: DimcatResource = analyzed_resource
+        self.dimension_column: Optional[str] = dimension_column
+        """Name of the column containing some dimension, e.g. to be interpreted as quantity (durations, counts,
+        etc.) or as color."""
+
+    @property
+    def formatted_column(self) -> str:
+        """Name of the column containing the formatted values, typically for display on the x_axis."""
+        return self._formatted_column
+
+    @formatted_column.setter
+    def formatted_column(self, formatted_column: str):
+        self._formatted_column = formatted_column
+
+    @cached_property
+    def uses_line_of_fifths_colors(self) -> bool:
+        """Whether or not the plots produced by this Result exhibit a color gradient along the line of fifths.
+        This is typically the case for results based intervals, note names, or scale degrees. In these cases,
+        the color dimension is lost for discerning between different groups, which are then typically shown in
+        different rows or columns.
+        """
+        resource_format = self.analyzed_resource.format
+        # since all format values are of type FriendlyEnum and can be compared with strings, no matter what specific
+        # format Enum the analyzed resource was using, it can be checked against these fifths format strings:
+        return resource_format in ("FIFTHS", "INTERVAL", "NAME", "SCALE_DEGREE")
+
+    @property
+    def value_column(self) -> str:
+        """Name of the column containing the values, typically to arrange markers along the x_axis."""
+        return self._value_column
+
+    @value_column.setter
+    def value_column(self, value_column: str):
+        self._value_column = value_column
 
     @property
     def x_column(self) -> str:
@@ -90,7 +130,7 @@ class Result(DimcatResource):
     @property
     def y_column(self) -> str:
         """Name of the numerical result column used for determining each marker's dimension along the y-axis."""
-        return self.df.columns[-1]
+        return self.dimension_column
 
     @property
     def z_column(self) -> str:
