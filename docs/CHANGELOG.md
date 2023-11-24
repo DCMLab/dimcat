@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.0.1](https://github.com/DCMLab/dimcat/compare/v1.0.0...v1.0.1) (2023-11-24)
+
+
+### Bug Fixes
+
+* has store_as_json_or_yaml() create target directories automatically ([e5fcf4f](https://github.com/DCMLab/dimcat/commit/e5fcf4f0728e167cbf33c3b0d7729b3e09eb9eda))
+* includes the key columns in BassNotes feature ([864edc1](https://github.com/DCMLab/dimcat/commit/864edc1d29c91f29ad52f5a3094d8cbdf1b62020))
+
+
+### Documentation
+
+* configures please-release-action to use docs/CHANGELOG.md and converts the previous /CHANGELOG.rst ([d9ef418](https://github.com/DCMLab/dimcat/commit/d9ef418677df588a154535b0bc46209ea4fc0568))
+* enables the inclusion of markdown documents in the documentation and enables MyST extensions ([86c19a9](https://github.com/DCMLab/dimcat/commit/86c19a9a4d3912c8343cf8c29b29e71816acac87))
+* enables unittest_metacorpus submodule for RTD ([15d3317](https://github.com/DCMLab/dimcat/commit/15d3317951352bee86119cfd68b018259b4c1b71))
+* includes jupyter_sphinx Sphinx extension for rendering interactive Plotly figures ([d363468](https://github.com/DCMLab/dimcat/commit/d36346895a20c5613d3d6784cacf0aa8f2fded93))
+* moves changelog, authors, and license under the top-level heading "Imprint" ([7032162](https://github.com/DCMLab/dimcat/commit/7032162a5624f47c49df0c5bdd021d7879445de6))
+* updates docs requirements to the latest release of dimcat[docs] ([dc04b76](https://github.com/DCMLab/dimcat/commit/dc04b763c594d48e98c5b407e23d9c106dfd412f))
+
+## Changelog
+
 ## Version 0.3.0
 
 -   new slicers: MeasureSlicer, ChordFeatureSlicer
