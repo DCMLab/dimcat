@@ -17,6 +17,7 @@ from typing import (
     Sequence,
     Tuple,
     TypeAlias,
+    TypeVar,
     Union,
 )
 
@@ -1145,6 +1146,9 @@ DimcatResource.__init__(
             if get_setting("never_store_unvalidated_data") and raise_exception:
                 raise fl.FrictionlessException("\n".join(errors))
         return report
+
+
+R = TypeVar("R", bound="DimcatResource")
 
 
 # endregion DimcatResource

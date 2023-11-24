@@ -32,7 +32,7 @@ from dimcat.data.resources.base import (
     ResourceSpecs,
     resource_specs2resource,
 )
-from dimcat.data.resources.dc import DimcatResource, Feature, FeatureSpecs
+from dimcat.data.resources.dc import DimcatResource, Feature, FeatureSpecs, R
 from dimcat.data.resources.utils import features_argument2config_list
 from dimcat.dc_exceptions import (
     EmptyDatasetError,
@@ -60,7 +60,7 @@ class PipelineStep(DimcatObject):
     _new_dataset_type: ClassVar[Optional[Type[Dataset]]] = None
     """If specified, :meth:`process_dataset` will return Datasets of this type, otherwise same as input type."""
 
-    _new_resource_type: ClassVar[Optional[Type[DimcatResource]]] = None
+    _new_resource_type: ClassVar[Optional[Type[R]]] = None
     """If specified, :meth:`process_resource` will return Resources of this type, otherwise same as input type."""
 
     _applicable_to_empty_datasets: ClassVar[bool] = True
@@ -144,11 +144,11 @@ class PipelineStep(DimcatObject):
         )
         return new_resource
 
-    def _get_new_resource_type(self, resource: DimcatResource) -> Type[DimcatResource]:
+    def _get_new_resource_type(self, resource: DimcatResource) -> Type[R]:
         if self._new_resource_type is None:
-            resource_constructor: Type[DimcatResource] = resource.__class__
+            resource_constructor = resource.__class__
         else:
-            resource_constructor: Type[DimcatResource] = self._new_resource_type
+            resource_constructor = self._new_resource_type
         return resource_constructor
 
     def _make_new_dataset(self, dataset: Dataset) -> Dataset:
@@ -164,9 +164,9 @@ class PipelineStep(DimcatObject):
 
     def _post_process_result(
         self,
-        result: DimcatResource,
+        result: R,
         original_resource: DimcatResource,
-    ) -> DimcatResource:
+    ) -> R:
         """Perform some post-processing on a resource after processing it."""
         return result
 
@@ -193,10 +193,10 @@ class PipelineStep(DimcatObject):
         ...
 
     @overload
-    def process_data(self, data: DimcatResource) -> DimcatResource:
+    def process_data(self, data: DimcatResource) -> R:
         ...
 
-    def process_data(self, data: Dataset | DimcatResource) -> Dataset | DimcatResource:
+    def process_data(self, data: Dataset | DimcatResource) -> Dataset | R:
         """
         Perform a transformation on an input Data object. This should never alter the
         Data or its properties in place, instead returning a copy or view of the input.
@@ -225,13 +225,13 @@ class PipelineStep(DimcatObject):
         self.check_dataset(dataset)
         return self._process_dataset(dataset)
 
-    def _process_resource(self, resource: Resource) -> Resource:
+    def _process_resource(self, resource: Resource) -> R:
         """Apply this PipelineStep to a :class:`Resource` and return a copy containing the output(s)."""
         resource = self._pre_process_resource(resource)
         result = self._make_new_resource(resource)
         return self._post_process_result(result, resource)
 
-    def process_resource(self, resource: ResourceSpecs) -> DimcatResource:
+    def process_resource(self, resource: ResourceSpecs) -> R:
         resource = resource_specs2resource(resource)
         self.check_resource(resource)
         return self._process_resource(resource)
@@ -479,7 +479,7 @@ class ResourceTransformation(FeatureProcessingStep):
         return new_dataset
 
     def transform_resource(self, resource: DimcatResource) -> pd.DataFrame:
-        """Apply the Transformation to a Feature and return the transformed dataframe."""
+        """Apply the transformation to a Resource and return the transformed dataframe."""
         return resource.df
 
 
