@@ -261,6 +261,32 @@ Coding Conventions
 Please make sure to run ``pre-commit install`` in your local clone of the repository. This way, many coding
 conventions are automatically applied before each commit!
 
+Commit messages
+~~~~~~~~~~~~~~~
+
+``DiMCAT`` uses `Conventional Commits <https://www.conventionalcommits.org/>`__ to determine the next SemVer version number. Please make sure to prefix each
+message with one of:
+
++-------------+--------------------------+-------------------------------------------------------------------------------------------------------------+--------+
+| Commit Type | Title                    | Description                                                                                                 | SemVer |
++=============+==========================+=============================================================================================================+========+
+| `feat`      | Features                 | A new feature                                                                                               | MINOR  |
+| `fix`       | Bug Fixes                | A bug Fix                                                                                                   | PATCH  |
+| `docs`      | Documentation            | Documentation only changes                                                                                  | PATCH  |
+| `style`     | Styles                   | Changes that do not affect the meaning of the code (white-space, formatting, missing semi-colons, etc)      | PATCH  |
+| `refactor`  | Code Refactoring         | A code change that neither fixes a bug nor adds a feature                                                   | PATCH  |
+| `perf`      | Performance Improvements | A code change that improves performance                                                                     | PATCH  |
+| `test`      | Tests                    | Adding missing tests or correcting existing tests                                                           | PATCH  |
+| `build`     | Builds                   | Changes that affect the build system or external dependencies (example scopes: gulp, broccoli, npm)         | PATCH  |
+| `ci`        | Continuous Integrations  | Changes to our CI configuration files and scripts (example scopes: Travis, Circle, BrowserStack, SauceLabs) | PATCH  |
+| `chore`     | Chores                   | Other changes that don't modify src or test files                                                           | PATCH  |
+| `revert`    | Reverts                  | Reverts a previous commit                                                                                   | PATCH  |
++-------------+--------------------------+-------------------------------------------------------------------------------------------------------------+--------+
+
+In the case of breaking changes, which result in a new major version, please add a ``!`` after the type, e.g., ``refactor!:``.
+This type of commit message needs to come with a body, starting with ``BREAKING CHANGE:``, which explains in great detail everything
+that will not be working anymore.
+
 Internal imports
 ~~~~~~~~~~~~~~~~
 
