@@ -5,15 +5,12 @@ Table of Contents
 =================
 
 .. toctree::
-   :maxdepth: 3
+   :maxdepth: 2
 
-   Overview <readme>
    manual/index
    Module Reference <api/modules>
-   Contributions & Help <contributing>
-   License <LICENSE>
-   Authors <authors>
-   Changelog <changelog>
+   contributing
+   imprint
 
 
 Indices and tables
