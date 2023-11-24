@@ -5,24 +5,6 @@ Table of Contents
 =================
 
 .. toctree::
-   :maxdepth: 2
-
-   Installation <install>
-   Quick Reference <quick>
-   manual/index
-   Developers' Reference <reference>
-   Contributions & Help <contributing>
-   License <license>
-   Authors <authors>
-   Changelog <changelog>
-..  Module Reference <api/modules>
-
-This is the documentation of **DiMCAT**, the **Di**gital **M**usicology **C**orpus **A**nalysis **T**oolkit.
-
-Contents
-========
-
-.. toctree::
    :maxdepth: 3
 
    Overview <readme>
