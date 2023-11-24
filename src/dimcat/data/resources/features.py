@@ -121,7 +121,7 @@ class DcmlAnnotations(Annotations):
         "special",
     ]
     _feature_column_names = ["label"]
-    default_value_column = "label"
+    _default_value_column = "label"
     _extractable_features = HARMONY_FEATURE_NAMES
 
     def _format_dataframe(self, feature_df: D) -> D:
@@ -188,7 +188,7 @@ class HarmonyLabels(DcmlAnnotations):
         "localkey",
         "chord",
     ]
-    default_value_column = "chord_and_mode"
+    _default_value_column = "chord_and_mode"
 
     class Schema(DcmlAnnotations.Schema):
         format = mm.fields.Enum(HarmonyLabelsFormat)
@@ -282,8 +282,8 @@ class BassNotesFormat(FriendlyEnum):
 
 
 class BassNotes(HarmonyLabels):
-    default_analyzer = "ScaleDegreeVectors"
-    default_value_column = "bass_note_over_local_tonic"
+    _default_analyzer = "ScaleDegreeVectors"
+    _default_value_column = "bass_note_over_local_tonic"
     _auxiliary_column_names = (
         DcmlAnnotations._auxiliary_column_names + AUXILIARY_HARMONYLABEL_COLUMNS
     )
@@ -297,7 +297,7 @@ class BassNotes(HarmonyLabels):
         "localkey",
         "bass_note",
     ]
-    default_value_column = "bass_note_over_local_tonic"
+    _default_value_column = "bass_note_over_local_tonic"
     _extractable_features = None
 
     class Schema(DcmlAnnotations.Schema):
@@ -372,7 +372,7 @@ class KeyAnnotations(DcmlAnnotations):
     ]
     _feature_column_names = ["globalkey", "localkey"]
     _extractable_features = None
-    default_value_column = "localkey_and_mode"
+    _default_value_column = "localkey_and_mode"
 
     def _format_dataframe(self, feature_df: D) -> D:
         """Called by :meth:`_prepare_feature_df` to transform the resource dataframe into a feature dataframe."""
@@ -406,8 +406,8 @@ class NotesFormat(FriendlyEnum):
 
 
 class Notes(Feature):
-    default_analyzer = "PitchClassVectors"
-    default_value_column = "tpc"
+    _default_analyzer = "PitchClassVectors"
+    _default_value_column = "tpc"
 
     class Schema(Feature.Schema):
         format = mm.fields.Enum(NotesFormat)

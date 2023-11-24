@@ -57,13 +57,13 @@ class PipelineStep(DimcatObject):
     :meth:`process` method is used to transform an input Data object, returning a copy.
     """
 
-    new_dataset_type: Optional[ClassVar[Type[Dataset]]] = None
+    _new_dataset_type: ClassVar[Optional[Type[Dataset]]] = None
     """If specified, :meth:`process_dataset` will return Datasets of this type, otherwise same as input type."""
 
-    new_resource_type: Optional[ClassVar[Type[DimcatResource]]] = None
+    _new_resource_type: ClassVar[Optional[Type[DimcatResource]]] = None
     """If specified, :meth:`process_resource` will return Resources of this type, otherwise same as input type."""
 
-    applicable_to_empty_datasets: ClassVar[bool] = True
+    _applicable_to_empty_datasets: ClassVar[bool] = True
     """If False, :meth:`check_dataset` will raise an EmptyDatasetError if no data has been loaded yet. This makes sense
     for PipelineSteps that are dependent on the data, e.g. because they use :meth:`fit_to_dataset`."""
 
@@ -107,7 +107,7 @@ class PipelineStep(DimcatObject):
         """
         if not isinstance(dataset, Dataset):
             raise TypeError(f"Expected Dataset, got {type(dataset)}")
-        if not self.applicable_to_empty_datasets:
+        if not self._applicable_to_empty_datasets:
             if dataset.n_features_available == 0:
                 raise EmptyDatasetError
 
@@ -145,17 +145,17 @@ class PipelineStep(DimcatObject):
         return new_resource
 
     def _get_new_resource_type(self, resource: DimcatResource) -> Type[DimcatResource]:
-        if self.new_resource_type is None:
+        if self._new_resource_type is None:
             resource_constructor: Type[DimcatResource] = resource.__class__
         else:
-            resource_constructor: Type[DimcatResource] = self.new_resource_type
+            resource_constructor: Type[DimcatResource] = self._new_resource_type
         return resource_constructor
 
     def _make_new_dataset(self, dataset: Dataset) -> Dataset:
-        if self.new_dataset_type is None:
+        if self._new_dataset_type is None:
             dataset_constructor: Type[Dataset] = dataset.__class__
         else:
-            dataset_constructor: Type[Dataset] = self.new_dataset_type
+            dataset_constructor: Type[Dataset] = self._new_dataset_type
         new_dataset = dataset_constructor.from_dataset(dataset)
         self.logger.debug(
             f"Created new dataset {new_dataset} of type {dataset_constructor.__name__}."
@@ -248,15 +248,15 @@ class FeatureProcessingStep(PipelineStep):
 
     """
 
-    allowed_features: Optional[ClassVar[Tuple[FeatureName, ...]]] = None
+    _allowed_features: ClassVar[Optional[Tuple[FeatureName, ...]]] = None
     """If set, this FeatureProcessingStep can only be initialized with features that are in this tuple."""
 
-    output_package_name: Optional[str] = None
+    _output_package_name: ClassVar[Optional[str]] = None
     """Name of the package in which to store the outputs of this step. If None, the PipeLine step will replace the
     'features' package of the given dataset. FeatureProcessingSteps that replace the 'features' packages are called
     transformations internally."""
 
-    requires_at_least_one_feature: ClassVar[bool] = False
+    _requires_at_least_one_feature: ClassVar[bool] = False
     """If set to True, this PipelineStep cannot be initialized without specifying at least one feature."""
 
     class Schema(PipelineStep.Schema):
@@ -296,7 +296,7 @@ class FeatureProcessingStep(PipelineStep):
     @features.setter
     def features(self, features):
         configs = features_argument2config_list(
-            features, allowed_features=self.allowed_features
+            features, allowed_features=self._allowed_features
         )
         if len(self._features) > 0:
             self.logger.info(
@@ -310,7 +310,7 @@ class FeatureProcessingStep(PipelineStep):
         it. Currently, this is the case only if :attr:`output_package_name` 'features' or None, defaulting to
         'features')."""
         return (
-            self.output_package_name is None or self.output_package_name == "features"
+            self._output_package_name is None or self._output_package_name == "features"
         )
 
     def check_dataset(self, dataset: Dataset) -> None:
@@ -324,7 +324,7 @@ class FeatureProcessingStep(PipelineStep):
         """
         super().check_dataset(dataset)
         required_features = self.get_feature_specs()
-        if self.requires_at_least_one_feature:
+        if self._requires_at_least_one_feature:
             if len(required_features) == 0 and dataset.n_active_features == 0:
                 raise NoFeaturesActiveError
         for feature in required_features:
@@ -340,10 +340,10 @@ class FeatureProcessingStep(PipelineStep):
             FeatureNotProcessableError: if the given resource cannot be processed by this step
         """
         super().check_resource(resource)
-        if self.allowed_features:
+        if self._allowed_features:
             if not any(
                 issubclass(resource.__class__, get_class(f))
-                for f in self.allowed_features
+                for f in self._allowed_features
             ):
                 raise ResourceNotProcessableError(resource.name, self.name)
 
@@ -366,9 +366,9 @@ class FeatureProcessingStep(PipelineStep):
         """Create a new package for the output of this PipelineStep, based on :attr:`output_package_name`."""
         if package_name is not None:
             return DimcatPackage(package_name=package_name)
-        if self.output_package_name is None:
+        if self._output_package_name is None:
             return DimcatPackage(package_name="features")
-        return DimcatPackage(package_name=self.output_package_name)
+        return DimcatPackage(package_name=self._output_package_name)
 
     def _process_dataset(self, dataset: Dataset) -> Dataset:
         """Apply this PipelineStep to a :class:`Dataset` and return a copy containing the output(s)."""

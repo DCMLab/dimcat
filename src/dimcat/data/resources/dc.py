@@ -121,19 +121,19 @@ class DimcatResource(Resource, Generic[D]):
     DimcatPackage will take care of the serialization and not store an individual resource descriptor.
     """
 
-    _auxiliary_column_names: Optional[ClassVar[List[str]]] = None
+    _auxiliary_column_names: ClassVar[Optional[List[str]]] = None
     """Names of columns that specify additional properties of the objects (each row is one object) but which are not
     required. E.g., the color of an annotation label."""
-    _convenience_column_names: Optional[ClassVar[List[str]]] = None
+    _convenience_column_names: ClassVar[Optional[List[str]]] = None
     """Names of columns containing other representations of the objects (each row is one object) which can be computed
     from the feature columns in case they are missing."""
-    _feature_column_names: Optional[ClassVar[List[str]]] = None
+    _feature_column_names: ClassVar[Optional[List[str]]] = None
     """Name(s) of the column(s) which are required to fully define an individual object (each row is an object). When
     creating the resource, any row containing a missing value in one of the feature columns is dropped."""
-    _extractable_features: Optional[ClassVar[Tuple[FeatureName, ...]]] = None
-    default_analyzer: ClassVar[str] = "Proportions"
+    _extractable_features: ClassVar[Optional[Tuple[FeatureName, ...]]] = None
+    _default_analyzer: ClassVar[str] = "Proportions"
     """Name of the Analyzer that is used by default for plotting the resource. Needs to return a :obj:`Result`."""
-    default_value_column: Optional[ClassVar[str]] = None
+    _default_value_column: Optional[ClassVar[str]] = None
     """Name of the column containing representative values for this resource. For example, they could be chosen as
     values to be tallied up and displayed along the x-axis of a bar plot. If the :attr:`value_column` has not been set,
     it returns this column name. For :obj:`Features <Feature>`, the value defaults to the last element of
@@ -592,8 +592,8 @@ DimcatResource.__init__(
         """
         if self._value_column is not None:
             return self._value_column
-        if self.default_value_column is not None:
-            return self.default_value_column
+        if self._default_value_column is not None:
+            return self._default_value_column
         if self._feature_column_names is not None:
             return self._feature_column_names[-1]
         return self.column_schema.field_names[-1]
@@ -778,7 +778,7 @@ DimcatResource.__init__(
     @cache
     def get_default_analysis(self) -> Result:
         """Returns the default analysis of the resource."""
-        return self.apply_steps(self.default_analyzer)
+        return self.apply_steps(self._default_analyzer)
 
     def get_default_groupby(self) -> List[str]:
         """Returns the default index levels for grouping the resource."""

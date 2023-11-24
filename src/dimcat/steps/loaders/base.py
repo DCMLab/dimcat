@@ -82,13 +82,13 @@ class LoadedFacets:
 class Loader(PipelineStep):
     """Base class for all loaders."""
 
-    accepted_file_extensions: ClassVar[Optional[Tuple[str, ...]]] = None
+    _accepted_file_extensions: ClassVar[Optional[Tuple[str, ...]]] = None
     """File extensions that this loader accepts. If None, all files are accepted."""
 
-    conditionally_accepted_file_extensions: ClassVar[Optional[Tuple[str, ...]]] = None
+    _conditionally_accepted_file_extensions: ClassVar[Optional[Tuple[str, ...]]] = None
     """File extensions that this loader accepts conditional on whether a particular piece of software is installed."""
 
-    path_package_type: ClassVar[Type[Package]] = PathPackage
+    _path_package_type: ClassVar[Type[Package]] = PathPackage
     """The type of package that this loader uses to collect PathResource objects."""
 
     @classmethod
@@ -114,7 +114,7 @@ class Loader(PipelineStep):
             extensions:
                 The extensions of the files to be discovered under ``directory`` and which are to be
                 turned into :class:`Resource` objects. Defaults to this loader's
-                :attr:`accepted_file_extensions`.
+                :attr:`_accepted_file_extensions`.
             file_re:
                 Pass a regular expression in order to select only files that (partially) match it.
             resource_names:
@@ -139,8 +139,8 @@ class Loader(PipelineStep):
                 original package
         """
         if extensions is None:
-            extensions = cls.accepted_file_extensions
-        new_package = cls.path_package_type.from_directory(
+            extensions = cls._accepted_file_extensions
+        new_package = cls._path_package_type.from_directory(
             directory=directory,
             package_name=package_name,
             extensions=extensions,
@@ -300,9 +300,9 @@ class Loader(PipelineStep):
 class PackageLoader(Loader):
     """Simple loader that discovers and loads frictionless datapackages through their descriptors."""
 
-    accepted_file_extensions = tuple(get_setting("package_descriptor_endings"))
+    _accepted_file_extensions = tuple(get_setting("package_descriptor_endings"))
     default_loader_name = "package_loader"
-    path_package_type = Package
+    _path_package_type = Package
 
     @classmethod
     def from_directory(
@@ -327,7 +327,7 @@ class PackageLoader(Loader):
             extensions:
                 The extensions of the files to be discovered under ``directory`` and which are to be
                 turned into :class:`Resource` objects. Defaults to this loader's
-                :attr:`accepted_file_extensions`.
+                :attr:`_accepted_file_extensions`.
             file_re:
                 Pass a regular expression in order to select only files that (partially) match it.
             resource_names:
@@ -352,7 +352,7 @@ class PackageLoader(Loader):
                 original package
         """
         if extensions is None:
-            extensions = cls.accepted_file_extensions
+            extensions = cls._accepted_file_extensions
         paths = list(
             scan_directory(
                 directory,
@@ -367,9 +367,10 @@ class PackageLoader(Loader):
 class ScoreLoader(Loader):
     """Base class for all loaders that parse scores and create a datapackage containing the extracted facets."""
 
-    default_loader_name = "score_loader"
-
-    path_package_type = ScorePathPackage
+    _default_loader_name: ClassVar[str] = "score_loader"
+    """The default name may be used as file name when storing the resulting package."""
+    _path_package_type: ClassVar[Type[Package]] = ScorePathPackage
+    """The type of package that the loader creates and returns."""
 
     @classmethod
     def from_directory(
@@ -395,7 +396,7 @@ class ScoreLoader(Loader):
             extensions:
                 The extensions of the files to be discovered under ``directory`` and which are to be
                 turned into :class:`Resource` objects. Defaults to this loader's
-                :attr:`accepted_file_extensions`.
+                :attr:`_accepted_file_extensions`.
             file_re:
                 Pass a regular expression in order to select only files that (partially) match it.
             resource_names:
@@ -617,10 +618,10 @@ class ScoreLoader(Loader):
     def check_resource(self, resource: PathResource) -> None:
         super().check_resource(resource)
         admissible_extensions = []
-        if self.accepted_file_extensions is not None:
-            admissible_extensions.extend(self.accepted_file_extensions)
-        if self.conditionally_accepted_file_extensions is not None:
-            admissible_extensions.extend(self.conditionally_accepted_file_extensions)
+        if self._accepted_file_extensions is not None:
+            admissible_extensions.extend(self._accepted_file_extensions)
+        if self._conditionally_accepted_file_extensions is not None:
+            admissible_extensions.extend(self._conditionally_accepted_file_extensions)
         if not admissible_extensions:
             return
         filepath = resource.normpath
@@ -632,7 +633,7 @@ class ScoreLoader(Loader):
         """Returns :attr:`loader_name` if set, otherwise :attr:`default_loader_name`."""
         if self.loader_name:
             return self.loader_name
-        return self.default_loader_name
+        return self._default_loader_name
 
     def get_descriptor_filename(self) -> str:
         """Returns the filename of the datapackage descriptor."""

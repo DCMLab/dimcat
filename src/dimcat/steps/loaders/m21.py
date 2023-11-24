@@ -467,8 +467,8 @@ def make_metadata(metadata_dict) -> pd.Series:
 class Music21Loader(ScoreLoader):
     """Extracts information from scores using music21."""
 
-    accepted_file_extensions = get_m21_input_extensions()
-    default_loader_name = "music21"
+    _accepted_file_extensions = get_m21_input_extensions()
+    _default_loader_name = "music21"
 
     def _process_resource(
         self,

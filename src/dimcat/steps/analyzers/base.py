@@ -41,11 +41,11 @@ class Analyzer(FeatureProcessingStep):
     """
 
     _enum_type: ClassVar[Type[Enum]] = AnalyzerName
-    new_dataset_type = AnalyzedDataset
-    new_resource_type = Result
-    output_package_name = "results"
-    applicable_to_empty_datasets = False
-    requires_at_least_one_feature = True
+    _new_dataset_type = AnalyzedDataset
+    _new_resource_type = Result
+    _output_package_name = "results"
+    _applicable_to_empty_datasets = False
+    _requires_at_least_one_feature = True
 
     # assert_all: ClassVar[Tuple[str]] = tuple()
     # """Each of these :obj:`PipelineSteps <.PipelineStep>` needs to be matched by at least one PipelineStep previously
@@ -181,7 +181,7 @@ class Analyzer(FeatureProcessingStep):
             resource_name=result_name,
             default_groupby=resource.get_default_groupby(),
         )
-        result.default_value_column = resource.value_column
+        result._default_value_column = resource.value_column
         return result
 
     def groupby_apply(self, feature: Feature, groupby: SomeSeries = None, **kwargs):

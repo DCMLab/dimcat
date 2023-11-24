@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class Proportions(Analyzer):
-    new_resource_type = Durations
+    _new_resource_type = Durations
 
     @staticmethod
     def compute(feature: DimcatResource | SomeDataframe, **kwargs) -> int:
@@ -44,8 +44,8 @@ class Proportions(Analyzer):
 
 
 class PitchClassVectors(Proportions):
-    allowed_features = (FeatureName.Notes,)
-    new_resource_type = PitchClassDurations
+    _allowed_features = (FeatureName.Notes,)
+    _new_resource_type = PitchClassDurations
 
     def resource_name_factory(self, resource: DimcatResource) -> str:
         """Returns a name for the resource based on its name and the name of the pipeline step."""
@@ -53,8 +53,8 @@ class PitchClassVectors(Proportions):
 
 
 class ScaleDegreeVectors(Proportions):
-    allowed_features = (FeatureName.BassNotes,)
-    new_resource_type = ScaleDegreeDurations
+    _allowed_features = (FeatureName.BassNotes,)
+    _new_resource_type = ScaleDegreeDurations
 
     def _make_new_resource(self, resource: Feature) -> Result:
         result = super()._make_new_resource(resource)

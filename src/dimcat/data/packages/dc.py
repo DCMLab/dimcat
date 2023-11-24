@@ -11,9 +11,9 @@ from dimcat.data.resources.dc import DimcatResource, PieceIndex
 
 
 class DimcatPackage(Package):
-    accepted_resource_types = (DimcatResource,)
-    default_mode = PackageMode.RECONCILE_SAFELY
-    detects_extensions = get_setting("resource_descriptor_endings")
+    _accepted_resource_types = (DimcatResource,)
+    _default_mode = PackageMode.RECONCILE_SAFELY
+    _detects_extensions = get_setting("resource_descriptor_endings")
 
     def _verify_creationist_arguments(
         self,

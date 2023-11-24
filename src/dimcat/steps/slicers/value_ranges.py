@@ -13,9 +13,9 @@ class AdjacencyGroupSlicer(Slicer):
     """This slicer and its subclasses slices resources by adjacency groups, that is, segments where a particular
     column (or combination thereof) has the same value over all rows."""
 
-    feature_providing_slice_intervals: ClassVar[Type[Feature] | str]
+    _feature_providing_slice_intervals: ClassVar[Type[Feature] | str]
     """Mandatory class variable that specifies which feature provides the slice intervals."""
-    adjacency_group_column_name: ClassVar[Optional[str]] = None
+    _adjacency_group_column_name: ClassVar[Optional[str]] = None
     """Optional class variable that specifies the name of the column that contains the adjacency group.
     Defaults to each row, i.e., no extra grouping.
     """
@@ -50,16 +50,16 @@ class AdjacencyGroupSlicer(Slicer):
 
     def fit_to_dataset(self, dataset: Dataset) -> None:
         """Set the slice intervals to the intervals provided by the relevant feature."""
-        feature = dataset.get_feature(self.feature_providing_slice_intervals)
+        feature = dataset.get_feature(self._feature_providing_slice_intervals)
         self.slice_intervals = feature.get_slice_intervals(level_name=self.level_name)
 
     def get_slice_intervals(self, resource: Feature) -> SliceIntervals:
         """Get the slice intervals from the relevant feature."""
         if self.slice_intervals is None:
-            if isinstance(self.feature_providing_slice_intervals, type):
-                feature_name = self.feature_providing_slice_intervals.name
+            if isinstance(self._feature_providing_slice_intervals, type):
+                feature_name = self._feature_providing_slice_intervals.name
             else:
-                feature_name = self.feature_providing_slice_intervals
+                feature_name = self._feature_providing_slice_intervals
             if (
                 resource.name == feature_name
             ):  # strict test for the exact feature, not subclasses
@@ -74,7 +74,7 @@ class AdjacencyGroupSlicer(Slicer):
 class KeySlicer(AdjacencyGroupSlicer):
     """Slices resources by key."""
 
-    feature_providing_slice_intervals = "KeyAnnotations"
+    _feature_providing_slice_intervals = "KeyAnnotations"
 
     def __init__(
         self,

@@ -51,11 +51,13 @@ class ResultName(ObjectEnum):
 
 class Result(DimcatResource):
     _enum_type = ResultName
-    default_group_modes: ClassVar[Tuple[GroupMode, ...]] = (
+    _default_group_modes: ClassVar[Tuple[GroupMode, ...]] = (
         GroupMode.COLOR,
         GroupMode.ROWS,
         GroupMode.COLUMNS,
     )
+    """If the no other sequence of group_modes is specified when plotting, this default is zipped to the groupby
+    columns to determine how the data will be grouped for the plot."""
 
     class Schema(DimcatResource.Schema):
         analyzed_resource: DimcatResource.Schema = mm.fields.Nested(
@@ -282,7 +284,7 @@ class Result(DimcatResource):
         elif isinstance(group_cols, str):
             group_cols = [group_cols]
         if group_modes is None:
-            group_modes = self.default_group_modes
+            group_modes = self._default_group_modes
         layout_update = dict()
         if layout is not None:
             layout_update.update(layout)
@@ -381,29 +383,29 @@ class Durations(Result):
 
 
 class FifthsDurations(Durations):
-    default_format: Optional[ClassVar[BassNotesFormat | NotesFormat]] = None
-    default_group_modes: ClassVar[Tuple[GroupMode, ...]] = (
+    _default_format: ClassVar[Optional[BassNotesFormat | NotesFormat]] = None
+    _default_group_modes: ClassVar[Tuple[GroupMode, ...]] = (
         GroupMode.ROWS,
         GroupMode.COLUMNS,
     )
 
     def get_fifths_transform(self):
-        if self.default_format is None:
+        if self._default_format is None:
             fifths_transform = None
-        elif self.default_format == "FIFTHS":
+        elif self._default_format == "FIFTHS":
             fifths_transform = None
-        elif self.default_format == "INTERVAL":
+        elif self._default_format == "INTERVAL":
             fifths_transform = ms3.fifths2iv
-        elif self.default_format == "NAME":
+        elif self._default_format == "NAME":
             fifths_transform = ms3.fifths2name
         else:
             raise NotImplementedError(
-                f"Don't know how to turn x-axis into format {self.default_format!r}."
+                f"Don't know how to turn x-axis into format {self._default_format!r}."
             )
         return fifths_transform
 
     def get_color_midpoint(self) -> int:
-        if self.default_format == "NAME":
+        if self._default_format == "NAME":
             return 2
         return 0
 
@@ -447,7 +449,7 @@ class FifthsDurations(Durations):
         elif isinstance(group_cols, str):
             group_cols = [group_cols]
         if group_modes is None:
-            group_modes = self.default_group_modes
+            group_modes = self._default_group_modes
         if group_cols:
             update_plot_grouping_settings(kwargs, group_cols, group_modes)
         layout_update = dict()
@@ -545,11 +547,11 @@ class FifthsDurations(Durations):
 
 
 class PitchClassDurations(FifthsDurations):
-    default_format = NotesFormat.NAME
+    _default_format = NotesFormat.NAME
 
 
 class ScaleDegreeDurations(FifthsDurations):
-    default_format = BassNotesFormat.INTERVAL
+    _default_format = BassNotesFormat.INTERVAL
 
 
 class NgramTable(Result):

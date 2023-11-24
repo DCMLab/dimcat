@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class Counter(Analyzer):
-    new_resource_type = Counts
+    _new_resource_type = Counts
 
     @staticmethod
     def compute(feature: DimcatResource | SomeDataframe, **kwargs) -> int:
@@ -56,7 +56,7 @@ class NgramTableFormat(FriendlyEnum):
 
 
 class NgramAnalyzer(Analyzer):
-    new_resource_type = NgramTable
+    _new_resource_type = NgramTable
 
     @staticmethod
     def compute(feature: DimcatResource | SomeDataframe, **kwargs) -> int:
