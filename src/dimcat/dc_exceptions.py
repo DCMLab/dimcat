@@ -207,9 +207,9 @@ class GrouperNotSetUpError(DimcatError):
 
     nargs2message = {
         0: "The grouper has not been setup. Applying it would result in empty features. Set the attribute "
-        "'grouped_pieces'.",
+        "'grouped_units'.",
         1: lambda name: f"The {name!r} has not been setup. Applying it would result in empty features. "
-        f"Set the attribute 'grouped_pieces'.",
+        f"Set the attribute 'grouped_units'.",
     }
 
 

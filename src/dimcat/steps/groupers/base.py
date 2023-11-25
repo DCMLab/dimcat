@@ -6,6 +6,7 @@ import pandas as pd
 from dimcat.base import is_subclass_of
 from dimcat.data.datasets.processed import GroupedDataset
 from dimcat.data.resources import Resource
+from dimcat.data.resources.base import D
 from dimcat.data.resources.dc import DimcatIndex, DimcatResource, PieceIndex
 from dimcat.dc_exceptions import GrouperNotSetUpError, ResourceAlreadyTransformed
 from dimcat.steps.base import ResourceTransformation
@@ -75,25 +76,98 @@ class CorpusGrouper(Grouper):
         return self._post_process_result(result, resource)
 
 
-class CustomPieceGrouper(Grouper):
+class MappingGrouper(Grouper):
+    """Superclass for all Groupers that function on the basis of a {group_name: [index_tuples]} dictionary."""
+
     class Schema(Grouper.Schema):
-        grouped_pieces = mm.fields.Nested(DimcatIndex.Schema)
+        grouped_units = mm.fields.Nested(DimcatIndex.Schema)
 
         @mm.pre_load
         def deal_with_dict(self, data, **kwargs):
-            if isinstance(data["grouped_pieces"], MutableMapping):
-                if "dtype" not in data["grouped_pieces"] or not is_subclass_of(
-                    data["grouped_pieces"]["dtype"], DimcatIndex
+            if isinstance(data["grouped_units"], MutableMapping):
+                if "dtype" not in data["grouped_units"] or not is_subclass_of(
+                    data["grouped_units"]["dtype"], DimcatIndex
                 ):
-                    # dealing with a manually compiled DimcatConfig where grouped_pieces are a grouping dict
-                    grouped_pieces = DimcatIndex.from_grouping(data["grouped_pieces"])
-                    data["grouped_pieces"] = grouped_pieces.to_dict()
+                    # dealing with a manually compiled DimcatConfig where grouped_units are a grouping dict
+                    grouped_units = DimcatIndex.from_grouping(data["grouped_units"])
+                    data["grouped_units"] = grouped_units.to_dict()
             return data
 
     @classmethod
     def from_grouping(
         cls,
-        piece_groups: Dict[Hashable, List[tuple]],
+        grouping: Dict[Hashable, List[tuple]],
+        level_names: Sequence[str] = ("group", "corpus", "piece"),
+        sort: bool = False,
+        raise_if_multiple_membership: bool = False,
+    ) -> Self:
+        """Creates a CustomPieceGrouper from a dictionary of piece groups.
+
+        Args:
+        grouping: A dictionary where keys are group names and values are lists of index tuples.
+        level_names:
+            Names for the levels of the MultiIndex, i.e. one for the group level and one per level in the tuples.
+        sort: By default the returned MultiIndex is not sorted. Set True to disable sorting.
+        raise_if_multiple_membership: If True, raises a ValueError if a member is in multiple groups.
+        """
+        grouped_units = DimcatIndex.from_grouping(
+            grouping=grouping,
+            level_names=level_names,
+            sort=sort,
+            raise_if_multiple_membership=raise_if_multiple_membership,
+        )
+        return cls(level_name=grouped_units.names[0], grouped_units=grouped_units)
+
+    def __init__(
+        self,
+        level_name: str = "group",
+        grouped_units: DimcatIndex | pd.MultiIndex = None,
+        **kwargs,
+    ):
+        super().__init__(level_name=level_name, **kwargs)
+        self._grouped_units: Optional[DimcatIndex] = None
+        if grouped_units is not None:
+            self.grouped_units = grouped_units
+
+    @property
+    def grouped_units(self) -> DimcatIndex:
+        if self._grouped_units is None:
+            return DimcatIndex.from_tuples([], (self.level_name, "corpus", "piece"))
+        return self._grouped_units
+
+    @grouped_units.setter
+    def grouped_units(self, grouped_units: DimcatIndex):
+        if isinstance(grouped_units, pd.Index):
+            grouped_units = DimcatIndex(grouped_units)
+        elif isinstance(grouped_units, dict):
+            raise TypeError(
+                f"Use {self.name}.from_dict() to create a {self.name}from a dictionary."
+            )
+        elif not isinstance(grouped_units, DimcatIndex):
+            raise TypeError(f"Expected DimcatIndex, got {type(grouped_units)}")
+        if grouped_units.names[-1] != "piece":
+            raise ValueError(
+                f"Expected last level to to be named 'piece', not {grouped_units.names[-1]}"
+            )
+        self._grouped_units = grouped_units
+
+    def check_resource(self, resource: DimcatResource) -> None:
+        if len(self.grouped_units) == 0:
+            raise GrouperNotSetUpError(self.dtype)
+        super().check_resource(resource)
+
+    def transform_resource(self, resource: DimcatResource) -> D:
+        """Apply the grouper to a Feature."""
+        return resource.align_with_grouping(self.grouped_units)
+
+
+class CustomPieceGrouper(MappingGrouper):
+    """Allows for grouping by specifying a {group_name: [piece_index_tuples]} dictionary."""
+
+    @classmethod
+    def from_grouping(
+        cls,
+        grouping: Dict[Hashable, List[tuple]],
         level_names: Sequence[str] = ("piece_group", "corpus", "piece"),
         sort: bool = False,
         raise_if_multiple_membership: bool = False,
@@ -107,52 +181,43 @@ class CustomPieceGrouper(Grouper):
         sort: By default the returned MultiIndex is not sorted. Set True to disable sorting.
         raise_if_multiple_membership: If True, raises a ValueError if a member is in multiple groups.
         """
-        grouped_pieces = PieceIndex.from_grouping(
-            grouping=piece_groups,
+        grouped_units = PieceIndex.from_grouping(
+            grouping=grouping,
             level_names=level_names,
             sort=sort,
             raise_if_multiple_membership=raise_if_multiple_membership,
         )
-        return cls(level_name=grouped_pieces.names[0], grouped_pieces=grouped_pieces)
+        return cls(level_name=grouped_units.names[0], grouped_units=grouped_units)
 
     def __init__(
         self,
         level_name: str = "piece_group",
-        grouped_pieces: DimcatIndex | pd.MultiIndex = None,
+        grouped_units: DimcatIndex | pd.MultiIndex = None,
         **kwargs,
     ):
-        super().__init__(level_name=level_name, **kwargs)
-        self._grouped_pieces: Optional[DimcatIndex] = None
-        if grouped_pieces is not None:
-            self.grouped_pieces = grouped_pieces
+        super().__init__(level_name=level_name, grouped_units=grouped_units, **kwargs)
 
     @property
-    def grouped_pieces(self) -> DimcatIndex:
-        if self._grouped_pieces is None:
-            return DimcatIndex.from_tuples([], (self.level_name, "corpus", "piece"))
-        return self._grouped_pieces
+    def grouped_units(self) -> PieceIndex:
+        if self._grouped_units is None:
+            return PieceIndex.from_tuples([], (self.level_name, "corpus", "piece"))
+        return self._grouped_units
 
-    @grouped_pieces.setter
-    def grouped_pieces(self, grouped_pieces: DimcatIndex):
-        if isinstance(grouped_pieces, pd.Index):
-            grouped_pieces = DimcatIndex(grouped_pieces)
-        elif isinstance(grouped_pieces, dict):
+    @grouped_units.setter
+    def grouped_units(self, grouped_units: PieceIndex):
+        if isinstance(grouped_units, pd.Index):
+            grouped_units = PieceIndex(grouped_units)
+        elif isinstance(grouped_units, dict):
             raise TypeError(
                 f"Use {self.name}.from_dict() to create a {self.name}from a dictionary."
             )
-        elif not isinstance(grouped_pieces, DimcatIndex):
-            raise TypeError(f"Expected DimcatIndex, got {type(grouped_pieces)}")
-        if grouped_pieces.names[-1] != "piece":
+        elif not isinstance(grouped_units, PieceIndex):
+            if isinstance(grouped_units, DimcatIndex):
+                grouped_units = PieceIndex(grouped_units)
+            else:
+                raise TypeError(f"Expected PieceIndex, got {type(grouped_units)}")
+        if grouped_units.names[-1] != "piece":
             raise ValueError(
-                f"Expected last level to to be named 'piece', not {grouped_pieces.names[-1]}"
+                f"Expected last level to to be named 'piece', not {grouped_units.names[-1]}"
             )
-        self._grouped_pieces = grouped_pieces
-
-    def transform_resource(self, resource: DimcatResource) -> pd.DataFrame:
-        """Apply the grouper to a Feature."""
-        return resource.align_with_grouping(self.grouped_pieces)
-
-    def check_resource(self, resource: DimcatResource) -> None:
-        if len(self.grouped_pieces) == 0:
-            raise GrouperNotSetUpError(self.dtype)
-        super().check_resource(resource)
+        self._grouped_units = grouped_units

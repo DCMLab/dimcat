@@ -122,7 +122,7 @@ Serialization of any DimcatObject uses the `DimcatConfig` object.
 step_configs = [
     dict(dtype="FeatureExtractor", features=[dict(dtype="Notes", format="FIFTHS")]),
     dict(dtype="Counter"),
-    dict(dtype='CustomPieceGrouper', grouped_pieces=grouping)
+    dict(dtype='CustomPieceGrouper', grouped_units=grouping)
 ]
 pl = dc.Pipeline.from_step_configs(step_configs)
 pl
