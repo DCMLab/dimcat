@@ -108,7 +108,7 @@ class Data(DimcatObject):
                     f"\n\nDUMP:\n{pformat(data, sort_dicts=False)}"
                     f"\n\nREPORT:\n{pformat(report, sort_dicts=False)}"
                 )
-            return dict(data)
+            return data
 
     class Schema(DimcatObject.Schema):
         basepath = mm.fields.Str(
@@ -161,5 +161,5 @@ class Data(DimcatObject):
 
     def to_dict(self, pickle=False) -> dict:
         if pickle:
-            return self.pickle_schema.dump(self)
-        return self.schema.dump(self)
+            return dict(self.pickle_schema.dump(self))
+        return dict(self.schema.dump(self))

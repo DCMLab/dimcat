@@ -91,7 +91,7 @@ class PipelineStep(DimcatObject):
                     f"\n\nDUMP:\n{pformat(data, sort_dicts=False)}"
                     f"\n\nREPORT:\n{pformat(report, sort_dicts=False)}"
                 )
-            return dict(data)
+            return data
 
     @property
     def is_transformation(self) -> Literal[False]:
