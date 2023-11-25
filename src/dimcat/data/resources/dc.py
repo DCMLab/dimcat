@@ -387,6 +387,22 @@ class DimcatResource(Resource, Generic[D]):
             **kwargs,
         )
 
+    @classmethod
+    def get_default_column_names(
+        cls, include_context_columns: bool = True
+    ) -> List[str]:
+        """Returns the default column names for a DimcatResource."""
+        column_names = []
+        if include_context_columns:
+            column_names.extend(get_setting("context_columns"))
+        if cls._auxiliary_column_names:
+            column_names.extend(cls._auxiliary_column_names)
+        if cls._convenience_column_names:
+            column_names.extend(cls._convenience_column_names)
+        if cls._feature_column_names:
+            column_names.extend(cls._feature_column_names)
+        return column_names
+
     class Schema(Resource.Schema):
         auto_validate = mm.fields.Boolean(metadata={"expose": False})
         default_groupby = mm.fields.List(
@@ -1436,22 +1452,6 @@ HARMONY_FEATURE_NAMES = (
 
 class Feature(DimcatResource):
     _enum_type = FeatureName
-
-    @classmethod
-    def get_default_column_names(
-        cls, include_context_columns: bool = True
-    ) -> List[str]:
-        """Returns the default column names for a DimcatResource."""
-        column_names = []
-        if include_context_columns:
-            column_names.extend(get_setting("context_columns"))
-        if cls._auxiliary_column_names:
-            column_names.extend(cls._auxiliary_column_names)
-        if cls._convenience_column_names:
-            column_names.extend(cls._convenience_column_names)
-        if cls._feature_column_names:
-            column_names.extend(cls._feature_column_names)
-        return column_names
 
     def __init__(
         self,
