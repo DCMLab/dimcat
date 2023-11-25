@@ -410,11 +410,7 @@ class ResourceTransformation(FeatureProcessingStep):
         resource_kwargs = {
             arg: getattr(resource, arg)
             for arg in resource.schema.fields
-            if arg
-            not in (
-                "dtype",
-                "resource",
-            )
+            if arg not in ("dtype", "resource", "descriptor_filename")
         }
         try:
             new_resource = result_constructor.from_dataframe(
