@@ -119,7 +119,10 @@ class MuseScoreChords(MuseScoreFacet, ControlsFacet):
 
 
 class MuseScoreHarmonies(MuseScoreFacet, AnnotationsFacet):
-    _extractable_features = ("DcmlAnnotations",) + HARMONY_FEATURE_NAMES
+    _extractable_features = (
+        FeatureName.DcmlAnnotations,
+        FeatureName.CadenceLabels,
+    ) + HARMONY_FEATURE_NAMES
 
     def _prepare_feature_df(self, feature_config: DimcatConfig) -> D:
         Constructor = feature_config.options_class

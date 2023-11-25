@@ -8,7 +8,7 @@ import marshmallow as mm
 import ms3
 import pandas as pd
 from dimcat.base import FriendlyEnum
-from dimcat.data.resources.base import D
+from dimcat.data.resources.base import D, FeatureName
 from dimcat.data.resources.dc import HARMONY_FEATURE_NAMES, Feature
 from dimcat.data.resources.utils import (
     boolean_is_minor_column_to_mode,
@@ -43,11 +43,11 @@ such as groupers."""
 
 KEY_CONVENIENCE_COLUMNS = [
     "globalkey_is_minor",
-    "globalkey_mode",
-    "localkey_and_mode",
     "localkey_is_minor",
+    "globalkey_mode",
     "localkey_mode",
     "localkey_resolved",
+    "localkey_and_mode",
 ]
 """These columns are computed by default for all Annotations that include keys, where global keys are given as note
 names, and local keys are given as Roman numerals. In both cases, lowercase strings are interpreted as minor keys."""
@@ -105,40 +105,40 @@ class DcmlAnnotations(Annotations):
         "color_g",
         "color_r",
     ]
-    _convenience_column_names = [
-        "added_tones",
-        "bass_note",
-        "cadence",
-        "changes",
-        "chord_tones",
-        "chord_type",
-        "figbass",
-        "form",
-        "globalkey",
-        "globalkey_is_minor",
-        "globalkey_mode",
-        "localkey",
-        "localkey_and_mode",
-        "localkey_is_minor",
-        "localkey_mode",
-        "localkey_resolved",
-        "numeral",
-        "pedal",
-        "pedalend",
-        "phraseend",
-        "relativeroot",
-        "root",
-        "special",
-    ]
+    _convenience_column_names = (
+        [
+            "added_tones",
+            "bass_note",
+            "cadence",
+            "changes",
+            "chord_tones",
+            "chord_type",
+            "figbass",
+            "form",
+            "globalkey",
+            "localkey",
+        ]
+        + KEY_CONVENIENCE_COLUMNS
+        + [
+            "numeral",
+            "pedal",
+            "pedalend",
+            "phraseend",
+            "relativeroot",
+            "root",
+            "special",
+        ]
+    )
     _feature_column_names = ["label"]
     _default_value_column = "label"
-    _extractable_features = HARMONY_FEATURE_NAMES
+    _extractable_features = HARMONY_FEATURE_NAMES + (FeatureName.CadenceLabels,)
 
     def _format_dataframe(self, feature_df: D) -> D:
-        """Called by :meth:`_prepare_feature_df` to transform the resource dataframe into a feature dataframe."""
-        feature_df = super()._format_dataframe(feature_df)
+        """Called by :meth:`_prepare_feature_df` to transform the resource dataframe into a feature dataframe.
+        Assumes that the dataframe can be mutated safely, i.e. that it is a copy.
+        """
         feature_df = extend_keys_feature(feature_df)
-        return feature_df
+        return self._sort_columns(feature_df)
 
 
 def extend_harmony_feature(
@@ -245,10 +245,12 @@ class HarmonyLabels(DcmlAnnotations):
         return self._format
 
     def _format_dataframe(self, feature_df: D) -> D:
-        """Called by :meth:`_prepare_feature_df` to transform the resource dataframe into a feature dataframe."""
+        """Called by :meth:`_prepare_feature_df` to transform the resource dataframe into a feature dataframe.
+        Assumes that the dataframe can be mutated safely, i.e. that it is a copy.
+        """
         feature_df = extend_keys_feature(feature_df)
         feature_df = extend_harmony_feature(feature_df)
-        return feature_df
+        return self._sort_columns(feature_df)
 
 
 def safe_row_tuple(row):
@@ -373,35 +375,96 @@ class BassNotes(HarmonyLabels):
         self.resource_name = f"{self.resource_name}.bass_notes"
 
     def _format_dataframe(self, feature_df: D) -> D:
-        """Called by :meth:`_prepare_feature_df` to transform the resource dataframe into a feature dataframe."""
+        """Called by :meth:`_prepare_feature_df` to transform the resource dataframe into a feature dataframe.
+        Assumes that the dataframe can be mutated safely, i.e. that it is a copy.
+        """
         feature_df = extend_keys_feature(feature_df)
         feature_df = extend_bass_notes_feature(feature_df)
+        return self._sort_columns(feature_df)
+
+
+def extend_cadence_feature(
+    feature_df,
+):
+    columns_to_add = (
+        "cadence_type",
+        "cadence_subtype",
+    )
+    if all(col in feature_df.columns for col in columns_to_add):
         return feature_df
+    if "cadence" not in feature_df.columns:
+        raise DataframeIsMissingExpectedColumnsError(
+            "cadence",
+            feature_df.columns.to_list(),
+        )
+    split_labels = feature_df.cadence.str.split(".", expand=True).rename(
+        columns={0: "cadence_type", 1: "cadence_subtype"}
+    )
+    feature_df = pd.concat([feature_df, split_labels], axis=1)
+    return feature_df
+
+
+class CadenceLabels(DcmlAnnotations):
+    _auxiliary_column_names = ["label", "chord"]
+    _convenience_column_names = (
+        ["globalkey", "localkey"]
+        + KEY_CONVENIENCE_COLUMNS
+        + [
+            "cadence_type",
+            "cadence_subtype",
+        ]
+    )
+    _feature_column_names = ["cadence"]
+    _extractable_features = None
+    _default_value_column = "cadence"
+
+    def _format_dataframe(self, feature_df: D) -> D:
+        """Called by :meth:`_prepare_feature_df` to transform the resource dataframe into a feature dataframe.
+        Assumes that the dataframe can be mutated safely, i.e. that it is a copy.
+        """
+        try:
+            feature_df = extend_keys_feature(feature_df)
+        except DataframeIsMissingExpectedColumnsError:
+            pass
+        groupby_levels = feature_df.index.names[:-1]
+        feature_df.cadence = feature_df.groupby(groupby_levels).cadence.bfill()
+        no_label_mask = feature_df.cadence.isna()
+        if no_label_mask.all():
+            raise ValueError(f"No cadence labels present in {self.resource_name}.")
+        n_dropped = no_label_mask.sum()
+        if n_dropped:
+            feature_df = feature_df.dropna(subset=["cadence"])
+            logger.info(
+                f"Dropped {n_dropped} rows from {self.resource_name} that pertaine to segments following the last "
+                f"cadence label in the piece."
+            )
+        group_keys, _ = make_adjacency_groups(
+            feature_df.cadence,
+            groupby=groupby_levels,
+        )
+        feature_df = condense_dataframe_by_groups(feature_df, group_keys)
+        feature_df = extend_cadence_feature(feature_df)
+        return self._sort_columns(feature_df)
 
 
 class KeyAnnotations(DcmlAnnotations):
     _auxiliary_column_names = ["label"]
-    _convenience_column_names = [
-        "globalkey_is_minor",
-        "localkey_is_minor",
-        "globalkey_mode",
-        "localkey_mode",
-        "localkey_resolved",
-        "localkey_and_mode",
-    ]
+    _convenience_column_names = KEY_CONVENIENCE_COLUMNS
     _feature_column_names = ["globalkey", "localkey"]
     _extractable_features = None
     _default_value_column = "localkey_and_mode"
 
     def _format_dataframe(self, feature_df: D) -> D:
-        """Called by :meth:`_prepare_feature_df` to transform the resource dataframe into a feature dataframe."""
+        """Called by :meth:`_prepare_feature_df` to transform the resource dataframe into a feature dataframe.
+        Assumes that the dataframe can be mutated safely, i.e. that it is a copy.
+        """
         feature_df = extend_keys_feature(feature_df)
         groupby_levels = feature_df.index.names[:-1]
         group_keys, _ = make_adjacency_groups(
             feature_df.localkey, groupby=groupby_levels
         )
         feature_df = condense_dataframe_by_groups(feature_df, group_keys)
-        return feature_df
+        return self._sort_columns(feature_df)
 
 
 # endregion Annotations

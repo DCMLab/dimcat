@@ -1369,6 +1369,7 @@ class FeatureName(ObjectEnum):
     Annotations = "Annotations"
     Articulation = "Articulation"
     BassNotes = "BassNotes"
+    CadenceLabels = "CadenceLabels"
     DcmlAnnotations = "DcmlAnnotations"
     HarmonyLabels = "HarmonyLabels"
     KeyAnnotations = "KeyAnnotations"

@@ -732,7 +732,8 @@ DimcatResource.__init__(
 
     def _format_dataframe(self, df: D) -> D:
         """Format the dataframe before it is set for this resource. The method is called by :meth:`_set_dataframe`
-        and typically adds convenience columns."""
+        and typically adds convenience columns.
+        Assumes that the dataframe can be mutated safely, i.e. that it is a copy."""
         # TODO: implant this where appropriate: df.dropna(subset=self._feature_column_names, how="any")
         return df
 
@@ -974,14 +975,8 @@ DimcatResource.__init__(
         if self.auto_validate:
             _ = self.validate(raise_exception=True)
 
-    def _set_dataframe(self, df):
-        if isinstance(df, DimcatResource):
-            df = df.df
-        if isinstance(df, pd.Series):
-            df = df.to_frame()
-            self.logger.info(
-                f"Got a series, converted it into a dataframe with column name {df.columns[0]}."
-            )
+    def _set_dataframe(self, df: D):
+        """Sets the dataframe without prior checks and assuming that it can be mutated safely, i.e. it is a copy."""
         df = self._format_dataframe(df)
         self._df = df
         if not self.column_schema.fields:
@@ -1013,6 +1008,17 @@ DimcatResource.__init__(
             )
         if self.is_loaded:
             raise RuntimeError("This resource already includes a dataframe.")
+        if isinstance(df, DimcatResource):
+            df = df.df.copy()
+        elif isinstance(df, pd.Series):
+            df = df.to_frame()
+            self.logger.info(
+                f"Got a series, converted it into a dataframe with column name {df.columns[0]}."
+            )
+        elif isinstance(df, pd.DataFrame):
+            df = df.copy()
+        else:
+            raise TypeError(f"Expected pandas.DataFrame, got {type(df)!r}.")
         self._set_dataframe(df)
         if self.auto_validate:
             _ = self.validate(raise_exception=True)
@@ -1084,6 +1090,19 @@ DimcatResource.__init__(
         """Transform the dataframe after it has been prepared for feature extraction. This frequently involves
         dropping rows."""
         return feature_df
+
+    def _sort_columns(self, df: D) -> D:
+        """Sort the columns of the given dataframe in the order specified by :meth:`get_default_column_names` which
+        combines the context columns with the class variabls :attr:`_auxiliary_column_names`,
+        :attr:`_convenience_column_names`, and :attr:`_feature_column_names`. If the latter is not specified,
+        the dataframe is returned as is because the purpose of this method is to have the feature columns at the end.
+        """
+        if self._feature_column_names:
+            column_order = [
+                col for col in self.get_default_column_names() if col in df.columns
+            ]
+            df = df[column_order]
+        return df
 
     def summary_dict(self) -> dict:
         summary = self.to_dict()

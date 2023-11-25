@@ -1,6 +1,9 @@
 import os
 
-from dimcat.data import packages
+from dimcat import Dataset
+from dimcat.steps import groupers
+
+from docs.notebooks.utils import resolve_dir
 
 
 def resource_names(path):
@@ -8,11 +11,9 @@ def resource_names(path):
 
 
 if __name__ == "__main__":
-    corpus_path = "/home/laser/git/dimcat/unittest_metacorpus"
-
-    package = packages.Package.from_directory(
-        corpus_path,
-        package_name="unittest_corpus",
-        exclude_re="(?:yml|py)$",  # needed as long as the three corpora contain the .github/workflow
-        resource_names=resource_names,
+    package_path = resolve_dir(
+        "~/distant_listening_corpus/couperin_concerts/couperin_concerts.datapackage.json"
     )
+    D = Dataset.from_package(package_path)
+    grouped_D = groupers.HasCadenceAnnotations().process(D)
+    grouped_D = groupers.HasCadenceAnnotations().process(D)
