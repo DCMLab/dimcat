@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.1.0](https://github.com/DCMLab/dimcat/compare/v1.0.1...v1.1.0) (2023-11-25)
+
+
+### Features
+
+* adds ClassVar DimcatResource._default_formatted_column and property DimcatResource.formatted_column to allow producing Results (and plots) with both the original and the formatted values. The properties formatted_column and value_column cannot be set directly (anymore). The former is to be controlled by the parameter 'format', which all Features now accept and serialize, too. Whereas 'value_column' will probably remain immutable. ([fc64c36](https://github.com/DCMLab/dimcat/commit/fc64c366e3ba4b9e4e6e0a53da29db3a5da066d2))
+* eliminates results.LineOfFifthsDistribution() by merging the line-of-fifths plotting functionality into Result(), which decides based on the analyzed_resource's 'format' property whether it '.uses_line_of_fifths_colors' or not and, whenever necessary, removes GroupMode.COLOR from the 'group_modes'. This also gets rid of the special result types PitchClassDurations() and ScaleDegreeDurations() and of the special analyzer proportions.ScaleDegreeVectors() ([5390ae7](https://github.com/DCMLab/dimcat/commit/5390ae7b9f6e83179497746e1c802d6caf5c86f3))
+* homogenizes code between dimcat.plotting.make_lof_bubble_plot() and make_lof_bar_plot(), making the latter accept an 'x_names_col' argument, too ([ce8ae53](https://github.com/DCMLab/dimcat/commit/ce8ae53161e53550c83d9b60ab02cad43e193d54))
+* introduces TypeVar R for DimcatResource ([14e0615](https://github.com/DCMLab/dimcat/commit/14e061577edad83a715f9205fb07d86ebde551ad))
+* Results are now initialized (and serialized) with parameters value_column, dimension_column (required) and formatted_column (optional). This allows, for example, for using the values to organize markers along the x-axis (e.g. numerically) while formatted_column may determine how the values are displayed. The dimension column comes from the new ClassVar Analyzer._dimension_column_name ([136833b](https://github.com/DCMLab/dimcat/commit/136833bcce679cf83cd2142bc8e0b802a8f82795))
+
+
+### Bug Fixes
+
+* extend functions that add convenience columns first check if they aren't already present (e.g. because the Feature is being created during a FeatureTransformation) ([a3e53a4](https://github.com/DCMLab/dimcat/commit/a3e53a4499ce50b1ee9f39389c41c912f472ebd5))
+* tighter checks in Analyzer.check_resource() ([fa6575b](https://github.com/DCMLab/dimcat/commit/fa6575b8f0a9850207c85dcb31319579a767835e))
+
+
+### Documentation
+
+* includes v1.0.0 retrospectively ([479baee](https://github.com/DCMLab/dimcat/commit/479baee8e38ccf27da1f58e08241eaab912d12f5))
+
 ## [1.0.1](https://github.com/DCMLab/dimcat/compare/v1.0.0...v1.0.1) (2023-11-24)
 
 
