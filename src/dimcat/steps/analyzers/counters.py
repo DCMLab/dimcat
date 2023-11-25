@@ -38,7 +38,7 @@ class Counter(Analyzer):
         if groupby is None:
             groupby = feature.get_grouping_levels(self.smallest_unit)
             self.logger.debug(
-                f"Using the {feature.resource_name}'s default groupby {groupby!r}"
+                f"Using the {feature.resource_name}'s grouping levels {groupby!r}"
             )
         groupby.append(feature.value_column)
         if (

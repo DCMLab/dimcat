@@ -426,6 +426,7 @@ class ResourceTransformation(FeatureProcessingStep):
         # new_resource = result_constructor.from_dataframe(
         #     df=result_df,
         #     resource_name=result_name,
+        #     **resource_kwargs
         # )
         # print(f"NEW RESOURCE STATUS: {new_resource.status}")
         self.logger.debug(
