@@ -303,6 +303,7 @@ def make_lof_bar_plot(
     x_col="tpc",
     y_col="duration_qb",
     fifths_transform: Optional[Callable[[int], Any]] = ms3.fifths2name,
+    x_names_col: Optional[str] = None,
     title=None,
     labels=None,
     hover_data: Optional[List[str]] = None,
@@ -320,7 +321,7 @@ def make_lof_bar_plot(
     """Like :func:`make_bar_plot` but coloring the bars along the Line of Fifths.
     bar_data with x_col ('tpc'), y_col ('duration_qb')"""
     df = df.reset_index()
-    color_values = df[x_col].to_list()
+    fifths = df[x_col].to_list()
     xaxis_settings = dict(
         gridcolor="lightgrey",
         zerolinecolor="grey",
@@ -329,14 +330,13 @@ def make_lof_bar_plot(
         tickcolor="black",
         minor=dict(dtick=6, gridcolor="grey", showgrid=True),
     )
-    if fifths_transform is not None:
-        x_values = sorted(set(color_values))
+    if x_names_col is not None:
+        x_names = df[x_names_col].values
+        xaxis_settings = dict(tickmode="array", tickvals=fifths, ticktext=x_names)
+    elif fifths_transform is not None:
+        x_values = sorted(set(fifths))
         x_names = list(map(fifths_transform, x_values))
-        xaxis_settings.update(
-            tickmode="array",
-            tickvals=x_values,
-            ticktext=x_names,
-        )
+        xaxis_settings = dict(tickmode="array", tickvals=x_values, ticktext=x_names)
     figure_layout = dict(showlegend=False)
     if layout is not None:
         figure_layout.update(layout)
@@ -360,7 +360,7 @@ def make_lof_bar_plot(
         color_axis=c_axis,
         traces_settings=traces_settings,
         output=output,
-        color=color_values,
+        color=fifths,
         color_continuous_scale="RdBu_r",
         color_continuous_midpoint=shift_color_midpoint,
         **kwargs,
@@ -403,9 +403,9 @@ def make_lof_bubble_plot(
         x_names = df[x_names_col].values
         xaxis_settings = dict(tickmode="array", tickvals=fifths, ticktext=x_names)
     elif fifths_transform is not None:
-        x_vals = sorted(set(fifths))
-        x_names = list(map(fifths_transform, x_vals))
-        xaxis_settings = dict(tickmode="array", tickvals=x_vals, ticktext=x_names)
+        x_values = sorted(set(fifths))
+        x_names = list(map(fifths_transform, x_values))
+        xaxis_settings = dict(tickmode="array", tickvals=x_values, ticktext=x_names)
     if x_axis is not None:
         xaxis_settings.update(x_axis)
     if hover_data is None:
