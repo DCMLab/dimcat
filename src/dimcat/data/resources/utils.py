@@ -583,7 +583,9 @@ def load_fl_resource(
         raise
     if index_col_names:
         return dataframe.set_index(index_col_names)
-    return dataframe
+    else:
+        dataframe.index.name = "i"
+        return dataframe
 
 
 def load_index_from_fl_resource(
