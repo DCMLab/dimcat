@@ -174,6 +174,16 @@ class FeatureIsMissingFormatColumnError(DimcatError):
     }
 
 
+class FeatureWithUndefinedValueColumnError(DimcatError):
+    """optional args: (feature_name, feature_type"""
+
+    nargs2message = {
+        0: "No value_column is defined for this feature.",
+        1: lambda name: f"No value_column is defined for feature {name!r}.",
+        2: lambda name, feature_type: f"No value_column is defined for feature {name!r} of type {feature_type!r}.",
+    }
+
+
 class FeatureUnavailableError(DimcatError):
     """optional args: (feature_name, getting_from_name)"""
 

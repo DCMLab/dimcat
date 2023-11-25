@@ -14,13 +14,13 @@ logger = logging.getLogger(__name__)
 
 class Slicer(ResourceTransformation):
     # inherited from PipelineStep:
-    new_dataset_type = SlicedDataset
-    new_resource_type = None  # same as input
-    applicable_to_empty_datasets = True
+    _new_dataset_type = SlicedDataset
+    _new_resource_type = None  # same as input
+    _applicable_to_empty_datasets = True
     # inherited from FeatureProcessingStep:
-    allowed_features = None  # any
-    output_package_name = None  # transform 'features'
-    requires_at_least_one_feature = False
+    _allowed_features = None  # any
+    _output_package_name = None  # transform 'features'
+    _requires_at_least_one_feature = False
 
     class Schema(ResourceTransformation.Schema):
         level_name = mm.fields.Str()

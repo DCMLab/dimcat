@@ -177,22 +177,23 @@ class Package(Data):
     * ``basepath`` (:obj:`str`) - The basepath where the package and its .json descriptor are stored.
     """
 
-    accepted_resource_types: ClassVar[Tuple[Type[Resource], ...]] = (Resource,)
+    _accepted_resource_types: ClassVar[Tuple[Type[Resource], ...]] = (Resource,)
     """:meth:`add_resource` if a given resource is not an instance of one of these. The first one
     is used as default constructor in :meth:`create_and_add_resource`.
     """
 
-    auto_serialize: ClassVar[bool] = False
+    _auto_serialize: ClassVar[bool] = False
     """If True, the package is serialized to disk after each resource is added."""
 
-    detects_extensions: ClassVar[Iterable[str]] = None
+    _detects_extensions: ClassVar[Iterable[str]] = None
     """Determines which files are detected by :meth:`from_directory` if ``extensions`` is not specified.
     If None, all files are detected.
     """
-    default_mode: ClassVar[PackageMode] = PackageMode.ALLOW_MISALIGNMENT
+    _default_mode: ClassVar[PackageMode] = PackageMode.ALLOW_MISALIGNMENT
     """How the class deals with newly added resources. See :class:`PackageMode` for details."""
 
-    store_zipped: ClassVar[bool] = True
+    _store_zipped: ClassVar[bool] = True
+    """Whether, upon serialization, the resources are to be stored in a single ZIP file or as individual files."""
 
     @classmethod
     def _make_new_resource(
@@ -212,7 +213,7 @@ class Package(Data):
         Returns:
             The new Resource.
         """
-        Constructor = cls.accepted_resource_types[0]
+        Constructor = cls._accepted_resource_types[0]
         new_resource = Constructor.from_filepath(
             filepath=filepath,
             resource_name=resource_name,
@@ -457,8 +458,8 @@ class Package(Data):
             auto_validate: Set True to validate the new package after copying it.
         """
         directory = resolve_path(directory)
-        if extensions is None and cls.detects_extensions:
-            extensions = cls.detects_extensions
+        if extensions is None and cls._detects_extensions:
+            extensions = cls._detects_extensions
         elif isinstance(extensions, str):
             extensions = (extensions,)
         paths = list(
@@ -888,8 +889,8 @@ class Package(Data):
         auto_validate: bool = False,
     ) -> None:
         """Adds a resource to the package. Parameters are passed to :class:`DimcatResource`."""
-        Constructor = self.accepted_resource_types[0]
-        if isinstance(resource, self.accepted_resource_types):
+        Constructor = self._accepted_resource_types[0]
+        if isinstance(resource, self._accepted_resource_types):
             new_resource = resource.__class__.from_resource(
                 resource=resource,
                 resource_name=resource_name,
@@ -945,16 +946,16 @@ class Package(Data):
         Returns:
 
         """
-        if not isinstance(resource, self.accepted_resource_types):
-            if len(self.accepted_resource_types) > 1:
-                expected = self.accepted_resource_types
+        if not isinstance(resource, self._accepted_resource_types):
+            if len(self._accepted_resource_types) > 1:
+                expected = self._accepted_resource_types
             else:
-                expected = self.accepted_resource_types[0]
+                expected = self._accepted_resource_types[0]
             raise TypeError(
                 f"{self.name}s accept only {expected}, got {type(resource)!r}"
             )
         if mode is None:
-            mode = self.default_mode
+            mode = self._default_mode
         # if len(self._resources) == 0 and self.package_exists:
         #     os.remove(self.normpath)
         resource = self._amend_resource_type(resource)
@@ -983,9 +984,9 @@ class Package(Data):
             raise ValueError(
                 f"Resource with name {resource.resource_name!r} already exists."
             )
-        if isinstance(resource, self.accepted_resource_types):
+        if isinstance(resource, self._accepted_resource_types):
             return resource
-        Constructor = self.accepted_resource_types[0]
+        Constructor = self._accepted_resource_types[0]
         return Constructor.from_resource(resource)
 
     def check_if_homogeneous(
@@ -1269,7 +1270,7 @@ class Package(Data):
         mode: Optional[PackageMode] = None,
     ) -> Resource:
         if mode is None:
-            mode = self.default_mode
+            mode = self._default_mode
         if mode == PackageMode.ALLOW_MISALIGNMENT:
             return resource
 
@@ -1299,7 +1300,7 @@ class Package(Data):
             basepath_ok = resource.basepath == package_basepath
         if basepath_ok and resource_descriptor_filename_ok:
             return resource
-        package_filepath = self.filepath if self.store_zipped else None
+        package_filepath = self.filepath if self._store_zipped else None
         if not basepath_ok:
             try:
                 resource.basepath = package_basepath
@@ -1416,7 +1417,7 @@ class Package(Data):
     ) -> str:
         """Stores the descriptor to disk based on the package's configuration and returns its path."""
         if (
-            self.default_mode is not PackageMode.ALLOW_MISALIGNMENT
+            self._default_mode is not PackageMode.ALLOW_MISALIGNMENT
             and not self.is_aligned
         ):
             show_misaligned = dict(
@@ -1504,9 +1505,9 @@ class PathPackage(Package):
     frictionless resource descriptors (which Package loads as the appropriate :class:`Resource` type).
     """
 
-    accepted_resource_types = (PathResource,)
-    default_mode = PackageMode.ALLOW_MISALIGNMENT
-    detects_extensions = None  # any
+    _accepted_resource_types = (PathResource,)
+    _default_mode = PackageMode.ALLOW_MISALIGNMENT
+    _detects_extensions = None  # any
 
 
 PackageSpecs: TypeAlias = Union[Package, fl.Package, str]

@@ -56,6 +56,14 @@ names, and local keys are given as Roman numerals. In both cases, lowercase stri
 def extend_keys_feature(
     feature_df,
 ):
+    columns_to_add = (
+        "globalkey_mode",
+        "localkey_mode",
+        "localkey_resolved",
+        "localkey_and_mode",
+    )
+    if all(col in feature_df.columns for col in columns_to_add):
+        return feature_df
     expected_columns = ("localkey", "localkey_is_minor", "globalkey_is_minor")
     if not all(col in feature_df.columns for col in expected_columns):
         raise DataframeIsMissingExpectedColumnsError(
@@ -121,7 +129,7 @@ class DcmlAnnotations(Annotations):
         "special",
     ]
     _feature_column_names = ["label"]
-    default_value_column = "label"
+    _default_value_column = "label"
     _extractable_features = HARMONY_FEATURE_NAMES
 
     def _format_dataframe(self, feature_df: D) -> D:
@@ -135,6 +143,9 @@ def extend_harmony_feature(
     feature_df,
 ):
     """Requires previous application of :func:`transform_keys_feature`."""
+    columns_to_add = ("root_roman", "pedal_resolved", "chord_and_mode")
+    if all(col in feature_df.columns for col in columns_to_add):
+        return feature_df
     concatenate_this = [
         feature_df,
         (feature_df.numeral + ("/" + feature_df.relativeroot).fillna("")).rename(
@@ -188,7 +199,7 @@ class HarmonyLabels(DcmlAnnotations):
         "localkey",
         "chord",
     ]
-    default_value_column = "chord_and_mode"
+    _default_value_column = "chord_and_mode"
 
     class Schema(DcmlAnnotations.Schema):
         format = mm.fields.Enum(HarmonyLabelsFormat)
@@ -233,7 +244,7 @@ class HarmonyLabels(DcmlAnnotations):
 
     def _format_dataframe(self, feature_df: D) -> D:
         """Called by :meth:`_prepare_feature_df` to transform the resource dataframe into a feature dataframe."""
-        feature_df = super()._format_dataframe(feature_df)
+        feature_df = extend_keys_feature(feature_df)
         feature_df = extend_harmony_feature(feature_df)
         return feature_df
 
@@ -249,6 +260,13 @@ def extend_bass_notes_feature(
     feature_df,
 ):
     """Requires previous application of :func:`transform_keys_feature`."""
+    columns_to_add = (
+        "bass_note_over_local_tonic",
+        "bass_degree",
+        "bass_degree_and_mode",
+    )
+    if all(col in feature_df.columns for col in columns_to_add):
+        return feature_df
     expected_columns = ("bass_note", "localkey_is_minor", "localkey_mode")
     if not all(col in feature_df.columns for col in expected_columns):
         raise DataframeIsMissingExpectedColumnsError(
@@ -282,8 +300,8 @@ class BassNotesFormat(FriendlyEnum):
 
 
 class BassNotes(HarmonyLabels):
-    default_analyzer = "ScaleDegreeVectors"
-    default_value_column = "bass_note_over_local_tonic"
+    _default_formatted_column = "bass_note_over_local_tonic"
+    _default_value_column = "bass_note"
     _auxiliary_column_names = (
         DcmlAnnotations._auxiliary_column_names + AUXILIARY_HARMONYLABEL_COLUMNS
     )
@@ -297,7 +315,6 @@ class BassNotes(HarmonyLabels):
         "localkey",
         "bass_note",
     ]
-    default_value_column = "bass_note_over_local_tonic"
     _extractable_features = None
 
     class Schema(DcmlAnnotations.Schema):
@@ -332,22 +349,22 @@ class BassNotes(HarmonyLabels):
         if self.format == format:
             pass
         if format == BassNotesFormat.INTERVAL:
-            new_value_column = "bass_note_over_local_tonic"
+            new_formatted_column = "bass_note_over_local_tonic"
         elif format == BassNotesFormat.FIFTHS:
-            new_value_column = "bass_note"
+            new_formatted_column = "bass_note"
         elif format == BassNotesFormat.SCALE_DEGREE:
             if "mode" in self.get_default_groupby():
-                new_value_column = "bass_degree"
+                new_formatted_column = "bass_degree"
             else:
-                new_value_column = "bass_degree_and_mode"
+                new_formatted_column = "bass_degree_and_mode"
         else:
             raise NotImplementedError(f"Unknown format {format!r}.")
-        if self.is_loaded and new_value_column not in self.df.columns:
+        if self.is_loaded and new_formatted_column not in self.field_names:
             raise FeatureIsMissingFormatColumnError(
-                self.resource_name, new_value_column, format, self.name
+                self.resource_name, new_formatted_column, format, self.name
             )
         self._format = format
-        self.value_column = new_value_column
+        self._formatted_column = new_formatted_column
 
     def _modify_name(self):
         """Modify the :attr:`resource_name` to reflect the feature."""
@@ -355,7 +372,7 @@ class BassNotes(HarmonyLabels):
 
     def _format_dataframe(self, feature_df: D) -> D:
         """Called by :meth:`_prepare_feature_df` to transform the resource dataframe into a feature dataframe."""
-        feature_df = super()._format_dataframe(feature_df)
+        feature_df = extend_keys_feature(feature_df)
         feature_df = extend_bass_notes_feature(feature_df)
         return feature_df
 
@@ -372,11 +389,11 @@ class KeyAnnotations(DcmlAnnotations):
     ]
     _feature_column_names = ["globalkey", "localkey"]
     _extractable_features = None
-    default_value_column = "localkey_and_mode"
+    _default_value_column = "localkey_and_mode"
 
     def _format_dataframe(self, feature_df: D) -> D:
         """Called by :meth:`_prepare_feature_df` to transform the resource dataframe into a feature dataframe."""
-        feature_df = super()._format_dataframe(feature_df)
+        feature_df = extend_keys_feature(feature_df)
         groupby_levels = feature_df.index.names[:-1]
         group_keys, _ = make_adjacency_groups(
             feature_df.localkey, groupby=groupby_levels
@@ -406,8 +423,8 @@ class NotesFormat(FriendlyEnum):
 
 
 class Notes(Feature):
-    default_analyzer = "PitchClassVectors"
-    default_value_column = "tpc"
+    _default_analyzer = "PitchClassVectors"
+    _default_value_column = "tpc"
 
     class Schema(Feature.Schema):
         format = mm.fields.Enum(NotesFormat)

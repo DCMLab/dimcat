@@ -5,7 +5,7 @@ import marshmallow as mm
 import pandas as pd
 from dimcat.base import FriendlyEnum
 from dimcat.data.resources import Feature
-from dimcat.data.resources.base import SomeDataframe, SomeSeries
+from dimcat.data.resources.base import D, SomeDataframe, SomeSeries
 from dimcat.data.resources.dc import DimcatResource, FeatureSpecs, UnitOfAnalysis
 from dimcat.data.resources.results import Counts, NgramTable
 from dimcat.steps.analyzers.base import Analyzer, DispatchStrategy
@@ -14,11 +14,22 @@ logger = logging.getLogger(__name__)
 
 
 class Counter(Analyzer):
-    new_resource_type = Counts
+    _dimension_column_name = "count"
+    _new_resource_type = Counts
 
     @staticmethod
-    def compute(feature: DimcatResource | SomeDataframe, **kwargs) -> int:
-        return len(feature.index)
+    def compute(feature: Feature, **kwargs) -> D:
+        groupby = [feature.value_column]
+        if (
+            feature.formatted_column is not None
+            and feature.formatted_column not in groupby
+        ):
+            groupby.append(feature.formatted_column)
+        result = feature.groupby(groupby)[Counter._dimension_column_name].value_counts(
+            dropna=False
+        )
+        result = result.to_frame(Counter._dimension_column_name)
+        return result
 
     def groupby_apply(self, feature: Feature, groupby: SomeSeries = None, **kwargs):
         """Performs the computation on a groupby. The value of ``groupby`` needs to be
@@ -30,8 +41,13 @@ class Counter(Analyzer):
                 f"Using the {feature.resource_name}'s default groupby {groupby!r}"
             )
         groupby.append(feature.value_column)
+        if (
+            feature.formatted_column is not None
+            and feature.formatted_column not in groupby
+        ):
+            groupby.append(feature.formatted_column)
         result = feature.groupby(groupby).size()
-        result = result.to_frame("count")
+        result = result.to_frame(self._dimension_column_name)
         return result
 
     def resource_name_factory(self, resource: DimcatResource) -> str:
@@ -56,7 +72,7 @@ class NgramTableFormat(FriendlyEnum):
 
 
 class NgramAnalyzer(Analyzer):
-    new_resource_type = NgramTable
+    _new_resource_type = NgramTable
 
     @staticmethod
     def compute(feature: DimcatResource | SomeDataframe, **kwargs) -> int:

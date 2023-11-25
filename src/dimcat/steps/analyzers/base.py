@@ -40,12 +40,15 @@ class Analyzer(FeatureProcessingStep):
     The base class performs no analysis, instantiating it serves mere testing purpose.
     """
 
+    _dimension_column_name: ClassVar[Optional[str]] = None
+    """Name of a column, contained in the Results produced by this analyzer, containing some dimension,
+    e.g. one to be interpreted as quantity (durations, counts, etc.) or as color."""
     _enum_type: ClassVar[Type[Enum]] = AnalyzerName
-    new_dataset_type = AnalyzedDataset
-    new_resource_type = Result
-    output_package_name = "results"
-    applicable_to_empty_datasets = False
-    requires_at_least_one_feature = True
+    _new_dataset_type = AnalyzedDataset
+    _new_resource_type = Result
+    _output_package_name = "results"
+    _applicable_to_empty_datasets = False
+    _requires_at_least_one_feature = True
 
     # assert_all: ClassVar[Tuple[str]] = tuple()
     # """Each of these :obj:`PipelineSteps <.PipelineStep>` needs to be matched by at least one PipelineStep previously
@@ -172,16 +175,23 @@ class Analyzer(FeatureProcessingStep):
             raise NotImplementedError()
         if not self.strategy == DispatchStrategy.GROUPBY_APPLY:
             raise ValueError(f"Unknown dispatch strategy '{self.strategy!r}'")
-        result_constructor = self._get_new_resource_type(resource)
+        result_constructor: Type[Result] = self._get_new_resource_type(resource)
         results = self.groupby_apply(resource)
         result_name = self.resource_name_factory(resource)
+        value_column = resource.value_column
+        if resource.has_distinct_formatted_column:
+            formatted_column = resource.formatted_column
+        else:
+            formatted_column = None
         result = result_constructor.from_dataframe(
             analyzed_resource=resource,
+            value_column=value_column,
+            dimension_column=self._dimension_column_name,
+            formatted_column=formatted_column,
             df=results,
             resource_name=result_name,
             default_groupby=resource.get_default_groupby(),
         )
-        result.default_value_column = resource.value_column
         return result
 
     def groupby_apply(self, feature: Feature, groupby: SomeSeries = None, **kwargs):

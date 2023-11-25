@@ -18,7 +18,38 @@
 * moves changelog, authors, and license under the top-level heading "Imprint" ([7032162](https://github.com/DCMLab/dimcat/commit/7032162a5624f47c49df0c5bdd021d7879445de6))
 * updates docs requirements to the latest release of dimcat[docs] ([dc04b76](https://github.com/DCMLab/dimcat/commit/dc04b763c594d48e98c5b407e23d9c106dfd412f))
 
-## Changelog
+## [1.0.0](https://github.com/DCMLab/dimcat/compare/0.3.0...v1.0.0) (2023-11-24)
+
+This release completely invalidates the `0.x.x` releases: A lot of the conception survives, but not much of the original code.
+
+### Included in this release
+
+* A clean package/module structure centered on
+  * a few base modules and objects; all other classes are conceptually separated between the two main packages:
+  * `data` with its sub-packages
+    * catalogs
+    * datasets
+    * packages
+    * resources
+  * `steps` with sub-packages
+    * analyzers
+    * extractors
+    * groupers
+    * loaders
+    * pipelines
+    * slicers
+* All sub-sub packages can be imported directly and all included classes used directly, regardless of the module they live in. For example, you would
+
+  ```python
+  from dimcat import analyzers
+  ```
+
+  and then invoke analyzers as in `analyzers.Counter()`
+* The basic usage pattern is set up, which lets you process individual resources as in `processed_resource = step.process(resource)` or entire datasets as in `processed_dataset = step.process(dataset)`.
+* The skeleton for the documentation is setup and allows for the inclusion of MyST notebooks.
+
+
+
 
 ## Version 0.3.0
 

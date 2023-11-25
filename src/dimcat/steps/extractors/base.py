@@ -12,8 +12,8 @@ from marshmallow import fields, validate
 
 
 class FeatureExtractor(FeatureProcessingStep):
-    output_package_name = "features"
-    requires_at_least_one_feature = True
+    _output_package_name = "features"
+    _requires_at_least_one_feature = True
 
     class Schema(FeatureProcessingStep.Schema):
         features = fields.List(

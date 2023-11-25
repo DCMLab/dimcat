@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 class MuseScoreLoader(ScoreLoader):
     """Wrapper around the ms3 MuseScore parsing library."""
 
-    accepted_file_extensions = (".mscx", ".mscz")
-    conditionally_accepted_file_extensions = (
+    _accepted_file_extensions = (".mscx", ".mscz")
+    _conditionally_accepted_file_extensions = (
         ".cap",
         ".capx",
         ".midi",
@@ -28,7 +28,7 @@ class MuseScoreLoader(ScoreLoader):
         ".xml",
     )
     """Convertible file formats accepted if a MuseScore executable is specified (parameter ``ms``)."""
-    default_loader_name = "musescore"
+    _default_loader_name = "musescore"
 
     class Schema(Loader.Schema):
         pass
@@ -152,7 +152,7 @@ class MuseScoreLoader(ScoreLoader):
         super().check_resource(resource)
         filepath = resource.normpath
         _, fext = os.path.splitext(filepath)
-        if fext in self.conditionally_accepted_file_extensions and self.ms is None:
+        if fext in self._conditionally_accepted_file_extensions and self.ms is None:
             raise NoMuseScoreExecutableSpecifiedError
 
     # def make_and_store_datapackage(
