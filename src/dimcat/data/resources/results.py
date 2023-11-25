@@ -23,6 +23,7 @@ from matplotlib import pyplot as plt
 from matplotlib.figure import Figure as MatplotlibFigure
 from plotly import graph_objs as go
 
+from .base import D
 from .dc import DimcatResource, UnitOfAnalysis
 
 logger = logging.getLogger(__name__)
@@ -128,11 +129,15 @@ class Result(DimcatResource):
         """Name of the numerical result column used for determining each marker's dimension along the y-axis."""
         return self.dimension_column
 
-    def combine(
+    def combine_results(
         self,
         group_cols: Optional[str | Iterable[str]] = None,
         sort_order: Optional[SortOrder] = SortOrder.NONE,
-    ):
+    ) -> D:
+        """Aggregate results for each group, typically by summing up and normalizing the values. By default,
+        the groups correspond to those that had been applied to the analyzed resource. If no Groupers had been
+        applied, the entire dataset is treated as a single group.
+        """
         if group_cols is None:
             group_cols = self.get_default_groupby()
         elif isinstance(group_cols, str):
@@ -245,7 +250,7 @@ class Result(DimcatResource):
     ) -> go.Figure:
         x_col = self.x_column
         y_col = self.y_column
-        combined_result = self.combine()
+        combined_result = self.combine_results()
         return self.make_bar_plot(
             df=combined_result,
             x_col=x_col,
