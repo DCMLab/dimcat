@@ -346,8 +346,6 @@ class FeatureProcessingStep(PipelineStep):
                 for f in self._allowed_features
             ):
                 raise ResourceNotProcessableError(resource.name, self.name)
-        elif not isinstance(resource, Feature):
-            raise ResourceNotProcessableError(resource.name, self.name)
 
     def _iter_features(self, dataset: Dataset) -> Iterator[DimcatResource]:
         """Iterate over all features that are required for this PipelineStep.
