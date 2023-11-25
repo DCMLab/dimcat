@@ -325,6 +325,7 @@ class DimcatResource(Resource, Generic[D]):
         basepath: Optional[str] = None,
         auto_validate: Optional[bool] = None,
         default_groupby: Optional[str | list[str]] = None,
+        **kwargs,
     ) -> Self:
         """Create a DimcatResource from an existing :obj:`Resource`, specifying its name and,
         optionally, at what path it is to be serialized.
@@ -351,6 +352,7 @@ class DimcatResource(Resource, Generic[D]):
             basepath=basepath,
             auto_validate=auto_validate,
             default_groupby=default_groupby,
+            **kwargs,
         )
         # copy additional fields
         for attr in ("_df", "_status", "_corpus_name", "_default_groupby"):

@@ -429,15 +429,15 @@ class Resource(Data):
         if not isinstance(resource, Resource):
             raise TypeError(f"Expected a Resource, got {type(resource)!r}.")
         fl_resource = resource.resource.to_copy()
-        descriptor_filename = (
-            descriptor_filename if descriptor_filename else resource.descriptor_filename
-        )
-        basepath = basepath if basepath else resource.basepath
+        resource_kwargs = {
+            arg: getattr(resource, arg)
+            for arg in resource.schema.fields
+            if arg not in ("dtype", "resource")
+        }
+        resource_kwargs.update(kwargs)
         new_object = cls(
             resource=fl_resource,
-            descriptor_filename=descriptor_filename,
-            basepath=basepath,
-            **kwargs,
+            **resource_kwargs,
         )
         if resource_name:
             new_object.resource_name = resource_name
