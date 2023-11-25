@@ -248,57 +248,54 @@ class Result(DimcatResource):
         output: Optional[str] = None,
         **kwargs,
     ) -> go.Figure:
-        x_col = self.x_column
-        y_col = self.y_column
-        combined_result = self.combine_results()
-        return self.make_bar_plot(
-            df=combined_result,
-            x_col=x_col,
-            y_col=y_col,
-            group_cols=group_cols,
-            group_modes=group_modes,
-            title=title,
-            labels=labels,
-            hover_data=hover_data,
-            height=height,
-            width=width,
-            layout=layout,
-            x_axis=x_axis,
-            y_axis=y_axis,
-            color_axis=color_axis,
-            traces_settings=traces_settings,
-            output=output,
-            **kwargs,
-        )
-        # # in principle, group distributions can also be displayed as bubble plots:
-        # if not group_cols:
-        #     ... # bar plot code
-        # else:
-        #     y_col = group_cols[-1]
-        #     x_col = self.x_column
-        #     labels_settings = clean_axis_labels(x_col, y_col)
-        #     if labels is not None:
-        #         labels_settings.update(labels)
-        #     return self.make_bubble_plot(
-        #         x_col=x_col,
-        #         y_col=y_col,
-        #         title=title,
-        #         labels=labels_settings,
-        #         hover_data=hover_data,
-        #         height=height,
-        #         width=width,
-        #         layout=layout,
-        #         x_axis=x_axis,
-        #         y_axis=y_axis,
-        #         color_axis=color_axis,
-        #         traces_settings=traces_settings,
-        #         output=output,
-        #         **kwargs,
-        #     )
+        if group_cols is None:
+            group_cols = self.get_default_groupby()
+        combined_result = self.combine_results(group_cols=group_cols)
+        if not group_cols:
+            x_col = self.x_column
+            y_col = self.y_column
+            return self.make_bar_plot(
+                df=combined_result,
+                x_col=x_col,
+                y_col=y_col,
+                group_cols=group_cols,
+                group_modes=group_modes,
+                title=title,
+                labels=labels,
+                hover_data=hover_data,
+                height=height,
+                width=width,
+                layout=layout,
+                x_axis=x_axis,
+                y_axis=y_axis,
+                color_axis=color_axis,
+                traces_settings=traces_settings,
+                output=output,
+                **kwargs,
+            )
+        else:
+            y_col = group_cols[-1]
+            x_col = self.x_column
+            return self.make_bubble_plot(
+                df=combined_result,
+                x_col=x_col,
+                y_col=y_col,
+                title=title,
+                hover_data=hover_data,
+                height=height,
+                width=width,
+                layout=layout,
+                x_axis=x_axis,
+                y_axis=y_axis,
+                color_axis=color_axis,
+                traces_settings=traces_settings,
+                output=output,
+                **kwargs,
+            )
 
     def make_bar_plot(
         self,
-        df: Optional[pd.DataFrame] = None,
+        df: Optional[D] = None,
         x_col: Optional[str] = None,
         y_col: Optional[str] = None,
         group_cols: Optional[str | Iterable[str]] = None,
@@ -341,8 +338,6 @@ class Result(DimcatResource):
         layout_update = dict()
         if layout is not None:
             layout_update.update(layout)
-        if "xaxis_type" not in layout_update:
-            layout_update["xaxis_type"] = "category"
         if self.uses_line_of_fifths_colors:
             color_midpoint = self._get_color_midpoint()
             x_names_col = self.formatted_column
@@ -390,10 +385,11 @@ class Result(DimcatResource):
 
     def make_bubble_plot(
         self,
-        normalize: bool = True,
-        flip: bool = False,
+        df: Optional[D] = None,
         x_col: Optional[str] = None,
         y_col: Optional[str] = None,
+        normalize: bool = True,
+        flip: bool = False,
         dimension_column: Optional[str] = None,
         title: Optional[str] = None,
         labels: Optional[dict] = None,
@@ -417,8 +413,10 @@ class Result(DimcatResource):
         Returns:
             A Plotly Figure object.
         """
+        if df is None:
+            df = self.df
         if x_col is None:
-            x_col = self.value_column
+            x_col = self.x_column
         if y_col is None:
             unit_of_analysis = self.get_grouping_levels()
             y_col = unit_of_analysis[-1]
@@ -427,8 +425,6 @@ class Result(DimcatResource):
         layout_update = dict()
         if layout is not None:
             layout_update.update(layout)
-        if "yaxis_type" not in layout_update:
-            layout_update["yaxis_type"] = "category"
         resource_format = self.analyzed_resource.format
         if resource_format in ("FIFTHS", "INTERVAL", "NAME", "SCALE_DEGREE"):
             color_midpoint = self._get_color_midpoint()
@@ -437,7 +433,7 @@ class Result(DimcatResource):
             if hover_data:
                 hover_cols.extend(hover_data)
             return make_lof_bubble_plot(
-                df=self.df,
+                df=df,
                 normalize=normalize,
                 flip=flip,
                 fifths_col=x_col,
@@ -460,7 +456,7 @@ class Result(DimcatResource):
             )
         else:
             return make_bubble_plot(
-                df=self.df,
+                df=df,
                 normalize=normalize,
                 flip=flip,
                 x_col=x_col,
