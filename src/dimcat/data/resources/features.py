@@ -56,6 +56,14 @@ names, and local keys are given as Roman numerals. In both cases, lowercase stri
 def extend_keys_feature(
     feature_df,
 ):
+    columns_to_add = (
+        "globalkey_mode",
+        "localkey_mode",
+        "localkey_resolved",
+        "localkey_and_mode",
+    )
+    if all(col in feature_df.columns for col in columns_to_add):
+        return feature_df
     expected_columns = ("localkey", "localkey_is_minor", "globalkey_is_minor")
     if not all(col in feature_df.columns for col in expected_columns):
         raise DataframeIsMissingExpectedColumnsError(
@@ -135,6 +143,9 @@ def extend_harmony_feature(
     feature_df,
 ):
     """Requires previous application of :func:`transform_keys_feature`."""
+    columns_to_add = ("root_roman", "pedal_resolved", "chord_and_mode")
+    if all(col in feature_df.columns for col in columns_to_add):
+        return feature_df
     concatenate_this = [
         feature_df,
         (feature_df.numeral + ("/" + feature_df.relativeroot).fillna("")).rename(
@@ -233,7 +244,7 @@ class HarmonyLabels(DcmlAnnotations):
 
     def _format_dataframe(self, feature_df: D) -> D:
         """Called by :meth:`_prepare_feature_df` to transform the resource dataframe into a feature dataframe."""
-        feature_df = extend_keys_feature()
+        feature_df = extend_keys_feature(feature_df)
         feature_df = extend_harmony_feature(feature_df)
         return feature_df
 
@@ -249,6 +260,13 @@ def extend_bass_notes_feature(
     feature_df,
 ):
     """Requires previous application of :func:`transform_keys_feature`."""
+    columns_to_add = (
+        "bass_note_over_local_tonic",
+        "bass_degree",
+        "bass_degree_and_mode",
+    )
+    if all(col in feature_df.columns for col in columns_to_add):
+        return feature_df
     expected_columns = ("bass_note", "localkey_is_minor", "localkey_mode")
     if not all(col in feature_df.columns for col in expected_columns):
         raise DataframeIsMissingExpectedColumnsError(
@@ -282,7 +300,6 @@ class BassNotesFormat(FriendlyEnum):
 
 
 class BassNotes(HarmonyLabels):
-    _default_analyzer = "ScaleDegreeVectors"
     _default_formatted_column = "bass_note_over_local_tonic"
     _default_value_column = "bass_note"
     _auxiliary_column_names = (
@@ -376,7 +393,7 @@ class KeyAnnotations(DcmlAnnotations):
 
     def _format_dataframe(self, feature_df: D) -> D:
         """Called by :meth:`_prepare_feature_df` to transform the resource dataframe into a feature dataframe."""
-        feature_df = super()._format_dataframe(feature_df)
+        feature_df = extend_keys_feature(feature_df)
         groupby_levels = feature_df.index.names[:-1]
         group_keys, _ = make_adjacency_groups(
             feature_df.localkey, groupby=groupby_levels
