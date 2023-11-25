@@ -48,6 +48,7 @@ from dimcat.data.resources.utils import (
     make_boolean_mask_from_set_of_tuples,
     make_index_from_grouping_dict,
     make_tsv_resource,
+    resolve_levels_argument,
 )
 from dimcat.dc_exceptions import (
     BasePathNotDefinedError,
@@ -1356,6 +1357,41 @@ class DimcatIndex(Generic[IX], Data):
 
     def copy(self) -> Self:
         return self.__class__(self._index.copy())
+
+    def filter(
+        self,
+        keep_values: Optional[Hashable | Iterable[Hashable]] = None,
+        drop_values: Optional[Hashable | Iterable[Hashable]] = None,
+        level: int | str = 0,
+        drop_level: bool = False,
+    ) -> Self:
+        """Returns a copy of the index with only those items where the given level has wanted values."""
+        if not isinstance(level, (int, str)):
+            raise TypeError(
+                f"Level must be an int position or name string, got {type(level)!r}."
+            )
+        if drop_values is None:
+            drop_this = set()
+        elif isinstance(drop_values, Hashable):
+            drop_this = {drop_values}
+        else:
+            drop_this = set(drop_values)
+        if keep_values:
+            level_ints = resolve_levels_argument(level, self.names)
+            assert (
+                len(level_ints) == 1
+            ), f"Level argumented should have resolved to a single integer, got {level_ints}."
+            level_int = level_ints[0]
+            level_values = set(self._index.levels[level_int])
+            if isinstance(keep_values, Hashable):
+                keep_values = {keep_values}
+            else:
+                keep_values = set(keep_values)
+            drop_this.update(level_values.difference(keep_values))
+        new_index = self.index.drop(tuple(drop_this), level=level, errors="ignore")
+        if drop_level:
+            new_index = new_index.droplevel(level)
+        return self.__class__(new_index)
 
     def sample(self, n: int) -> Self:
         """Return a random sample of n elements."""
