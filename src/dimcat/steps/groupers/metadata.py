@@ -51,4 +51,6 @@ class YearGrouper(CustomPieceGrouper):
         group_index = DimcatIndex.from_grouping(
             grouping, ("middle_composition_year", "corpus", "piece")
         )
+        if len(self.grouped_units) > 0:
+            self.logger.info(f"Replacing existing grouping with {group_index}")
         self.grouped_units = group_index

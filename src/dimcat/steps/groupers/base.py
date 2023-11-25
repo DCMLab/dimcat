@@ -1,14 +1,25 @@
 import logging
-from typing import Dict, Hashable, List, MutableMapping, Optional, Sequence
+from collections import defaultdict
+from typing import ClassVar, Dict, Hashable, List, MutableMapping, Optional, Sequence
 
 import marshmallow as mm
 import pandas as pd
+from dimcat import Dataset
 from dimcat.base import is_subclass_of
 from dimcat.data.datasets.processed import GroupedDataset
 from dimcat.data.resources import Resource
-from dimcat.data.resources.base import D
-from dimcat.data.resources.dc import DimcatIndex, DimcatResource, PieceIndex
-from dimcat.dc_exceptions import GrouperNotSetUpError, ResourceAlreadyTransformed
+from dimcat.data.resources.base import D, FeatureName
+from dimcat.data.resources.dc import (
+    DimcatIndex,
+    DimcatResource,
+    PieceIndex,
+    UnitOfAnalysis,
+)
+from dimcat.dc_exceptions import (
+    DatasetNotProcessableError,
+    GrouperNotSetUpError,
+    ResourceAlreadyTransformed,
+)
 from dimcat.steps.base import ResourceTransformation
 from dimcat.utils import check_name
 from typing_extensions import Self
@@ -57,7 +68,7 @@ class Grouper(ResourceTransformation):
         result.update_default_groupby(self.level_name)
         return result
 
-    def transform_resource(self, resource: DimcatResource) -> pd.DataFrame:
+    def transform_resource(self, resource: DimcatResource) -> D:
         """Apply the grouper to a Feature."""
         return pd.concat([resource.df], keys=[self.level_name], names=[self.level_name])
 
@@ -159,6 +170,85 @@ class MappingGrouper(Grouper):
     def transform_resource(self, resource: DimcatResource) -> D:
         """Apply the grouper to a Feature."""
         return resource.align_with_grouping(self.grouped_units)
+
+
+class CriterionGrouper(MappingGrouper):
+    """Groupers that are fitted to a Dataset by applying their :meth:`criterion` method to the units of analysis
+    for a particular resource and grouping the chunks according to the method's outputs.
+    """
+
+    _required_feature: ClassVar[FeatureName] = None
+    """The type of Feature that needs to be present in a dataset to fit this grouper."""
+
+    @staticmethod
+    def compute_criterion(unit: D) -> Hashable:
+        raise NotImplementedError("Please use a subclass of CriterionGrouper.")
+
+    class Schema(MappingGrouper.Schema):
+        smallest_unit = mm.fields.Enum(UnitOfAnalysis, metadata={"expose": False})
+
+    def __init__(
+        self,
+        level_name: str = "criterion",
+        grouped_units: DimcatIndex | pd.MultiIndex = None,
+        smallest_unit: UnitOfAnalysis = UnitOfAnalysis.SLICE,
+        **kwargs,
+    ):
+        super().__init__(level_name=level_name, grouped_units=grouped_units, **kwargs)
+        self._smallest_unit: UnitOfAnalysis = None
+        self.smallest_unit = smallest_unit
+
+    @property
+    def smallest_unit(self) -> UnitOfAnalysis:
+        return self._smallest_unit
+
+    @smallest_unit.setter
+    def smallest_unit(self, smallest_unit: UnitOfAnalysis):
+        if not isinstance(smallest_unit, UnitOfAnalysis):
+            smallest_unit = UnitOfAnalysis(smallest_unit)
+        self._smallest_unit = smallest_unit
+
+    def check_dataset(self, dataset: Dataset) -> None:
+        super().check_dataset(dataset)
+        if self._required_feature is None:
+            raise NotImplementedError(
+                f"{self.name} requires a _required_feature class variable."
+            )
+        if self._required_feature not in dataset.extractable_features:
+            raise DatasetNotProcessableError(self._required_feature)
+
+    def fit_to_dataset(self, dataset: Dataset) -> None:
+        feature = dataset.get_feature(self._required_feature)
+        feature_df = feature.df
+        groupby = feature.get_grouping_levels(self.smallest_unit)
+        self.logger.debug(
+            f"Using the {feature.resource_name}'s grouping levels {groupby!r}"
+        )
+        grouping = defaultdict(list)
+        grouped_units = defaultdict(list)
+        for unit_name, unit in feature_df.groupby(groupby):
+            group = self.compute_criterion(unit)
+            grouping[group].append(unit_name)
+            grouped_units[group].append(unit)
+        grouped_units = {
+            group: pd.concat(units) for group, units in grouped_units.items()
+        }
+        grouped_df = pd.concat(grouped_units, names=[self.level_name])
+        feature_kwargs = {
+            arg: getattr(feature, arg)
+            for arg in feature.schema.fields
+            if arg not in ("dtype", "resource", "descriptor_filename")
+        }
+        feature_name = self.resource_name_factory(feature)
+        grouped_feature = feature.__class__.from_dataframe(
+            df=grouped_df, resource_name=feature_name, **feature_kwargs
+        )
+        features_package = dataset.outputs.get_package_by_name("features")
+        features_package.replace_resource(grouped_feature, feature_name)
+        group_index = DimcatIndex.from_grouping(grouping, [self.level_name] + groupby)
+        if len(self.grouped_units) > 0:
+            self.logger.info(f"Replacing existing grouping with {group_index}")
+        self.grouped_units = group_index
 
 
 class CustomPieceGrouper(MappingGrouper):

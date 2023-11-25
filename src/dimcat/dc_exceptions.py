@@ -87,6 +87,15 @@ class DataframeIncompatibleWithColumnSchemaError(DimcatError):
     }
 
 
+class DatasetNotProcessableError(DimcatError):
+    """optional args: (missing,)"""
+
+    nargs2message = {
+        0: "Cannot process this Dataset.",
+        1: lambda missing: f"Cannot process this Dataset: missing {missing!r}.",
+    }
+
+
 class DuplicateIDError(DimcatError):
     """optional args: (id, facet)"""
 
