@@ -133,34 +133,6 @@ class PackageSchema(Data.Schema):
             data["name"] = data.pop("package_name")
         return data
 
-    # def get_package_descriptor(self, obj: Package):
-    #     return obj.make_descriptor()
-    #
-    # def raw(self, data):
-    #     return data
-    #
-    # @mm.post_load
-    # def init_object(self, data, **kwargs):
-    #     print(f"DATA BEFORE: {data}")
-    #     if isinstance(data["package"], str) and "basepath" in data:
-    #         descriptor_path = os.path.join(data["basepath"], data["package"])
-    #         data["package"] = descriptor_path
-    #     elif isinstance(data["package"], dict):
-    #         resources = data["package"].pop("resources", [])
-    #         deserialized_resources = []
-    #         for resource in resources:
-    #             deserialized = deserialize_dict(resource)
-    #             deserialized_resources.append(deserialized)
-    #         dtype = data.pop("dtype")
-    #         package_constructor = get_class(dtype)
-    #         deserialized_package = package_constructor.from_resources(
-    #             resources = deserialized_resources,
-    #             **data["package"]
-    #         )
-    #         data["package"] = deserialized_package
-    #     print(f"DATA AFTER: {data}")
-    #     return super().init_object(data, **kwargs)
-
 
 class Package(Data):
     """Wrapper for a :obj:`frictionless.Package`. The purpose of a Package is to create, load, and
@@ -566,12 +538,7 @@ class Package(Data):
         return new_package
 
     class PickleSchema(PackageSchema):
-        def get_package_descriptor(self, obj: Package):
-            obj.store_descriptor()
-            return obj.get_descriptor_filename()
-
-        def raw(self, data):
-            return data
+        pass
 
     class Schema(PackageSchema, Data.Schema):
         pass

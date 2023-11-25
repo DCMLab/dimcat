@@ -202,6 +202,7 @@ class ResourceSchema(Data.Schema):
         return descriptor
 
     def raw(self, data):
+        """Functions as 'deserialize' method for the Schema field 'resource'."""
         return data
 
     @mm.pre_load
