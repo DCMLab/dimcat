@@ -2,12 +2,7 @@ import logging
 
 from dimcat.data.resources.base import D, FeatureName, SomeSeries
 from dimcat.data.resources.dc import DimcatResource, Feature
-from dimcat.data.resources.results import (
-    Durations,
-    PitchClassDurations,
-    Result,
-    ScaleDegreeDurations,
-)
+from dimcat.data.resources.results import Durations
 from dimcat.dc_exceptions import FeatureWithUndefinedValueColumnError
 from dimcat.steps.analyzers.base import Analyzer
 
@@ -72,22 +67,7 @@ class Proportions(Analyzer):
 
 class PitchClassVectors(Proportions):
     _allowed_features = (FeatureName.Notes,)
-    _new_resource_type = PitchClassDurations
 
     def resource_name_factory(self, resource: DimcatResource) -> str:
         """Returns a name for the resource based on its name and the name of the pipeline step."""
         return f"{resource.resource_name}.pitch_class_vectors"
-
-
-class ScaleDegreeVectors(Proportions):
-    _allowed_features = (FeatureName.BassNotes,)
-    _new_resource_type = ScaleDegreeDurations
-
-    def _make_new_resource(self, resource: Feature) -> Result:
-        result = super()._make_new_resource(resource)
-        result.default_format = resource.format
-        return result
-
-    def resource_name_factory(self, resource: DimcatResource) -> str:
-        """Returns a name for the resource based on its name and the name of the pipeline step."""
-        return f"{resource.resource_name}.scale_degree_vectors"

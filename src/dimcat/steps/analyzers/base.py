@@ -179,7 +179,7 @@ class Analyzer(FeatureProcessingStep):
         results = self.groupby_apply(resource)
         result_name = self.resource_name_factory(resource)
         value_column = resource.value_column
-        if resource.formatted_column and resource.formatted_column != value_column:
+        if resource.has_distinct_formatted_column:
             formatted_column = resource.formatted_column
         else:
             formatted_column = None

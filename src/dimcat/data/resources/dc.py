@@ -143,11 +143,11 @@ class DimcatResource(Resource, Generic[D]):
     creating the resource, any row containing a missing value in one of the feature columns is dropped."""
     # endregion column name class variables
     # region associated object types
+    _default_analyzer: ClassVar[str] = "Proportions"
+    """Name of the Analyzer that is used by default for plotting the resource. Needs to return a :obj:`Result`."""
     _extractable_features: ClassVar[Optional[Tuple[FeatureName, ...]]] = None
     """Tuple of :obj:`FeatureNames <FeatureName>` corresponding to the features that can be extracted from this
     resource. If None, no features can be extracted."""
-    _default_analyzer: ClassVar[str] = "Proportions"
-    """Name of the Analyzer that is used by default for plotting the resource. Needs to return a :obj:`Result`."""
     # endregion associated object types
 
     @classmethod
@@ -582,6 +582,11 @@ DimcatResource.__init__(
         return
 
     @property
+    def has_distinct_formatted_column(self) -> bool:
+        """Returns False if no formatted_column is specified or it is identical with :attr:`value_column`."""
+        return self.formatted_column and self.formatted_column != self.value_column
+
+    @property
     def innerpath(self) -> str:
         """The innerpath is the resource_name plus the extension .tsv and is used as filename within a .zip archive."""
         if self.resource_name.endswith(".tsv"):
@@ -805,7 +810,7 @@ DimcatResource.__init__(
     def get_grouping_levels(
         self, smallest_unit: UnitOfAnalysis = UnitOfAnalysis.SLICE
     ) -> List[str]:
-        """Returns the levels of the grouping index, i.e., all levels until and including 'piece'."""
+        """Returns the levels of the grouping index, i.e., all levels until and including 'piece' or 'slice'."""
         smallest_unit = UnitOfAnalysis(smallest_unit)
         if smallest_unit == UnitOfAnalysis.SLICE:
             return self.get_level_names()[:-1]
