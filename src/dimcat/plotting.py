@@ -199,6 +199,8 @@ def make_bar_plot(
     )
     update_figure_layout(
         fig=fig,
+        x_col=x_col,
+        y_col=y_col,
         layout=layout,
         x_axis=x_axis,
         y_axis=y_axis,
@@ -493,6 +495,8 @@ def make_scatter_plot(
     )
     update_figure_layout(
         fig=fig,
+        x_col=x_col,
+        y_col=y_col,
         layout=layout,
         x_axis=x_axis,
         y_axis=y_axis,
@@ -738,6 +742,8 @@ def plot_pitch_class_distribution(
 
 def update_figure_layout(
     fig: go.Figure,
+    x_col: Optional[str] = None,
+    y_col: Optional[str] = None,
     layout: Optional[dict] = None,
     x_axis: Optional[dict] = None,
     y_axis: Optional[dict] = None,
@@ -746,6 +752,10 @@ def update_figure_layout(
     **kwargs,
 ):
     figure_layout = dict(STD_LAYOUT)
+    if x_col == "piece":
+        figure_layout["xaxis_type"] = "category"
+    if y_col == "piece":
+        figure_layout["yaxis_type"] = "category"
     if layout is not None:
         figure_layout.update(layout)
     if len(kwargs) > 0:
