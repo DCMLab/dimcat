@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Iterable, Iterator, List, Optional
+from typing import TYPE_CHECKING, Iterable, Iterator, List, Optional, Set
 
 import marshmallow as mm
 from dimcat.base import DimcatConfig, DimcatObjectField, get_class
@@ -26,7 +26,7 @@ from dimcat.data.catalogs.inputs import InputsCatalog
 from dimcat.data.catalogs.outputs import OutputsCatalog
 from dimcat.data.packages.base import Package, PackageSpecs
 from dimcat.data.packages.dc import DimcatPackage
-from dimcat.data.resources.base import SomeDataframe
+from dimcat.data.resources.base import FeatureName, SomeDataframe
 from dimcat.data.resources.dc import DimcatResource, Feature, FeatureSpecs
 from dimcat.data.resources.utils import (
     feature_specs2config,
@@ -135,6 +135,12 @@ class Dataset(Data):
         self._pipeline: Pipeline = None
         self.reset_pipeline()
         super().__init__(basepath=basepath, **kwargs)  # calls the Mixin's __init__
+
+    @property
+    def extractable_features(self) -> Set[FeatureName]:
+        """The dtypes of all features that can be extracted from the facet resources included in the input packages."""
+        f_name_sets = [package.extractable_features for package in self.inputs]
+        return set().union(*f_name_sets)
 
     @property
     def inputs(self) -> InputsCatalog:
