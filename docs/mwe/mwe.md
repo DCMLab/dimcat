@@ -16,7 +16,7 @@ kernelspec:
 
 ## Import dimcat and load data
 
-```{code-cell} ipython3
+```{code-cell}
 import dimcat as dc
 from dimcat.data import resources
 from dimcat.steps import analyzers, extractors, groupers
@@ -28,7 +28,7 @@ dataset
 
 ## Show metadata
 
-```{code-cell} ipython3
+```{code-cell}
 dataset.get_metadata()
 ```
 
@@ -38,7 +38,7 @@ dataset.get_metadata()
 
 Here we pass the extracted notes to the counter.
 
-```{code-cell} ipython3
+```{code-cell}
 notes = dataset.get_feature("notes")
 result = analyzers.Counter().process(notes)
 result.plot()
@@ -46,7 +46,7 @@ result.plot()
 
 The `FeatureExtractor` is added to the dataset implicitly, but not the `Counter` because it's applied only to the extracted feature:
 
-```{code-cell} ipython3
+```{code-cell}
 dataset
 ```
 
@@ -54,7 +54,7 @@ dataset
 
 Here we pass the dataset to the counter.
 
-```{code-cell} ipython3
+```{code-cell}
 counter = analyzers.Counter(features="notes")
 analyzed_dataset = counter.process(dataset)
 analyzed_dataset.get_result().plot()
@@ -63,13 +63,13 @@ analyzed_dataset.get_result().plot()
 Applying an `Analyzer` to a `Dataset` yields an `AnalyzedDataset` that includes one `Result` resource per analyzed `Feature`.
 Both are to be found in the respective packages in the outputs catalog:
 
-```{code-cell} ipython3
+```{code-cell}
 analyzed_dataset
 ```
 
 ### Variant 3: Define a Pipeline with FeatureExtractor and Counter
 
-```{code-cell} ipython3
+```{code-cell}
 pipeline = dc.Pipeline([
     extractors.FeatureExtractor("notes"),
     analyzers.Counter()
@@ -82,44 +82,43 @@ analyzed_dataset.get_result().plot()
 
 Let's define a CustomPieceGrouper from random piece groups:
 
-```{code-cell} ipython3
-n_groups = 10
-n_members = 10
+```{code-cell}
+n_groups = 3
+n_members = 30
 
 piece_index = resources.PieceIndex.from_resource(notes)
 grouping = {f"group_{i}": piece_index.sample(n_members) for i in range(1, n_groups + 1)}
 grouper = groupers.CustomPieceGrouper.from_grouping(grouping)
 grouper
+### Applying the grouper to the analysis result
 ```
 
-### Applying the grouper to the analysis result
-
-```{code-cell} ipython3
+```{code-cell}
 grouped_result = grouper.process(result)
 grouped_result
 ```
 
-```{code-cell} ipython3
-grouped_result.plot()
+```{code-cell}
+grouped_result.plot_grouped()
 ```
 
 ### Including the grouper in the analysis pipeline
 
-```{code-cell} ipython3
+```{code-cell}
 pipeline.add_step(grouper)
 pipeline.info()
 ```
 
-```{code-cell} ipython3
+```{code-cell}
 analyzed_dataset = pipeline.process(dataset)
-analyzed_dataset.get_result().plot()
+analyzed_dataset.get_result().plot_grouped()
 ```
 
 ## Assembling the Pipeline from DimcatConfig objects
 
 Serialization of any DimcatObject uses the `DimcatConfig` object.
 
-```{code-cell} ipython3
+```{code-cell}
 step_configs = [
     dict(dtype="FeatureExtractor", features=[dict(dtype="Notes", format="FIFTHS")]),
     dict(dtype="Counter"),
@@ -129,11 +128,7 @@ pl = dc.Pipeline.from_step_configs(step_configs)
 pl
 ```
 
-```{code-cell} ipython3
+```{code-cell}
 resulting_dataset = pl.process(dataset)
-resulting_dataset.get_result().plot()
-```
-
-```{code-cell} ipython3
-
+resulting_dataset.get_result().plot_grouped()
 ```
