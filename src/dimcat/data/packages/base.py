@@ -1110,6 +1110,29 @@ class Package(Data):
         metadata.load()
         return metadata
 
+    def get_resource(self, resource: DimcatConfig | Type[Resource] | str):
+        """High-level method that calls one of the other get_resource_* methods depending on the
+        type of the argument. A string is interpreted as resource name, not as type."""
+        if self.n_resources == 0:
+            raise EmptyPackageError(self.package_name)
+        if isinstance(resource, DimcatConfig):
+            return self.get_resource_by_config(resource)
+        if isinstance(resource, type):
+            resources = self.get_resources_by_type(resource)
+        elif isinstance(resource, str):
+            try:
+                return self.get_resource_by_name(resource)
+            except ResourceNotFoundError:
+                resources = self.get_resources_by_regex(resource)
+        if len(resources) > 1:
+            raise NotImplementedError(
+                f"More than one {resource.__name__} resource found for {resource!r}:\n"
+                f"{', '.join(r.resource_name for r in resources)}"
+            )
+        elif len(resources) == 0:
+            raise NoMatchingResourceFoundError(resource.name, self.package_name)
+        return resources[0]
+
     def get_resource_by_config(self, config: DimcatConfig) -> Resource:
         """Returns the first resource that matches the given config.
 
@@ -1155,6 +1178,7 @@ class Package(Data):
     def get_resources_by_type(
         self,
         resource_type: Type[Resource] | str,
+        include_subclasses: bool = False,
     ) -> List[Resource]:
         """Returns the Resource objects of the given type."""
         if isinstance(resource_type, str):
@@ -1163,11 +1187,18 @@ class Package(Data):
             raise TypeError(
                 f"Expected a subclass of 'Resource', got {resource_type!r}."
             )
-        return [
-            resource
-            for resource in self._resources
-            if isinstance(resource, resource_type)
-        ]
+        if include_subclasses:
+            return [
+                resource
+                for resource in self._resources
+                if isinstance(resource, resource_type)
+            ]
+        else:
+            return [
+                resource
+                for resource in self._resources
+                if resource.__class__ == resource_type
+            ]
 
     def _get_status(self) -> PackageStatus:
         """Returns the status of the package."""
@@ -1337,6 +1368,30 @@ class Package(Data):
             ):
                 resource._set_descriptor_filename(package_descriptor_filename)
         return resource
+
+    def replace_resource(
+        self,
+        resource: Resource,
+        name_of_replaced_resource: Optional[str] = None,
+    ) -> None:
+        """Replaces the package with the same name as the given package with the given package."""
+        if not isinstance(resource, Resource):
+            msg = f"{self.name}.replace_resource() takes a Resource, not {type(resource)!r}."
+            raise TypeError(msg)
+        search_name = (
+            name_of_replaced_resource
+            if name_of_replaced_resource
+            else resource.resource_name
+        )
+        for i, r in enumerate(self._resources):
+            if r.resource_name == search_name:
+                self._resources[i] = resource
+                self.logger.info(
+                    f"Replaced resource {search_name!r} with "
+                    f"resource {resource.resource_name!r}."
+                )
+                return
+        raise ResourceNotFoundError(search_name, self.package_name)
 
     def _set_descriptor_filename(self, descriptor_filename):
         if self.descriptor_exists:
