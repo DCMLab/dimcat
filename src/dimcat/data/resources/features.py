@@ -148,21 +148,46 @@ def extend_harmony_feature(
     columns_to_add = ("root_roman", "pedal_resolved", "chord_and_mode")
     if all(col in feature_df.columns for col in columns_to_add):
         return feature_df
-    concatenate_this = [
-        feature_df,
-        (feature_df.numeral + ("/" + feature_df.relativeroot).fillna("")).rename(
-            "root_roman"
-        ),
-        ms3.transform(
-            feature_df, ms3.resolve_relative_keys, ["pedal", "localkey_is_minor"]
-        ).rename("pedal_resolved"),
-        feature_df[["chord", "localkey_mode"]]
-        .apply(safe_row_tuple, axis=1)
-        .rename("chord_and_mode"),
-        # ms3.transform(
-        #     feature_df, ms3.rel2abs_key, ["numeral", "localkey_resolved", "localkey_resolved_is_minor"]
-        # ).rename("root_roman_resolved"),
-    ]
+    expected_columns = (
+        "chord",
+        "pedal",
+        "numeral",
+        "relativeroot",
+        "localkey_is_minor",
+        "localkey_mode",
+    )
+    if not all(col in feature_df.columns for col in expected_columns):
+        raise DataframeIsMissingExpectedColumnsError(
+            [col for col in expected_columns if col not in feature_df.columns],
+            feature_df.columns.to_list(),
+        )
+    concatenate_this = [feature_df]
+    if "root_roman" not in feature_df.columns:
+        concatenate_this.append(
+            (feature_df.numeral + ("/" + feature_df.relativeroot).fillna("")).rename(
+                "root_roman"
+            )
+        )
+    if "pedal_resolved" not in feature_df.columns:
+        concatenate_this.append(
+            ms3.transform(
+                feature_df, ms3.resolve_relative_keys, ["pedal", "localkey_is_minor"]
+            ).rename("pedal_resolved")
+        )
+    if "chord_and_mode" not in feature_df.columns:
+        concatenate_this.append(
+            feature_df[["chord", "localkey_mode"]]
+            .apply(safe_row_tuple, axis=1)
+            .rename("chord_and_mode")
+        )
+    # if "root_roman_resolved" not in feature_df.columns:
+    #     concatenate_this.append(
+    #         ms3.transform(
+    #             feature_df,
+    #             ms3.rel2abs_key,
+    #             ["numeral", "localkey_resolved", "localkey_resolved_is_minor"],
+    #         ).rename("root_roman_resolved")
+    #     )
     feature_df = pd.concat(concatenate_this, axis=1)
     return feature_df
 

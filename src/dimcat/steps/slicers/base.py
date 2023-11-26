@@ -22,7 +22,7 @@ class Slicer(ResourceTransformation):
     _allowed_features = None  # any
     _output_package_name = None  # transform 'features'
     _requires_at_least_one_feature = False
-    _required_feature: Optional[ClassVar[FeatureName]] = None
+    _required_feature: ClassVar[Optional[FeatureName]] = None
     """The type of Feature that needs to be present in a dataset to fit this slicer."""
 
     class Schema(ResourceTransformation.Schema):
