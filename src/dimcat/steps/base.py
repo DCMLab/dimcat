@@ -22,7 +22,7 @@ from typing import (
 
 import marshmallow as mm
 import pandas as pd
-from dimcat.base import DimcatConfig, DimcatObject, get_class, get_schema
+from dimcat.base import DimcatConfig, DimcatObject, ObjectEnum, get_class, get_schema
 from dimcat.data.base import Data
 from dimcat.data.datasets.base import Dataset
 from dimcat.data.packages.dc import DimcatPackage
@@ -482,23 +482,5 @@ class ResourceTransformation(FeatureProcessingStep):
 
 
 StepSpecs: TypeAlias = Union[
-    PipelineStep | Type[PipelineStep] | DimcatConfig | dict | str
+    PipelineStep | Type[PipelineStep] | DimcatConfig | dict | ObjectEnum | str
 ]
-
-
-def step_specs2step(step_specs: StepSpecs) -> PipelineStep:
-    if isinstance(step_specs, PipelineStep):
-        return step_specs
-    if isinstance(step_specs, type) and issubclass(step_specs, PipelineStep):
-        return step_specs()
-    if isinstance(step_specs, DimcatConfig):
-        obj = step_specs.create()
-    elif isinstance(step_specs, dict):
-        obj = DimcatConfig(step_specs).create()
-    elif isinstance(step_specs, str):
-        obj = get_class(step_specs)()
-    else:
-        obj = step_specs
-    if isinstance(obj, PipelineStep):
-        return obj
-    raise TypeError(f"Expected PipelineStep, got {type(step_specs)}")

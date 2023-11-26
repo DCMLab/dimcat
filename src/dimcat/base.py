@@ -21,6 +21,8 @@ from typing import (
     Optional,
     Tuple,
     Type,
+    TypeVar,
+    Union,
     overload,
 )
 
@@ -682,6 +684,42 @@ def deserialize_json_file(json_file) -> DimcatObject:
     with open(json_file, "r") as f:
         json_data = f.read()
     return deserialize_json_str(json_data)
+
+
+DO = TypeVar("DO", bound=DimcatObject)
+DimcatObjectSpecs = Union[DO | Type[DO] | DimcatConfig | dict | ObjectEnum | str]
+
+
+def resolve_object_specs(
+    specs: DimcatObjectSpecs,
+    instance_of: Optional[Type[DO] | str] = None,
+) -> DO:
+    """Returns the DimcatObject corresponding to the given specs."""
+    if isinstance(specs, DimcatObject):
+        obj = specs
+    elif isinstance(specs, type) and issubclass(specs, DimcatObject):
+        obj = specs()
+    elif isinstance(specs, DimcatConfig):
+        obj = deserialize_config(specs)
+    elif isinstance(specs, dict):
+        obj = deserialize_dict(specs)
+    elif isinstance(specs, str):
+        if isinstance(specs, ObjectEnum):
+            Constructor = specs.get_class()
+        else:
+            Constructor = get_class(specs)
+        obj = Constructor()
+    else:
+        obj = specs
+    if instance_of is None:
+        return obj
+    if isinstance(instance_of, str):
+        instance_of = get_class(instance_of)
+    if isinstance(obj, instance_of):
+        return obj
+    raise TypeError(
+        f"Expected {instance_of}, but the given {type(specs)}, {specs!r}, resolved to a {type(obj)}."
+    )
 
 
 # endregion querying DimcatObjects by name
