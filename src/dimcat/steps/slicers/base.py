@@ -1,9 +1,10 @@
 import logging
+from typing import ClassVar, Optional
 
 import marshmallow as mm
 import pandas as pd
 from dimcat.data.datasets.processed import SlicedDataset
-from dimcat.data.resources import DimcatResource
+from dimcat.data.resources import DimcatResource, FeatureName
 from dimcat.data.resources.dc import SliceIntervals
 from dimcat.dc_exceptions import ResourceAlreadyTransformed
 from dimcat.steps.base import ResourceTransformation
@@ -21,6 +22,8 @@ class Slicer(ResourceTransformation):
     _allowed_features = None  # any
     _output_package_name = None  # transform 'features'
     _requires_at_least_one_feature = False
+    _required_feature: Optional[ClassVar[FeatureName]] = None
+    """The type of Feature that needs to be present in a dataset to fit this slicer."""
 
     class Schema(ResourceTransformation.Schema):
         level_name = mm.fields.Str()
@@ -38,6 +41,10 @@ class Slicer(ResourceTransformation):
     def level_name(self, level_name: str):
         check_name(level_name)
         self._level_name = level_name
+
+    @property
+    def required_feature(self) -> Optional[FeatureName]:
+        return self._required_feature
 
     def check_resource(self, resource: DimcatResource) -> None:
         super().check_resource(resource)

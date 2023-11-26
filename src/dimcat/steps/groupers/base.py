@@ -177,8 +177,8 @@ class CriterionGrouper(MappingGrouper):
     for a particular resource and grouping the chunks according to the method's outputs.
     """
 
-    _required_feature: ClassVar[FeatureName] = None
-    """The type of Feature that needs to be present in a dataset to fit this grouper."""
+    _required_feature: ClassVar[FeatureName]
+    """Required for CriterionGroupers, the type of Feature that needs to be present in a dataset to fit this grouper."""
 
     @staticmethod
     def compute_criterion(unit: D) -> Hashable:
@@ -199,6 +199,12 @@ class CriterionGrouper(MappingGrouper):
         self.smallest_unit = smallest_unit
 
     @property
+    def required_feature(self) -> FeatureName:
+        if not self._required_feature:
+            raise NotImplementedError(f"Please use a subclass of {self.name}.")
+        return self._required_feature
+
+    @property
     def smallest_unit(self) -> UnitOfAnalysis:
         return self._smallest_unit
 
@@ -210,15 +216,11 @@ class CriterionGrouper(MappingGrouper):
 
     def check_dataset(self, dataset: Dataset) -> None:
         super().check_dataset(dataset)
-        if self._required_feature is None:
-            raise NotImplementedError(
-                f"{self.name} requires a _required_feature class variable."
-            )
-        if self._required_feature not in dataset.extractable_features:
-            raise DatasetNotProcessableError(self._required_feature)
+        if self.required_feature not in dataset.extractable_features:
+            raise DatasetNotProcessableError(self.required_feature)
 
     def fit_to_dataset(self, dataset: Dataset) -> None:
-        feature = dataset.get_feature(self._required_feature)
+        feature = dataset.get_feature(self.required_feature)
         feature_df = feature.df
         groupby = feature.get_grouping_levels(self.smallest_unit)
         self.logger.debug(
