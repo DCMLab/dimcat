@@ -702,7 +702,7 @@ DimcatResource.__init__(
 
     def _extract_feature(
         self,
-        feature_config: FeatureSpecs,
+        feature_config: DimcatConfig,
         new_name: Optional[str] = None,
     ) -> Feature:
         """The internal part of the feature extraction that subclasses can override to perform certain transformations
@@ -715,14 +715,15 @@ DimcatResource.__init__(
         feature_df = self._prepare_feature_df(feature_config)
         len_before = len(feature_df)
         feature_df = self._transform_feature_df(feature_df, feature_config)
-        feature = Constructor.from_dataframe(
-            df=feature_df,
+        init_args = dict(
             resource_name=new_name,
             descriptor_filename=None,
             basepath=None,
             auto_validate=self.auto_validate,
             default_groupby=self.default_groupby,
         )
+        init_args.update(feature_config.init_args)
+        feature = Constructor.from_dataframe(df=feature_df, **init_args)
         len_after = len(feature.df)
         self.logger.debug(
             f"Create {Constructor.name} with {len_after} rows from {self.name} {self.resource_name!r} of length "

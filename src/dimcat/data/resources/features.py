@@ -351,7 +351,7 @@ class BassNotes(HarmonyLabels):
     def format(self, format: BassNotesFormat):
         format = BassNotesFormat(format)
         if self.format == format:
-            pass
+            return
         if format == BassNotesFormat.INTERVAL:
             new_formatted_column = "bass_note_over_local_tonic"
         elif format == BassNotesFormat.FIFTHS:
@@ -455,7 +455,7 @@ class CadenceLabels(DcmlAnnotations):
     def format(self, format: CadenceLabelFormat):
         format = CadenceLabelFormat(format)
         if self.format == format:
-            pass
+            return
         if format == CadenceLabelFormat.RAW:
             new_formatted_column = "cadence"
         elif format == CadenceLabelFormat.TYPE:

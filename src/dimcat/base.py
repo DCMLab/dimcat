@@ -556,7 +556,11 @@ class DimcatConfig(MutableMapping, DimcatObject):
         return cls(options)
 
     @property
-    def options(self):
+    def init_args(self) -> dict:
+        return {arg: value for arg, value in self._options.items() if arg != "dtype"}
+
+    @property
+    def options(self) -> dict:
         """Returns the options dictionary wrapped and controlled by this DimcatConfig. Whenever a new value is set,
         it is validated against the Schema of the DimcatObject specified under the key 'dtype'. Note that this property
         returns a copy of the dictionary including the 'dtype' key and modifying it will not affect the DimcatConfig.
