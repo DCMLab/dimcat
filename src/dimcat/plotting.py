@@ -272,7 +272,7 @@ def make_bubble_plot(
     flip: bool = False,
     x_col: Optional[str] = None,
     y_col: Optional[str] = None,
-    duration_column: str = "duration_qb",
+    dimension_column: str = "duration_qb",
     title: Optional[str] = None,
     labels: Optional[dict] = None,
     hover_data: Optional[List[str]] = None,
@@ -303,24 +303,16 @@ def make_bubble_plot(
         x_axis, y_axis = y_axis, x_axis
         xaxis_settings, yaxis_settings = yaxis_settings, xaxis_settings
         figure_layout = dict(width=height, height=width)
-        if y_col == "piece":
-            figure_layout["xaxis_type"] = "category"
-        else:
-            figure_layout["xaxis_type"] = "linear"
     else:
         figure_layout = dict(height=height, width=width)
-        if y_col == "piece":
-            figure_layout["yaxis_type"] = "category"
-        else:
-            figure_layout["yaxis_type"] = "linear"
     if layout is not None:
         figure_layout.update(layout)
     if normalize:
         if isinstance(df, pd.Series):
             df = df.groupby(y_col, group_keys=False).apply(lambda S: S / S.sum())
         else:
-            df.loc[:, duration_column] = df.groupby(y_col, group_keys=False)[
-                duration_column
+            df.loc[:, dimension_column] = df.groupby(y_col, group_keys=False)[
+                dimension_column
             ].apply(lambda S: S / S.sum())
     traces = dict(marker_line_color="black")
     if traces_settings is not None:
@@ -351,7 +343,7 @@ def make_bubble_plot(
         traces_settings=traces,
         output=output,
         # **kwargs:
-        size=duration_column,
+        size=dimension_column,
         **kwargs,
     )
 
@@ -433,7 +425,7 @@ def make_lof_bubble_plot(
     flip: bool = False,
     fifths_col: Optional[str] = "tpc",
     y_col: Optional[str] = "piece",
-    duration_column: str = "duration_qb",
+    dimension_column: str = "duration_qb",
     fifths_transform: Optional[Callable[[int], Any]] = ms3.fifths2name,
     x_names_col: Optional[str] = None,
     title: Optional[str] = None,
@@ -482,7 +474,7 @@ def make_lof_bubble_plot(
         flip=flip,
         x_col=fifths_col,
         y_col=y_col,
-        duration_column=duration_column,
+        dimension_column=dimension_column,
         title=title,
         labels=labels,
         hover_data=hover_data,

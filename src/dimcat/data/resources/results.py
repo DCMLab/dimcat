@@ -24,6 +24,7 @@ from dimcat.utils import SortOrder
 from matplotlib import pyplot as plt
 from matplotlib.figure import Figure as MatplotlibFigure
 from plotly import graph_objs as go
+from typing_extensions import Self
 
 from .base import D
 from .dc import DimcatResource, UnitOfAnalysis
@@ -85,12 +86,15 @@ class Result(DimcatResource):
             default_groupby=default_groupby,
         )
         # self._formatted_column and self._value_column are already set by super().__init__()
-        self.formatted_column = formatted_column
-        self.value_column = value_column
         self.analyzed_resource: DimcatResource = analyzed_resource
+        self.value_column = value_column
         self.dimension_column: Optional[str] = dimension_column
         """Name of the column containing some dimension, e.g. to be interpreted as quantity (durations, counts,
         etc.) or as color."""
+        self.formatted_column = formatted_column
+        self.is_combination = False
+        """Is True if this Result has been created by Result.combine_results(), in which case the method will return
+        :attr:`df` as is (without combining anything)."""
 
     @property
     def formatted_column(self) -> str:
@@ -125,14 +129,17 @@ class Result(DimcatResource):
     @property
     def x_column(self) -> str:
         """Name of the result column from which to create one marker per distinct value to show over the x-axis."""
-        return self.value_column
+        if self.uses_line_of_fifths_colors:
+            return self.value_column
+        else:
+            return self.formatted_column
 
     @property
     def y_column(self) -> str:
         """Name of the numerical result column used for determining each marker's dimension along the y-axis."""
         return self.dimension_column
 
-    def combine_results(
+    def _combine_results(
         self,
         group_cols: Optional[str | Iterable[str]] = None,
         sort_order: Optional[SortOrder] = SortOrder.NONE,
@@ -141,6 +148,8 @@ class Result(DimcatResource):
         the groups correspond to those that had been applied to the analyzed resource. If no Groupers had been
         applied, the entire dataset is treated as a single group.
         """
+        if self.is_combination:
+            return self.df
         if group_cols is None:
             group_cols = self.get_default_groupby()
         elif isinstance(group_cols, str):
@@ -169,21 +178,40 @@ class Result(DimcatResource):
             [combined_result, group_proportions, group_proportions_str], axis=1
         )
         if sort_order is None or sort_order == SortOrder.NONE:
-            return combined_result
-        if not group_cols:
+            pass
+        elif not group_cols:
             # no grouping required
             if sort_order == SortOrder.ASCENDING:
-                return combined_result.sort_values(self.y_column)
+                combined_result = combined_result.sort_values(self.y_column)
             else:
-                return combined_result.sort_values(self.y_column, ascending=False)
-        if sort_order == SortOrder.ASCENDING:
-            return combined_result.groupby(group_cols, group_keys=False).apply(
-                lambda df: df.sort_values(self.y_column)
-            )
+                combined_result = combined_result.sort_values(
+                    self.y_column, ascending=False
+                )
+        elif sort_order == SortOrder.ASCENDING:
+            combined_result = combined_result.groupby(
+                group_cols, group_keys=False
+            ).apply(lambda df: df.sort_values(self.y_column))
         else:
-            return combined_result.groupby(group_cols, group_keys=False).apply(
-                lambda df: df.sort_values(self.y_column, ascending=False)
-            )
+            combined_result = combined_result.groupby(
+                group_cols, group_keys=False
+            ).apply(lambda df: df.sort_values(self.y_column, ascending=False))
+        return combined_result
+
+    def combine_results(
+        self,
+        group_cols: Optional[str | Iterable[str]] = None,
+        sort_order: Optional[SortOrder] = SortOrder.NONE,
+    ) -> Self:
+        """Aggregate results for each group, typically by summing up and normalizing the values. By default,
+        the groups correspond to those that had been applied to the analyzed resource. If no Groupers had been
+        applied, the entire dataset is treated as a single group.
+        """
+        combined_results = self._combine_results(
+            group_cols=group_cols, sort_order=sort_order
+        )
+        new_result = self.__class__.from_resource_and_dataframe(self, combined_results)
+        new_result.is_combination = True
+        return new_result
 
     def _get_color_midpoint(self) -> int:
         if self.analyzed_resource.format == "NAME":
@@ -256,14 +284,10 @@ class Result(DimcatResource):
     ) -> go.Figure:
         if group_cols is None:
             group_cols = self.get_default_groupby()
-        combined_result = self.combine_results(group_cols=group_cols)
+        combined_result = self._combine_results(group_cols=group_cols)
         if not group_cols:
-            x_col = self.x_column
-            y_col = self.y_column
             return self.make_bar_plot(
                 df=combined_result,
-                x_col=x_col,
-                y_col=y_col,
                 group_cols=group_cols,
                 group_modes=group_modes,
                 title=title,
@@ -281,11 +305,12 @@ class Result(DimcatResource):
                 **kwargs,
             )
         else:
-            y_col = group_cols[-1]
-            x_col = self.x_column
+            if "y_col" in kwargs:
+                y_col = kwargs.pop("y_col")
+            else:
+                y_col = group_cols[-1]
             return self.make_bubble_plot(
                 df=combined_result,
-                x_col=x_col,
                 y_col=y_col,
                 title=title,
                 hover_data=hover_data,
@@ -331,8 +356,6 @@ class Result(DimcatResource):
         Returns:
             A Plotly Figure object.
         """
-        if df is None:
-            df = self.df
         if x_col is None:
             x_col = self.x_column
         if y_col is None:
@@ -344,6 +367,11 @@ class Result(DimcatResource):
         if group_cols:
             group_modes = self._resolve_group_modes_arg(group_modes)
             update_plot_grouping_settings(kwargs, group_cols, group_modes)
+        if df is None:
+            if group_cols:
+                df = self._combine_results(group_cols=group_cols)
+            else:
+                df = self.df
         layout_update = dict()
         if layout is not None:
             layout_update.update(layout)
@@ -425,20 +453,25 @@ class Result(DimcatResource):
         Returns:
             A Plotly Figure object.
         """
-        if df is None:
-            df = self.df
         if x_col is None:
             x_col = self.x_column
         if y_col is None:
             unit_of_analysis = self.get_grouping_levels()
             y_col = unit_of_analysis[-1]
+        if df is None:
+            group_cols = self.get_default_groupby()
+            if y_col in group_cols:
+                group_cols.remove(y_col)
+            if group_cols:
+                df = self._combine_results(group_cols=group_cols)
+            else:
+                df = self.df
         if dimension_column is None:
             dimension_column = self.dimension_column
         layout_update = dict()
         if layout is not None:
             layout_update.update(layout)
-        resource_format = self.analyzed_resource.format
-        if resource_format in ("FIFTHS", "INTERVAL", "NAME", "SCALE_DEGREE"):
+        if self.uses_line_of_fifths_colors:
             color_midpoint = self._get_color_midpoint()
             x_names_col = self.formatted_column
             hover_cols = [x_names_col]
@@ -450,7 +483,7 @@ class Result(DimcatResource):
                 flip=flip,
                 fifths_col=x_col,
                 y_col=y_col,
-                duration_column=dimension_column,
+                dimension_column=dimension_column,
                 x_names_col=x_names_col,
                 title=title,
                 labels=labels,
@@ -474,7 +507,7 @@ class Result(DimcatResource):
                 flip=flip,
                 x_col=x_col,
                 y_col=y_col,
-                duration_column=dimension_column,
+                dimension_column=dimension_column,
                 title=title,
                 labels=labels,
                 hover_data=hover_data,
@@ -644,7 +677,7 @@ class CadenceCounts(Counts):
     ) -> go.Figure:
         if group_cols is None:
             group_cols = self.get_default_groupby()
-        combined_result = self.combine_results(group_cols=group_cols)
+        combined_result = self._combine_results(group_cols=group_cols)
         return self.make_pie_chart(
             df=combined_result,
             group_cols=group_cols,
