@@ -9,15 +9,17 @@ import ms3
 import pandas as pd
 from dimcat.base import FriendlyEnum
 from dimcat.data.resources.base import D, FeatureName
-from dimcat.data.resources.dc import HARMONY_FEATURE_NAMES, Feature
+from dimcat.data.resources.dc import HARMONY_FEATURE_NAMES, Feature, UnitOfAnalysis
 from dimcat.data.resources.utils import (
     boolean_is_minor_column_to_mode,
     condense_dataframe_by_groups,
     make_adjacency_groups,
+    merge_ties,
 )
 from dimcat.dc_exceptions import (
     DataframeIsMissingExpectedColumnsError,
     FeatureIsMissingFormatColumnError,
+    ResourceIsMissingPieceIndexError,
 )
 
 logger = logging.getLogger(__name__)
@@ -194,9 +196,6 @@ def extend_harmony_feature(
 
 class HarmonyLabelsFormat(FriendlyEnum):
     ROMAN = "ROMAN"
-    FIFTHS = "FIFTHS"
-    SCALE_DEGREE = "SCALE_DEGREE"
-    INTERVAL = "INTERVAL"
 
 
 class HarmonyLabels(DcmlAnnotations):
@@ -257,17 +256,46 @@ class HarmonyLabels(DcmlAnnotations):
                 Pass a list of column names or index levels to groupby something else than the default (by piece).
         """
         super().__init__(
+            format=format,
             resource=resource,
             descriptor_filename=descriptor_filename,
             basepath=basepath,
             auto_validate=auto_validate,
             default_groupby=default_groupby,
         )
-        self._format = HarmonyLabelsFormat(format)
+
+    @property
+    def formatted_column(self) -> str:
+        if self.format == HarmonyLabelsFormat.ROMAN:
+            if "mode" in self.get_default_groupby():
+                return "chord"
+            else:
+                return "chord_and_mode"
+        if self._formatted_column is not None:
+            return self._formatted_column
+        if self._default_formatted_column is not None:
+            return self._default_formatted_column
+        return
 
     @property
     def format(self) -> HarmonyLabelsFormat:
         return self._format
+
+    @format.setter
+    def format(self, format: HarmonyLabelsFormat):
+        format = HarmonyLabelsFormat(format)
+        if self.format == format:
+            return
+        if format == HarmonyLabelsFormat.ROMAN:
+            new_formatted_column = "chord_and_mode"
+        else:
+            raise NotImplementedError(f"Unknown format {format!r}.")
+        if self.is_loaded and new_formatted_column not in self.field_names:
+            raise FeatureIsMissingFormatColumnError(
+                self.resource_name, new_formatted_column, format, self.name
+            )
+        self._format = format
+        self._formatted_column = new_formatted_column
 
     def _format_dataframe(self, feature_df: D) -> D:
         """Called by :meth:`_prepare_feature_df` to transform the resource dataframe into a feature dataframe.
@@ -362,14 +390,13 @@ class BassNotes(HarmonyLabels):
         default_groupby: Optional[str | list[str]] = None,
     ) -> None:
         super().__init__(
+            format=format,
             resource=resource,
             descriptor_filename=descriptor_filename,
             basepath=basepath,
             auto_validate=auto_validate,
             default_groupby=default_groupby,
         )
-        self._format = BassNotesFormat.INTERVAL
-        self.format = format
 
     @property
     def format(self) -> BassNotesFormat:
@@ -469,14 +496,13 @@ class CadenceLabels(DcmlAnnotations):
         default_groupby: Optional[str | list[str]] = None,
     ) -> None:
         super().__init__(
+            format=format,
             resource=resource,
             descriptor_filename=descriptor_filename,
             basepath=basepath,
             auto_validate=auto_validate,
             default_groupby=default_groupby,
         )
-        self._format = CadenceLabelFormat.RAW
-        self.format = format
 
     @property
     def format(self) -> CadenceLabelFormat:
@@ -572,18 +598,59 @@ class NotesFormat(FriendlyEnum):
     NAME = "NAME"
     FIFTHS = "FIFTHS"
     MIDI = "MIDI"
-    SCALE_DEGREE = "SCALE_DEGREE"
-    INTERVAL = "INTERVAL"
+
+
+def merge_tied_notes(feature_df, groupby=None):
+    expected_columns = ("duration", "tied", "midi", "staff")
+    if not all(col in feature_df.columns for col in expected_columns):
+        raise DataframeIsMissingExpectedColumnsError(
+            [col for col in expected_columns if col not in feature_df.columns],
+            feature_df.columns.to_list(),
+        )
+    unique_values = feature_df.tied.unique()
+    if 0 not in unique_values and -1 not in unique_values:
+        # no tied notes (only <NA>) or has already been tied (only not-null value is 1)
+        return feature_df
+    if groupby is None:
+        return merge_ties(feature_df)
+    else:
+        return feature_df.groupby(groupby, group_keys=False).apply(merge_ties)
+
+
+def extend_notes_feature(feature_df):
+    if "tpc_name" in feature_df.columns:
+        return feature_df
+    concatenate_this = [
+        feature_df,
+        ms3.transform(feature_df.tpc, ms3.tpc2name).rename("tpc_name"),
+    ]
+    feature_df = pd.concat(concatenate_this, axis=1)
+    return feature_df
 
 
 class Notes(Feature):
+    _auxiliary_column_names = [
+        "chord_id",
+        "gracenote",
+        "midi",
+        "name",
+        "nominal_duration",
+        "octave",
+        "scalar",
+        "tied",
+        "tremolo",
+    ]
+    _convenience_column_names = [
+        "tpc_name",
+    ]
+    _feature_column_names = ["tpc"]
     _default_analyzer = "PitchClassVectors"
     _default_value_column = "tpc"
 
     class Schema(Feature.Schema):
         format = mm.fields.Enum(NotesFormat)
         merge_ties = mm.fields.Boolean(
-            load_default=True,
+            load_default=False,
             metadata=dict(
                 title="Merge tied notes",
                 description="If set, notes that are tied together in the score are merged together, counting them "
@@ -603,7 +670,7 @@ class Notes(Feature):
     def __init__(
         self,
         format: NotesFormat = NotesFormat.NAME,
-        merge_ties: bool = True,
+        merge_ties: bool = False,
         weight_grace_notes: float = 0.0,
         resource: Optional[fl.Resource | str] = None,
         descriptor_filename: Optional[str] = None,
@@ -612,19 +679,39 @@ class Notes(Feature):
         default_groupby: Optional[str | list[str]] = None,
     ) -> None:
         super().__init__(
+            format=format,
             resource=resource,
             descriptor_filename=descriptor_filename,
             basepath=basepath,
             auto_validate=auto_validate,
             default_groupby=default_groupby,
         )
-        self._format = NotesFormat(format)
         self._merge_ties = bool(merge_ties)
         self._weight_grace_notes = float(weight_grace_notes)
 
     @property
     def format(self) -> NotesFormat:
         return self._format
+
+    @format.setter
+    def format(self, format: NotesFormat):
+        format = NotesFormat(format)
+        if self.format == format:
+            return
+        if format == NotesFormat.NAME:
+            new_formatted_column = "tpc_name"
+        elif format == NotesFormat.FIFTHS:
+            new_formatted_column = "tpc"
+        elif format == NotesFormat.MIDI:
+            new_formatted_column = "midi"
+        else:
+            raise NotImplementedError(f"Unknown format {format!r}.")
+        if self.is_loaded and new_formatted_column not in self.field_names:
+            raise FeatureIsMissingFormatColumnError(
+                self.resource_name, new_formatted_column, format, self.name
+            )
+        self._format = format
+        self._formatted_column = new_formatted_column
 
     @property
     def merge_ties(self) -> bool:
@@ -633,6 +720,29 @@ class Notes(Feature):
     @property
     def weight_grace_notes(self) -> float:
         return self._weight_grace_notes
+
+    def _format_dataframe(self, feature_df: D) -> D:
+        """Called by :meth:`_prepare_feature_df` to transform the resource dataframe into a feature dataframe.
+        Assumes that the dataframe can be mutated safely, i.e. that it is a copy.
+        """
+        feature_df = self._drop_rows_with_missing_values(
+            feature_df, column_names=self._feature_column_names
+        )
+        if self.merge_ties:
+            try:
+                groupby = self.get_grouping_levels(UnitOfAnalysis.PIECE)
+            except ResourceIsMissingPieceIndexError:
+                groupby = None
+                self.logger.info(
+                    "Dataframe has no piece index. Merging ties without grouping."
+                )
+            feature_df = merge_tied_notes(feature_df, groupby=groupby)
+        if self.weight_grace_notes:
+            feature_df = ms3.add_weighted_grace_durations(
+                feature_df, self.weight_grace_notes
+            )
+        feature_df = extend_notes_feature(feature_df)
+        return self._sort_columns(feature_df)
 
 
 # endregion Events

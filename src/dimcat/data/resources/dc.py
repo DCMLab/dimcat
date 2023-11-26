@@ -568,8 +568,7 @@ DimcatResource.__init__(
             resource_df = self._df
         elif self.is_serialized:
             resource_df = self.get_dataframe()
-            self._df = resource_df
-            self._update_status()
+            self._set_dataframe(resource_df)
         else:
             RuntimeError(f"No dataframe accessible for this {self.name}:\n{self}")
         return resource_df
@@ -1581,11 +1580,21 @@ class Feature(DimcatResource):
             auto_validate=auto_validate,
             default_groupby=default_groupby,
         )
-        self._format = format
+        self._format = None
+        if format is not None:
+            self.format = format
 
     @property
     def format(self) -> None:
         return self._format
+
+    @format.setter
+    def format(self, value):
+        if value is not None:
+            warnings.warn(
+                f"Setting format for {self.name} is inconsequential because no setter has been defined.",
+                RuntimeWarning,
+            )
 
     def get_available_column_names(
         self,

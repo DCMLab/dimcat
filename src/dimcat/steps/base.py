@@ -419,7 +419,7 @@ class ResourceTransformation(FeatureProcessingStep):
         except Exception as e:
             print(
                 f"Calling {result_constructor.name}.from_dataframe() on the following DataFrame that has the index "
-                f"levels {resource.get_level_names()} resulted in the exception {e}:"
+                f"levels {resource.get_level_names()} resulted in the exception\n{e!r}:"
             )
             print(result_df)
             raise

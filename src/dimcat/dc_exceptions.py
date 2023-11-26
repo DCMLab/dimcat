@@ -357,6 +357,17 @@ class ResourceDescriptorHasWrongTypeError(DimcatError):
     }
 
 
+class ResourceIsMissingPieceIndexError(DimcatError):
+    """optional args: (resource_name, name_of_missing)"""
+
+    nargs2message = {
+        0: "The resource is missing a piece index level.",
+        1: lambda name: f"Resource {name!r} is missing a piece index level.",
+        2: lambda name, name_of_missing: f"Resource {name!r} is missing a piece index level, "
+        f"a column named {name_of_missing!r} could not be detected.",
+    }
+
+
 class ResourceIsFrozenError(DimcatError):
     """optional args: (resource_name, current_basepath, new_basepath)"""
 
