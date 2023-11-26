@@ -118,6 +118,47 @@ def make_plot_settings(
         update_plot_grouping_settings(plot_settings, group_cols, group_modes)
     if "x" not in plot_settings:
         plot_settings["x"] = x_col
+    plot_settings["hover_name"] = plot_settings["x"]
+    label_settings = clean_axis_labels(*df.columns)
+    if labels is not None:
+        label_settings.update(labels)
+    plot_settings["labels"] = label_settings
+    return plot_settings
+
+
+def make_pie_chart_settings(
+    df: pd.DataFrame,
+    x_col: Optional[str] = None,
+    y_col: Optional[str] = None,
+    group_cols: Optional[str | Iterable[str]] = None,
+    group_modes: Iterable[GroupMode] = (
+        GroupMode.ROWS,
+        GroupMode.COLUMNS,
+    ),
+    title: Optional[str] = None,
+    labels: Optional[dict] = None,
+    hover_data: Optional[List[str]] = None,
+    height: Optional[int] = None,
+    width: Optional[int] = None,
+):
+    if x_col is None:
+        x_col = df.columns[-2]
+    if y_col is None:
+        y_col = df.columns[-1]
+    plot_settings = dict(
+        title=title,
+        names=x_col,
+        color=x_col,
+        values=y_col,
+        hover_name=x_col,
+        hover_data=hover_data,
+        height=height,
+        width=width,
+    )
+    if group_cols:
+        if GroupMode.COLOR in group_modes:
+            group_modes = [mode for mode in group_modes if mode != GroupMode.COLOR]
+        update_plot_grouping_settings(plot_settings, group_cols, group_modes)
     label_settings = clean_axis_labels(*df.columns)
     if labels is not None:
         label_settings.update(labels)
@@ -448,6 +489,71 @@ def make_lof_bubble_plot(
         color_continuous_midpoint=shift_color_midpoint,
         **kwargs,
     )
+
+
+def make_pie_chart(
+    df: pd.DataFrame,
+    x_col: Optional[str] = None,
+    y_col: Optional[str] = None,
+    group_cols: Optional[str | Iterable[str]] = None,
+    group_modes: Iterable[GroupMode] = (
+        GroupMode.ROWS,
+        GroupMode.COLUMNS,
+    ),
+    title: Optional[str] = None,
+    labels: Optional[dict] = None,
+    hover_data: Optional[List[str]] = None,
+    height: Optional[int] = None,
+    width: Optional[int] = None,
+    layout: Optional[dict] = None,
+    x_axis: Optional[dict] = None,
+    y_axis: Optional[dict] = None,
+    color_axis: Optional[dict] = None,
+    traces_settings: Optional[dict] = None,
+    output: Optional[str] = None,
+    **kwargs,
+) -> go.Figure:
+    """
+
+    Args:
+        layout: Keyword arguments passed to fig.update_layout()
+        **kwargs: Keyword arguments passed to the Plotly plotting function.
+
+    Returns:
+        A Plotly Figure object.
+    """
+    df = df.reset_index()
+    plot_settings = make_pie_chart_settings(
+        df=df,
+        x_col=x_col,
+        y_col=y_col,
+        group_cols=group_cols,
+        group_modes=group_modes,
+        title=title,
+        labels=labels,
+        hover_data=hover_data,
+        height=height,
+        width=width,
+    )
+    fig = px.pie(
+        df,
+        **plot_settings,
+        **kwargs,
+    )
+    # fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
+    update_figure_layout(
+        fig=fig,
+        x_col=x_col,
+        y_col=y_col,
+        layout=layout,
+        x_axis=x_axis,
+        y_axis=y_axis,
+        color_axis=color_axis,
+        traces_settings=traces_settings,
+    )
+    if output is not None:
+        write_image(fig=fig, filename=output, width=width, height=height)
+    return fig
 
 
 def make_scatter_plot(

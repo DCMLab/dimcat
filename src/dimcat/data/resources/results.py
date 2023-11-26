@@ -15,6 +15,7 @@ from dimcat.plotting import (
     make_bubble_plot,
     make_lof_bar_plot,
     make_lof_bubble_plot,
+    make_pie_chart,
     make_transition_heatmap_plots,
     update_plot_grouping_settings,
 )
@@ -475,6 +476,75 @@ class Result(DimcatResource):
                 output=output,
                 **kwargs,
             )
+
+    def make_pie_chart(
+        self,
+        df: Optional[D] = None,
+        x_col: Optional[str] = None,
+        y_col: Optional[str] = None,
+        group_cols: Optional[str | Iterable[str]] = None,
+        group_modes: Optional[GroupMode | Iterable[GroupMode]] = None,
+        title: Optional[str] = None,
+        labels: Optional[dict] = None,
+        hover_data: Optional[List[str]] = None,
+        height: Optional[int] = None,
+        width: Optional[int] = None,
+        layout: Optional[dict] = None,
+        x_axis: Optional[dict] = None,
+        y_axis: Optional[dict] = None,
+        color_axis: Optional[dict] = None,
+        traces_settings: Optional[dict] = None,
+        output: Optional[str] = None,
+        **kwargs,
+    ) -> go.Figure:
+        """
+
+        Args:
+            layout: Keyword arguments passed to fig.update_layout()
+            **kwargs: Keyword arguments passed to the Plotly plotting function.
+
+        Returns:
+            A Plotly Figure object.
+        """
+        if df is None:
+            df = self.df
+        if x_col is None:
+            x_col = self.x_column
+        if y_col is None:
+            y_col = self.y_column
+        if group_cols is None:
+            group_cols = self.get_default_groupby()
+        elif isinstance(group_cols, str):
+            group_cols = [group_cols]
+        if group_cols:
+            group_modes = self._resolve_group_modes_arg(group_modes)
+            update_plot_grouping_settings(kwargs, group_cols, group_modes)
+        layout_update = dict()
+        if layout is not None:
+            layout_update.update(layout)
+        update_traces = dict(
+            textposition="auto",
+            textinfo="label+value+percent",
+        )
+        if traces_settings is not None:
+            update_traces.update(traces_settings)
+        return make_pie_chart(
+            df=df,
+            x_col=x_col,
+            y_col=y_col,
+            title=title,
+            labels=labels,
+            hover_data=hover_data,
+            height=height,
+            width=width,
+            layout=layout_update,
+            x_axis=x_axis,
+            y_axis=y_axis,
+            color_axis=color_axis,
+            traces_settings=update_traces,
+            output=output,
+            **kwargs,
+        )
 
     def _resolve_group_modes_arg(
         self, group_modes: Optional[GroupMode | Iterable[GroupMode]] = None
