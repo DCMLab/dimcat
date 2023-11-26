@@ -7,7 +7,7 @@ from dimcat.base import FriendlyEnum
 from dimcat.data.resources import Feature
 from dimcat.data.resources.base import D, SomeDataframe, SomeSeries
 from dimcat.data.resources.dc import DimcatResource, FeatureSpecs, UnitOfAnalysis
-from dimcat.data.resources.results import Counts, NgramTable
+from dimcat.data.resources.results import CadenceCounts, Counts, NgramTable
 from dimcat.steps.analyzers.base import Analyzer, DispatchStrategy
 
 logger = logging.getLogger(__name__)
@@ -53,6 +53,10 @@ class Counter(Analyzer):
     def resource_name_factory(self, resource: DimcatResource) -> str:
         """Returns a name for the resource based on its name and the name of the pipeline step."""
         return f"{resource.resource_name}.counted"
+
+
+class CadenceCounter(Counter):
+    _new_resource_type = CadenceCounts
 
 
 class NgramTableFormat(FriendlyEnum):

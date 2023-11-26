@@ -404,6 +404,12 @@ def extend_cadence_feature(
     return feature_df
 
 
+class CadenceLabelFormat(FriendlyEnum):
+    RAW = "RAW"
+    TYPE = "TYPE"
+    SUBTYPE = "SUBTYPE"
+
+
 class CadenceLabels(DcmlAnnotations):
     _auxiliary_column_names = ["label", "chord"]
     _convenience_column_names = (
@@ -415,8 +421,55 @@ class CadenceLabels(DcmlAnnotations):
         ]
     )
     _feature_column_names = ["cadence"]
-    _extractable_features = None
     _default_value_column = "cadence"
+    _default_analyzer = "CadenceCounter"
+    _extractable_features = None
+
+    class Schema(DcmlAnnotations.Schema):
+        format = mm.fields.Enum(CadenceLabelFormat)
+
+    def __init__(
+        self,
+        format: NotesFormat = CadenceLabelFormat.RAW,
+        resource: Optional[fl.Resource | str] = None,
+        descriptor_filename: Optional[str] = None,
+        basepath: Optional[str] = None,
+        auto_validate: bool = True,
+        default_groupby: Optional[str | list[str]] = None,
+    ) -> None:
+        super().__init__(
+            resource=resource,
+            descriptor_filename=descriptor_filename,
+            basepath=basepath,
+            auto_validate=auto_validate,
+            default_groupby=default_groupby,
+        )
+        self._format = CadenceLabelFormat.RAW
+        self.format = format
+
+    @property
+    def format(self) -> CadenceLabelFormat:
+        return self._format
+
+    @format.setter
+    def format(self, format: CadenceLabelFormat):
+        format = CadenceLabelFormat(format)
+        if self.format == format:
+            pass
+        if format == CadenceLabelFormat.RAW:
+            new_formatted_column = "cadence"
+        elif format == CadenceLabelFormat.TYPE:
+            new_formatted_column = "cadence_type"
+        elif format == CadenceLabelFormat.SUBTYPE:
+            new_formatted_column = "cadence_subtype"
+        else:
+            raise NotImplementedError(f"Unknown format {format!r}.")
+        if self.is_loaded and new_formatted_column not in self.field_names:
+            raise FeatureIsMissingFormatColumnError(
+                self.resource_name, new_formatted_column, format, self.name
+            )
+        self._format = format
+        self._formatted_column = new_formatted_column
 
     def _format_dataframe(self, feature_df: D) -> D:
         """Called by :meth:`_prepare_feature_df` to transform the resource dataframe into a feature dataframe.

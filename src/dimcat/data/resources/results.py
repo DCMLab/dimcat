@@ -10,6 +10,7 @@ import marshmallow as mm
 import pandas as pd
 from dimcat.base import ObjectEnum
 from dimcat.plotting import (
+    CADENCE_COLORS,
     GroupMode,
     make_bar_plot,
     make_bubble_plot,
@@ -41,6 +42,7 @@ def tuple2str(tup: tuple) -> str:
 class ResultName(ObjectEnum):
     """Identifies the available analyzers."""
 
+    CadenceCounts = "CadenceCounts"
     Counts = "Counts"
     Durations = "Durations"
     NgramTable = "NgramTable"
@@ -568,6 +570,50 @@ class Result(DimcatResource):
 
 class Counts(Result):
     pass
+
+
+class CadenceCounts(Counts):
+    @property
+    def x_column(self) -> str:
+        return self.formatted_column
+
+    def plot_grouped(
+        self,
+        group_cols: Optional[str | Iterable[str]] = None,
+        group_modes: Optional[GroupMode | Iterable[GroupMode]] = None,
+        title: Optional[str] = None,
+        labels: Optional[dict] = None,
+        hover_data: Optional[List[str]] = None,
+        height: Optional[int] = None,
+        width: Optional[int] = None,
+        layout: Optional[dict] = None,
+        x_axis: Optional[dict] = None,
+        y_axis: Optional[dict] = None,
+        color_axis: Optional[dict] = None,
+        traces_settings: Optional[dict] = None,
+        output: Optional[str] = None,
+        **kwargs,
+    ) -> go.Figure:
+        if group_cols is None:
+            group_cols = self.get_default_groupby()
+        combined_result = self.combine_results(group_cols=group_cols)
+        return self.make_pie_chart(
+            df=combined_result,
+            group_cols=group_cols,
+            group_modes=group_modes,
+            title=title,
+            hover_data=hover_data,
+            height=height,
+            width=width,
+            layout=layout,
+            x_axis=x_axis,
+            y_axis=y_axis,
+            color_axis=color_axis,
+            traces_settings=traces_settings,
+            output=output,
+            color_discrete_map=CADENCE_COLORS,
+            **kwargs,
+        )
 
 
 class Durations(Result):
