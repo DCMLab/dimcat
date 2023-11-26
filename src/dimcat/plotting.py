@@ -205,6 +205,7 @@ def make_bar_plot(
     height: Optional[int] = None,
     width: Optional[int] = None,
     layout: Optional[dict] = None,
+    font_size: Optional[int] = None,
     x_axis: Optional[dict] = None,
     y_axis: Optional[dict] = None,
     color_axis: Optional[dict] = None,
@@ -250,6 +251,7 @@ def make_bar_plot(
         x_col=x_col,
         y_col=y_col,
         layout=layout,
+        font_size=font_size,
         x_axis=x_axis,
         y_axis=y_axis,
         color_axis=color_axis,
@@ -273,6 +275,7 @@ def make_bubble_plot(
     width: Optional[int] = 1200,
     height: Optional[int] = 1500,
     layout: Optional[dict] = None,
+    font_size: Optional[int] = None,
     x_axis: Optional[dict] = None,
     y_axis: Optional[dict] = None,
     color_axis: Optional[dict] = None,
@@ -337,6 +340,7 @@ def make_bubble_plot(
         height=height,
         width=width,
         layout=figure_layout,
+        font_size=font_size,
         x_axis=xaxis_settings,
         y_axis=yaxis_settings,
         color_axis=c_axis,
@@ -361,6 +365,7 @@ def make_lof_bar_plot(
     height: Optional[int] = None,
     width: Optional[int] = None,
     layout: Optional[dict] = None,
+    font_size: Optional[int] = None,
     x_axis: Optional[dict] = None,
     y_axis: Optional[dict] = None,
     color_axis: Optional[dict] = None,
@@ -405,6 +410,7 @@ def make_lof_bar_plot(
         height=height,
         width=width,
         layout=figure_layout,
+        font_size=font_size,
         x_axis=xaxis_settings,
         y_axis=y_axis,
         color_axis=c_axis,
@@ -433,6 +439,7 @@ def make_lof_bubble_plot(
     width: Optional[int] = 1200,
     height: Optional[int] = 1500,
     layout: Optional[dict] = None,
+    font_size: Optional[int] = None,
     x_axis: Optional[dict] = None,
     y_axis: Optional[dict] = None,
     color_axis: Optional[dict] = None,
@@ -478,6 +485,7 @@ def make_lof_bubble_plot(
         width=width,
         height=height,
         layout=layout,
+        font_size=font_size,
         x_axis=xaxis_settings,
         y_axis=y_axis,
         color_axis=color_axis,
@@ -506,6 +514,8 @@ def make_pie_chart(
     height: Optional[int] = None,
     width: Optional[int] = None,
     layout: Optional[dict] = None,
+    font_size: Optional[int] = None,
+    textfont_size: Optional[int] = None,
     x_axis: Optional[dict] = None,
     y_axis: Optional[dict] = None,
     color_axis: Optional[dict] = None,
@@ -546,6 +556,8 @@ def make_pie_chart(
         x_col=x_col,
         y_col=y_col,
         layout=layout,
+        font_size=font_size,
+        textfont_size=textfont_size,
         x_axis=x_axis,
         y_axis=y_axis,
         color_axis=color_axis,
@@ -572,6 +584,7 @@ def make_scatter_plot(
     height: Optional[int] = None,
     width: Optional[int] = None,
     layout: Optional[dict] = None,
+    font_size: Optional[int] = None,
     x_axis: Optional[dict] = None,
     y_axis: Optional[dict] = None,
     color_axis: Optional[dict] = None,
@@ -611,6 +624,7 @@ def make_scatter_plot(
         x_col=x_col,
         y_col=y_col,
         layout=layout,
+        font_size=font_size,
         x_axis=x_axis,
         y_axis=y_axis,
         color_axis=color_axis,
@@ -858,6 +872,10 @@ def update_figure_layout(
     x_col: Optional[str] = None,
     y_col: Optional[str] = None,
     layout: Optional[dict] = None,
+    font_size: Optional[int] = None,  # for everything
+    textfont_size: Optional[
+        int
+    ] = None,  # for traces, independently of axis labels, legends, etc.
     x_axis: Optional[dict] = None,
     y_axis: Optional[dict] = None,
     color_axis: Optional[dict] = None,
@@ -873,6 +891,8 @@ def update_figure_layout(
         figure_layout.update(layout)
     if len(kwargs) > 0:
         figure_layout.update(kwargs)
+    if font_size is not None:
+        figure_layout["font"] = dict(size=font_size)
     fig.update_layout(**figure_layout)
     xaxis_settings = dict(Y_AXIS)
     if x_axis is not None:
@@ -886,9 +906,13 @@ def update_figure_layout(
 
     if color_axis is not None:
         fig.update_coloraxes(color_axis)
-
+    trace_update = {}
+    if textfont_size:
+        trace_update["textfont_size"] = textfont_size
     if traces_settings is not None:
-        fig.update_traces(traces_settings)
+        trace_update.update(traces_settings)
+    if trace_update:
+        fig.update_traces(trace_update)
 
 
 def write_image(

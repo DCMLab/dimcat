@@ -212,6 +212,7 @@ class Result(DimcatResource):
         height: Optional[int] = None,
         width: Optional[int] = None,
         layout: Optional[dict] = None,
+        font_size: Optional[int] = None,
         x_axis: Optional[dict] = None,
         y_axis: Optional[dict] = None,
         color_axis: Optional[dict] = None,
@@ -226,6 +227,7 @@ class Result(DimcatResource):
             height=height,
             width=width,
             layout=layout,
+            font_size=font_size,
             x_axis=x_axis,
             y_axis=y_axis,
             color_axis=color_axis,
@@ -244,6 +246,7 @@ class Result(DimcatResource):
         height: Optional[int] = None,
         width: Optional[int] = None,
         layout: Optional[dict] = None,
+        font_size: Optional[int] = None,
         x_axis: Optional[dict] = None,
         y_axis: Optional[dict] = None,
         color_axis: Optional[dict] = None,
@@ -269,6 +272,7 @@ class Result(DimcatResource):
                 height=height,
                 width=width,
                 layout=layout,
+                font_size=font_size,
                 x_axis=x_axis,
                 y_axis=y_axis,
                 color_axis=color_axis,
@@ -288,6 +292,7 @@ class Result(DimcatResource):
                 height=height,
                 width=width,
                 layout=layout,
+                font_size=font_size,
                 x_axis=x_axis,
                 y_axis=y_axis,
                 color_axis=color_axis,
@@ -309,6 +314,7 @@ class Result(DimcatResource):
         height: Optional[int] = None,
         width: Optional[int] = None,
         layout: Optional[dict] = None,
+        font_size: Optional[int] = None,
         x_axis: Optional[dict] = None,
         y_axis: Optional[dict] = None,
         color_axis: Optional[dict] = None,
@@ -360,6 +366,7 @@ class Result(DimcatResource):
                 height=height,
                 width=width,
                 layout=layout,
+                font_size=font_size,
                 x_axis=x_axis,
                 y_axis=y_axis,
                 color_axis=color_axis,
@@ -378,6 +385,7 @@ class Result(DimcatResource):
                 height=height,
                 width=width,
                 layout=layout_update,
+                font_size=font_size,
                 x_axis=x_axis,
                 y_axis=y_axis,
                 color_axis=color_axis,
@@ -400,6 +408,7 @@ class Result(DimcatResource):
         width: Optional[int] = None,
         height: Optional[int] = None,
         layout: Optional[dict] = None,
+        font_size: Optional[int] = None,
         x_axis: Optional[dict] = None,
         y_axis: Optional[dict] = None,
         color_axis: Optional[dict] = None,
@@ -450,6 +459,7 @@ class Result(DimcatResource):
                 width=width,
                 height=height,
                 layout=layout_update,
+                font_size=font_size,
                 x_axis=x_axis,
                 y_axis=y_axis,
                 color_axis=color_axis,
@@ -471,6 +481,7 @@ class Result(DimcatResource):
                 width=width,
                 height=height,
                 layout=layout_update,
+                font_size=font_size,
                 x_axis=x_axis,
                 y_axis=y_axis,
                 color_axis=color_axis,
@@ -492,6 +503,7 @@ class Result(DimcatResource):
         height: Optional[int] = None,
         width: Optional[int] = None,
         layout: Optional[dict] = None,
+        font_size: Optional[int] = None,
         x_axis: Optional[dict] = None,
         y_axis: Optional[dict] = None,
         color_axis: Optional[dict] = None,
@@ -518,9 +530,8 @@ class Result(DimcatResource):
             group_cols = self.get_default_groupby()
         elif isinstance(group_cols, str):
             group_cols = [group_cols]
-        if group_cols:
-            group_modes = self._resolve_group_modes_arg(group_modes)
-            update_plot_grouping_settings(kwargs, group_cols, group_modes)
+        if group_cols and not group_modes:
+            group_modes = (GroupMode.ROWS, GroupMode.COLUMNS)
         layout_update = dict()
         if layout is not None:
             layout_update.update(layout)
@@ -534,8 +545,11 @@ class Result(DimcatResource):
             df=df,
             x_col=x_col,
             y_col=y_col,
+            group_cols=group_cols,
+            group_modes=group_modes,
             title=title,
             labels=labels,
+            font_size=font_size,
             hover_data=hover_data,
             height=height,
             width=width,
@@ -577,6 +591,39 @@ class CadenceCounts(Counts):
     def x_column(self) -> str:
         return self.formatted_column
 
+    def plot(
+        self,
+        title: Optional[str] = None,
+        labels: Optional[dict] = None,
+        hover_data: Optional[List[str]] = None,
+        height: Optional[int] = None,
+        width: Optional[int] = None,
+        layout: Optional[dict] = None,
+        font_size: Optional[int] = None,
+        x_axis: Optional[dict] = None,
+        y_axis: Optional[dict] = None,
+        color_axis: Optional[dict] = None,
+        traces_settings: Optional[dict] = None,
+        output: Optional[str] = None,
+        **kwargs,
+    ) -> go.Figure:
+        return self.make_bubble_plot(
+            title=title,
+            labels=labels,
+            hover_data=hover_data,
+            height=height,
+            width=width,
+            layout=layout,
+            font_size=font_size,
+            x_axis=x_axis,
+            y_axis=y_axis,
+            color_axis=color_axis,
+            traces_settings=traces_settings,
+            output=output,
+            color_discrete_map=CADENCE_COLORS,
+            **kwargs,
+        )
+
     def plot_grouped(
         self,
         group_cols: Optional[str | Iterable[str]] = None,
@@ -587,6 +634,7 @@ class CadenceCounts(Counts):
         height: Optional[int] = None,
         width: Optional[int] = None,
         layout: Optional[dict] = None,
+        font_size: Optional[int] = None,
         x_axis: Optional[dict] = None,
         y_axis: Optional[dict] = None,
         color_axis: Optional[dict] = None,
@@ -606,6 +654,7 @@ class CadenceCounts(Counts):
             height=height,
             width=width,
             layout=layout,
+            font_size=font_size,
             x_axis=x_axis,
             y_axis=y_axis,
             color_axis=color_axis,
@@ -733,6 +782,7 @@ class NgramTable(Result):
         height: Optional[int] = None,
         width: Optional[int] = None,
         layout: Optional[dict] = None,
+        font_size: Optional[int] = None,
         x_axis: Optional[dict] = None,
         y_axis: Optional[dict] = None,
         color_axis: Optional[dict] = None,
@@ -771,6 +821,7 @@ class NgramTable(Result):
             left_transition_matrix=transition_matrix,
             left_unigrams=unigram_stats,
             frequencies=True,
+            fontsize=font_size,
         )
         if output is not None:
             plt.savefig(output, dpi=400)
