@@ -236,14 +236,9 @@ class CriterionGrouper(MappingGrouper):
             group: pd.concat(units) for group, units in grouped_units.items()
         }
         grouped_df = pd.concat(grouped_units, names=[self.level_name])
-        feature_kwargs = {
-            arg: getattr(feature, arg)
-            for arg in feature.schema.fields
-            if arg not in ("dtype", "resource", "descriptor_filename")
-        }
         feature_name = self.resource_name_factory(feature)
-        grouped_feature = feature.__class__.from_dataframe(
-            df=grouped_df, resource_name=feature_name, **feature_kwargs
+        grouped_feature = feature.__class__.from_resource_and_dataframe(
+            resource=feature, df=grouped_df, resource_name=feature_name
         )
         features_package = dataset.outputs.get_package_by_name("features")
         features_package.replace_resource(grouped_feature, feature_name)

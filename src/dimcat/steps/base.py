@@ -407,14 +407,9 @@ class ResourceTransformation(FeatureProcessingStep):
         result_constructor = self._get_new_resource_type(resource)
         result_df = self.transform_resource(resource)
         result_name = self.resource_name_factory(resource)
-        resource_kwargs = {
-            arg: getattr(resource, arg)
-            for arg in resource.schema.fields
-            if arg not in ("dtype", "resource", "descriptor_filename")
-        }
         try:
-            new_resource = result_constructor.from_dataframe(
-                df=result_df, resource_name=result_name, **resource_kwargs
+            new_resource = result_constructor.from_resource_and_dataframe(
+                resource=resource, df=result_df, resource_name=result_name
             )
         except Exception as e:
             print(

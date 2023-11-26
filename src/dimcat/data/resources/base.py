@@ -434,7 +434,13 @@ class Resource(Data):
             for arg in resource.schema.fields
             if arg not in ("dtype", "resource")
         }
-        resource_kwargs.update(kwargs)
+        if descriptor_filename is not None:
+            kwargs["descriptor_filename"] = descriptor_filename
+        if basepath is not None:
+            kwargs["basepath"] = basepath
+        resource_kwargs.update(
+            {arg: val for arg, val in kwargs.items() if val is not None}
+        )
         new_object = cls(
             resource=fl_resource,
             **resource_kwargs,
