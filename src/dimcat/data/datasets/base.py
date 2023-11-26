@@ -19,7 +19,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Iterable, Iterator, List, Optional, Set
 
 import marshmallow as mm
-from dimcat.base import DimcatConfig, DimcatObjectField, get_class
+from dimcat.base import (
+    DO,
+    DimcatConfig,
+    DimcatObjectField,
+    get_class,
+    resolve_object_specs,
+)
 from dimcat.data.base import Data
 from dimcat.data.catalogs.base import DimcatCatalog
 from dimcat.data.catalogs.inputs import InputsCatalog
@@ -33,11 +39,10 @@ from dimcat.data.resources.utils import (
     features_argument2config_list,
 )
 from dimcat.dc_exceptions import NoMatchingResourceFoundError, PackageNotFoundError
-from typing_extensions import Self
 
 if TYPE_CHECKING:
     from dimcat.data.resources.results import Result
-    from dimcat.steps.base import FeatureProcessingStep
+    from dimcat.steps.base import StepSpecs
     from dimcat.steps.loaders.base import Loader
     from dimcat.steps.pipelines import Pipeline
 
@@ -200,12 +205,16 @@ class Dataset(Data):
                 )
         self.outputs.add_resource(resource=resource, package_name=package_name)
 
-    def apply(
-        self,
-        step: FeatureProcessingStep,
-    ) -> Self:
+    def apply_step(self, step: StepSpecs) -> DO:
         """Applies a pipeline step to the features it is configured for or, if None, to all active features."""
+        step = resolve_object_specs(step, "PipelineStep")
         return step.process_dataset(self)
+
+    def apply_steps(self, steps: StepSpecs | Iterable[StepSpecs]) -> DO:
+        """Applies one or several pipeline steps to this dataset by turning them into a pipeline."""
+        Constructor = get_class("Pipeline")
+        pipeline = Constructor(steps=steps)
+        return pipeline.process_dataset(self)
 
     def check_feature_availability(self, feature: FeatureSpecs) -> bool:
         """Checks whether the given feature specs are available from this Dataset.
