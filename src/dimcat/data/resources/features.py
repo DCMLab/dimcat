@@ -479,23 +479,26 @@ class CadenceLabels(DcmlAnnotations):
             feature_df = extend_keys_feature(feature_df)
         except DataframeIsMissingExpectedColumnsError:
             pass
-        groupby_levels = feature_df.index.names[:-1]
-        feature_df.cadence = feature_df.groupby(groupby_levels).cadence.bfill()
-        no_label_mask = feature_df.cadence.isna()
-        if no_label_mask.all():
-            raise ValueError(f"No cadence labels present in {self.resource_name}.")
-        n_dropped = no_label_mask.sum()
-        if n_dropped:
-            feature_df = feature_df.dropna(subset=["cadence"])
-            logger.info(
-                f"Dropped {n_dropped} rows from {self.resource_name} that pertaine to segments following the last "
-                f"cadence label in the piece."
-            )
-        group_keys, _ = make_adjacency_groups(
-            feature_df.cadence,
-            groupby=groupby_levels,
-        )
-        feature_df = condense_dataframe_by_groups(feature_df, group_keys)
+        # # this first idea was to get the dimensions of segments between cadence labels but with this lazy approach,
+        # # subsequent segments ending on the same label were merged
+        # groupby_levels = feature_df.index.names[:-1]
+        # feature_df.cadence = feature_df.groupby(groupby_levels).cadence.bfill()
+        # no_label_mask = feature_df.cadence.isna()
+        # if no_label_mask.all():
+        #     raise ValueError(f"No cadence labels present in {self.resource_name}.")
+        # n_dropped = no_label_mask.sum()
+        # if n_dropped:
+        #     feature_df = feature_df.dropna(subset=["cadence"])
+        #     logger.info(
+        #         f"Dropped {n_dropped} rows from {self.resource_name} that pertaine to segments following the last "
+        #         f"cadence label in the piece."
+        #     )
+        # group_keys, _ = make_adjacency_groups(
+        #     feature_df.cadence,
+        #     groupby=groupby_levels,
+        # )
+        # feature_df = condense_dataframe_by_groups(feature_df, group_keys)
+        feature_df = feature_df.dropna(subset=["cadence"])
         feature_df = extend_cadence_feature(feature_df)
         return self._sort_columns(feature_df)
 
