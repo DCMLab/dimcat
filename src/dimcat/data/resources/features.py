@@ -265,19 +265,6 @@ class HarmonyLabels(DcmlAnnotations):
         )
 
     @property
-    def formatted_column(self) -> str:
-        if self.format == HarmonyLabelsFormat.ROMAN:
-            if "mode" in self.get_default_groupby():
-                return "chord"
-            else:
-                return "chord_and_mode"
-        if self._formatted_column is not None:
-            return self._formatted_column
-        if self._default_formatted_column is not None:
-            return self._default_formatted_column
-        return
-
-    @property
     def format(self) -> HarmonyLabelsFormat:
         return self._format
 
@@ -296,6 +283,19 @@ class HarmonyLabels(DcmlAnnotations):
             )
         self._format = format
         self._formatted_column = new_formatted_column
+
+    @property
+    def formatted_column(self) -> str:
+        if self.format == HarmonyLabelsFormat.ROMAN:
+            if "mode" in self.get_default_groupby():
+                return "chord"
+            else:
+                return "chord_and_mode"
+        if self._formatted_column is not None:
+            return self._formatted_column
+        if self._default_formatted_column is not None:
+            return self._default_formatted_column
+        return
 
     def _format_dataframe(self, feature_df: D) -> D:
         """Called by :meth:`_prepare_feature_df` to transform the resource dataframe into a feature dataframe.
@@ -324,6 +324,8 @@ def extend_bass_notes_feature(
         "bass_note_over_local_tonic",
         "bass_degree",
         "bass_degree_and_mode",
+        "bass_degree_major",
+        "bass_degree_minor",
     )
     if all(col in feature_df.columns for col in columns_to_add):
         return feature_df
@@ -333,23 +335,40 @@ def extend_bass_notes_feature(
             [col for col in expected_columns if col not in feature_df.columns],
             feature_df.columns.to_list(),
         )
-    concatenate_this = [
-        feature_df,
-        ms3.transform(feature_df.bass_note, ms3.fifths2iv).rename(
-            "bass_note_over_local_tonic"
-        ),
-        ms3.transform(
-            feature_df, ms3.fifths2sd, ["bass_note", "localkey_is_minor"]
-        ).rename("bass_degree"),
-    ]
+    concatenate_this = [feature_df]
+    if "bass_note_over_local_tonic" not in feature_df.columns:
+        concatenate_this.append(
+            ms3.transform(feature_df.bass_note, ms3.fifths2iv).rename(
+                "bass_note_over_local_tonic"
+            )
+        )
+    if "bass_degree" not in feature_df.columns:
+        concatenate_this.append(
+            ms3.transform(
+                feature_df, ms3.fifths2sd, ["bass_note", "localkey_is_minor"]
+            ).rename("bass_degree")
+        )
+    if "bass_degree_major" not in feature_df.columns:
+        concatenate_this.append(
+            ms3.transform(feature_df.bass_note, ms3.fifths2sd, minor=False).rename(
+                "bass_degree_major"
+            )
+        )
+    if "bass_degree_minor" not in feature_df.columns:
+        concatenate_this.append(
+            ms3.transform(feature_df.bass_note, ms3.fifths2sd, minor=True).rename(
+                "bass_degree_minor"
+            )
+        )
     feature_df = pd.concat(concatenate_this, axis=1)
-    concatenate_this = [
-        feature_df,
-        feature_df[["bass_degree", "localkey_mode"]]
-        .apply(safe_row_tuple, axis=1)
-        .rename("bass_degree_and_mode"),
-    ]
-    feature_df = pd.concat(concatenate_this, axis=1)
+    if "bass_degree_and_mode" not in feature_df.columns:
+        concatenate_this = [
+            feature_df,
+            feature_df[["bass_degree", "localkey_mode"]]
+            .apply(safe_row_tuple, axis=1)
+            .rename("bass_degree_and_mode"),
+        ]
+        feature_df = pd.concat(concatenate_this, axis=1)
     return feature_df
 
 
@@ -357,6 +376,8 @@ class BassNotesFormat(FriendlyEnum):
     FIFTHS = "FIFTHS"
     INTERVAL = "INTERVAL"
     SCALE_DEGREE = "SCALE_DEGREE"
+    SCALE_DEGREE_MAJOR = "SCALE_DEGREE_MAJOR"
+    SCALE_DEGREE_MINOR = "SCALE_DEGREE_MINOR"
 
 
 class BassNotes(HarmonyLabels):
@@ -367,8 +388,10 @@ class BassNotes(HarmonyLabels):
     )
     _convenience_column_names = KEY_CONVENIENCE_COLUMNS + [
         "bass_degree",
-        "bass_note_over_local_tonic",
         "bass_degree_and_mode",
+        "bass_degree_major",
+        "bass_degree_minor",
+        "bass_note_over_local_tonic",
     ]
     _feature_column_names = [
         "globalkey",
@@ -412,10 +435,11 @@ class BassNotes(HarmonyLabels):
         elif format == BassNotesFormat.FIFTHS:
             new_formatted_column = "bass_note"
         elif format == BassNotesFormat.SCALE_DEGREE:
-            if "mode" in self.get_default_groupby():
-                new_formatted_column = "bass_degree"
-            else:
-                new_formatted_column = "bass_degree_and_mode"
+            new_formatted_column = "bass_degree_and_mode"
+        elif format == BassNotesFormat.SCALE_DEGREE_MAJOR:
+            new_formatted_column = "bass_degree_major"
+        elif format == BassNotesFormat.SCALE_DEGREE_MINOR:
+            new_formatted_column = "bass_degree_minor"
         else:
             raise NotImplementedError(f"Unknown format {format!r}.")
         if self.is_loaded and new_formatted_column not in self.field_names:
@@ -424,6 +448,19 @@ class BassNotes(HarmonyLabels):
             )
         self._format = format
         self._formatted_column = new_formatted_column
+
+    @property
+    def formatted_column(self) -> str:
+        if self.format == BassNotesFormat.SCALE_DEGREE:
+            if "mode" in self.get_default_groupby():
+                return "bass_degree"
+            else:
+                return "bass_degree_and_mode"
+        if self._formatted_column is not None:
+            return self._formatted_column
+        if self._default_formatted_column is not None:
+            return self._default_formatted_column
+        return
 
     def _modify_name(self):
         """Modify the :attr:`resource_name` to reflect the feature."""

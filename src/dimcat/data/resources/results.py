@@ -115,7 +115,14 @@ class Result(DimcatResource):
         resource_format = self.analyzed_resource.format
         # since all format values are of type FriendlyEnum and can be compared with strings, no matter what specific
         # format Enum the analyzed resource was using, it can be checked against these fifths format strings:
-        return resource_format in ("FIFTHS", "INTERVAL", "NAME", "SCALE_DEGREE")
+        return resource_format in (
+            "FIFTHS",
+            "INTERVAL",
+            "NAME",
+            "SCALE_DEGREE",
+            "SCALE_DEGREE_MAJOR",
+            "SCALE_DEGREE_MINOR",
+        )
 
     @property
     def value_column(self) -> str:
