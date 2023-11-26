@@ -62,7 +62,7 @@ from dimcat.dc_warnings import PotentiallyUnrelatedDescriptorUserWarning
 from dimcat.utils import check_name
 from frictionless import FrictionlessException
 from plotly import graph_objs as go
-from typing_extensions import Self
+from typing_extensions import Literal, Self
 
 if TYPE_CHECKING:
     from dimcat.data.resources.results import Result
@@ -691,6 +691,46 @@ DimcatResource.__init__(
         if feature_name not in self.extractable_features:
             raise FeatureUnavailableError(feature_name, self.resource_name)
 
+    def _drop_rows_with_missing_values(
+        self,
+        df: D,
+        column_names: Optional[List[str]] = None,
+        how: Literal["any", "all"] = "any",
+    ) -> D:
+        """Drop rows with missing values in the specified columns. If nothing is to be dropped, the identical
+        dataframe is returned, not a copy. Falls back to the feature columns if no columns are specified or,
+        if no feature columns are defined, nothing is dropped.
+        """
+        if not column_names:
+            if self._feature_column_names:
+                column_names = self._feature_column_names
+            else:
+                self.logger.debug(
+                    f"No feature columns defined for {self.resource_name}. Returning as is."
+                )
+                return df
+        if how == "any":
+            drop_mask = df[column_names].isna().any(axis=1)
+        elif how == "all":
+            drop_mask = df[column_names].isna().all(axis=1)
+        else:
+            raise ValueError(
+                f"Invalid value for how: {how!r}. Expected either 'how' or 'all'."
+            )
+        if drop_mask.all():
+            raise RuntimeError(
+                f"The {self.name} {self.resource_name!r} contains no fully defined objects based on the "
+                f"columns {column_names}."
+            )
+        n_dropped = drop_mask.sum()
+        if n_dropped:
+            df = df.dropna(subset=column_names)
+            self.logger.info(
+                f"Dropped {n_dropped} rows from {self.resource_name} that pertaine to segments following the last "
+                f"cadence label in the piece."
+            )
+        return df
+
     def extract_feature(
         self,
         feature: FeatureSpecs,
@@ -733,9 +773,25 @@ DimcatResource.__init__(
 
     def _format_dataframe(self, df: D) -> D:
         """Format the dataframe before it is set for this resource. The method is called by :meth:`_set_dataframe`
-        and typically adds convenience columns.
-        Assumes that the dataframe can be mutated safely, i.e. that it is a copy."""
-        # TODO: implant this where appropriate: df.dropna(subset=self._feature_column_names, how="any")
+        and typically adds convenience columns. Assumes that the dataframe can be mutated safely, i.e. that it is a
+        copy.
+
+        Most features have a line such as
+
+        .. code-block:: python
+
+            df = df._drop_rows_with_missing_values(df, column_names=self._feature_column_names)
+
+        to keep only fully defined objects. The index is not reset to retain
+        traceability to the original facet. In some cases, the durations need to adjusted when dropping rows. For
+        example, 'adjacency groups', i.e., subsequent identical values, can be merged using the pattern
+
+        .. code-block:: python
+
+            group_keys, _ = make_adjacency_groups(<feature column(s)>, groupby=<groupby_levels>)
+            feature_df = condense_dataframe_by_groups(df, group_keys)
+
+        """
         return df
 
     def _get_current_status(self) -> ResourceStatus:

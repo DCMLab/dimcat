@@ -248,6 +248,9 @@ class HarmonyLabels(DcmlAnnotations):
         """Called by :meth:`_prepare_feature_df` to transform the resource dataframe into a feature dataframe.
         Assumes that the dataframe can be mutated safely, i.e. that it is a copy.
         """
+        feature_df = self._drop_rows_with_missing_values(
+            feature_df, column_names=self._feature_column_names
+        )
         feature_df = extend_keys_feature(feature_df)
         feature_df = extend_harmony_feature(feature_df)
         return self._sort_columns(feature_df)
@@ -378,6 +381,9 @@ class BassNotes(HarmonyLabels):
         """Called by :meth:`_prepare_feature_df` to transform the resource dataframe into a feature dataframe.
         Assumes that the dataframe can be mutated safely, i.e. that it is a copy.
         """
+        feature_df = self._drop_rows_with_missing_values(
+            feature_df, column_names=self._feature_column_names
+        )
         feature_df = extend_keys_feature(feature_df)
         feature_df = extend_bass_notes_feature(feature_df)
         return self._sort_columns(feature_df)
@@ -498,7 +504,9 @@ class CadenceLabels(DcmlAnnotations):
         #     groupby=groupby_levels,
         # )
         # feature_df = condense_dataframe_by_groups(feature_df, group_keys)
-        feature_df = feature_df.dropna(subset=["cadence"])
+        feature_df = self._drop_rows_with_missing_values(
+            feature_df, column_names=self._feature_column_names
+        )
         feature_df = extend_cadence_feature(feature_df)
         return self._sort_columns(feature_df)
 
