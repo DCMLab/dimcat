@@ -179,6 +179,7 @@ def update_plot_grouping_settings(
         group_cols = [group_cols]
     if isinstance(group_modes, str):
         group_modes = [group_modes]
+    settings_update = {}
     for group_col, group_mode in zip(group_cols, group_modes):
         setting_key = GROUPMODE2BAR_PLOT_SETTING[group_mode]
         if setting_key in plot_settings:
@@ -186,7 +187,8 @@ def update_plot_grouping_settings(
                 f"Trying to set {setting_key!r} to {group_col!r} but it is already set to "
                 f"{plot_settings[setting_key]!r}."
             )
-        plot_settings[setting_key] = group_col
+        settings_update[setting_key] = group_col
+    plot_settings.update(settings_update)
 
 
 def make_bar_plot(
@@ -246,6 +248,8 @@ def make_bar_plot(
         **plot_settings,
         **kwargs,
     )
+    if "facet_col" or "facet_row" in plot_settings:
+        fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
     update_figure_layout(
         fig=fig,
         x_col=x_col,
@@ -550,7 +554,8 @@ def make_pie_chart(
         **plot_settings,
         **kwargs,
     )
-    # fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
+    if "facet_col" or "facet_row" in plot_settings:
+        fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
     update_figure_layout(
         fig=fig,
         x_col=x_col,
@@ -619,6 +624,8 @@ def make_scatter_plot(
         **plot_settings,
         **kwargs,
     )
+    if "facet_col" or "facet_row" in plot_settings:
+        fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
     update_figure_layout(
         fig=fig,
         x_col=x_col,
