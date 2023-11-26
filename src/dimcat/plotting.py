@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any, Callable, Iterable, List, Optional
+from typing import Any, Callable, Iterable, List, Optional, Tuple
 
+import colorlover
 import ms3
 import numpy as np
 import pandas as pd
@@ -18,7 +19,13 @@ from plotly import express as px
 from plotly import graph_objects as go
 from scipy.stats import entropy
 
-AVAILABLE_FIGURE_FORMATS = PlotlyScope._all_formats
+AVAILABLE_FIGURE_FORMATS: Tuple[str, ...] = PlotlyScope._all_formats
+"""Possible formats for saving Plotly figures, defined as extensions without leading dot."""
+
+CADENCE_COLORS = dict(
+    zip(("HC", "PAC", "PC", "IAC", "DC", "EC"), colorlover.scales["6"]["qual"]["Set1"])
+)
+"""Fixed category colors for cadence labels."""
 
 
 logger = logging.getLogger(__name__)
