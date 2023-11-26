@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from functools import cache, cached_property
 from itertools import product
-from typing import ClassVar, Iterable, List, Optional, Tuple
+from typing import ClassVar, Iterable, List, Literal, Optional, Tuple
 
 import frictionless as fl
 import marshmallow as mm
@@ -155,25 +155,42 @@ class Result(DimcatResource):
         the groups correspond to those that had been applied to the analyzed resource. If no Groupers had been
         applied, the entire dataset is treated as a single group.
         """
+        group_cols = self._resolve_group_cols_arg(group_cols)
+
         if self.is_combination:
-            return self.df
-        if group_cols is None:
-            group_cols = self.get_default_groupby()
-        elif isinstance(group_cols, str):
-            group_cols = [group_cols]
+            # this has been combined before, check if the grouping is the same or a subset of the current grouping
+            available_columns = set(self.df.columns) | set(self.df.index.names)
+            if group_cols == self.get_default_groupby():
+                return self.df
+            elif not set(group_cols).issubset(available_columns):
+                raise ValueError(
+                    f"Cannot group the results that are already combined by {group_cols}. "
+                    f"Available columns are {available_columns}"
+                )
+            else:
+                df = self.df[
+                    [self.dimension_column]
+                ]  # gets rid of existing proportion columns, we will get new ones
         else:
-            group_cols = list(group_cols)
+            df = self.df
+
         groupby = group_cols + [self.value_column]
         if self.formatted_column:
             groupby.append(self.formatted_column)
-        combined_result = self.df.groupby(groupby).sum()
+        combined_result = df.groupby(groupby).sum()
         if group_cols:
             normalize_by = combined_result.groupby(group_cols).sum()
         else:
             normalize_by = combined_result.sum()
-        group_proportions = (combined_result / normalize_by).rename(
-            columns=lambda x: "proportion"
-        )
+        try:
+            group_proportions = (combined_result / normalize_by).rename(
+                columns=lambda x: "proportion"
+            )
+        except Exception as e:
+            raise RuntimeError(
+                f"Normalizing the combined results failed with the following exception:\n{e!r}\n"
+                f"We were trying to divide\n{combined_result}\nby\n{normalize_by}"
+            )
         group_proportions_str = (
             group_proportions.mul(100)
             .round(2)
@@ -213,10 +230,15 @@ class Result(DimcatResource):
         the groups correspond to those that had been applied to the analyzed resource. If no Groupers had been
         applied, the entire dataset is treated as a single group.
         """
+        group_cols = self._resolve_group_cols_arg(group_cols)
         combined_results = self._combine_results(
             group_cols=group_cols, sort_order=sort_order
         )
-        new_result = self.__class__.from_resource_and_dataframe(self, combined_results)
+        new_result = self.__class__.from_resource_and_dataframe(
+            self,
+            combined_results,
+            default_groupby=group_cols,
+        )
         new_result.is_combination = True
         return new_result
 
@@ -238,100 +260,6 @@ class Result(DimcatResource):
             return self.get_piece_index(max_levels=0).names
         if smallest_unit == UnitOfAnalysis.GROUP:
             return self.get_default_groupby()
-
-    def plot(
-        self,
-        title: Optional[str] = None,
-        labels: Optional[dict] = None,
-        hover_data: Optional[List[str]] = None,
-        height: Optional[int] = None,
-        width: Optional[int] = None,
-        layout: Optional[dict] = None,
-        font_size: Optional[int] = None,
-        x_axis: Optional[dict] = None,
-        y_axis: Optional[dict] = None,
-        color_axis: Optional[dict] = None,
-        traces_settings: Optional[dict] = None,
-        output: Optional[str] = None,
-        **kwargs,
-    ) -> go.Figure:
-        return self.make_bubble_plot(
-            title=title,
-            labels=labels,
-            hover_data=hover_data,
-            height=height,
-            width=width,
-            layout=layout,
-            font_size=font_size,
-            x_axis=x_axis,
-            y_axis=y_axis,
-            color_axis=color_axis,
-            traces_settings=traces_settings,
-            output=output,
-            **kwargs,
-        )
-
-    def plot_grouped(
-        self,
-        group_cols: Optional[str | Iterable[str]] = None,
-        group_modes: Optional[GroupMode | Iterable[GroupMode]] = None,
-        title: Optional[str] = None,
-        labels: Optional[dict] = None,
-        hover_data: Optional[List[str]] = None,
-        height: Optional[int] = None,
-        width: Optional[int] = None,
-        layout: Optional[dict] = None,
-        font_size: Optional[int] = None,
-        x_axis: Optional[dict] = None,
-        y_axis: Optional[dict] = None,
-        color_axis: Optional[dict] = None,
-        traces_settings: Optional[dict] = None,
-        output: Optional[str] = None,
-        **kwargs,
-    ) -> go.Figure:
-        if group_cols is None:
-            group_cols = self.get_default_groupby()
-        combined_result = self._combine_results(group_cols=group_cols)
-        if not group_cols:
-            return self.make_bar_plot(
-                df=combined_result,
-                group_cols=group_cols,
-                group_modes=group_modes,
-                title=title,
-                labels=labels,
-                hover_data=hover_data,
-                height=height,
-                width=width,
-                layout=layout,
-                font_size=font_size,
-                x_axis=x_axis,
-                y_axis=y_axis,
-                color_axis=color_axis,
-                traces_settings=traces_settings,
-                output=output,
-                **kwargs,
-            )
-        else:
-            if "y_col" in kwargs:
-                y_col = kwargs.pop("y_col")
-            else:
-                y_col = group_cols[-1]
-            return self.make_bubble_plot(
-                df=combined_result,
-                y_col=y_col,
-                title=title,
-                hover_data=hover_data,
-                height=height,
-                width=width,
-                layout=layout,
-                font_size=font_size,
-                x_axis=x_axis,
-                y_axis=y_axis,
-                color_axis=color_axis,
-                traces_settings=traces_settings,
-                output=output,
-                **kwargs,
-            )
 
     def make_bar_plot(
         self,
@@ -367,10 +295,7 @@ class Result(DimcatResource):
             x_col = self.x_column
         if y_col is None:
             y_col = self.y_column
-        if group_cols is None:
-            group_cols = self.get_default_groupby()
-        elif isinstance(group_cols, str):
-            group_cols = [group_cols]
+        group_cols = self._resolve_group_cols_arg(group_cols)
         if group_cols:
             group_modes = self._resolve_group_modes_arg(group_modes)
             update_plot_grouping_settings(kwargs, group_cols, group_modes)
@@ -566,10 +491,7 @@ class Result(DimcatResource):
             x_col = self.x_column
         if y_col is None:
             y_col = self.y_column
-        if group_cols is None:
-            group_cols = self.get_default_groupby()
-        elif isinstance(group_cols, str):
-            group_cols = [group_cols]
+        group_cols = self._resolve_group_cols_arg(group_cols)
         if group_cols and not group_modes:
             group_modes = (GroupMode.ROWS, GroupMode.COLUMNS)
         layout_update = dict()
@@ -601,6 +523,168 @@ class Result(DimcatResource):
             output=output,
             **kwargs,
         )
+
+    def make_ranking_table(
+        self,
+        group_cols: Optional[str | Iterable[str]] = None,
+        sort_column=None,
+        sort_order: Literal[
+            SortOrder.DESCENDING, SortOrder.ASCENDING
+        ] = SortOrder.DESCENDING,
+        top_k=50,
+        drop_cols: Optional[str | Iterable[str]] = None,
+    ):
+        """Sorts the values
+
+        Args:
+            group_cols:
+                Ranking tables for groups will be concatenated side-by-side. Defaults to the default groupby.
+                To fully prevent grouping, pass False or a falsy value except None.
+            sort_column: By which column to rank. Defaults to the :attr:`dimension_column`.
+            sort_order: Defaults to "descending", i.e., the highest values will be ranked first.
+            top_k: The number of top ranks to retain. Defaults to 50. Pass None to retain all.
+
+        Returns:
+
+        """
+
+        def make_table(df, drop_columns=None):
+            if top_k and top_k > 0:
+                ranking = df.nlargest(top_k, sort_column, keep=keep)
+            else:
+                ranking = df.sort_values(sort_column, ascending=ascending)
+            ranking = ranking.reset_index()
+            if drop_columns:
+                ranking = ranking.drop(columns=drop_columns)
+            ranking.index = (ranking.index + 1).rename("rank")
+            return ranking
+
+        if sort_order == SortOrder.DESCENDING:
+            ascending = False
+        elif sort_order == SortOrder.ASCENDING:
+            ascending = True
+        else:
+            raise ValueError(
+                f"sort_order must be 'descending' or 'ascending', not {sort_order}"
+            )
+        keep = "last" if ascending else "first"
+        if sort_column is None:
+            sort_column = self.dimension_column
+        group_cols = self._resolve_group_cols_arg(group_cols)
+        drop_cols = self._resolve_group_cols_arg(drop_cols)
+        df = self._combine_results(group_cols)
+        if not group_cols:
+            return make_table(df)
+        ranking_groups = {
+            group: make_table(df, group_cols + drop_cols)
+            for group, df in df.groupby(group_cols)
+        }
+        return pd.concat(ranking_groups, names=group_cols, axis=1)
+
+    def plot(
+        self,
+        title: Optional[str] = None,
+        labels: Optional[dict] = None,
+        hover_data: Optional[List[str]] = None,
+        height: Optional[int] = None,
+        width: Optional[int] = None,
+        layout: Optional[dict] = None,
+        font_size: Optional[int] = None,
+        x_axis: Optional[dict] = None,
+        y_axis: Optional[dict] = None,
+        color_axis: Optional[dict] = None,
+        traces_settings: Optional[dict] = None,
+        output: Optional[str] = None,
+        **kwargs,
+    ) -> go.Figure:
+        return self.make_bubble_plot(
+            title=title,
+            labels=labels,
+            hover_data=hover_data,
+            height=height,
+            width=width,
+            layout=layout,
+            font_size=font_size,
+            x_axis=x_axis,
+            y_axis=y_axis,
+            color_axis=color_axis,
+            traces_settings=traces_settings,
+            output=output,
+            **kwargs,
+        )
+
+    def plot_grouped(
+        self,
+        group_cols: Optional[str | Iterable[str]] = None,
+        group_modes: Optional[GroupMode | Iterable[GroupMode]] = None,
+        title: Optional[str] = None,
+        labels: Optional[dict] = None,
+        hover_data: Optional[List[str]] = None,
+        height: Optional[int] = None,
+        width: Optional[int] = None,
+        layout: Optional[dict] = None,
+        font_size: Optional[int] = None,
+        x_axis: Optional[dict] = None,
+        y_axis: Optional[dict] = None,
+        color_axis: Optional[dict] = None,
+        traces_settings: Optional[dict] = None,
+        output: Optional[str] = None,
+        **kwargs,
+    ) -> go.Figure:
+        if group_cols is None:
+            group_cols = self.get_default_groupby()
+        combined_result = self._combine_results(group_cols=group_cols)
+        if not group_cols:
+            return self.make_bar_plot(
+                df=combined_result,
+                group_cols=group_cols,
+                group_modes=group_modes,
+                title=title,
+                labels=labels,
+                hover_data=hover_data,
+                height=height,
+                width=width,
+                layout=layout,
+                font_size=font_size,
+                x_axis=x_axis,
+                y_axis=y_axis,
+                color_axis=color_axis,
+                traces_settings=traces_settings,
+                output=output,
+                **kwargs,
+            )
+        else:
+            if "y_col" in kwargs:
+                y_col = kwargs.pop("y_col")
+            else:
+                y_col = group_cols[-1]
+            return self.make_bubble_plot(
+                df=combined_result,
+                y_col=y_col,
+                title=title,
+                hover_data=hover_data,
+                height=height,
+                width=width,
+                layout=layout,
+                font_size=font_size,
+                x_axis=x_axis,
+                y_axis=y_axis,
+                color_axis=color_axis,
+                traces_settings=traces_settings,
+                output=output,
+                **kwargs,
+            )
+
+    def _resolve_group_cols_arg(self, group_cols):
+        if group_cols is None:
+            groupby = self.get_default_groupby()
+        elif not group_cols:
+            groupby = []
+        elif isinstance(group_cols, str):
+            groupby = [group_cols]
+        else:
+            groupby = list(group_cols)
+        return groupby
 
     def _resolve_group_modes_arg(
         self, group_modes: Optional[GroupMode | Iterable[GroupMode]] = None

@@ -413,7 +413,7 @@ class DimcatResource(Resource, Generic[D]):
         if not descriptor_filename:
             new_object.detach_from_descriptor()
         # copy additional fields
-        for attr in ("_corpus_name", "_default_groupby"):
+        for attr in ("_corpus_name",):
             if (
                 hasattr(resource, attr)
                 and (value := getattr(resource, attr)) is not None
