@@ -33,7 +33,10 @@ from dimcat.data.resources.base import (
     resource_specs2resource,
 )
 from dimcat.data.resources.dc import DimcatResource, Feature, FeatureSpecs, R
-from dimcat.data.resources.utils import features_argument2config_list
+from dimcat.data.resources.utils import (
+    feature_specs2config,
+    features_argument2config_list,
+)
 from dimcat.dc_exceptions import (
     EmptyDatasetError,
     EmptyResourceError,
@@ -274,10 +277,7 @@ class FeatureProcessingStep(PipelineStep):
                     features = [data["features"]]
                 feature_list = []
                 for feature in features:
-                    if isinstance(feature, dict):
-                        # this seems to be a manually created config
-                        feature = DimcatConfig(feature)
-                    feature_list.append(feature)
+                    feature_list.append(feature_specs2config(feature))
                 data = dict(
                     data, features=feature_list
                 )  # make sure to not modify data inplace
