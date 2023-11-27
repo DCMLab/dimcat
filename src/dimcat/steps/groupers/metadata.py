@@ -13,7 +13,7 @@ class YearGrouper(CustomPieceGrouper):
     @classmethod
     def from_grouping(
         cls,
-        piece_groups: Dict[Number, List[tuple]],
+        grouping: Dict[Number, List[tuple]],
         level_names: Sequence[str] = ("middle_composition_year", "corpus", "piece"),
         sort: bool = False,
         raise_if_multiple_membership: bool = False,
@@ -28,7 +28,7 @@ class YearGrouper(CustomPieceGrouper):
         raise_if_multiple_membership: If True, raises a ValueError if a member is in multiple groups.
         """
         return super().from_grouping(
-            piece_groups=piece_groups,
+            grouping=grouping,
             level_names=level_names,
             sort=sort,
             raise_if_multiple_membership=raise_if_multiple_membership,
@@ -37,10 +37,10 @@ class YearGrouper(CustomPieceGrouper):
     def __init__(
         self,
         level_name: str = "middle_composition_year",
-        grouped_pieces: DimcatIndex | pd.MultiIndex = None,
+        grouped_units: DimcatIndex | pd.MultiIndex = None,
         **kwargs,
     ):
-        super().__init__(level_name=level_name, grouped_pieces=grouped_pieces, **kwargs)
+        super().__init__(level_name=level_name, grouped_units=grouped_units, **kwargs)
 
     def fit_to_dataset(self, dataset: Dataset) -> None:
         metadata = dataset.get_metadata()
@@ -51,4 +51,6 @@ class YearGrouper(CustomPieceGrouper):
         group_index = DimcatIndex.from_grouping(
             grouping, ("middle_composition_year", "corpus", "piece")
         )
-        self.grouped_pieces = group_index
+        if len(self.grouped_units) > 0:
+            self.logger.info(f"Replacing existing grouping with {group_index}")
+        self.grouped_units = group_index

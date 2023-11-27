@@ -3,6 +3,7 @@ from typing import Optional
 import marshmallow as mm
 import pandas as pd
 from dimcat.data.resources import DimcatResource, FeatureName
+from dimcat.dc_exceptions import ResourceIsMissingFeatureColumnError
 from dimcat.steps.groupers.base import Grouper
 
 
@@ -26,8 +27,8 @@ class ColumnGrouper(Grouper):
     def check_resource(self, resource: DimcatResource) -> None:
         super().check_resource(resource)
         if self.grouped_column not in resource.df.columns:
-            raise ValueError(
-                f"Expected {self.grouped_column} column in {resource.name}"
+            raise ResourceIsMissingFeatureColumnError(
+                resource.resource_name, self.grouped_column
             )
 
     def transform_resource(self, resource: DimcatResource) -> pd.DataFrame:

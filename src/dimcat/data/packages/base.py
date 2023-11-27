@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import re
-import warnings
 from collections import defaultdict
 from enum import IntEnum, auto
 from inspect import isclass
@@ -26,15 +25,15 @@ import frictionless as fl
 import marshmallow as mm
 from dimcat.base import DimcatConfig, FriendlyEnum, get_class
 from dimcat.data.base import Data
-from dimcat.data.resources import Feature, FeatureName
 from dimcat.data.resources.base import (
+    FeatureName,
     PathResource,
     Resource,
-    SomeDataframe,
     reconcile_base_and_file,
 )
-from dimcat.data.resources.dc import DimcatResource, FeatureSpecs, PieceIndex
+from dimcat.data.resources.dc import DimcatResource, Feature, FeatureSpecs, PieceIndex
 from dimcat.data.resources.facets import Facet, MuseScoreFacet
+from dimcat.data.resources.features import Metadata
 from dimcat.data.resources.utils import feature_specs2config
 from dimcat.data.utils import (
     check_descriptor_filename_argument,
@@ -57,7 +56,6 @@ from dimcat.dc_exceptions import (
     ResourceNamesNonUniqueError,
     ResourceNotFoundError,
 )
-from dimcat.dc_warnings import PotentiallyMisalignedPackageUserWarning
 from dimcat.utils import (
     check_file_path,
     make_valid_frictionless_name,
@@ -132,34 +130,6 @@ class PackageSchema(Data.Schema):
         if "package_name" in data:
             data["name"] = data.pop("package_name")
         return data
-
-    # def get_package_descriptor(self, obj: Package):
-    #     return obj.make_descriptor()
-    #
-    # def raw(self, data):
-    #     return data
-    #
-    # @mm.post_load
-    # def init_object(self, data, **kwargs):
-    #     print(f"DATA BEFORE: {data}")
-    #     if isinstance(data["package"], str) and "basepath" in data:
-    #         descriptor_path = os.path.join(data["basepath"], data["package"])
-    #         data["package"] = descriptor_path
-    #     elif isinstance(data["package"], dict):
-    #         resources = data["package"].pop("resources", [])
-    #         deserialized_resources = []
-    #         for resource in resources:
-    #             deserialized = deserialize_dict(resource)
-    #             deserialized_resources.append(deserialized)
-    #         dtype = data.pop("dtype")
-    #         package_constructor = get_class(dtype)
-    #         deserialized_package = package_constructor.from_resources(
-    #             resources = deserialized_resources,
-    #             **data["package"]
-    #         )
-    #         data["package"] = deserialized_package
-    #     print(f"DATA AFTER: {data}")
-    #     return super().init_object(data, **kwargs)
 
 
 class Package(Data):
@@ -566,12 +536,7 @@ class Package(Data):
         return new_package
 
     class PickleSchema(PackageSchema):
-        def get_package_descriptor(self, obj: Package):
-            obj.store_descriptor()
-            return obj.get_descriptor_filename()
-
-        def raw(self, data):
-            return data
+        pass
 
     class Schema(PackageSchema, Data.Schema):
         pass
@@ -728,9 +693,6 @@ class Package(Data):
         if self.is_empty:
             return True
         if not self.basepath:
-            warnings.warn(
-                "Package is not empty but no basepath had been set.", RuntimeWarning
-            )
             first_resource = self._resources[0]
             basepath = first_resource.basepath
             self.logger.debug(
@@ -1128,7 +1090,7 @@ class Package(Data):
             IDs.add(resource.ID)
         return PieceIndex.from_tuples(sorted(IDs))
 
-    def get_metadata(self) -> SomeDataframe:
+    def get_metadata(self) -> Metadata:
         """Returns the metadata of the package."""
         if self.n_resources == 0:
             raise EmptyPackageError(self.package_name)
@@ -1142,6 +1104,29 @@ class Package(Data):
         metadata = resources[0]
         metadata.load()
         return metadata
+
+    def get_resource(self, resource: DimcatConfig | Type[Resource] | str):
+        """High-level method that calls one of the other get_resource_* methods depending on the
+        type of the argument. A string is interpreted as resource name, not as type."""
+        if self.n_resources == 0:
+            raise EmptyPackageError(self.package_name)
+        if isinstance(resource, DimcatConfig):
+            return self.get_resource_by_config(resource)
+        if isinstance(resource, type):
+            resources = self.get_resources_by_type(resource)
+        elif isinstance(resource, str):
+            try:
+                return self.get_resource_by_name(resource)
+            except ResourceNotFoundError:
+                resources = self.get_resources_by_regex(resource)
+        if len(resources) > 1:
+            raise NotImplementedError(
+                f"More than one {resource.__name__} resource found for {resource!r}:\n"
+                f"{', '.join(r.resource_name for r in resources)}"
+            )
+        elif len(resources) == 0:
+            raise NoMatchingResourceFoundError(resource.name, self.package_name)
+        return resources[0]
 
     def get_resource_by_config(self, config: DimcatConfig) -> Resource:
         """Returns the first resource that matches the given config.
@@ -1188,6 +1173,7 @@ class Package(Data):
     def get_resources_by_type(
         self,
         resource_type: Type[Resource] | str,
+        include_subclasses: bool = False,
     ) -> List[Resource]:
         """Returns the Resource objects of the given type."""
         if isinstance(resource_type, str):
@@ -1196,11 +1182,18 @@ class Package(Data):
             raise TypeError(
                 f"Expected a subclass of 'Resource', got {resource_type!r}."
             )
-        return [
-            resource
-            for resource in self._resources
-            if isinstance(resource, resource_type)
-        ]
+        if include_subclasses:
+            return [
+                resource
+                for resource in self._resources
+                if isinstance(resource, resource_type)
+            ]
+        else:
+            return [
+                resource
+                for resource in self._resources
+                if resource.__class__ == resource_type
+            ]
 
     def _get_status(self) -> PackageStatus:
         """Returns the status of the package."""
@@ -1287,9 +1280,8 @@ class Package(Data):
                 resource.descriptor_filename == package_descriptor_filename
             )
         if self.basepath is None:
-            warnings.warn(
-                "Package basepath is None, resource is being added without reconciling.",
-                PotentiallyMisalignedPackageUserWarning,
+            self.logger.debug(
+                "Package basepath is None, resource is being added without reconciling."
             )
             return resource
         package_basepath = self.get_basepath()
@@ -1370,6 +1362,30 @@ class Package(Data):
             ):
                 resource._set_descriptor_filename(package_descriptor_filename)
         return resource
+
+    def replace_resource(
+        self,
+        resource: Resource,
+        name_of_replaced_resource: Optional[str] = None,
+    ) -> None:
+        """Replaces the package with the same name as the given package with the given package."""
+        if not isinstance(resource, Resource):
+            msg = f"{self.name}.replace_resource() takes a Resource, not {type(resource)!r}."
+            raise TypeError(msg)
+        search_name = (
+            name_of_replaced_resource
+            if name_of_replaced_resource
+            else resource.resource_name
+        )
+        for i, r in enumerate(self._resources):
+            if r.resource_name == search_name:
+                self._resources[i] = resource
+                self.logger.info(
+                    f"Replaced resource {search_name!r} with "
+                    f"resource {resource.resource_name!r}."
+                )
+                return
+        raise ResourceNotFoundError(search_name, self.package_name)
 
     def _set_descriptor_filename(self, descriptor_filename):
         if self.descriptor_exists:

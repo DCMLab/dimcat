@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from dimcat.data.catalogs.base import DimcatCatalog
-from dimcat.data.resources.base import SomeDataframe
 from dimcat.data.resources.dc import Feature, FeatureSpecs
+from dimcat.data.resources.features import Metadata
 from dimcat.data.resources.utils import feature_specs2config
 
 
@@ -18,7 +18,7 @@ class InputsCatalog(DimcatCatalog):
         feature_config = feature_specs2config(feature)
         return package.get_feature(feature_config)
 
-    def get_metadata(self) -> SomeDataframe:
+    def get_metadata(self) -> Metadata:
         """Returns a dataframe with all metadata."""
         package = self.get_package()
         return package.get_metadata()

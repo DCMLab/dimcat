@@ -29,13 +29,16 @@ import numpy as np
 import pandas as pd
 from dimcat.base import DimcatConfig, get_setting, is_instance_of, is_subclass_of
 from dimcat.data.utils import make_fl_resource
-from dimcat.dc_exceptions import ResourceNotProcessableError
+from dimcat.dc_exceptions import (
+    ResourceIsMissingPieceIndexError,
+    ResourceNotProcessableError,
+)
 from dimcat.dc_warnings import ResourceWithRangeIndexUserWarning
 from marshmallow.fields import Boolean
 from ms3 import reduce_dataframe_duration_to_first_row
 from numpy._typing import NDArray
 
-from .base import FeatureName
+from .base import D, FeatureName
 
 module_logger = logging.getLogger(__name__)
 
@@ -583,7 +586,9 @@ def load_fl_resource(
         raise
     if index_col_names:
         return dataframe.set_index(index_col_names)
-    return dataframe
+    else:
+        dataframe.index.name = "i"
+        return dataframe
 
 
 def load_index_from_fl_resource(
@@ -635,10 +640,7 @@ def load_index_from_fl_resource(
             recognized_piece_columns=recognized_piece_columns,
         )
         if piece_col_position is None:
-            raise ValueError(
-                f"Resource {fl_resource.name!r} has no primary key and no {right_most_column!r} column "
-                f"could be detected."
-            )
+            raise ResourceIsMissingPieceIndexError(fl_resource.name, right_most_column)
         index_col = list(range(piece_col_position + 1))
         module_logger.debug(
             f"Loading index columns {index_col!r} from {fl_resource.name!r} based on the recognized "
@@ -867,6 +869,76 @@ def make_tsv_resource(name: Optional[str] = None) -> fl.Resource:
     resource = make_fl_resource(name, **options)
     resource.type = "table"
     return resource
+
+
+def merge_ties(
+    df: D,
+    return_dropped: bool = False,
+    perform_checks: bool = True,
+    logger: Optional[logging.Logger] = None,
+):
+    """In a note list, merge tied notes to single events with accumulated durations.
+    Input dataframe needs columns ['duration', 'tied', 'midi', 'staff']. This
+    function does not handle correctly overlapping ties on the same pitch since
+    it doesn't take into account the notational layers ('voice').
+
+    Copied from ms3, to be developed further.
+
+
+
+    Args:
+        df:
+        return_dropped:
+        perform_checks:
+        logger:
+
+    Returns:
+
+    """
+    if logger is None:
+        logger = module_logger
+
+    def merge(df):
+        vc = df.tied.value_counts()
+        try:
+            if vc[1] != 1 or vc[-1] != 1:
+                logger.warning(f"More than one 1 or -1:\n{vc}")
+        except KeyError:
+            logger.warning(f"Inconsistent 'tied' values while merging: {vc}")
+        ix = df.iloc[0].name
+        dur = df.duration.sum()
+        drop = df.iloc[1:].index.to_list()
+        return pd.Series({"ix": ix, "duration": dur, "dropped": drop})
+
+    def merge_notes(staff_midi):
+        staff_midi["chunks"] = (staff_midi.tied == 1).astype(int).cumsum()
+        t = staff_midi.groupby("chunks", group_keys=False).apply(merge)
+        return t.set_index("ix")
+
+    if not df.tied.notna().any():
+        return df
+    df = df.copy()
+    notna = df.loc[df.tied.notna(), ["duration", "tied", "midi", "staff"]]
+    if perform_checks:
+        before = notna.tied.value_counts()
+    new_dur = (
+        notna.groupby(["staff", "midi"], group_keys=False)
+        .apply(merge_notes)
+        .sort_index()
+    )
+    try:
+        df.loc[new_dur.index, "duration"] = new_dur.duration
+    except Exception:
+        print(new_dur)
+    if return_dropped:
+        df.loc[new_dur.index, "dropped"] = new_dur.dropped
+    df = df.drop(new_dur.dropped.sum())
+    if perform_checks:
+        after = df.tied.value_counts()
+        assert (
+            before[1] == after[1]
+        ), f"Error while merging ties. Before:\n{before}\nAfter:\n{after}"
+    return df
 
 
 def nan_eq(a, b):

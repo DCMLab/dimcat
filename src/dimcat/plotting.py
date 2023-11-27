@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any, Callable, Iterable, List, Optional
+from typing import Any, Callable, Iterable, List, Optional, Tuple
 
+import colorlover
 import ms3
 import numpy as np
 import pandas as pd
@@ -18,7 +19,13 @@ from plotly import express as px
 from plotly import graph_objects as go
 from scipy.stats import entropy
 
-AVAILABLE_FIGURE_FORMATS = PlotlyScope._all_formats
+AVAILABLE_FIGURE_FORMATS: Tuple[str, ...] = PlotlyScope._all_formats
+"""Possible formats for saving Plotly figures, defined as extensions without leading dot."""
+
+CADENCE_COLORS = dict(
+    zip(("HC", "PAC", "PC", "IAC", "DC", "EC"), colorlover.scales["6"]["qual"]["Set1"])
+)
+"""Fixed category colors for cadence labels."""
 
 
 logger = logging.getLogger(__name__)
@@ -111,6 +118,47 @@ def make_plot_settings(
         update_plot_grouping_settings(plot_settings, group_cols, group_modes)
     if "x" not in plot_settings:
         plot_settings["x"] = x_col
+    plot_settings["hover_name"] = plot_settings["x"]
+    label_settings = clean_axis_labels(*df.columns)
+    if labels is not None:
+        label_settings.update(labels)
+    plot_settings["labels"] = label_settings
+    return plot_settings
+
+
+def make_pie_chart_settings(
+    df: pd.DataFrame,
+    x_col: Optional[str] = None,
+    y_col: Optional[str] = None,
+    group_cols: Optional[str | Iterable[str]] = None,
+    group_modes: Iterable[GroupMode] = (
+        GroupMode.ROWS,
+        GroupMode.COLUMNS,
+    ),
+    title: Optional[str] = None,
+    labels: Optional[dict] = None,
+    hover_data: Optional[List[str]] = None,
+    height: Optional[int] = None,
+    width: Optional[int] = None,
+):
+    if x_col is None:
+        x_col = df.columns[-2]
+    if y_col is None:
+        y_col = df.columns[-1]
+    plot_settings = dict(
+        title=title,
+        names=x_col,
+        color=x_col,
+        values=y_col,
+        hover_name=x_col,
+        hover_data=hover_data,
+        height=height,
+        width=width,
+    )
+    if group_cols:
+        if GroupMode.COLOR in group_modes:
+            group_modes = [mode for mode in group_modes if mode != GroupMode.COLOR]
+        update_plot_grouping_settings(plot_settings, group_cols, group_modes)
     label_settings = clean_axis_labels(*df.columns)
     if labels is not None:
         label_settings.update(labels)
@@ -131,6 +179,7 @@ def update_plot_grouping_settings(
         group_cols = [group_cols]
     if isinstance(group_modes, str):
         group_modes = [group_modes]
+    settings_update = {}
     for group_col, group_mode in zip(group_cols, group_modes):
         setting_key = GROUPMODE2BAR_PLOT_SETTING[group_mode]
         if setting_key in plot_settings:
@@ -138,7 +187,8 @@ def update_plot_grouping_settings(
                 f"Trying to set {setting_key!r} to {group_col!r} but it is already set to "
                 f"{plot_settings[setting_key]!r}."
             )
-        plot_settings[setting_key] = group_col
+        settings_update[setting_key] = group_col
+    plot_settings.update(settings_update)
 
 
 def make_bar_plot(
@@ -157,6 +207,7 @@ def make_bar_plot(
     height: Optional[int] = None,
     width: Optional[int] = None,
     layout: Optional[dict] = None,
+    font_size: Optional[int] = None,
     x_axis: Optional[dict] = None,
     y_axis: Optional[dict] = None,
     color_axis: Optional[dict] = None,
@@ -197,9 +248,14 @@ def make_bar_plot(
         **plot_settings,
         **kwargs,
     )
+    if "facet_col" or "facet_row" in plot_settings:
+        fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
     update_figure_layout(
         fig=fig,
+        x_col=x_col,
+        y_col=y_col,
         layout=layout,
+        font_size=font_size,
         x_axis=x_axis,
         y_axis=y_axis,
         color_axis=color_axis,
@@ -216,13 +272,14 @@ def make_bubble_plot(
     flip: bool = False,
     x_col: Optional[str] = None,
     y_col: Optional[str] = None,
-    duration_column: str = "duration_qb",
+    dimension_column: str = "duration_qb",
     title: Optional[str] = None,
     labels: Optional[dict] = None,
     hover_data: Optional[List[str]] = None,
     width: Optional[int] = 1200,
     height: Optional[int] = 1500,
     layout: Optional[dict] = None,
+    font_size: Optional[int] = None,
     x_axis: Optional[dict] = None,
     y_axis: Optional[dict] = None,
     color_axis: Optional[dict] = None,
@@ -246,24 +303,16 @@ def make_bubble_plot(
         x_axis, y_axis = y_axis, x_axis
         xaxis_settings, yaxis_settings = yaxis_settings, xaxis_settings
         figure_layout = dict(width=height, height=width)
-        if y_col == "piece":
-            figure_layout["xaxis_type"] = "category"
-        else:
-            figure_layout["xaxis_type"] = "linear"
     else:
         figure_layout = dict(height=height, width=width)
-        if y_col == "piece":
-            figure_layout["yaxis_type"] = "category"
-        else:
-            figure_layout["yaxis_type"] = "linear"
     if layout is not None:
         figure_layout.update(layout)
     if normalize:
         if isinstance(df, pd.Series):
             df = df.groupby(y_col, group_keys=False).apply(lambda S: S / S.sum())
         else:
-            df.loc[:, duration_column] = df.groupby(y_col, group_keys=False)[
-                duration_column
+            df.loc[:, dimension_column] = df.groupby(y_col, group_keys=False)[
+                dimension_column
             ].apply(lambda S: S / S.sum())
     traces = dict(marker_line_color="black")
     if traces_settings is not None:
@@ -287,13 +336,14 @@ def make_bubble_plot(
         height=height,
         width=width,
         layout=figure_layout,
+        font_size=font_size,
         x_axis=xaxis_settings,
         y_axis=yaxis_settings,
         color_axis=c_axis,
         traces_settings=traces,
         output=output,
         # **kwargs:
-        size=duration_column,
+        size=dimension_column,
         **kwargs,
     )
 
@@ -311,6 +361,7 @@ def make_lof_bar_plot(
     height: Optional[int] = None,
     width: Optional[int] = None,
     layout: Optional[dict] = None,
+    font_size: Optional[int] = None,
     x_axis: Optional[dict] = None,
     y_axis: Optional[dict] = None,
     color_axis: Optional[dict] = None,
@@ -355,6 +406,7 @@ def make_lof_bar_plot(
         height=height,
         width=width,
         layout=figure_layout,
+        font_size=font_size,
         x_axis=xaxis_settings,
         y_axis=y_axis,
         color_axis=c_axis,
@@ -373,7 +425,7 @@ def make_lof_bubble_plot(
     flip: bool = False,
     fifths_col: Optional[str] = "tpc",
     y_col: Optional[str] = "piece",
-    duration_column: str = "duration_qb",
+    dimension_column: str = "duration_qb",
     fifths_transform: Optional[Callable[[int], Any]] = ms3.fifths2name,
     x_names_col: Optional[str] = None,
     title: Optional[str] = None,
@@ -383,6 +435,7 @@ def make_lof_bubble_plot(
     width: Optional[int] = 1200,
     height: Optional[int] = 1500,
     layout: Optional[dict] = None,
+    font_size: Optional[int] = None,
     x_axis: Optional[dict] = None,
     y_axis: Optional[dict] = None,
     color_axis: Optional[dict] = None,
@@ -421,13 +474,14 @@ def make_lof_bubble_plot(
         flip=flip,
         x_col=fifths_col,
         y_col=y_col,
-        duration_column=duration_column,
+        dimension_column=dimension_column,
         title=title,
         labels=labels,
         hover_data=hover_data,
         width=width,
         height=height,
         layout=layout,
+        font_size=font_size,
         x_axis=xaxis_settings,
         y_axis=y_axis,
         color_axis=color_axis,
@@ -439,6 +493,76 @@ def make_lof_bubble_plot(
         color_continuous_midpoint=shift_color_midpoint,
         **kwargs,
     )
+
+
+def make_pie_chart(
+    df: pd.DataFrame,
+    x_col: Optional[str] = None,
+    y_col: Optional[str] = None,
+    group_cols: Optional[str | Iterable[str]] = None,
+    group_modes: Iterable[GroupMode] = (
+        GroupMode.ROWS,
+        GroupMode.COLUMNS,
+    ),
+    title: Optional[str] = None,
+    labels: Optional[dict] = None,
+    hover_data: Optional[List[str]] = None,
+    height: Optional[int] = None,
+    width: Optional[int] = None,
+    layout: Optional[dict] = None,
+    font_size: Optional[int] = None,
+    textfont_size: Optional[int] = None,
+    x_axis: Optional[dict] = None,
+    y_axis: Optional[dict] = None,
+    color_axis: Optional[dict] = None,
+    traces_settings: Optional[dict] = None,
+    output: Optional[str] = None,
+    **kwargs,
+) -> go.Figure:
+    """
+
+    Args:
+        layout: Keyword arguments passed to fig.update_layout()
+        **kwargs: Keyword arguments passed to the Plotly plotting function.
+
+    Returns:
+        A Plotly Figure object.
+    """
+    df = df.reset_index()
+    plot_settings = make_pie_chart_settings(
+        df=df,
+        x_col=x_col,
+        y_col=y_col,
+        group_cols=group_cols,
+        group_modes=group_modes,
+        title=title,
+        labels=labels,
+        hover_data=hover_data,
+        height=height,
+        width=width,
+    )
+    fig = px.pie(
+        df,
+        **plot_settings,
+        **kwargs,
+    )
+    if "facet_col" or "facet_row" in plot_settings:
+        fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
+    update_figure_layout(
+        fig=fig,
+        x_col=x_col,
+        y_col=y_col,
+        layout=layout,
+        font_size=font_size,
+        textfont_size=textfont_size,
+        x_axis=x_axis,
+        y_axis=y_axis,
+        color_axis=color_axis,
+        traces_settings=traces_settings,
+    )
+    if output is not None:
+        write_image(fig=fig, filename=output, width=width, height=height)
+    return fig
 
 
 def make_scatter_plot(
@@ -457,6 +581,7 @@ def make_scatter_plot(
     height: Optional[int] = None,
     width: Optional[int] = None,
     layout: Optional[dict] = None,
+    font_size: Optional[int] = None,
     x_axis: Optional[dict] = None,
     y_axis: Optional[dict] = None,
     color_axis: Optional[dict] = None,
@@ -491,9 +616,14 @@ def make_scatter_plot(
         **plot_settings,
         **kwargs,
     )
+    if "facet_col" or "facet_row" in plot_settings:
+        fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
     update_figure_layout(
         fig=fig,
+        x_col=x_col,
+        y_col=y_col,
         layout=layout,
+        font_size=font_size,
         x_axis=x_axis,
         y_axis=y_axis,
         color_axis=color_axis,
@@ -738,7 +868,13 @@ def plot_pitch_class_distribution(
 
 def update_figure_layout(
     fig: go.Figure,
+    x_col: Optional[str] = None,
+    y_col: Optional[str] = None,
     layout: Optional[dict] = None,
+    font_size: Optional[int] = None,  # for everything
+    textfont_size: Optional[
+        int
+    ] = None,  # for traces, independently of axis labels, legends, etc.
     x_axis: Optional[dict] = None,
     y_axis: Optional[dict] = None,
     color_axis: Optional[dict] = None,
@@ -746,10 +882,16 @@ def update_figure_layout(
     **kwargs,
 ):
     figure_layout = dict(STD_LAYOUT)
+    if x_col == "piece":
+        figure_layout["xaxis_type"] = "category"
+    if y_col == "piece":
+        figure_layout["yaxis_type"] = "category"
     if layout is not None:
         figure_layout.update(layout)
     if len(kwargs) > 0:
         figure_layout.update(kwargs)
+    if font_size is not None:
+        figure_layout["font"] = dict(size=font_size)
     fig.update_layout(**figure_layout)
     xaxis_settings = dict(Y_AXIS)
     if x_axis is not None:
@@ -763,9 +905,13 @@ def update_figure_layout(
 
     if color_axis is not None:
         fig.update_coloraxes(color_axis)
-
+    trace_update = {}
+    if textfont_size:
+        trace_update["textfont_size"] = textfont_size
     if traces_settings is not None:
-        fig.update_traces(traces_settings)
+        trace_update.update(traces_settings)
+    if trace_update:
+        fig.update_traces(trace_update)
 
 
 def write_image(

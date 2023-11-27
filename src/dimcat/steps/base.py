@@ -22,7 +22,7 @@ from typing import (
 
 import marshmallow as mm
 import pandas as pd
-from dimcat.base import DimcatConfig, DimcatObject, get_class, get_schema
+from dimcat.base import DimcatConfig, DimcatObject, ObjectEnum, get_class, get_schema
 from dimcat.data.base import Data
 from dimcat.data.datasets.base import Dataset
 from dimcat.data.packages.dc import DimcatPackage
@@ -33,7 +33,10 @@ from dimcat.data.resources.base import (
     resource_specs2resource,
 )
 from dimcat.data.resources.dc import DimcatResource, Feature, FeatureSpecs, R
-from dimcat.data.resources.utils import features_argument2config_list
+from dimcat.data.resources.utils import (
+    feature_specs2config,
+    features_argument2config_list,
+)
 from dimcat.dc_exceptions import (
     EmptyDatasetError,
     EmptyResourceError,
@@ -91,7 +94,7 @@ class PipelineStep(DimcatObject):
                     f"\n\nDUMP:\n{pformat(data, sort_dicts=False)}"
                     f"\n\nREPORT:\n{pformat(report, sort_dicts=False)}"
                 )
-            return dict(data)
+            return data
 
     @property
     def is_transformation(self) -> Literal[False]:
@@ -274,10 +277,7 @@ class FeatureProcessingStep(PipelineStep):
                     features = [data["features"]]
                 feature_list = []
                 for feature in features:
-                    if isinstance(feature, dict):
-                        # this seems to be a manually created config
-                        feature = DimcatConfig(feature)
-                    feature_list.append(feature)
+                    feature_list.append(feature_specs2config(feature))
                 data = dict(
                     data, features=feature_list
                 )  # make sure to not modify data inplace
@@ -346,8 +346,6 @@ class FeatureProcessingStep(PipelineStep):
                 for f in self._allowed_features
             ):
                 raise ResourceNotProcessableError(resource.name, self.name)
-        elif not isinstance(resource, Feature):
-            raise ResourceNotProcessableError(resource.name, self.name)
 
     def _iter_features(self, dataset: Dataset) -> Iterator[DimcatResource]:
         """Iterate over all features that are required for this PipelineStep.
@@ -410,20 +408,20 @@ class ResourceTransformation(FeatureProcessingStep):
         result_df = self.transform_resource(resource)
         result_name = self.resource_name_factory(resource)
         try:
-            new_resource = result_constructor.from_dataframe(
-                df=result_df,
-                resource_name=result_name,
+            new_resource = result_constructor.from_resource_and_dataframe(
+                resource=resource, df=result_df, resource_name=result_name
             )
         except Exception as e:
             print(
                 f"Calling {result_constructor.name}.from_dataframe() on the following DataFrame that has the index "
-                f"levels {resource.get_level_names()} resulted in the exception {e}:"
+                f"levels {resource.get_level_names()} resulted in the exception\n{e!r}:"
             )
             print(result_df)
             raise
         # new_resource = result_constructor.from_dataframe(
         #     df=result_df,
         #     resource_name=result_name,
+        #     **resource_kwargs
         # )
         # print(f"NEW RESOURCE STATUS: {new_resource.status}")
         self.logger.debug(
@@ -484,23 +482,5 @@ class ResourceTransformation(FeatureProcessingStep):
 
 
 StepSpecs: TypeAlias = Union[
-    PipelineStep | Type[PipelineStep] | DimcatConfig | dict | str
+    PipelineStep | Type[PipelineStep] | DimcatConfig | dict | ObjectEnum | str
 ]
-
-
-def step_specs2step(step_specs: StepSpecs) -> PipelineStep:
-    if isinstance(step_specs, PipelineStep):
-        return step_specs
-    if isinstance(step_specs, type) and issubclass(step_specs, PipelineStep):
-        return step_specs()
-    if isinstance(step_specs, DimcatConfig):
-        obj = step_specs.create()
-    elif isinstance(step_specs, dict):
-        obj = DimcatConfig(step_specs).create()
-    elif isinstance(step_specs, str):
-        obj = get_class(step_specs)()
-    else:
-        obj = step_specs
-    if isinstance(obj, PipelineStep):
-        return obj
-    raise TypeError(f"Expected PipelineStep, got {type(step_specs)}")

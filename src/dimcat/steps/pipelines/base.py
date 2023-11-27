@@ -3,9 +3,9 @@ from __future__ import annotations
 from typing import Iterable, Iterator, List, Literal, Optional, Type, overload
 
 from dimcat import Dataset, DimcatConfig
-from dimcat.base import DimcatObject, DimcatObjectField, get_class
+from dimcat.base import DimcatObject, DimcatObjectField, get_class, resolve_object_specs
 from dimcat.data.resources.dc import DimcatResource
-from dimcat.steps.base import PipelineStep, StepSpecs, step_specs2step
+from dimcat.steps.base import PipelineStep, StepSpecs
 from marshmallow import fields
 
 
@@ -58,7 +58,7 @@ class Pipeline(PipelineStep):
             self.add_step(step)
 
     def add_step(self, step: StepSpecs) -> None:
-        step = step_specs2step(step)
+        step = resolve_object_specs(step, PipelineStep)
         self._steps.append(step)
 
     @overload

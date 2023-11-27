@@ -25,7 +25,14 @@ import frictionless as fl
 import marshmallow as mm
 import ms3
 import pandas as pd
-from dimcat.base import DimcatConfig, FriendlyEnum, get_class, get_setting
+from dimcat.base import (
+    DO,
+    DimcatConfig,
+    FriendlyEnum,
+    get_class,
+    get_setting,
+    resolve_object_specs,
+)
 from dimcat.data.base import Data
 from dimcat.data.resources.base import (
     IX,
@@ -48,6 +55,7 @@ from dimcat.data.resources.utils import (
     make_boolean_mask_from_set_of_tuples,
     make_index_from_grouping_dict,
     make_tsv_resource,
+    resolve_levels_argument,
 )
 from dimcat.dc_exceptions import (
     BasePathNotDefinedError,
@@ -61,7 +69,7 @@ from dimcat.dc_warnings import PotentiallyUnrelatedDescriptorUserWarning
 from dimcat.utils import check_name
 from frictionless import FrictionlessException
 from plotly import graph_objs as go
-from typing_extensions import Self
+from typing_extensions import Literal, Self
 
 if TYPE_CHECKING:
     from dimcat.data.resources.results import Result
@@ -325,6 +333,7 @@ class DimcatResource(Resource, Generic[D]):
         basepath: Optional[str] = None,
         auto_validate: Optional[bool] = None,
         default_groupby: Optional[str | list[str]] = None,
+        **kwargs,
     ) -> Self:
         """Create a DimcatResource from an existing :obj:`Resource`, specifying its name and,
         optionally, at what path it is to be serialized.
@@ -351,6 +360,7 @@ class DimcatResource(Resource, Generic[D]):
             basepath=basepath,
             auto_validate=auto_validate,
             default_groupby=default_groupby,
+            **kwargs,
         )
         # copy additional fields
         for attr in ("_df", "_status", "_corpus_name", "_default_groupby"):
@@ -359,6 +369,57 @@ class DimcatResource(Resource, Generic[D]):
                 and (value := getattr(resource, attr)) is not None
             ):
                 setattr(new_object, attr, value)
+        return new_object
+
+    @classmethod
+    def from_resource_and_dataframe(
+        cls,
+        resource: Resource,
+        df: D,
+        descriptor_filename: Optional[str] = None,
+        resource_name: Optional[str] = None,
+        basepath: Optional[str] = None,
+        auto_validate: Optional[bool] = None,
+        default_groupby: Optional[str | list[str]] = None,
+        **kwargs,
+    ) -> Self:
+        """Create a DimcatResource from an existing :obj:`Resource`, specifying its name and,
+        optionally, at what path it is to be serialized.
+
+        Args:
+            resource: An existing :obj:`frictionless.Resource` or a filepath.
+            resource_name:
+                Name of the resource used for retrieving it from a DimcatPackage and as filename when the resource
+                is stored to a ZIP file.
+            basepath: Where the file would be serialized. If ``resource`` is a filepath, its directory is used.
+            auto_validate:
+                By default, the DimcatResource will not be validated upon instantiation or change (but always before
+                writing to disk). Set True to raise an exception during creation or modification of the resource,
+                e.g. replacing the :attr:`column_schema`.
+            default_groupby:
+                Pass a list of column names or index levels to groupby something else than the default (by piece).
+        """
+        if not isinstance(resource, Resource):
+            raise TypeError(f"Expected a Resource, got {type(resource)!r}.")
+        new_object = super().from_resource(
+            resource=resource,
+            descriptor_filename=descriptor_filename,
+            resource_name=resource_name,
+            basepath=basepath,
+            auto_validate=auto_validate,
+            default_groupby=default_groupby,
+            **kwargs,
+        )
+        if not descriptor_filename:
+            new_object.detach_from_descriptor()
+        # copy additional fields
+        for attr in ("_corpus_name",):
+            if (
+                hasattr(resource, attr)
+                and (value := getattr(resource, attr)) is not None
+            ):
+                setattr(new_object, attr, value)
+        new_object.set_dataframe(df)
         return new_object
 
     @classmethod
@@ -384,6 +445,22 @@ class DimcatResource(Resource, Generic[D]):
             descriptor_filename=descriptor_filename,
             **kwargs,
         )
+
+    @classmethod
+    def get_default_column_names(
+        cls, include_context_columns: bool = True
+    ) -> List[str]:
+        """Returns the default column names for a DimcatResource."""
+        column_names = []
+        if include_context_columns:
+            column_names.extend(get_setting("context_columns"))
+        if cls._auxiliary_column_names:
+            column_names.extend(cls._auxiliary_column_names)
+        if cls._convenience_column_names:
+            column_names.extend(cls._convenience_column_names)
+        if cls._feature_column_names:
+            column_names.extend(cls._feature_column_names)
+        return column_names
 
     class Schema(Resource.Schema):
         auto_validate = mm.fields.Boolean(metadata={"expose": False})
@@ -549,8 +626,7 @@ DimcatResource.__init__(
             resource_df = self._df
         elif self.is_serialized:
             resource_df = self.get_dataframe()
-            self._df = resource_df
-            self._update_status()
+            self._set_dataframe(resource_df)
         else:
             RuntimeError(f"No dataframe accessible for this {self.name}:\n{self}")
         return resource_df
@@ -659,7 +735,13 @@ DimcatResource.__init__(
             df=self.df, slice_intervals=slice_intervals, logger=self.logger
         )
 
-    def apply_steps(self, steps: StepSpecs | Iterable[StepSpecs]) -> DimcatResource:
+    def apply_step(self, step: StepSpecs) -> DO:
+        """Applies a pipeline step to this resource."""
+        step = resolve_object_specs(step, "PipelineStep")
+        return step.process_resource(self)
+
+    def apply_steps(self, steps: StepSpecs | Iterable[StepSpecs]) -> DO:
+        """Applies one or several pipeline steps to this resource by turning them into a pipeline."""
         Constructor = get_class("Pipeline")
         pipeline = Constructor(steps=steps)
         return pipeline.process_resource(self)
@@ -672,6 +754,46 @@ DimcatResource.__init__(
         if feature_name not in self.extractable_features:
             raise FeatureUnavailableError(feature_name, self.resource_name)
 
+    def _drop_rows_with_missing_values(
+        self,
+        df: D,
+        column_names: Optional[List[str]] = None,
+        how: Literal["any", "all"] = "any",
+    ) -> D:
+        """Drop rows with missing values in the specified columns. If nothing is to be dropped, the identical
+        dataframe is returned, not a copy. Falls back to the feature columns if no columns are specified or,
+        if no feature columns are defined, nothing is dropped.
+        """
+        if not column_names:
+            if self._feature_column_names:
+                column_names = self._feature_column_names
+            else:
+                self.logger.debug(
+                    f"No feature columns defined for {self.resource_name}. Returning as is."
+                )
+                return df
+        if how == "any":
+            drop_mask = df[column_names].isna().any(axis=1)
+        elif how == "all":
+            drop_mask = df[column_names].isna().all(axis=1)
+        else:
+            raise ValueError(
+                f"Invalid value for how: {how!r}. Expected either 'how' or 'all'."
+            )
+        if drop_mask.all():
+            raise RuntimeError(
+                f"The {self.name} {self.resource_name!r} contains no fully defined objects based on the "
+                f"columns {column_names}."
+            )
+        n_dropped = drop_mask.sum()
+        if n_dropped:
+            df = df.dropna(subset=column_names)
+            self.logger.info(
+                f"Dropped {n_dropped} rows from {self.resource_name} that pertaine to segments following the last "
+                f"cadence label in the piece."
+            )
+        return df
+
     def extract_feature(
         self,
         feature: FeatureSpecs,
@@ -683,7 +805,7 @@ DimcatResource.__init__(
 
     def _extract_feature(
         self,
-        feature_config: FeatureSpecs,
+        feature_config: DimcatConfig,
         new_name: Optional[str] = None,
     ) -> Feature:
         """The internal part of the feature extraction that subclasses can override to perform certain transformations
@@ -696,14 +818,15 @@ DimcatResource.__init__(
         feature_df = self._prepare_feature_df(feature_config)
         len_before = len(feature_df)
         feature_df = self._transform_feature_df(feature_df, feature_config)
-        feature = Constructor.from_dataframe(
-            df=feature_df,
+        init_args = dict(
             resource_name=new_name,
             descriptor_filename=None,
             basepath=None,
             auto_validate=self.auto_validate,
             default_groupby=self.default_groupby,
         )
+        init_args.update(feature_config.init_args)
+        feature = Constructor.from_dataframe(df=feature_df, **init_args)
         len_after = len(feature.df)
         self.logger.debug(
             f"Create {Constructor.name} with {len_after} rows from {self.name} {self.resource_name!r} of length "
@@ -713,8 +836,25 @@ DimcatResource.__init__(
 
     def _format_dataframe(self, df: D) -> D:
         """Format the dataframe before it is set for this resource. The method is called by :meth:`_set_dataframe`
-        and typically adds convenience columns."""
-        # TODO: implant this where appropriate: df.dropna(subset=self._feature_column_names, how="any")
+        and typically adds convenience columns. Assumes that the dataframe can be mutated safely, i.e. that it is a
+        copy.
+
+        Most features have a line such as
+
+        .. code-block:: python
+
+            df = df._drop_rows_with_missing_values(df, column_names=self._feature_column_names)
+
+        to keep only fully defined objects. The index is not reset to retain
+        traceability to the original facet. In some cases, the durations need to adjusted when dropping rows. For
+        example, 'adjacency groups', i.e., subsequent identical values, can be merged using the pattern
+
+        .. code-block:: python
+
+            group_keys, _ = make_adjacency_groups(<feature column(s)>, groupby=<groupby_levels>)
+            feature_df = condense_dataframe_by_groups(df, group_keys)
+
+        """
         return df
 
     def _get_current_status(self) -> ResourceStatus:
@@ -913,6 +1053,75 @@ DimcatResource.__init__(
         if not self.is_loaded or force_reload:
             _ = self.df
 
+    def make_bar_plot(
+        self,
+        steps: Optional[StepSpecs | Iterable[StepSpecs]] = None,
+        **kwargs,
+    ) -> go.Figure:
+        """Returns a plotly figure based on the default analysis or the analysis resulting from the given steps.
+
+        Args:
+            steps:
+                One or several PipelineSteps where the last one needs to return an objects that has a .make_bar_plot()
+                method, typically an :class:`Analyzer` returning a :class:`Result`. Defaults to
+                :meth:`get_default_analysis`.
+            **kwargs: Keyword arguments passed on to .make_bar_plot().
+
+        Returns:
+            The figure generated by calling .make_bar_plot() on the last step's result.
+        """
+        if steps is None:
+            result = self.get_default_analysis()
+        else:
+            result = self.apply_steps(steps)
+        return result.make_bar_plot(**kwargs)
+
+    def make_bubble_plot(
+        self,
+        steps: Optional[StepSpecs | Iterable[StepSpecs]] = None,
+        **kwargs,
+    ) -> go.Figure:
+        """Returns a plotly figure based on the default analysis or the analysis resulting from the given steps.
+
+        Args:
+            steps:
+                One or several PipelineSteps where the last one needs to return an objects that has a
+                .make_bubble_plot() method, typically an :class:`Analyzer` returning a :class:`Result`. Defaults to
+                :meth:`get_default_analysis`.
+            **kwargs: Keyword arguments passed on to .make_bubble_plot().
+
+        Returns:
+            The figure generated by calling .make_bubble_plot() on the last step's result.
+        """
+        if steps is None:
+            result = self.get_default_analysis()
+        else:
+            result = self.apply_steps(steps)
+        return result.make_bubble_plot(**kwargs)
+
+    def make_pie_chart(
+        self,
+        steps: Optional[StepSpecs | Iterable[StepSpecs]] = None,
+        **kwargs,
+    ) -> go.Figure:
+        """Returns a plotly figure based on the default analysis or the analysis resulting from the given steps.
+
+        Args:
+            steps:
+                One or several PipelineSteps where the last one needs to return an objects that has a .make_pie_chart()
+                method, typically an :class:`Analyzer` returning a :class:`Result`. Defaults to
+                :meth:`get_default_analysis`.
+            **kwargs: Keyword arguments passed on to .make_pie_chart().
+
+        Returns:
+            The figure generated by calling .make_pie_chart() on the last step's result.
+        """
+        if steps is None:
+            result = self.get_default_analysis()
+        else:
+            result = self.apply_steps(steps)
+        return result.make_pie_chart(**kwargs)
+
     def _make_empty_fl_resource(self):
         """Create an empty frictionless resource object with a minimal descriptor."""
         return make_tsv_resource()
@@ -928,6 +1137,17 @@ DimcatResource.__init__(
         steps: Optional[StepSpecs | Iterable[StepSpecs]] = None,
         **kwargs,
     ) -> go.Figure:
+        """Returns a plotly figure based on the default analysis or the analysis resulting from the given steps.
+
+        Args:
+            steps:
+                One or several PipelineSteps where the last one needs to return an objects that has a .plot() method,
+                typically an :class:`Analyzer` returning a :class:`Result`. Defaults to :meth:`get_default_analysis`.
+            **kwargs: Keyword arguments passed on to .plot().
+
+        Returns:
+            The figure generated by calling .plot() on the last step's result.
+        """
         if steps is None:
             result = self.get_default_analysis()
         else:
@@ -937,6 +1157,19 @@ DimcatResource.__init__(
     def plot_grouped(
         self, steps: Optional[StepSpecs | Iterable[StepSpecs]] = None, **kwargs
     ) -> go.Figure:
+        """Returns a plotly figure based on the default analysis or the analysis resulting from the given steps.
+
+        Args:
+            steps:
+                One or several PipelineSteps where the last one needs to return an objects that has a .plot_grouped()
+                method, typically an :class:`Analyzer` returning a :class:`Result`. Defaults to
+                :meth:`get_default_analysis`.
+            **kwargs:
+                Keyword arguments passed on to .plot_grouped().
+
+        Returns:
+            The figure generated by calling .plot_grouped() on the last step's result.
+        """
         if steps is None:
             result: Result = self.get_default_analysis()
         else:
@@ -955,14 +1188,8 @@ DimcatResource.__init__(
         if self.auto_validate:
             _ = self.validate(raise_exception=True)
 
-    def _set_dataframe(self, df):
-        if isinstance(df, DimcatResource):
-            df = df.df
-        if isinstance(df, pd.Series):
-            df = df.to_frame()
-            self.logger.info(
-                f"Got a series, converted it into a dataframe with column name {df.columns[0]}."
-            )
+    def _set_dataframe(self, df: D):
+        """Sets the dataframe without prior checks and assuming that it can be mutated safely, i.e. it is a copy."""
         df = self._format_dataframe(df)
         self._df = df
         if not self.column_schema.fields:
@@ -994,6 +1221,17 @@ DimcatResource.__init__(
             )
         if self.is_loaded:
             raise RuntimeError("This resource already includes a dataframe.")
+        if isinstance(df, DimcatResource):
+            df = df.df.copy()
+        elif isinstance(df, pd.Series):
+            df = df.to_frame()
+            self.logger.info(
+                f"Got a series, converted it into a dataframe with column name {df.columns[0]}."
+            )
+        elif isinstance(df, pd.DataFrame):
+            df = df.copy()
+        else:
+            raise TypeError(f"Expected pandas.DataFrame, got {type(df)!r}.")
         self._set_dataframe(df)
         if self.auto_validate:
             _ = self.validate(raise_exception=True)
@@ -1065,6 +1303,19 @@ DimcatResource.__init__(
         """Transform the dataframe after it has been prepared for feature extraction. This frequently involves
         dropping rows."""
         return feature_df
+
+    def _sort_columns(self, df: D) -> D:
+        """Sort the columns of the given dataframe in the order specified by :meth:`get_default_column_names` which
+        combines the context columns with the class variabls :attr:`_auxiliary_column_names`,
+        :attr:`_convenience_column_names`, and :attr:`_feature_column_names`. If the latter is not specified,
+        the dataframe is returned as is because the purpose of this method is to have the feature columns at the end.
+        """
+        if self._feature_column_names:
+            column_order = [
+                col for col in self.get_default_column_names() if col in df.columns
+            ]
+            df = df[column_order]
+        return df
 
     def summary_dict(self) -> dict:
         summary = self.to_dict()
@@ -1339,6 +1590,41 @@ class DimcatIndex(Generic[IX], Data):
     def copy(self) -> Self:
         return self.__class__(self._index.copy())
 
+    def filter(
+        self,
+        keep_values: Optional[Hashable | Iterable[Hashable]] = None,
+        drop_values: Optional[Hashable | Iterable[Hashable]] = None,
+        level: int | str = 0,
+        drop_level: bool = False,
+    ) -> Self:
+        """Returns a copy of the index with only those items where the given level has wanted values."""
+        if not isinstance(level, (int, str)):
+            raise TypeError(
+                f"Level must be an int position or name string, got {type(level)!r}."
+            )
+        if drop_values is None:
+            drop_this = set()
+        elif isinstance(drop_values, Hashable):
+            drop_this = {drop_values}
+        else:
+            drop_this = set(drop_values)
+        if keep_values:
+            level_ints = resolve_levels_argument(level, self.names)
+            assert (
+                len(level_ints) == 1
+            ), f"Level argumented should have resolved to a single integer, got {level_ints}."
+            level_int = level_ints[0]
+            level_values = set(self._index.levels[level_int])
+            if isinstance(keep_values, Hashable):
+                keep_values = {keep_values}
+            else:
+                keep_values = set(keep_values)
+            drop_this.update(level_values.difference(keep_values))
+        new_index = self.index.drop(tuple(drop_this), level=level, errors="ignore")
+        if drop_level:
+            new_index = new_index.droplevel(level)
+        return self.__class__(new_index)
+
     def sample(self, n: int) -> Self:
         """Return a random sample of n elements."""
         as_series = self._index.to_series()
@@ -1435,22 +1721,6 @@ HARMONY_FEATURE_NAMES = (
 class Feature(DimcatResource):
     _enum_type = FeatureName
 
-    @classmethod
-    def get_default_column_names(
-        cls, include_context_columns: bool = True
-    ) -> List[str]:
-        """Returns the default column names for a DimcatResource."""
-        column_names = []
-        if include_context_columns:
-            column_names.extend(get_setting("context_columns"))
-        if cls._auxiliary_column_names:
-            column_names.extend(cls._auxiliary_column_names)
-        if cls._convenience_column_names:
-            column_names.extend(cls._convenience_column_names)
-        if cls._feature_column_names:
-            column_names.extend(cls._feature_column_names)
-        return column_names
-
     def __init__(
         self,
         format=None,
@@ -1467,11 +1737,21 @@ class Feature(DimcatResource):
             auto_validate=auto_validate,
             default_groupby=default_groupby,
         )
-        self._format = format
+        self._format = None
+        if format is not None:
+            self.format = format
 
     @property
     def format(self) -> None:
         return self._format
+
+    @format.setter
+    def format(self, value):
+        if value is not None:
+            warnings.warn(
+                f"Setting format for {self.name} is inconsequential because no setter has been defined.",
+                RuntimeWarning,
+            )
 
     def get_available_column_names(
         self,

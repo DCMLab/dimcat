@@ -202,6 +202,7 @@ class ResourceSchema(Data.Schema):
         return descriptor
 
     def raw(self, data):
+        """Functions as 'deserialize' method for the Schema field 'resource'."""
         return data
 
     @mm.pre_load
@@ -428,15 +429,21 @@ class Resource(Data):
         if not isinstance(resource, Resource):
             raise TypeError(f"Expected a Resource, got {type(resource)!r}.")
         fl_resource = resource.resource.to_copy()
-        descriptor_filename = (
-            descriptor_filename if descriptor_filename else resource.descriptor_filename
+        resource_kwargs = {
+            arg: getattr(resource, arg)
+            for arg in resource.schema.fields
+            if arg not in ("dtype", "resource")
+        }
+        if descriptor_filename is not None:
+            kwargs["descriptor_filename"] = descriptor_filename
+        if basepath is not None:
+            kwargs["basepath"] = basepath
+        resource_kwargs.update(
+            {arg: val for arg, val in kwargs.items() if val is not None}
         )
-        basepath = basepath if basepath else resource.basepath
         new_object = cls(
             resource=fl_resource,
-            descriptor_filename=descriptor_filename,
-            basepath=basepath,
-            **kwargs,
+            **resource_kwargs,
         )
         if resource_name:
             new_object.resource_name = resource_name
@@ -1368,6 +1375,7 @@ class FeatureName(ObjectEnum):
     Annotations = "Annotations"
     Articulation = "Articulation"
     BassNotes = "BassNotes"
+    CadenceLabels = "CadenceLabels"
     DcmlAnnotations = "DcmlAnnotations"
     HarmonyLabels = "HarmonyLabels"
     KeyAnnotations = "KeyAnnotations"

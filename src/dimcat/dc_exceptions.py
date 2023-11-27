@@ -87,6 +87,15 @@ class DataframeIncompatibleWithColumnSchemaError(DimcatError):
     }
 
 
+class DatasetNotProcessableError(DimcatError):
+    """optional args: (missing,)"""
+
+    nargs2message = {
+        0: "Cannot process this Dataset.",
+        1: lambda missing: f"Cannot process this Dataset: missing {missing!r}.",
+    }
+
+
 class DuplicateIDError(DimcatError):
     """optional args: (id, facet)"""
 
@@ -207,9 +216,9 @@ class GrouperNotSetUpError(DimcatError):
 
     nargs2message = {
         0: "The grouper has not been setup. Applying it would result in empty features. Set the attribute "
-        "'grouped_pieces'.",
+        "'grouped_units'.",
         1: lambda name: f"The {name!r} has not been setup. Applying it would result in empty features. "
-        f"Set the attribute 'grouped_pieces'.",
+        f"Set the attribute 'grouped_units'.",
     }
 
 
@@ -345,6 +354,17 @@ class ResourceDescriptorHasWrongTypeError(DimcatError):
         f"{expected_type!r}, got {actual_type!r}.",
         3: lambda expected_type, actual_type, name: f"The resource descriptor for {name!r} resolves to the wrong type. "
         f"Expected {expected_type!r}, got {actual_type!r}.",
+    }
+
+
+class ResourceIsMissingPieceIndexError(DimcatError):
+    """optional args: (resource_name, name_of_missing)"""
+
+    nargs2message = {
+        0: "The resource is missing a piece index level.",
+        1: lambda name: f"Resource {name!r} is missing a piece index level.",
+        2: lambda name, name_of_missing: f"Resource {name!r} is missing a piece index level, "
+        f"a column named {name_of_missing!r} could not be detected.",
     }
 
 

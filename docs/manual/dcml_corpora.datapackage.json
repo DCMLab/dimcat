@@ -1,0 +1,1274 @@
+{
+  "name": "dcml_corpora",
+  "resources": [
+    {
+      "name": "dcml_corpora.measures",
+      "type": "table",
+      "path": "dcml_corpora.zip",
+      "scheme": "file",
+      "format": "tsv",
+      "mediatype": "text/tsv",
+      "compression": "zip",
+      "innerpath": "dcml_corpora.measures.tsv",
+      "encoding": "utf-8",
+      "dialect": {
+        "csv": {
+          "delimiter": "\t"
+        }
+      },
+      "schema": {
+        "fields": [
+          {
+            "name": "corpus",
+            "title": "Corpus",
+            "description": "Name of a group of pieces",
+            "type": "string"
+          },
+          {
+            "name": "piece",
+            "title": "Piece identifier",
+            "description": "Name identifier (filename without suffixes) of a piece",
+            "type": "string"
+          },
+          {
+            "name": "i",
+            "title": "Index",
+            "description": "An integer serving as row ID",
+            "type": "integer"
+          },
+          {
+            "name": "mc",
+            "title": "Measure Count",
+            "description": "Running count of encoded <Measure> tags which do not necessarily express a full measure (e.g. in case of an anacrusis).",
+            "type": "integer",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "mn",
+            "title": "Measure Number",
+            "description": "Measure number as printed in the score, computed from mc, dont_count and numbering_offset.",
+            "type": "string"
+          },
+          {
+            "name": "quarterbeats",
+            "title": "Offset from Beginning",
+            "description": "Distance of an event from the piece's beginning. By default, only second endings are taken into account to reflect the proportions of a simply playthrough without repeats.",
+            "type": "string",
+            "constraints": {
+              "pattern": "\\d+(?:\\/\\d+)?"
+            }
+          },
+          {
+            "name": "duration_qb",
+            "title": "Duration in \u2669",
+            "description": "A float corresponding to duration * 4",
+            "type": "number"
+          },
+          {
+            "name": "keysig",
+            "title": "Key Signature",
+            "description": "Positive integer for number of sharps, negative integer for number of flats.",
+            "type": "integer"
+          },
+          {
+            "name": "timesig",
+            "title": "Time Signature",
+            "description": "Given as string, e.g. \"4/4\".",
+            "type": "string"
+          },
+          {
+            "name": "act_dur",
+            "title": "Actual Length",
+            "description": "How long a measure actually lasts, which can deviate from the time signature. Relevant, for example, for pickup measures, split measures, cadenzas.",
+            "type": "string",
+            "constraints": {
+              "pattern": "\\d+(?:\\/\\d+)?"
+            }
+          },
+          {
+            "name": "mc_offset",
+            "title": "Offset of Encoded Measure",
+            "description": "Distance of a <Measure> from the beginning of the logical measure, expressed as fraction of a whole note. Relevant only for split and anacrusis measures, 0 otherwise.",
+            "type": "string",
+            "constraints": {
+              "pattern": "\\d+(?:\\/\\d+)?"
+            }
+          },
+          {
+            "name": "numbering_offset",
+            "title": "Numbering Offset",
+            "description": "An integer to be added to the measure number count, as specified in MuseScore.",
+            "type": "integer"
+          },
+          {
+            "name": "dont_count",
+            "title": "Exclude from measure count",
+            "description": "Is 1 if this MC does not increase the measure number counter, according to the MuseScore setting.",
+            "type": "integer"
+          },
+          {
+            "name": "barline",
+            "title": "Barline",
+            "description": "Name of non-default barline.",
+            "type": "string"
+          },
+          {
+            "name": "breaks",
+            "title": "Breaks",
+            "description": "Can be \"section\" or \"line\".",
+            "type": "string"
+          },
+          {
+            "name": "repeats",
+            "title": "Repeats",
+            "description": "Can be \"start\", \"end\", \"firstMeasure\", \"lastMeasure\"",
+            "type": "string"
+          },
+          {
+            "name": "next",
+            "title": "Next Measure Counts",
+            "description": "The \"mc\" values of all <Measure> tags that can follow this one, specified as a tuple of integers.",
+            "type": "string",
+            "constraints": {
+              "pattern": "^[([]?(?:-?\\d+\\s*,?\\s*)*[])]?$"
+            }
+          },
+          {
+            "name": "quarterbeats_all_endings",
+            "title": "Offset from Beginning (Including Endings)",
+            "description": "Distance from the piece's beginning, taking all endings into account for addressability purposes.",
+            "type": "string",
+            "constraints": {
+              "pattern": "\\d+(?:\\/\\d+)?"
+            }
+          },
+          {
+            "name": "volta",
+            "title": "Volta",
+            "description": "Number of an ending bracket, given as integer.",
+            "type": "integer"
+          },
+          {
+            "name": "markers",
+            "type": "string"
+          },
+          {
+            "name": "jump_bwd",
+            "type": "string"
+          },
+          {
+            "name": "jump_fwd",
+            "type": "string"
+          },
+          {
+            "name": "play_until",
+            "type": "string"
+          }
+        ],
+        "primaryKey": [
+          "corpus",
+          "piece",
+          "i"
+        ],
+        "facet": "measures",
+        "identifier": "DTkAO8IGu_SIzg",
+        "filepath": "measures/DTkAO8IGu_SIzg.schema.yaml",
+        "used_in": "dcml_corpora"
+      }
+    },
+    {
+      "name": "dcml_corpora.notes",
+      "type": "table",
+      "path": "dcml_corpora.zip",
+      "scheme": "file",
+      "format": "tsv",
+      "mediatype": "text/tsv",
+      "compression": "zip",
+      "innerpath": "dcml_corpora.notes.tsv",
+      "encoding": "utf-8",
+      "dialect": {
+        "csv": {
+          "delimiter": "\t"
+        }
+      },
+      "schema": {
+        "fields": [
+          {
+            "name": "corpus",
+            "title": "Corpus",
+            "description": "Name of a group of pieces",
+            "type": "string"
+          },
+          {
+            "name": "piece",
+            "title": "Piece identifier",
+            "description": "Name identifier (filename without suffixes) of a piece",
+            "type": "string"
+          },
+          {
+            "name": "i",
+            "title": "Index",
+            "description": "An integer serving as row ID",
+            "type": "integer"
+          },
+          {
+            "name": "mc",
+            "title": "Measure Count",
+            "description": "Running count of encoded <Measure> tags which do not necessarily express a full measure (e.g. in case of an anacrusis).",
+            "type": "integer",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "mn",
+            "title": "Measure Number",
+            "description": "Measure number as printed in the score, computed from mc, dont_count and numbering_offset.",
+            "type": "string"
+          },
+          {
+            "name": "quarterbeats",
+            "title": "Offset from Beginning",
+            "description": "Distance of an event from the piece's beginning. By default, only second endings are taken into account to reflect the proportions of a simply playthrough without repeats.",
+            "type": "string",
+            "constraints": {
+              "pattern": "\\d+(?:\\/\\d+)?"
+            }
+          },
+          {
+            "name": "quarterbeats_all_endings",
+            "title": "Offset from Beginning (Including Endings)",
+            "description": "Distance from the piece's beginning, taking all endings into account for addressability purposes.",
+            "type": "string",
+            "constraints": {
+              "pattern": "\\d+(?:\\/\\d+)?"
+            }
+          },
+          {
+            "name": "duration_qb",
+            "title": "Duration in \u2669",
+            "description": "A float corresponding to duration * 4",
+            "type": "number"
+          },
+          {
+            "name": "mc_onset",
+            "title": "Offset within Encoded Measure",
+            "description": "Distance of an event from the beginning of the <Measure> tag.",
+            "type": "string",
+            "constraints": {
+              "pattern": "\\d+(?:\\/\\d+)?"
+            }
+          },
+          {
+            "name": "mn_onset",
+            "title": "Offset within Logical Measure",
+            "description": "Distance from the beginning of the logical measure. Relevant, for example, to compute the metric position of an event.",
+            "type": "string",
+            "constraints": {
+              "pattern": "\\d+(?:\\/\\d+)?"
+            }
+          },
+          {
+            "name": "timesig",
+            "title": "Time Signature",
+            "description": "Given as string, e.g. \"4/4\".",
+            "type": "string"
+          },
+          {
+            "name": "staff",
+            "title": "Staff",
+            "description": "Number of the staff where an event occurs, 1 designating the top staff.",
+            "type": "integer"
+          },
+          {
+            "name": "voice",
+            "title": "Notational Layer",
+            "description": "A number between 1-4 where 1 is MuseScore's default layer (blue), 2 the second layer in green with downward stems, etc.",
+            "type": "integer"
+          },
+          {
+            "name": "duration",
+            "title": "Duration",
+            "description": "As fraction of a whole note.",
+            "type": "string",
+            "constraints": {
+              "pattern": "\\d+(?:\\/\\d+)?"
+            }
+          },
+          {
+            "name": "gracenote",
+            "title": "Grace Note",
+            "description": "Name given to a type of grace note in the MuseScore encoding, e.g. \"grace16\"",
+            "type": "string"
+          },
+          {
+            "name": "nominal_duration",
+            "title": "Nominal Duration",
+            "description": "The duration corresponding to a note/rest value without applying any dots or n-tuplets, as fraction of a whole note. Multiplied with \"scalar\" to yield the actual duration of the note/rest.",
+            "type": "string",
+            "constraints": {
+              "pattern": "\\d+(?:\\/\\d+)?"
+            }
+          },
+          {
+            "name": "scalar",
+            "title": "Scalar",
+            "description": "Decimal value reflecting all dots and n-tuplets modifying the duration of a note/rest. Yields the actual duration when multiplied with \"nominal_duration\".",
+            "type": "string",
+            "constraints": {
+              "pattern": "\\d+(?:\\/\\d+)?"
+            }
+          },
+          {
+            "name": "tied",
+            "title": "Tied Note",
+            "description": "1 if a note is tied to the following one, -1 if it is being tied to by the previous one, 0 if both.",
+            "type": "integer"
+          },
+          {
+            "name": "tpc",
+            "title": "Tonal Pitch Class",
+            "description": "Specified on the line of fifths such that 0 = C, 1 = G, -1 = F, etc.",
+            "type": "integer"
+          },
+          {
+            "name": "midi",
+            "title": "MIDI pitch",
+            "description": "Value between 0 and 127 where 60 = C4, 61 = C#4/Db4, etc.",
+            "type": "integer"
+          },
+          {
+            "name": "name",
+            "title": "Name",
+            "type": "string"
+          },
+          {
+            "name": "octave",
+            "title": "Octave",
+            "description": "Octave number where 4 is the middle octave (' in Helmholtz notation).",
+            "type": "integer"
+          },
+          {
+            "name": "chord_id",
+            "title": "Chord ID",
+            "description": "Row in the chords table.",
+            "type": "integer"
+          },
+          {
+            "name": "tremolo",
+            "type": "string"
+          },
+          {
+            "name": "volta",
+            "title": "Volta",
+            "description": "Number of an ending bracket, given as integer.",
+            "type": "integer"
+          }
+        ],
+        "primaryKey": [
+          "corpus",
+          "piece",
+          "i"
+        ],
+        "facet": "notes",
+        "identifier": "eYiRWtL4IhdnFQ",
+        "filepath": "notes/eYiRWtL4IhdnFQ.schema.yaml",
+        "used_in": "dcml_corpora"
+      }
+    },
+    {
+      "name": "dcml_corpora.expanded",
+      "type": "table",
+      "path": "dcml_corpora.zip",
+      "scheme": "file",
+      "format": "tsv",
+      "mediatype": "text/tsv",
+      "compression": "zip",
+      "innerpath": "dcml_corpora.expanded.tsv",
+      "encoding": "utf-8",
+      "dialect": {
+        "csv": {
+          "delimiter": "\t"
+        }
+      },
+      "schema": {
+        "fields": [
+          {
+            "name": "corpus",
+            "title": "Corpus",
+            "description": "Name of a group of pieces",
+            "type": "string"
+          },
+          {
+            "name": "piece",
+            "title": "Piece identifier",
+            "description": "Name identifier (filename without suffixes) of a piece",
+            "type": "string"
+          },
+          {
+            "name": "i",
+            "title": "Index",
+            "description": "An integer serving as row ID",
+            "type": "integer"
+          },
+          {
+            "name": "mc",
+            "title": "Measure Count",
+            "description": "Running count of encoded <Measure> tags which do not necessarily express a full measure (e.g. in case of an anacrusis).",
+            "type": "integer",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "mn",
+            "title": "Measure Number",
+            "description": "Measure number as printed in the score, computed from mc, dont_count and numbering_offset.",
+            "type": "string"
+          },
+          {
+            "name": "quarterbeats",
+            "title": "Offset from Beginning",
+            "description": "Distance of an event from the piece's beginning. By default, only second endings are taken into account to reflect the proportions of a simply playthrough without repeats.",
+            "type": "string",
+            "constraints": {
+              "pattern": "\\d+(?:\\/\\d+)?"
+            }
+          },
+          {
+            "name": "quarterbeats_all_endings",
+            "title": "Offset from Beginning (Including Endings)",
+            "description": "Distance from the piece's beginning, taking all endings into account for addressability purposes.",
+            "type": "string",
+            "constraints": {
+              "pattern": "\\d+(?:\\/\\d+)?"
+            }
+          },
+          {
+            "name": "duration_qb",
+            "title": "Duration in \u2669",
+            "description": "A float corresponding to duration * 4",
+            "type": "number"
+          },
+          {
+            "name": "mc_onset",
+            "title": "Offset within Encoded Measure",
+            "description": "Distance of an event from the beginning of the <Measure> tag.",
+            "type": "string",
+            "constraints": {
+              "pattern": "\\d+(?:\\/\\d+)?"
+            }
+          },
+          {
+            "name": "mn_onset",
+            "title": "Offset within Logical Measure",
+            "description": "Distance from the beginning of the logical measure. Relevant, for example, to compute the metric position of an event.",
+            "type": "string",
+            "constraints": {
+              "pattern": "\\d+(?:\\/\\d+)?"
+            }
+          },
+          {
+            "name": "timesig",
+            "title": "Time Signature",
+            "description": "Given as string, e.g. \"4/4\".",
+            "type": "string"
+          },
+          {
+            "name": "staff",
+            "title": "Staff",
+            "description": "Number of the staff where an event occurs, 1 designating the top staff.",
+            "type": "integer"
+          },
+          {
+            "name": "voice",
+            "title": "Notational Layer",
+            "description": "A number between 1-4 where 1 is MuseScore's default layer (blue), 2 the second layer in green with downward stems, etc.",
+            "type": "integer"
+          },
+          {
+            "name": "label",
+            "title": "Label",
+            "description": "String corresponding to the entire annotation label.",
+            "type": "string"
+          },
+          {
+            "name": "globalkey",
+            "title": "Global Key",
+            "description": "The key of the entire piece as note name, lowercase designating a minor key.",
+            "type": "string"
+          },
+          {
+            "name": "localkey",
+            "title": "Local Key",
+            "description": "The key that a Roman numeral is relative to, expressed as a Roman numeral relative to the global key.",
+            "type": "string"
+          },
+          {
+            "name": "pedal",
+            "title": "Pedal Point",
+            "description": "Specified as Roman numeral.",
+            "type": "string"
+          },
+          {
+            "name": "chord",
+            "title": "Chord",
+            "description": "The part of an annotation label that corresponds to the actual chord label.",
+            "type": "string"
+          },
+          {
+            "name": "special",
+            "title": "Special Label",
+            "description": "Column where special labels such as \"Fr6\" or \"Ger65\" are stored which are converted internally to Roman numerals.",
+            "type": "string"
+          },
+          {
+            "name": "numeral",
+            "title": "Roman Numeral",
+            "description": "The Roman numeral part of a DCML label, lowercase for all chords with a minor third.",
+            "type": "string"
+          },
+          {
+            "name": "form",
+            "title": "Chord Category",
+            "description": "%, o, +, M, +M",
+            "type": "string"
+          },
+          {
+            "name": "figbass",
+            "title": "Chord Inversion",
+            "description": "7, 65, 43, 2, 64, 6 or empty for root position.",
+            "type": "string"
+          },
+          {
+            "name": "changes",
+            "title": "Changes",
+            "description": "Alterations, suspensions, additions, and omissions, written within parentheses in the chord label.",
+            "type": "string"
+          },
+          {
+            "name": "relativeroot",
+            "title": "Relative Root",
+            "description": "The Roman numeral following the / in applied chords. Can itself include a /. For example, V/V if the label pertains to the major scale on the second scale degree.",
+            "type": "string"
+          },
+          {
+            "name": "cadence",
+            "title": "Cadence",
+            "description": "PAC, IAC, EC, DC, PC, HC, and HC subtypes such as HC.SIM",
+            "type": "string"
+          },
+          {
+            "name": "phraseend",
+            "title": "Phrase Annotation",
+            "description": "The phrase annotation part of a DCML label, can be {, }, or }{. In an older version, the only label was \\\\",
+            "type": "string"
+          },
+          {
+            "name": "chord_type",
+            "title": "Chord Type",
+            "description": "'M', 'm', 'o', '+', 'mm7', 'Mm7', 'MM7', 'mM7', 'o7', '%7', '+7', '+M7'",
+            "type": "string"
+          },
+          {
+            "name": "globalkey_is_minor",
+            "title": "Global Key is Minor",
+            "description": "Boolean that is 1 if the piece is in minor and 0 if it is in major.",
+            "type": "boolean"
+          },
+          {
+            "name": "localkey_is_minor",
+            "title": "Local Key is Minor",
+            "description": "Boolean that is 1 if the local key is minor and 0 if it is major.",
+            "type": "boolean"
+          },
+          {
+            "name": "chord_tones",
+            "title": "Chord Tones",
+            "description": "Tones expressed by the label, as fifth intervals relative to the local tonic.",
+            "type": "string",
+            "constraints": {
+              "pattern": "^[([]?(?:-?\\d+\\s*,?\\s*)*[])]?$"
+            }
+          },
+          {
+            "name": "added_tones",
+            "title": "Added Tones",
+            "description": "Chord tones considered as added, expressed as fifth intervals relative to the local tonic.",
+            "type": "string",
+            "constraints": {
+              "pattern": "^[([]?(?:-?\\d+\\s*,?\\s*)*[])]?$"
+            }
+          },
+          {
+            "name": "root",
+            "title": "Root",
+            "description": "Pertaining to MuseScore encoding.",
+            "type": "integer"
+          },
+          {
+            "name": "bass_note",
+            "title": "Bass Note",
+            "description": "Loweste note designated by the chord label, expressed as fifth intervals relative to the local tonic.",
+            "type": "integer"
+          },
+          {
+            "name": "alt_label",
+            "title": "Alternative Label",
+            "description": "Another interpretation of the same chord which the annotator finds equally or slightly less convincing.",
+            "type": "string"
+          },
+          {
+            "name": "volta",
+            "title": "Volta",
+            "description": "Number of an ending bracket, given as integer.",
+            "type": "integer"
+          },
+          {
+            "name": "pedalend",
+            "type": "string"
+          },
+          {
+            "name": "placement",
+            "type": "string"
+          }
+        ],
+        "primaryKey": [
+          "corpus",
+          "piece",
+          "i"
+        ],
+        "facet": "expanded",
+        "identifier": "gyAxb29OptUmxg",
+        "filepath": "expanded/gyAxb29OptUmxg.schema.yaml",
+        "used_in": "dcml_corpora"
+      }
+    },
+    {
+      "name": "dcml_corpora.chords",
+      "type": "table",
+      "path": "dcml_corpora.zip",
+      "scheme": "file",
+      "format": "tsv",
+      "mediatype": "text/tsv",
+      "compression": "zip",
+      "innerpath": "dcml_corpora.chords.tsv",
+      "encoding": "utf-8",
+      "dialect": {
+        "csv": {
+          "delimiter": "\t"
+        }
+      },
+      "schema": {
+        "fields": [
+          {
+            "name": "corpus",
+            "title": "Corpus",
+            "description": "Name of a group of pieces",
+            "type": "string"
+          },
+          {
+            "name": "piece",
+            "title": "Piece identifier",
+            "description": "Name identifier (filename without suffixes) of a piece",
+            "type": "string"
+          },
+          {
+            "name": "i",
+            "title": "Index",
+            "description": "An integer serving as row ID",
+            "type": "integer"
+          },
+          {
+            "name": "mc",
+            "title": "Measure Count",
+            "description": "Running count of encoded <Measure> tags which do not necessarily express a full measure (e.g. in case of an anacrusis).",
+            "type": "integer",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "mn",
+            "title": "Measure Number",
+            "description": "Measure number as printed in the score, computed from mc, dont_count and numbering_offset.",
+            "type": "string"
+          },
+          {
+            "name": "quarterbeats",
+            "title": "Offset from Beginning",
+            "description": "Distance of an event from the piece's beginning. By default, only second endings are taken into account to reflect the proportions of a simply playthrough without repeats.",
+            "type": "string",
+            "constraints": {
+              "pattern": "\\d+(?:\\/\\d+)?"
+            }
+          },
+          {
+            "name": "quarterbeats_all_endings",
+            "title": "Offset from Beginning (Including Endings)",
+            "description": "Distance from the piece's beginning, taking all endings into account for addressability purposes.",
+            "type": "string",
+            "constraints": {
+              "pattern": "\\d+(?:\\/\\d+)?"
+            }
+          },
+          {
+            "name": "duration_qb",
+            "title": "Duration in \u2669",
+            "description": "A float corresponding to duration * 4",
+            "type": "number"
+          },
+          {
+            "name": "mc_onset",
+            "title": "Offset within Encoded Measure",
+            "description": "Distance of an event from the beginning of the <Measure> tag.",
+            "type": "string",
+            "constraints": {
+              "pattern": "\\d+(?:\\/\\d+)?"
+            }
+          },
+          {
+            "name": "mn_onset",
+            "title": "Offset within Logical Measure",
+            "description": "Distance from the beginning of the logical measure. Relevant, for example, to compute the metric position of an event.",
+            "type": "string",
+            "constraints": {
+              "pattern": "\\d+(?:\\/\\d+)?"
+            }
+          },
+          {
+            "name": "event",
+            "type": "string"
+          },
+          {
+            "name": "timesig",
+            "title": "Time Signature",
+            "description": "Given as string, e.g. \"4/4\".",
+            "type": "string"
+          },
+          {
+            "name": "staff",
+            "title": "Staff",
+            "description": "Number of the staff where an event occurs, 1 designating the top staff.",
+            "type": "integer"
+          },
+          {
+            "name": "voice",
+            "title": "Notational Layer",
+            "description": "A number between 1-4 where 1 is MuseScore's default layer (blue), 2 the second layer in green with downward stems, etc.",
+            "type": "integer"
+          },
+          {
+            "name": "duration",
+            "title": "Duration",
+            "description": "As fraction of a whole note.",
+            "type": "string",
+            "constraints": {
+              "pattern": "\\d+(?:\\/\\d+)?"
+            }
+          },
+          {
+            "name": "gracenote",
+            "title": "Grace Note",
+            "description": "Name given to a type of grace note in the MuseScore encoding, e.g. \"grace16\"",
+            "type": "string"
+          },
+          {
+            "name": "nominal_duration",
+            "title": "Nominal Duration",
+            "description": "The duration corresponding to a note/rest value without applying any dots or n-tuplets, as fraction of a whole note. Multiplied with \"scalar\" to yield the actual duration of the note/rest.",
+            "type": "string",
+            "constraints": {
+              "pattern": "\\d+(?:\\/\\d+)?"
+            }
+          },
+          {
+            "name": "scalar",
+            "title": "Scalar",
+            "description": "Decimal value reflecting all dots and n-tuplets modifying the duration of a note/rest. Yields the actual duration when multiplied with \"nominal_duration\".",
+            "type": "string",
+            "constraints": {
+              "pattern": "\\d+(?:\\/\\d+)?"
+            }
+          },
+          {
+            "name": "chord_id",
+            "title": "Chord ID",
+            "description": "Row in the chords table.",
+            "type": "integer"
+          },
+          {
+            "name": "dynamics",
+            "type": "string"
+          },
+          {
+            "name": "articulation",
+            "type": "string"
+          },
+          {
+            "name": "staff_text",
+            "type": "string"
+          },
+          {
+            "name": "tempo",
+            "type": "string"
+          },
+          {
+            "name": "qpm",
+            "type": "string"
+          },
+          {
+            "name": "metronome_base",
+            "type": "string"
+          },
+          {
+            "name": "metronome_number",
+            "type": "string"
+          },
+          {
+            "name": "tempo_visible",
+            "type": "string"
+          },
+          {
+            "name": "slur",
+            "title": "Slur",
+            "description": "IDs of active slurs that a chord falls under, as a tuple of integers.",
+            "type": "string"
+          },
+          {
+            "name": "system_text",
+            "type": "string"
+          },
+          {
+            "name": "volta",
+            "title": "Volta",
+            "description": "Number of an ending bracket, given as integer.",
+            "type": "integer"
+          },
+          {
+            "name": "Trill:trill",
+            "type": "string"
+          },
+          {
+            "name": "crescendo_hairpin",
+            "type": "string"
+          },
+          {
+            "name": "crescendo_line",
+            "type": "string"
+          },
+          {
+            "name": "lyrics_1",
+            "type": "string"
+          },
+          {
+            "name": "Ottava:8vb",
+            "type": "string"
+          }
+        ],
+        "primaryKey": [
+          "corpus",
+          "piece",
+          "i"
+        ],
+        "facet": "chords",
+        "identifier": "dsHZlx1uX1ShdA",
+        "filepath": "chords/dsHZlx1uX1ShdA.schema.yaml",
+        "used_in": "dcml_corpora"
+      }
+    },
+    {
+      "name": "dcml_corpora.metadata",
+      "type": "table",
+      "path": "dcml_corpora.zip",
+      "scheme": "file",
+      "format": "tsv",
+      "mediatype": "text/tsv",
+      "compression": "zip",
+      "innerpath": "dcml_corpora.metadata.tsv",
+      "encoding": "utf-8",
+      "dialect": {
+        "csv": {
+          "delimiter": "\t"
+        }
+      },
+      "schema": {
+        "fields": [
+          {
+            "name": "corpus",
+            "title": "Corpus",
+            "description": "Name of a group of pieces",
+            "type": "string"
+          },
+          {
+            "name": "piece",
+            "title": "Piece identifier",
+            "description": "Name identifier (filename without suffixes) of a piece",
+            "type": "string"
+          },
+          {
+            "name": "TimeSig",
+            "title": "Time Signatures",
+            "description": "All time signatures in a piece and where they occur. Format: '<MC>: <timesig>, <MC>: <timesig>, ...' Corresponds to a dictionary without outer curly braces.",
+            "type": "string",
+            "constraints": {
+              "pattern": "^{?((\\d+): (\\d+\\/\\d+)(?:, )?)+}?$"
+            }
+          },
+          {
+            "name": "KeySig",
+            "title": "Key Signatures",
+            "description": "All key signatures in a piece and where they occur. Format: '<MC>: <keysig>, <MC>: <keysig>, ...'Corresponds to a dictionary without outer curly braces.",
+            "type": "string",
+            "constraints": {
+              "pattern": "^{?((\\d+): (-?\\d+)(?:, )?)+}?$"
+            }
+          },
+          {
+            "name": "last_mc",
+            "title": "Highest Measure Count",
+            "description": "The highest Measure Count value in the piece. Corresponds to the number of <Measure> tags.",
+            "type": "integer"
+          },
+          {
+            "name": "last_mn",
+            "title": "Highest Measure Number",
+            "description": "The highest Measure Number in the piece. Corresponds roughly to the number of complete bars.",
+            "type": "integer"
+          },
+          {
+            "name": "length_qb",
+            "title": "Quarter Length",
+            "description": "The length of a piece in quarter notes.",
+            "type": "number"
+          },
+          {
+            "name": "last_mc_unfolded",
+            "title": "Highest Measure Count (unfolded)",
+            "description": "The amount of <Measure> tags of a full playthrough, i.e. when all repeats are unfolded. Equals 'last_mc' if piece has no repeat signs.",
+            "type": "integer"
+          },
+          {
+            "name": "last_mn_unfolded",
+            "title": "Highest Measure Number (unfolded)",
+            "description": "The last Measure Number when all repeats are unfolded. Equals 'last_mn' if piece has no repeat signs.",
+            "type": "integer"
+          },
+          {
+            "name": "length_qb_unfolded",
+            "title": "Quarter Length (unfolded)",
+            "description": "The length of full playthrough in quarter notes, i.e. when all repeats are unfolded. Equals 'length_qb' if piece has no repeat signs.",
+            "type": "number"
+          },
+          {
+            "name": "volta_mcs",
+            "title": "Volta Measure Counts",
+            "description": "For each group of alternative endings, a nested list where each inner list contains the \"mc\" values of the <Measure> tags grouped into one ending.",
+            "type": "array"
+          },
+          {
+            "name": "all_notes_qb",
+            "title": "Summed Note Duration",
+            "description": "The summed duration of all notes in a given piece, measured in \u2669.",
+            "type": "number"
+          },
+          {
+            "name": "n_onsets",
+            "title": "Number of Note Onsets",
+            "description": "Number of onsets in a piece. Different from the number of entries in the 'notes' table, because that one corresponds to the number of note heads; but notes being tied to do not represent onsets.",
+            "type": "integer"
+          },
+          {
+            "name": "n_onset_positions",
+            "title": "Number of Unique Onset Positions (slices)",
+            "description": "Number of unique onset positions in a piece. Corresponds to the number of slices when performing full expansion.",
+            "type": "integer"
+          },
+          {
+            "name": "guitar_chord_count",
+            "title": "Number of Guitar/Jazz Chord Labels",
+            "description": "Number of guitar/jazz/absolute chord labels in a piece.",
+            "type": "integer"
+          },
+          {
+            "name": "form_label_count",
+            "title": "Number of Form Annotation Labels",
+            "description": "Number of form annotation labels in a piece.",
+            "type": "integer"
+          },
+          {
+            "name": "label_count",
+            "title": "Number of DCML Labels",
+            "description": "Number of chord annotation labels that match the regex of the DCML annotation standard.",
+            "type": "integer"
+          },
+          {
+            "name": "annotated_key",
+            "type": "string"
+          },
+          {
+            "name": "harmony_version",
+            "type": "string"
+          },
+          {
+            "name": "annotators",
+            "type": "string"
+          },
+          {
+            "name": "reviewers",
+            "type": "string"
+          },
+          {
+            "name": "composed_start",
+            "title": "Earliest Composition Year",
+            "description": "Earliest possible year of composition.",
+            "type": "string",
+            "constraints": {
+              "pattern": "^\\d{3,4}|\\.{2}$"
+            }
+          },
+          {
+            "name": "composed_end",
+            "title": "Latest Composition Year",
+            "description": "Latest possible year of composition.",
+            "type": "string",
+            "constraints": {
+              "pattern": "^\\d{3,4}|\\.{2}$"
+            }
+          },
+          {
+            "name": "composer",
+            "type": "string"
+          },
+          {
+            "name": "workTitle",
+            "type": "string"
+          },
+          {
+            "name": "movementNumber",
+            "title": "Movement Number",
+            "description": "Metadata field for the number of a movement. Should be specified as integer, not as a Roman number.",
+            "type": "integer",
+            "bareNumber": false
+          },
+          {
+            "name": "movementTitle",
+            "type": "string"
+          },
+          {
+            "name": "workNumber",
+            "type": "string"
+          },
+          {
+            "name": "poet",
+            "type": "string"
+          },
+          {
+            "name": "lyricist",
+            "type": "string"
+          },
+          {
+            "name": "arranger",
+            "type": "string"
+          },
+          {
+            "name": "copyright",
+            "type": "string"
+          },
+          {
+            "name": "creationDate",
+            "type": "string"
+          },
+          {
+            "name": "mscVersion",
+            "type": "string"
+          },
+          {
+            "name": "platform",
+            "type": "string"
+          },
+          {
+            "name": "source",
+            "type": "string"
+          },
+          {
+            "name": "translator",
+            "type": "string"
+          },
+          {
+            "name": "title_text",
+            "type": "string"
+          },
+          {
+            "name": "lyricist_text",
+            "type": "string"
+          },
+          {
+            "name": "composer_text",
+            "type": "string"
+          },
+          {
+            "name": "musescore",
+            "type": "string"
+          },
+          {
+            "name": "ms3_version",
+            "type": "string"
+          },
+          {
+            "name": "subdirectory",
+            "type": "string"
+          },
+          {
+            "name": "rel_path",
+            "type": "string"
+          },
+          {
+            "name": "has_drumset",
+            "type": "string"
+          },
+          {
+            "name": "ambitus",
+            "type": "string"
+          },
+          {
+            "name": "comments",
+            "type": "string"
+          },
+          {
+            "name": "originalFormat",
+            "type": "string"
+          },
+          {
+            "name": "staff_1_ambitus",
+            "type": "string"
+          },
+          {
+            "name": "staff_1_instrument",
+            "type": "string"
+          },
+          {
+            "name": "staff_2_ambitus",
+            "type": "string"
+          },
+          {
+            "name": "staff_2_instrument",
+            "type": "string"
+          },
+          {
+            "name": "staff_3_ambitus",
+            "type": "string"
+          },
+          {
+            "name": "staff_3_instrument",
+            "type": "string"
+          },
+          {
+            "name": "staff_4_ambitus",
+            "type": "string"
+          },
+          {
+            "name": "staff_4_instrument",
+            "type": "string"
+          },
+          {
+            "name": "composed_source",
+            "type": "string"
+          },
+          {
+            "name": "subtitle_text",
+            "type": "string"
+          },
+          {
+            "name": "imslp",
+            "type": "string"
+          },
+          {
+            "name": "musicbrainz",
+            "type": "string"
+          },
+          {
+            "name": "viaf",
+            "type": "string"
+          },
+          {
+            "name": "wikidata",
+            "type": "string"
+          },
+          {
+            "name": "transcriber",
+            "type": "string"
+          },
+          {
+            "name": "score_integrity",
+            "type": "string"
+          },
+          {
+            "name": "imslp.1",
+            "type": "string"
+          },
+          {
+            "name": "key",
+            "type": "string"
+          },
+          {
+            "name": "mode",
+            "type": "string"
+          },
+          {
+            "name": "typesetter",
+            "type": "string"
+          },
+          {
+            "name": "electronic editor",
+            "type": "string"
+          },
+          {
+            "name": "electronic encoder",
+            "type": "string"
+          },
+          {
+            "name": "text",
+            "type": "string"
+          },
+          {
+            "name": "pdf",
+            "type": "string"
+          },
+          {
+            "name": "score integrity",
+            "type": "string"
+          },
+          {
+            "name": "PDF",
+            "type": "string"
+          }
+        ],
+        "primaryKey": [
+          "corpus",
+          "piece"
+        ],
+        "facet": "metadata",
+        "identifier": "dbihI4FW_8ln-A",
+        "filepath": "metadata/dbihI4FW_8ln-A.schema.yaml",
+        "used_in": "dcml_corpora"
+      }
+    }
+  ],
+  "creator": {
+    "@context": "https://schema.org/",
+    "@type": "SoftwareApplication",
+    "@id": "https://pypi.org/project/ms3/",
+    "name": "ms3",
+    "description": "A parser for MuseScore 3 files and data factory for annotated music corpora.",
+    "author": {
+      "name": "Johannes Hentschel",
+      "@id": "https://orcid.org/0000-0002-1986-9545"
+    },
+    "softwareVersion": "2.4.0"
+  },
+  "git_revision": "1ef91db66cbfd1425317d05cfabbfbe4ae9bdfc6",
+  "git_tag": "v2.1"
+}

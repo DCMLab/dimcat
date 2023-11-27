@@ -21,13 +21,12 @@ from typing import (
     Optional,
     Tuple,
     Type,
+    TypeVar,
+    Union,
     overload,
 )
 
 import marshmallow as mm
-
-# this is the only dimcat import currently allowed in this file:
-from marshmallow import ValidationError, fields
 from typing_extensions import Self
 
 logger = logging.getLogger(__name__)
@@ -165,9 +164,9 @@ class DimcatObject(ABC):
             options["dtype"] = cls.name
         try:
             return cls.schema.load(options)
-        except ValidationError as e:
+        except mm.ValidationError as e:
             msg = f"Could not instantiate {cls.name} because {cls.schema.name}, failed to validate the options:\n{e}"
-            raise ValidationError(msg)
+            raise mm.ValidationError(msg)
 
     @classmethod
     def from_config(cls, config: DimcatConfig, **kwargs) -> Self:
@@ -256,7 +255,7 @@ class DimcatObject(ABC):
         return self.to_dict()
 
     def to_dict(self) -> dict:
-        return self.schema.dump(self)
+        return dict(self.schema.dump(self))
 
     def to_config(self) -> DimcatConfig:
         return DimcatConfig(self.to_dict())
@@ -295,18 +294,6 @@ class DimcatObject(ABC):
         self.logger.info(f"{self.name} has been serialized to {filepath!r}")
 
 
-class DimcatObjectField(fields.Field):
-    """Used for (de)serializing attributes resolving to DimcatObjects."""
-
-    def _serialize(self, value, attr, obj, **kwargs):
-        if isinstance(value, DimcatConfig):
-            return dict(value)
-        return value.to_dict()
-
-    def _deserialize(self, value, attr, data, **kwargs):
-        return deserialize_dict(value)
-
-
 class FriendlyEnum(str, Enum):
     """Members of this Enum can be created from and compared to strings in a case-insensitive
     manner."""
@@ -337,6 +324,29 @@ class ObjectEnum(FriendlyEnum):
     @cache
     def get_class(self) -> Type[DimcatObject]:
         return get_class(self.name)
+
+
+class DimcatObjectField(mm.fields.Field):
+    """Used for (de)serializing attributes resolving to DimcatObjects."""
+
+    def _serialize(self, value, attr, obj, **kwargs):
+        if isinstance(value, DimcatConfig):
+            return dict(value)
+        return value.to_dict()
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        return deserialize_dict(value)
+
+
+class FriendlyEnumField(mm.fields.Enum):
+    def __init__(
+        self,
+        enum: type[Enum],
+        *,
+        by_value: bool = True,
+        **kwargs,
+    ):
+        super().__init__(enum=enum, by_value=by_value, **kwargs)
 
 
 # endregion DimcatObject
@@ -413,7 +423,7 @@ class DimcatConfig(MutableMapping, DimcatObject):
                     f"Dump of DimcatConfig(dtype={options_dtype}) created with a {self.name} could not be "
                     f"validated by {dtype_schema.name} :\n{report}"
                 )
-            return dict(data)
+            return data
 
     def __init__(
         self, options: Dict | DimcatConfig = (), dtype: Optional[str] = None, **kwargs
@@ -425,7 +435,7 @@ class DimcatConfig(MutableMapping, DimcatObject):
         options = dict(options, **kwargs)
         if dtype is None:
             if "dtype" not in options:
-                raise ValidationError(
+                raise mm.ValidationError(
                     "DimcatConfig requires a 'dtype' key that needs to be the name of a DimcatObject."
                 )
             else:
@@ -437,11 +447,11 @@ class DimcatConfig(MutableMapping, DimcatObject):
             elif "dtype" not in options:
                 options["dtype"] = dtype
         if dtype is None:
-            raise ValidationError(
+            raise mm.ValidationError(
                 "'dtype' key cannot be None, it needs to be the name of a DimcatObject."
             )
         if not is_name_of_dimcat_class(dtype):
-            raise ValidationError(
+            raise mm.ValidationError(
                 f"'dtype' key needs to be the name of a DimcatObject, not {dtype!r}. Registry:\n"
                 f"{DimcatObject._registry}"
             )
@@ -463,7 +473,7 @@ class DimcatConfig(MutableMapping, DimcatObject):
             )
         report = self.validate(partial=True)
         if report:
-            raise ValidationError(
+            raise mm.ValidationError(
                 f"{self.options_schema}: Cannot instantiate DimcatConfig with dtype={dtype!r} and invalid options:"
                 f"\n{report}"
             )
@@ -522,13 +532,13 @@ class DimcatConfig(MutableMapping, DimcatObject):
                     f"Cannot change the value for 'dtype' because its {tmp_schema.name} does not "
                     f"validate the options:\n{report}"
                 )
-                raise ValidationError(msg)
+                raise mm.ValidationError(msg)
         else:
             dict_to_validate = {key: value}
             report = self.options_schema.validate(dict_to_validate, partial=True)
             if report:
                 msg = f"{self.options_schema.name}: Cannot set {key!r} to {value!r}:\n{report}"
-                raise ValidationError(msg)
+                raise mm.ValidationError(msg)
         self._options[key] = value
 
     @cached_property
@@ -556,7 +566,11 @@ class DimcatConfig(MutableMapping, DimcatObject):
         return cls(options)
 
     @property
-    def options(self):
+    def init_args(self) -> dict:
+        return {arg: value for arg, value in self._options.items() if arg != "dtype"}
+
+    @property
+    def options(self) -> dict:
         """Returns the options dictionary wrapped and controlled by this DimcatConfig. Whenever a new value is set,
         it is validated against the Schema of the DimcatObject specified under the key 'dtype'. Note that this property
         returns a copy of the dictionary including the 'dtype' key and modifying it will not affect the DimcatConfig.
@@ -598,15 +612,21 @@ class DimcatConfig(MutableMapping, DimcatObject):
 def get_class(name) -> Type[DimcatObject]:
     if isinstance(name, Enum):
         name = name.name
-    if name == "DimcatObject":
+    if name.lower() == "dimcatobject":
         # this is the only object that's not in the registry
         return DimcatObject
     try:
         return DimcatObject._registry[name]
     except KeyError:
-        raise KeyError(
-            f"{name!r} is not among the registered DimcatObjects:\n{DimcatObject._registry.keys()}"
-        )
+        try:
+            lower_case_registry = {
+                name.lower(): cls for name, cls in DimcatObject._registry.items()
+            }
+            return lower_case_registry[name.lower()]
+        except KeyError:
+            raise KeyError(
+                f"{name!r} is not among the registered DimcatObjects:\n{DimcatObject._registry.keys()}"
+            )
 
 
 @cache
@@ -678,6 +698,42 @@ def deserialize_json_file(json_file) -> DimcatObject:
     with open(json_file, "r") as f:
         json_data = f.read()
     return deserialize_json_str(json_data)
+
+
+DO = TypeVar("DO", bound=DimcatObject)
+DimcatObjectSpecs = Union[DO | Type[DO] | DimcatConfig | dict | ObjectEnum | str]
+
+
+def resolve_object_specs(
+    specs: DimcatObjectSpecs,
+    instance_of: Optional[Type[DO] | str] = None,
+) -> DO:
+    """Returns the DimcatObject corresponding to the given specs."""
+    if isinstance(specs, DimcatObject):
+        obj = specs
+    elif isinstance(specs, type) and issubclass(specs, DimcatObject):
+        obj = specs()
+    elif isinstance(specs, DimcatConfig):
+        obj = deserialize_config(specs)
+    elif isinstance(specs, dict):
+        obj = deserialize_dict(specs)
+    elif isinstance(specs, str):
+        if isinstance(specs, ObjectEnum):
+            Constructor = specs.get_class()
+        else:
+            Constructor = get_class(specs)
+        obj = Constructor()
+    else:
+        obj = specs
+    if instance_of is None:
+        return obj
+    if isinstance(instance_of, str):
+        instance_of = get_class(instance_of)
+    if isinstance(obj, instance_of):
+        return obj
+    raise TypeError(
+        f"Expected {instance_of}, but the given {type(specs)}, {specs!r}, resolved to a {type(obj)}."
+    )
 
 
 # endregion querying DimcatObjects by name
