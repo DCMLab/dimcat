@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import re
-import warnings
 from collections import defaultdict
 from enum import IntEnum, auto
 from inspect import isclass
@@ -26,15 +25,15 @@ import frictionless as fl
 import marshmallow as mm
 from dimcat.base import DimcatConfig, FriendlyEnum, get_class
 from dimcat.data.base import Data
-from dimcat.data.resources import Feature, FeatureName
 from dimcat.data.resources.base import (
+    FeatureName,
     PathResource,
     Resource,
-    SomeDataframe,
     reconcile_base_and_file,
 )
-from dimcat.data.resources.dc import DimcatResource, FeatureSpecs, PieceIndex
+from dimcat.data.resources.dc import DimcatResource, Feature, FeatureSpecs, PieceIndex
 from dimcat.data.resources.facets import Facet, MuseScoreFacet
+from dimcat.data.resources.features import Metadata
 from dimcat.data.resources.utils import feature_specs2config
 from dimcat.data.utils import (
     check_descriptor_filename_argument,
@@ -57,7 +56,6 @@ from dimcat.dc_exceptions import (
     ResourceNamesNonUniqueError,
     ResourceNotFoundError,
 )
-from dimcat.dc_warnings import PotentiallyMisalignedPackageUserWarning
 from dimcat.utils import (
     check_file_path,
     make_valid_frictionless_name,
@@ -695,9 +693,6 @@ class Package(Data):
         if self.is_empty:
             return True
         if not self.basepath:
-            warnings.warn(
-                "Package is not empty but no basepath had been set.", RuntimeWarning
-            )
             first_resource = self._resources[0]
             basepath = first_resource.basepath
             self.logger.debug(
@@ -1095,7 +1090,7 @@ class Package(Data):
             IDs.add(resource.ID)
         return PieceIndex.from_tuples(sorted(IDs))
 
-    def get_metadata(self) -> SomeDataframe:
+    def get_metadata(self) -> Metadata:
         """Returns the metadata of the package."""
         if self.n_resources == 0:
             raise EmptyPackageError(self.package_name)
@@ -1285,9 +1280,8 @@ class Package(Data):
                 resource.descriptor_filename == package_descriptor_filename
             )
         if self.basepath is None:
-            warnings.warn(
-                "Package basepath is None, resource is being added without reconciling.",
-                PotentiallyMisalignedPackageUserWarning,
+            self.logger.debug(
+                "Package basepath is None, resource is being added without reconciling."
             )
             return resource
         package_basepath = self.get_basepath()

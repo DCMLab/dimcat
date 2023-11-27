@@ -32,8 +32,9 @@ from dimcat.data.catalogs.inputs import InputsCatalog
 from dimcat.data.catalogs.outputs import OutputsCatalog
 from dimcat.data.packages.base import Package, PackageSpecs
 from dimcat.data.packages.dc import DimcatPackage
-from dimcat.data.resources.base import FeatureName, SomeDataframe
+from dimcat.data.resources.base import FeatureName
 from dimcat.data.resources.dc import DimcatResource, Feature, FeatureSpecs
+from dimcat.data.resources.features import Metadata
 from dimcat.data.resources.utils import (
     feature_specs2config,
     features_argument2config_list,
@@ -311,7 +312,7 @@ class Dataset(Data):
     #         new_package.add_resource(feature)
     #     return new_package
 
-    def get_metadata(self) -> SomeDataframe:
+    def get_metadata(self) -> Metadata:
         metadata = self.inputs.get_metadata()
         return metadata
 
