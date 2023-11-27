@@ -5,7 +5,7 @@ from typing import ClassVar, Dict, Hashable, List, MutableMapping, Optional, Seq
 import marshmallow as mm
 import pandas as pd
 from dimcat import Dataset
-from dimcat.base import is_subclass_of
+from dimcat.base import FriendlyEnumField, is_subclass_of
 from dimcat.data.datasets.processed import GroupedDataset
 from dimcat.data.resources import Resource
 from dimcat.data.resources.base import D, FeatureName
@@ -185,7 +185,7 @@ class CriterionGrouper(MappingGrouper):
         raise NotImplementedError("Please use a subclass of CriterionGrouper.")
 
     class Schema(MappingGrouper.Schema):
-        smallest_unit = mm.fields.Enum(UnitOfAnalysis, metadata={"expose": False})
+        smallest_unit = FriendlyEnumField(UnitOfAnalysis, metadata={"expose": False})
 
     def __init__(
         self,

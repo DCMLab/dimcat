@@ -27,9 +27,6 @@ from typing import (
 )
 
 import marshmallow as mm
-
-# this is the only dimcat import currently allowed in this file:
-from marshmallow import ValidationError, fields
 from typing_extensions import Self
 
 logger = logging.getLogger(__name__)
@@ -167,9 +164,9 @@ class DimcatObject(ABC):
             options["dtype"] = cls.name
         try:
             return cls.schema.load(options)
-        except ValidationError as e:
+        except mm.ValidationError as e:
             msg = f"Could not instantiate {cls.name} because {cls.schema.name}, failed to validate the options:\n{e}"
-            raise ValidationError(msg)
+            raise mm.ValidationError(msg)
 
     @classmethod
     def from_config(cls, config: DimcatConfig, **kwargs) -> Self:
@@ -297,18 +294,6 @@ class DimcatObject(ABC):
         self.logger.info(f"{self.name} has been serialized to {filepath!r}")
 
 
-class DimcatObjectField(fields.Field):
-    """Used for (de)serializing attributes resolving to DimcatObjects."""
-
-    def _serialize(self, value, attr, obj, **kwargs):
-        if isinstance(value, DimcatConfig):
-            return dict(value)
-        return value.to_dict()
-
-    def _deserialize(self, value, attr, data, **kwargs):
-        return deserialize_dict(value)
-
-
 class FriendlyEnum(str, Enum):
     """Members of this Enum can be created from and compared to strings in a case-insensitive
     manner."""
@@ -339,6 +324,29 @@ class ObjectEnum(FriendlyEnum):
     @cache
     def get_class(self) -> Type[DimcatObject]:
         return get_class(self.name)
+
+
+class DimcatObjectField(mm.fields.Field):
+    """Used for (de)serializing attributes resolving to DimcatObjects."""
+
+    def _serialize(self, value, attr, obj, **kwargs):
+        if isinstance(value, DimcatConfig):
+            return dict(value)
+        return value.to_dict()
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        return deserialize_dict(value)
+
+
+class FriendlyEnumField(mm.fields.Enum):
+    def __init__(
+        self,
+        enum: type[Enum],
+        *,
+        by_value: bool = True,
+        **kwargs,
+    ):
+        super().__init__(enum=enum, by_value=by_value, **kwargs)
 
 
 # endregion DimcatObject
@@ -427,7 +435,7 @@ class DimcatConfig(MutableMapping, DimcatObject):
         options = dict(options, **kwargs)
         if dtype is None:
             if "dtype" not in options:
-                raise ValidationError(
+                raise mm.ValidationError(
                     "DimcatConfig requires a 'dtype' key that needs to be the name of a DimcatObject."
                 )
             else:
@@ -439,11 +447,11 @@ class DimcatConfig(MutableMapping, DimcatObject):
             elif "dtype" not in options:
                 options["dtype"] = dtype
         if dtype is None:
-            raise ValidationError(
+            raise mm.ValidationError(
                 "'dtype' key cannot be None, it needs to be the name of a DimcatObject."
             )
         if not is_name_of_dimcat_class(dtype):
-            raise ValidationError(
+            raise mm.ValidationError(
                 f"'dtype' key needs to be the name of a DimcatObject, not {dtype!r}. Registry:\n"
                 f"{DimcatObject._registry}"
             )
@@ -465,7 +473,7 @@ class DimcatConfig(MutableMapping, DimcatObject):
             )
         report = self.validate(partial=True)
         if report:
-            raise ValidationError(
+            raise mm.ValidationError(
                 f"{self.options_schema}: Cannot instantiate DimcatConfig with dtype={dtype!r} and invalid options:"
                 f"\n{report}"
             )
@@ -524,13 +532,13 @@ class DimcatConfig(MutableMapping, DimcatObject):
                     f"Cannot change the value for 'dtype' because its {tmp_schema.name} does not "
                     f"validate the options:\n{report}"
                 )
-                raise ValidationError(msg)
+                raise mm.ValidationError(msg)
         else:
             dict_to_validate = {key: value}
             report = self.options_schema.validate(dict_to_validate, partial=True)
             if report:
                 msg = f"{self.options_schema.name}: Cannot set {key!r} to {value!r}:\n{report}"
-                raise ValidationError(msg)
+                raise mm.ValidationError(msg)
         self._options[key] = value
 
     @cached_property
@@ -604,15 +612,21 @@ class DimcatConfig(MutableMapping, DimcatObject):
 def get_class(name) -> Type[DimcatObject]:
     if isinstance(name, Enum):
         name = name.name
-    if name == "DimcatObject":
+    if name.lower() == "dimcatobject":
         # this is the only object that's not in the registry
         return DimcatObject
     try:
         return DimcatObject._registry[name]
     except KeyError:
-        raise KeyError(
-            f"{name!r} is not among the registered DimcatObjects:\n{DimcatObject._registry.keys()}"
-        )
+        try:
+            lower_case_registry = {
+                name.lower(): cls for name, cls in DimcatObject._registry.items()
+            }
+            return lower_case_registry[name.lower()]
+        except KeyError:
+            raise KeyError(
+                f"{name!r} is not among the registered DimcatObjects:\n{DimcatObject._registry.keys()}"
+            )
 
 
 @cache

@@ -6,7 +6,7 @@ from enum import Enum
 from typing import Any, ClassVar, Iterable, Optional, Type, TypeVar
 
 import marshmallow as mm
-from dimcat.base import ObjectEnum
+from dimcat.base import FriendlyEnumField, ObjectEnum
 from dimcat.data.datasets.processed import AnalyzedDataset
 from dimcat.data.resources import Feature
 from dimcat.data.resources.base import SomeSeries
@@ -120,8 +120,8 @@ class Analyzer(FeatureProcessingStep):
     #         raise ValueError(f"{cls.name} cannot be applied after {excluded_names}.")
 
     class Schema(FeatureProcessingStep.Schema):
-        strategy = mm.fields.Enum(DispatchStrategy, metadata={"expose": False})
-        smallest_unit = mm.fields.Enum(UnitOfAnalysis, metadata={"expose": False})
+        strategy = FriendlyEnumField(DispatchStrategy, metadata={"expose": False})
+        smallest_unit = FriendlyEnumField(UnitOfAnalysis, metadata={"expose": False})
         fill_na = mm.fields.Raw(allow_none=True, metadata={"expose": False})
 
         @mm.pre_load()

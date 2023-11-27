@@ -7,7 +7,7 @@ import frictionless as fl
 import marshmallow as mm
 import ms3
 import pandas as pd
-from dimcat.base import FriendlyEnum
+from dimcat.base import FriendlyEnum, FriendlyEnumField
 from dimcat.data.resources.base import D, FeatureName
 from dimcat.data.resources.dc import HARMONY_FEATURE_NAMES, Feature, UnitOfAnalysis
 from dimcat.data.resources.utils import (
@@ -229,7 +229,7 @@ class HarmonyLabels(DcmlAnnotations):
     _default_value_column = "chord_and_mode"
 
     class Schema(DcmlAnnotations.Schema):
-        format = mm.fields.Enum(HarmonyLabelsFormat)
+        format = FriendlyEnumField(HarmonyLabelsFormat)
 
     def __init__(
         self,
@@ -402,7 +402,7 @@ class BassNotes(HarmonyLabels):
     _extractable_features = None
 
     class Schema(DcmlAnnotations.Schema):
-        format = mm.fields.Enum(BassNotesFormat)
+        format = FriendlyEnumField(BassNotesFormat)
 
     def __init__(
         self,
@@ -522,7 +522,7 @@ class CadenceLabels(DcmlAnnotations):
     _extractable_features = None
 
     class Schema(DcmlAnnotations.Schema):
-        format = mm.fields.Enum(CadenceLabelFormat)
+        format = FriendlyEnumField(CadenceLabelFormat)
 
     def __init__(
         self,
@@ -667,7 +667,7 @@ class Notes(Feature):
     _default_value_column = "tpc"
 
     class Schema(Feature.Schema):
-        format = mm.fields.Enum(NotesFormat)
+        format = FriendlyEnumField(NotesFormat)
         merge_ties = mm.fields.Boolean(
             load_default=False,
             metadata=dict(

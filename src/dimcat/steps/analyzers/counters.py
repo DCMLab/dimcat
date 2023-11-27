@@ -3,7 +3,7 @@ from typing import Any, Iterable, Optional
 
 import marshmallow as mm
 import pandas as pd
-from dimcat.base import FriendlyEnum
+from dimcat.base import FriendlyEnum, FriendlyEnumField
 from dimcat.data.resources import Feature
 from dimcat.data.resources.base import D, SomeDataframe, SomeSeries
 from dimcat.data.resources.dc import DimcatResource, FeatureSpecs, UnitOfAnalysis
@@ -84,7 +84,7 @@ class NgramAnalyzer(Analyzer):
 
     class Schema(Analyzer.Schema):
         n = mm.fields.Integer(load_default=2)
-        format = mm.fields.Enum(
+        format = FriendlyEnumField(
             NgramTableFormat, load_default=NgramTableFormat.CONVENIENCE
         )
 
