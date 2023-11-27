@@ -1,1 +1,1 @@
-dimcat[docs]
+dimcat[docs]>=2.0.0
