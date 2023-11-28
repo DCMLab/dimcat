@@ -926,6 +926,14 @@ class NgramTable(Result):
         Returns:
 
         """
+        if columns is None:
+            if self.has_distinct_formatted_column:
+                columns = [self.formatted_column]
+            else:
+                columns = [self.value_column]
+        elif isinstance(columns, str):
+            columns = [columns]
+        columns = tuple(columns)
         table = self.make_bigram_table(
             columns=columns, split=split, join_str=join_str, fillna=fillna
         )
@@ -1040,6 +1048,14 @@ class NgramTable(Result):
         Returns:
 
         """
+        if columns is None:
+            if self.has_distinct_formatted_column:
+                columns = [self.formatted_column]
+            else:
+                columns = [self.value_column]
+        elif isinstance(columns, str):
+            columns = [columns]
+        columns = tuple(columns)
         table = self.make_ngram_table(
             columns=columns, n=n, join_str=join_str, fillna=fillna
         )
