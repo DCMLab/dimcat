@@ -1055,6 +1055,30 @@ class NgramTable(Result):
         new_result.formatted_column = None
         return new_result
 
+    def make_ranking_table(
+        self,
+        group_cols: Optional[str | Iterable[str]] = None,
+        sort_column: Optional[str | Tuple[str]] = None,
+        sort_order: Literal[
+            SortOrder.DESCENDING, SortOrder.ASCENDING
+        ] = SortOrder.DESCENDING,
+        top_k=50,
+        drop_cols: Optional[str | Iterable[str]] = None,
+    ):
+        """Shortcut for creating the default :class:`NgramTuples` object and calling
+        :meth:`~NgramTuples.make_ranking_table` on it. For more fine-grained control on the n-gram tuples,
+        use :meth:`make_ngram_tuples` or :meth:`make_bigram_tuples`.
+        """
+        n_gram_tuples = self.make_ngram_tuples()
+        n_gram_counts = n_gram_tuples.apply_step("Counter")
+        return n_gram_counts.make_ranking_table(
+            group_cols=group_cols,
+            sort_column=sort_column,
+            sort_order=sort_order,
+            top_k=top_k,
+            drop_cols=drop_cols,
+        )
+
     def plot(self):
         raise NotImplementedError
 
