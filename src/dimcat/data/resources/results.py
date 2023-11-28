@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from functools import cache, cached_property
 from itertools import product
-from typing import ClassVar, Iterable, List, Literal, Optional, Tuple
+from typing import ClassVar, Hashable, Iterable, List, Literal, Optional, Tuple
 
 import frictionless as fl
 import marshmallow as mm
@@ -32,10 +32,13 @@ from .dc import DimcatResource, UnitOfAnalysis
 logger = logging.getLogger(__name__)
 
 
-def tuple2str(tup: tuple) -> str:
+def tuple2str(tup: tuple, join_str: Optional[str] = ", ") -> str:
     """Used for displaying n-grams on axes."""
     try:
-        return ", ".join(str(e) for e in tup)
+        if join_str is None:
+            return str(tup)
+        else:
+            return join_str.join(str(e) for e in tup)
     except TypeError:
         return str(tup)
 
@@ -47,6 +50,7 @@ class ResultName(ObjectEnum):
     Counts = "Counts"
     Durations = "Durations"
     NgramTable = "NgramTable"
+    NgramTuples = "NgramTuples"
     Result = "Result"
 
 
@@ -95,6 +99,14 @@ class Result(DimcatResource):
         self.is_combination = False
         """Is True if this Result has been created by Result.combine_results(), in which case the method will return
         :attr:`df` as is (without combining anything)."""
+
+    @property
+    def feature_columns(self) -> List[str]:
+        """The :attr:`column` and, if distinct, the :attr:`formatted_column`, as a list."""
+        result = [self.value_column]
+        if self.has_distinct_formatted_column:
+            result.append(self.formatted_column)
+        return result
 
     @property
     def formatted_column(self) -> str:
@@ -174,9 +186,7 @@ class Result(DimcatResource):
         else:
             df = self.df
 
-        groupby = group_cols + [self.value_column]
-        if self.formatted_column:
-            groupby.append(self.formatted_column)
+        groupby = group_cols + self.feature_columns
         combined_result = df.groupby(groupby).sum()
         if group_cols:
             normalize_by = combined_result.groupby(group_cols).sum()
@@ -794,45 +804,14 @@ class Durations(Result):
 
 
 class NgramTable(Result):
+    """A side-by-side concatenation of a feature with one or several shifted version of itself, so that each row
+    contains both the original values and those of the n-1 following rows, concatenated on the right.
+    This table keeps full flexibility in terms of how you want to create :class:`NgramTuples` from it.
+    """
+
     @cached_property
     def ngram_levels(self) -> List[str]:
         return list(self.df.columns.levels[0])
-
-    def make_bigram_tuples(
-        self,
-        columns: Optional[str | List[str]] = None,
-        split: int = -1,
-        as_string: bool = False,
-    ) -> pd.DataFrame:
-        """Get a list of bigram tuples where each tuple contains two tuples the values of which correspond to the
-        specified columns.
-
-        Args:
-            columns: Columns from which to construct bigrams. Defaults to feature columns.
-            split:
-                Relevant only for NgramAnalyzer with n > 2: Then the value can be modified to decide how many
-                elements are to be part of the left and the right gram. Defaults to -1, i.e. the last element is
-                used as the right gram. This is a useful default for settings where the (n-1) previous elements are
-                the context for predicting the next element.
-
-
-        Returns:
-            Like :meth:`make_ngram_tuples`, but condensed to two columns.
-        """
-        if len(self.ngram_levels) == 2:
-            result = self.make_ngram_tuples(columns=columns)
-        else:
-            ngram_tuples = self.make_ngram_tuples(columns=columns).itertuples(
-                index=False, name=None
-            )
-            data = [
-                (ngram_tuple[:split], ngram_tuple[split:])
-                for ngram_tuple in ngram_tuples
-            ]
-            result = pd.DataFrame(data, columns=["a", "b"], index=self.df.index)
-        if as_string:
-            result = result.map(tuple2str)
-        return result
 
     def get_transitions(
         self,
@@ -856,36 +835,144 @@ class NgramTable(Result):
             Dataframe with columns 'count' and 'proportion', showing each (n-1) previous elements (index level 0),
             the count and proportion of transitions to each possible following element (index level 1).
         """
-        bigrams = self.make_bigram_tuples(
-            columns=columns, split=split, as_string=as_string
+        bigrams = self.make_bigram_table(
+            columns=columns, split=split, join_str=as_string
         )
         gpb = bigrams.groupby("a").b
         return pd.concat([gpb.value_counts(), gpb.value_counts(normalize=True)], axis=1)
 
     @cache
-    def make_ngram_tuples(
+    def make_bigram_table(
         self,
-        columns: Optional[str | List[str]] = None,
+        columns: Optional[str | Tuple[str]] = None,
+        split: int = -1,
+        join_str: Optional[str | bool] = None,
+        fillna: Optional[Hashable] = None,
+    ) -> pd.DataFrame:
+        """Reduce the selected columns into to, called 'a' and 'b', that contain the values of the reduced columns
+        as tuples (default, where ``join_str`` is None) or strings. If this object represents bigrams only, the
+        column contain tuples or strings; if it represents trigrams or higher, the columns contain tuples thereof (of
+        tuples or of strings); then, the parameter ``split`` determines how many elements the tuples of both columns
+        have. Then, by default, column 'b' contains a tuple only with the last element, and column 'a' the
+        n-1 preceding elements.
+
+        Args:
+            columns: Columns from which to construct bigrams. Defaults to feature columns.
+            split:
+                Relevant only for NgramAnalyzer with n > 2: Then the value can be modified to decide how many
+                elements are to be part of the left and the right gram. Defaults to -1, i.e. the last element is
+                used as the right gram. This is a useful default for settings where the (n-1) previous elements are
+                the context for predicting the next element.
+            join_str:
+                By default (None), the columns contain tuples. Pass True to concatenate the values of each tuple,
+                separated by ", " -- yielding strings that look like tuples without parentheses. You can also pass
+                a string to separate the values, or False to concatenate without any value in-between the values.
+                In all of these non-default cases, you end up with two columns containing strings.
+            fillna:
+                Pass a value to replace all missing values it. When ``join_str`` is set, "" is often a good choice.
+
+
+        Returns:
+            Like :meth:`make_ngram_tuples`, but condensed to two columns.
+        """
+        if columns is None:
+            columns = self.feature_columns
+        elif isinstance(columns, str):
+            columns = [columns]
+        columns = tuple(columns)
+        ngram_table = self.make_ngram_table(
+            columns=columns, join_str=join_str, fillna=fillna
+        )
+        if len(self.ngram_levels) == 2:
+            result = ngram_table
+        else:
+            table_rows = ngram_table.itertuples(index=False, name=None)
+            data = [
+                (ngram_tuple[:split], ngram_tuple[split:]) for ngram_tuple in table_rows
+            ]
+            result = pd.DataFrame(data, columns=["a", "b"], index=self.df.index)
+        return result
+
+    def make_bigram_tuples(
+        self,
+        columns: Optional[str | Tuple[str]] = None,
+        split: int = -1,
+        join_str: Optional[str | bool] = None,
+        fillna: Optional[Hashable] = None,
+        drop_identical: bool = False,
+        n_gram_column_name: str = "n_gram",
+    ) -> NgramTuples:
+        """Get a Resource with a single column that contains bigram tuples, where each element is a tuple or string
+        based on the specified (or default) columns. If this object represents trigrams or higher, it is always
+        tuples of tuples (never of strings). See :meth:`make_bigram_table` for details.
+
+        Args:
+            columns: Columns from which to construct bigrams. Defaults to feature columns.
+            split:
+                Relevant only for NgramAnalyzer with n > 2: Then the value can be modified to decide how many
+                elements are to be part of the left and the right gram. Defaults to -1, i.e. the last element is
+                used as the right gram. This is a useful default for settings where the (n-1) previous elements are
+                the context for predicting the next element.
+            join_str:
+                By default (None), the columns contain tuples. Pass True to concatenate the values of each tuple,
+                separated by ", " -- yielding strings that look like tuples without parentheses. You can also pass
+                a string to separate the values, or False to concatenate without any value in-between the values.
+                In all of these non-default cases, you end up with two columns containing strings.
+            fillna:
+                Pass a value to replace all missing values it. When ``join_str`` is set, "" is often a good choice.
+            drop_identical: Pass True to drop all tuples where left and right gram are identical.
+            n_gram_column_name: Name of the value_column in the resulting :class:`NgramTuples` object.
+
+        Returns:
+
+        """
+        table = self.make_bigram_table(
+            columns=columns, split=split, join_str=join_str, fillna=fillna
+        )
+        df = table.apply(tuple, axis=1).to_frame(n_gram_column_name)
+        if drop_identical:
+            keep_mask = df[n_gram_column_name].map(lambda tup: len(set(tup)) > 1)
+            df = df[keep_mask]
+        new_result = NgramTuples.from_resource_and_dataframe(
+            self,
+            df,
+            value_column=n_gram_column_name,
+        )
+        new_result.formatted_column = None
+        return new_result
+
+    @cache
+    def make_ngram_table(
+        self,
+        columns: Optional[str | Tuple[str]] = None,
         n: Optional[int] = None,
+        join_str: Optional[str | bool] = None,
+        fillna: Optional[Hashable] = None,
     ) -> pd.DataFrame:
         """Reduce the selected columns for the n first n-gram levels a, b, ... so that the resulting dataframe
-        contains n columns each of which contains tuples.
+        contains n columns, each of which contains tuples or strings.
 
         Args:
             columns: Use only the selected column(s). Defaults to feature columns.
             n:
                 Only make tuples for the first n n-gram levels. If None, use all n-gram levels. Minimum is 2, maximum
                 is the number of n-gram levels determined by the :obj:`NgramAnalyzer` used to create the n-gram table.
+            join_str:
+                By default (None), the columns contain tuples. Pass True to concatenate the values of each tuple,
+                separated by ", " -- yielding strings that look like tuples without parentheses. You can also pass
+                a string to separate the values, or False to concatenate without any value in-between the values.
+                In all of these non-default cases, you end up with two columns containing strings.
+            fillna:
+                Pass a value to replace all missing values it. When ``join_str`` is set, "" is often a good choice.
 
         Returns:
 
         """
         if columns is None:
-            columns = self.analyzed_resource._feature_column_names
+            columns = self.feature_columns
         elif isinstance(columns, str):
             columns = [columns]
-        else:
-            columns = list(columns)
+        columns = tuple(columns)
         if n is not None:
             n = int(n)
             assert 1 < n <= len(self.ngram_levels)
@@ -894,9 +981,82 @@ class NgramTable(Result):
             selected_levels = self.ngram_levels
         selected_columns = list(product(selected_levels, columns))
         selection = self.df[selected_columns]
-        return selection.groupby(level=0, axis=1).apply(
-            lambda df: df.apply(tuple, axis=1)
+        if fillna is not None:
+            selection = selection.fillna(fillna)
+        if join_str is None:
+            return (
+                selection.T.groupby(level=0, group_keys=False)
+                .apply(lambda df: df.apply(tuple, result_type="reduce"))
+                .T
+            )
+        else:
+            if not isinstance(join_str, str):
+                if join_str is True:
+                    join_str = ", "
+                elif join_str is False:
+                    join_str = ""
+                else:
+                    raise TypeError(
+                        f"join_str must be a string or a boolean, got {join_str!r} ({type(join_str)})"
+                    )
+            return (
+                selection.T.groupby(level=0, group_keys=False)
+                .apply(
+                    lambda df: df.apply(
+                        tuple2str, args=(join_str,), result_type="reduce"
+                    )
+                )
+                .T
+            )
+
+    def make_ngram_tuples(
+        self,
+        columns: Optional[str | Tuple[str]] = None,
+        n: Optional[int] = None,
+        join_str: Optional[str | bool] = None,
+        fillna: Optional[Hashable] = None,
+        drop_identical: bool = False,
+        n_gram_column_name: str = "n_gram",
+    ) -> NgramTuples:
+        """Get a Resource with a single column that contains n-gram tuples, where each element is a tuple or string
+        based on the specified (or default) columns.
+
+        Args:
+            columns: Use only the selected column(s). Defaults to feature columns.
+            n:
+                Only make tuples for the first n n-gram levels. If None, use all n-gram levels. Minimum is 2, maximum
+                is the number of n-gram levels determined by the :obj:`NgramAnalyzer` used to create the n-gram table.
+            join_str:
+                By default (None), the columns contain tuples. Pass True to concatenate the values of each tuple,
+                separated by ", " -- yielding strings that look like tuples without parentheses. You can also pass
+                a string to separate the values, or False to concatenate without any value in-between the values.
+                In all of these non-default cases, you end up with two columns containing strings.
+            fillna:
+                Pass a value to replace all missing values it. When ``join_str`` is set, "" is often a good choice.
+            drop_identical: Pass True to drop all tuples where all elements are identical.
+            n_gram_column_name: Name of the value_column in the resulting :class:`NgramTuples` object.
+
+
+        Returns:
+
+        """
+        table = self.make_ngram_table(
+            columns=columns, n=n, join_str=join_str, fillna=fillna
         )
+        df = table.apply(tuple, axis=1).to_frame(n_gram_column_name)
+        if drop_identical:
+            keep_mask = df[n_gram_column_name].map(lambda tup: len(set(tup)) > 1)
+            df = df[keep_mask]
+        new_result = NgramTuples.from_resource_and_dataframe(
+            self,
+            df,
+            value_column=n_gram_column_name,
+        )
+        new_result.formatted_column = None
+        return new_result
+
+    def plot(self):
+        raise NotImplementedError
 
     def plot_grouped(
         self,
@@ -950,3 +1110,32 @@ class NgramTable(Result):
         if output is not None:
             plt.savefig(output, dpi=400)
         return fig
+
+
+class NgramTuples(Result):
+    """Result that has a :attr:`value_column` containing tuples and no `dimension_column`."""
+
+    def make_ranking_table(
+        self,
+        group_cols: Optional[str | Iterable[str]] = None,
+        sort_column=None,
+        sort_order: Literal[
+            SortOrder.DESCENDING, SortOrder.ASCENDING
+        ] = SortOrder.DESCENDING,
+        top_k=50,
+        drop_cols: Optional[str | Iterable[str]] = None,
+    ):
+        n_gram_counts = self.apply_step("Counter")
+        return n_gram_counts.make_ranking_table(
+            group_cols=group_cols,
+            sort_column=sort_column,
+            sort_order=sort_order,
+            top_k=top_k,
+            drop_cols=drop_cols,
+        )
+
+    def plot(self):
+        raise NotImplementedError
+
+    def plot_grouped(self):
+        raise NotImplementedError
