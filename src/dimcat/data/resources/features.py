@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
+from typing import List, Optional
 
 import frictionless as fl
 import marshmallow as mm
@@ -144,15 +144,43 @@ class DcmlAnnotations(Annotations):
         return self._sort_columns(feature_df)
 
 
+def make_chord_col(df: D, cols: Optional[List[str]] = None, name: str = "chord"):
+    """The 'chord' column contains the chord part of a DCML label, i.e. without indications of key, pedal, cadence, or
+    phrase. This function can re-create this column, e.g. if the feature columns were changed. To that aim, the function
+    takes a DataFrame and the column names that it adds together, creating new strings.
+    """
+    if cols is None:
+        cols = ["numeral", "form", "figbass", "changes", "relativeroot"]
+    cols = [c for c in cols if c in df.columns]
+    summing_cols = [c for c in cols if c not in ("changes", "relativeroot")]
+    if len(summing_cols) == 1:
+        chord_col = df[summing_cols[0]].fillna("").astype("string")
+    else:
+        chord_col = df[summing_cols].fillna("").astype("string").sum(axis=1)
+    if "changes" in cols:
+        chord_col += ("(" + df.changes.astype("string") + ")").fillna("")
+    if "relativeroot" in cols:
+        chord_col += ("/" + df.relativeroot.astype("string")).fillna("")
+    return chord_col.rename(name)
+
+
 def extend_harmony_feature(
     feature_df,
 ):
     """Requires previous application of :func:`transform_keys_feature`."""
-    columns_to_add = ("root_roman", "pedal_resolved", "chord_and_mode")
+    columns_to_add = (
+        "root_roman",
+        "pedal_resolved",
+        "chord_and_mode",
+        "chord_reduced",
+        "chord_reduced_and_mode",
+    )
     if all(col in feature_df.columns for col in columns_to_add):
         return feature_df
     expected_columns = (
         "chord",
+        "form",
+        "figbass",
         "pedal",
         "numeral",
         "relativeroot",
@@ -169,6 +197,24 @@ def extend_harmony_feature(
         concatenate_this.append(
             (feature_df.numeral + ("/" + feature_df.relativeroot).fillna("")).rename(
                 "root_roman"
+            )
+        )
+    if "chord_reduced" not in feature_df.columns:
+        concatenate_this.append(
+            (
+                reduced_col := make_chord_col(
+                    feature_df,
+                    cols=["numeral", "form", "figbass", "relativeroot"],
+                    name="chord_reduced",
+                )
+            )
+        )
+    else:
+        reduced_col = feature_df.chord_reduced
+    if "chord_reduced_and_mode" not in feature_df.columns:
+        concatenate_this.append(
+            (reduced_col + ", " + feature_df.localkey_mode).rename(
+                "chord_reduced_and_mode"
             )
         )
     if "pedal_resolved" not in feature_df.columns:
@@ -197,6 +243,7 @@ def extend_harmony_feature(
 
 class HarmonyLabelsFormat(FriendlyEnum):
     ROMAN = "ROMAN"
+    ROMAN_REDUCED = "ROMAN_REDUCED"
 
 
 class HarmonyLabels(DcmlAnnotations):
@@ -210,6 +257,8 @@ class HarmonyLabels(DcmlAnnotations):
         "bass_note",
         "changes",
         "chord_and_mode",
+        "chord_reduced",
+        "chord_reduced_and_mode",
         "chord_tones",
         "chord_type",
         "figbass",
@@ -276,6 +325,8 @@ class HarmonyLabels(DcmlAnnotations):
             return
         if format == HarmonyLabelsFormat.ROMAN:
             new_formatted_column = "chord_and_mode"
+        elif format == HarmonyLabelsFormat.ROMAN_REDUCED:
+            new_formatted_column = "chord_reduced_and_mode"
         else:
             raise NotImplementedError(f"Unknown format {format!r}.")
         if self.is_loaded and new_formatted_column not in self.field_names:
@@ -292,6 +343,11 @@ class HarmonyLabels(DcmlAnnotations):
                 return "chord"
             else:
                 return "chord_and_mode"
+        elif self._format == HarmonyLabelsFormat.ROMAN_REDUCED:
+            if "mode" in self.get_default_groupby():
+                return "chord_reduced"
+            else:
+                return "chord_reduced_and_mode"
         if self._formatted_column is not None:
             return self._formatted_column
         if self._default_formatted_column is not None:
