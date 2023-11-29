@@ -10,6 +10,7 @@ from dataclasses import field as dataclass_field
 from enum import Enum
 from functools import cache, cached_property
 from inspect import isclass
+from pathlib import Path
 from pprint import pformat
 from typing import (
     Any,
@@ -625,7 +626,7 @@ def get_class(name) -> Type[DimcatObject]:
             return lower_case_registry[name.lower()]
         except KeyError:
             raise KeyError(
-                f"{name!r} is not among the registered DimcatObjects:\n{DimcatObject._registry.keys()}"
+                f"{name!r} is not among the registered DimcatObjects:\n{sorted(DimcatObject._registry.keys())}"
             )
 
 
@@ -676,24 +677,24 @@ def get_schema(name, init=True):
     return dc_schema
 
 
-def deserialize_config(config) -> DimcatObject:
+def deserialize_config(config: DimcatConfig) -> DimcatObject:
     """Deserialize a config object into a DimcatObject."""
     return config.create()
 
 
-def deserialize_dict(obj_data) -> DimcatObject:
+def deserialize_dict(obj_data: dict) -> DimcatObject:
     """Deserialize a dict into a DimcatObject."""
     config = DimcatConfig(obj_data)
     return deserialize_config(config)
 
 
-def deserialize_json_str(json_data) -> DimcatObject:
+def deserialize_json_str(json_data: str) -> DimcatObject:
     """Deserialize a JSON string into a DimcatObject."""
     obj_data = json.loads(json_data)
     return deserialize_dict(obj_data)
 
 
-def deserialize_json_file(json_file) -> DimcatObject:
+def deserialize_json_file(json_file: Path | str) -> DimcatObject:
     """Deserialize a JSON file into a DimcatObject."""
     with open(json_file, "r") as f:
         json_data = f.read()
@@ -709,12 +710,12 @@ def resolve_object_specs(
     instance_of: Optional[Type[DO] | str] = None,
 ) -> DO:
     """Returns the DimcatObject corresponding to the given specs."""
-    if isinstance(specs, DimcatObject):
+    if isinstance(specs, DimcatConfig):
+        obj = deserialize_config(specs)
+    elif isinstance(specs, DimcatObject):
         obj = specs
     elif isinstance(specs, type) and issubclass(specs, DimcatObject):
         obj = specs()
-    elif isinstance(specs, DimcatConfig):
-        obj = deserialize_config(specs)
     elif isinstance(specs, dict):
         obj = deserialize_dict(specs)
     elif isinstance(specs, str):
