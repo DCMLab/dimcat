@@ -73,9 +73,10 @@ class Grouper(ResourceTransformation):
         return pd.concat([resource.df], keys=[self.level_name], names=[self.level_name])
 
 
-class CorpusGrouper(Grouper):
-    def __init__(self, level_name: str = "corpus", **kwargs):
-        super().__init__(level_name=level_name, **kwargs)
+class _IdGrouper(Grouper):
+    """Superclass for CorpusGrouper and PieceGrouper, which both concern the two index levels that are expected to be
+    present in all Facets and Features.
+    """
 
     def _process_resource(self, resource: Resource) -> Resource:
         """Apply this PipelineStep to a :class:`Resource` and return a copy containing the output(s)."""
@@ -85,6 +86,20 @@ class CorpusGrouper(Grouper):
         else:
             result = resource
         return self._post_process_result(result, resource)
+
+
+class CorpusGrouper(_IdGrouper):
+    """Results will be grouped by the 'corpus' part of the ('corpus', 'piece') index."""
+
+    def __init__(self, level_name: str = "corpus", **kwargs):
+        super().__init__(level_name=level_name, **kwargs)
+
+
+class PieceGrouper(_IdGrouper):
+    """Results will be grouped by the 'piece' part of the ('corpus', 'piece') index."""
+
+    def __init__(self, level_name: str = "piece", **kwargs):
+        super().__init__(level_name=level_name, **kwargs)
 
 
 class MappingGrouper(Grouper):

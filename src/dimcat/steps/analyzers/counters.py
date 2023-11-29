@@ -47,7 +47,7 @@ class Counter(Analyzer):
         ):
             groupby.append(feature.formatted_column)
         result = feature.groupby(groupby).size()
-        result = result.to_frame(self._dimension_column_name)
+        result = result.astype("Int64").to_frame(self._dimension_column_name)
         return result
 
     def resource_name_factory(self, resource: DimcatResource) -> str:
