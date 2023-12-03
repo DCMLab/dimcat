@@ -558,7 +558,11 @@ class Result(DimcatResource):
 
         """
 
-        def make_table(df, drop_columns=None):
+        def make_table(
+            df,
+            drop_columns: Optional[List[str]] = None,
+            make_int_nullable: bool = False,
+        ):
             if top_k and top_k > 0:
                 ranking = df.nlargest(top_k, sort_column, keep=keep)
             else:
@@ -567,6 +571,14 @@ class Result(DimcatResource):
             if drop_columns:
                 ranking = ranking.drop(columns=drop_columns)
             ranking.index = (ranking.index + 1).rename("rank")
+            if make_int_nullable:
+                conversion = {
+                    col: "Int64"
+                    for col, dtype in ranking.dtypes.items()
+                    if pd.api.types.is_integer_dtype(dtype)
+                }
+                if conversion:
+                    ranking = ranking.astype(conversion)
             return ranking
 
         if sort_order == SortOrder.DESCENDING:
@@ -586,7 +598,7 @@ class Result(DimcatResource):
         if not group_cols:
             return make_table(df)
         ranking_groups = {
-            group: make_table(df, group_cols + drop_cols)
+            group: make_table(df, group_cols + drop_cols, make_int_nullable=True)
             for group, df in df.groupby(group_cols)
         }
         return pd.concat(ranking_groups, names=group_cols, axis=1)
