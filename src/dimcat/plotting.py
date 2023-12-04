@@ -269,10 +269,14 @@ def make_bar_plot(
 def make_bubble_plot(
     df: pd.Series | pd.DataFrame,
     normalize: bool = True,
-    flip: bool = False,
     x_col: Optional[str] = None,
     y_col: Optional[str] = None,
     dimension_column: str = "duration_qb",
+    group_cols: Optional[str | Iterable[str]] = None,
+    group_modes: Iterable[GroupMode] = (
+        GroupMode.ROWS,
+        GroupMode.COLUMNS,
+    ),
     title: Optional[str] = None,
     labels: Optional[dict] = None,
     hover_data: Optional[List[str]] = None,
@@ -299,12 +303,8 @@ def make_bubble_plot(
     """
     df = df.reset_index()
     xaxis_settings, yaxis_settings = dict(X_AXIS), dict(Y_AXIS)
-    if flip:
-        x_axis, y_axis = y_axis, x_axis
-        xaxis_settings, yaxis_settings = yaxis_settings, xaxis_settings
-        figure_layout = dict(width=height, height=width)
-    else:
-        figure_layout = dict(height=height, width=width)
+    yaxis_settings["autorange"] = "reversed"
+    figure_layout = dict(height=height, width=width)
     if layout is not None:
         figure_layout.update(layout)
     if normalize:
@@ -317,8 +317,6 @@ def make_bubble_plot(
     traces = dict(marker_line_color="black")
     if traces_settings is not None:
         traces.update(traces_settings)
-    if not flip:
-        yaxis_settings["autorange"] = "reversed"
     if x_axis is not None:
         xaxis_settings.update(x_axis)
     if y_axis is not None:
@@ -330,6 +328,8 @@ def make_bubble_plot(
         df=df,
         x_col=x_col,
         y_col=y_col,
+        group_cols=group_cols,
+        group_modes=group_modes,
         title=title,
         labels=labels,
         hover_data=hover_data,
@@ -422,10 +422,14 @@ def make_lof_bar_plot(
 def make_lof_bubble_plot(
     df: pd.Series | pd.DataFrame,
     normalize: bool = False,
-    flip: bool = False,
-    fifths_col: Optional[str] = "tpc",
+    x_col: Optional[str] = "tpc",
     y_col: Optional[str] = "piece",
     dimension_column: str = "duration_qb",
+    group_cols: Optional[str | Iterable[str]] = None,
+    group_modes: Iterable[GroupMode] = (
+        GroupMode.ROWS,
+        GroupMode.COLUMNS,
+    ),
     fifths_transform: Optional[Callable[[int], Any]] = ms3.fifths2name,
     x_names_col: Optional[str] = None,
     title: Optional[str] = None,
@@ -450,7 +454,7 @@ def make_lof_bubble_plot(
     as keyword argument 'hover_data'.
     """
     df = df.reset_index()
-    fifths = df[fifths_col].to_list()
+    fifths = df[x_col].to_list()
     xaxis_settings = dict()
     if x_names_col is not None:
         x_names = df[x_names_col].values
@@ -467,14 +471,15 @@ def make_lof_bubble_plot(
         hover_data = [hover_data]
     # df["pitch class"] = ms3.fifths2name(fifths)
     # hover_data.append("pitch class")
-    color_col = fifths_col
+    color_col = x_col
     return make_bubble_plot(
         df=df,
         normalize=normalize,
-        flip=flip,
-        x_col=fifths_col,
+        x_col=x_col,
         y_col=y_col,
         dimension_column=dimension_column,
+        group_cols=group_cols,
+        group_modes=group_modes,
         title=title,
         labels=labels,
         hover_data=hover_data,

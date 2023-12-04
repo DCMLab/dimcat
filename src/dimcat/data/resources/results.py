@@ -369,8 +369,12 @@ class Result(DimcatResource):
         df: Optional[D] = None,
         x_col: Optional[str] = None,
         y_col: Optional[str] = None,
+        group_cols: Optional[str | Iterable[str]] = None,
+        group_modes: Optional[GroupMode | Iterable[GroupMode]] = (
+            GroupMode.ROWS,
+            GroupMode.COLUMNS,
+        ),
         normalize: bool = True,
-        flip: bool = False,
         dimension_column: Optional[str] = None,
         title: Optional[str] = None,
         labels: Optional[dict] = None,
@@ -401,13 +405,10 @@ class Result(DimcatResource):
             unit_of_analysis = self.get_grouping_levels()
             y_col = unit_of_analysis[-1]
         if df is None:
-            group_cols = self.get_default_groupby()
-            if y_col in group_cols:
-                group_cols.remove(y_col)
-            if group_cols:
-                df = self._combine_results(group_cols=group_cols)
-            else:
-                df = self.df
+            df = self.df
+        group_cols = self._resolve_group_cols_arg(group_cols)
+        if group_cols:
+            group_modes = self._resolve_group_modes_arg(group_modes)
         if dimension_column is None:
             dimension_column = self.dimension_column
         layout_update = dict()
@@ -422,10 +423,11 @@ class Result(DimcatResource):
             return make_lof_bubble_plot(
                 df=df,
                 normalize=normalize,
-                flip=flip,
-                fifths_col=x_col,
+                x_col=x_col,
                 y_col=y_col,
                 dimension_column=dimension_column,
+                group_cols=group_cols,
+                group_modes=group_modes,
                 x_names_col=x_names_col,
                 title=title,
                 labels=labels,
@@ -446,10 +448,11 @@ class Result(DimcatResource):
             return make_bubble_plot(
                 df=df,
                 normalize=normalize,
-                flip=flip,
                 x_col=x_col,
                 y_col=y_col,
                 dimension_column=dimension_column,
+                group_cols=group_cols,
+                group_modes=group_modes,
                 title=title,
                 labels=labels,
                 hover_data=hover_data,
@@ -829,7 +832,8 @@ class NgramTable(Result):
         self,
         columns: Optional[str | List[str]] = None,
         split: int = -1,
-        as_string: bool = False,
+        join_str: Optional[str | bool] = None,
+        fillna: Optional[Hashable] = None,
     ) -> pd.DataFrame:
         """Get a Series that counts for each context the number of transitions to each possible following element.
 
@@ -840,15 +844,28 @@ class NgramTable(Result):
                 elements are to be part of the left and the right gram. Defaults to -1, i.e. the last element is
                 used as the right gram. This is a useful default for settings where the (n-1) previous elements are
                 the context for predicting the next element.
-            smooth: Initial count value of all transitions
-            as_string: Set to True to convert the tuples to strings.
+            join_str:
+                By default (None), the columns contain tuples. Pass True to concatenate the values of each tuple,
+                separated by ", " -- yielding strings that look like tuples without parentheses. You can also pass
+                a string to separate the values, or False to concatenate without any value in-between the values.
+                In all of these non-default cases, you end up with two columns containing strings.
+            fillna:
+                Pass a value to replace all missing values it. When ``join_str`` is set, "" is often a good choice.
 
         Returns:
             Dataframe with columns 'count' and 'proportion', showing each (n-1) previous elements (index level 0),
             the count and proportion of transitions to each possible following element (index level 1).
         """
+        if columns is None:
+            if self.has_distinct_formatted_column:
+                columns = [self.formatted_column]
+            else:
+                columns = [self.value_column]
         bigrams = self.make_bigram_table(
-            columns=columns, split=split, join_str=as_string
+            columns=columns,
+            split=split,
+            join_str=join_str,
+            fillna=fillna,
         )
         gpb = bigrams.groupby("a").b
         return pd.concat([gpb.value_counts(), gpb.value_counts(normalize=True)], axis=1)
