@@ -154,15 +154,9 @@ analyzed_dataset.get_result().make_bar_plot()
 
 Serialization of any DimcatObject uses the `DimcatConfig` object. Each config needs to have at least the key `dtype`,
 specifying the name of a DimcatObject. Any other keys need to correspond to init arguments of that object. Wrong keys
-or invalid values are rejected:
+or invalid values [are rejected](./errors.md#invalid-option).
 
-```{code-cell}
-:tags: [raises-exception]
-
-config = dc.DimcatConfig(dtype="Notes", format="bananas")
-```
-
-Any DimcatObject can be expressed as a config:
+Any DimcatObject can be expressed as a config by calling its `.to_config()` method:
 
 ```{code-cell}
 config = counter.to_config()

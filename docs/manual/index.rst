@@ -7,3 +7,4 @@ Manual
 
    quick
    data
+   errors

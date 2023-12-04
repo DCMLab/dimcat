@@ -82,11 +82,12 @@ source_suffix = {
     '.md': 'myst-nb',
 }
 
-# MyST-NB configuration https://myst-nb.readthedocs.io/en/latest/configuration.html
+# MyST Parser configuration https://myst-parser.readthedocs.io/en/latest/configuration.html
 myst_enable_extensions = [
     "colon_fence",
     "linkify",
 ]
+myst_heading_anchors = 3 # enables links to headings such as [text](./rel_path/to/file.md#header-anchor)
 
 # MyST-NB configuration https://myst-nb.readthedocs.io/en/latest/configuration.html
 nb_execution_timeout = 180
@@ -303,11 +304,11 @@ python_version = ".".join(map(str, sys.version_info[0:2]))
 intersphinx_mapping = {
     "sphinx": ("https://www.sphinx-doc.org/en/master", None),
     "python": ("https://docs.python.org/" + python_version, None),
-    "matplotlib": ("https://matplotlib.org", None),
+    "matplotlib": ("https://matplotlib.org/stable", None),
     "numpy": ("https://numpy.org/doc/stable", None),
     "sklearn": ("https://scikit-learn.org/stable", None),
     "pandas": ("https://pandas.pydata.org/pandas-docs/stable", None),
-    "scipy": ("https://docs.scipy.org/doc/scipy/reference", None),
+    "scipy": ("https://docs.scipy.org/doc/scipy/", None),
     "setuptools": ("https://setuptools.pypa.io/en/stable/", None),
     "pyscaffold": ("https://pyscaffold.org/en/stable", None),
 }
