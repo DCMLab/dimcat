@@ -65,6 +65,7 @@ class ResultName(ObjectEnum):
     NgramTable = "NgramTable"
     NgramTuples = "NgramTuples"
     Result = "Result"
+    Transitions = "Transitions"
 
 
 class Result(DimcatResource):
@@ -842,13 +843,21 @@ class NgramTable(Result):
     def ngram_levels(self) -> List[str]:
         return list(self.df.columns.levels[0])
 
-    def get_transitions(
+    def get_grouping_levels(
+        self, smallest_unit: UnitOfAnalysis = UnitOfAnalysis.SLICE
+    ) -> List[str]:
+        # do not follow the behaviour of Result.get_grouping_levels, which assumes that the last one or two levels
+        # are value_column or [value_column, formatted_column] and omits these
+        return DimcatResource.get_grouping_levels(self, smallest_unit=smallest_unit)
+
+    def _get_transitions(
         self,
         columns: Optional[str | List[str]] = None,
         split: int = -1,
         join_str: Optional[str | bool] = None,
         fillna: Optional[Hashable] = None,
-    ) -> pd.DataFrame:
+        group_cols: Optional[str | Iterable[str]] = None,
+    ) -> D:
         """Get a Series that counts for each context the number of transitions to each possible following element.
 
         Args:
@@ -872,17 +881,78 @@ class NgramTable(Result):
         """
         if columns is None:
             if self.has_distinct_formatted_column:
-                columns = [self.formatted_column]
+                columns = self.formatted_column
             else:
-                columns = [self.value_column]
+                columns = self.value_column
+        elif not isinstance(columns, str):
+            columns = tuple(columns)
         bigrams = self.make_bigram_table(
             columns=columns,
             split=split,
             join_str=join_str,
             fillna=fillna,
         )
-        gpb = bigrams.groupby("a").b
-        return pd.concat([gpb.value_counts(), gpb.value_counts(normalize=True)], axis=1)
+        if not group_cols:
+            group_cols = self.get_grouping_levels()
+        elif isinstance(group_cols, str):
+            group_cols = [group_cols]
+        else:
+            group_cols = list(group_cols)
+        if len(group_cols) == 0 or not group_cols[-1] == "a":
+            group_cols.append("a")
+        gpb = bigrams.groupby(group_cols).b
+        counts = gpb.value_counts()
+        proportion = gpb.value_counts(normalize=True)
+        proportion_str = turn_proportions_into_percentage_strings(proportion)
+        return pd.concat([counts, proportion, proportion_str], axis=1)
+
+    def get_transitions(
+        self,
+        columns: Optional[str | List[str]] = None,
+        split: int = -1,
+        join_str: Optional[str | bool] = None,
+        fillna: Optional[Hashable] = None,
+        feature_columns: Optional[List[str, str]] = None,
+    ) -> Transitions:
+        """Get a Series that counts for each context the number of transitions to each possible following element.
+
+        Args:
+            columns: Columns from which to construct bigrams. Defaults to feature columns.
+            split:
+                Relevant only for NgramAnalyzer with n > 2: Then the value can be modified to decide how many
+                elements are to be part of the left and the right gram. Defaults to -1, i.e. the last element is
+                used as the right gram. This is a useful default for settings where the (n-1) previous elements are
+                the context for predicting the next element.
+            join_str:
+                By default (None), the columns contain tuples. Pass True to concatenate the values of each tuple,
+                separated by ", " -- yielding strings that look like tuples without parentheses. You can also pass
+                a string to separate the values, or False to concatenate without any value in-between the values.
+                In all of these non-default cases, you end up with two columns containing strings.
+            fillna:
+                Pass a value to replace all missing values it. When ``join_str`` is set, "" is often a good choice.
+            feature_columns: Defaults to ["antecedent", "consequent"]. Pass a List with two strings to change.
+
+        Returns:
+            Dataframe with columns 'count' and 'proportion', showing each (n-1) previous elements (index level 0),
+            the count and proportion of transitions to each possible following element (index level 1).
+        """
+        if feature_columns is None:
+            feature_columns = ["antecedent", "consequent"]
+        transitions = self._get_transitions(
+            columns=columns,
+            split=split,
+            join_str=join_str,
+            fillna=fillna,
+        )
+        level_names = dict(zip(("a", "b"), feature_columns))
+        transitions.index.set_names(level_names, inplace=True)
+        new_result = Transitions.from_resource_and_dataframe(
+            self,
+            transitions,
+            feature_columns=feature_columns,
+            dimension_column="count",
+        )
+        return new_result
 
     @cache
     def make_bigram_table(
@@ -1222,3 +1292,148 @@ class NgramTuples(Result):
 
     def plot_grouped(self):
         raise NotImplementedError
+
+
+class Transitions(Result):
+    class Schema(Result.Schema):
+        feature_columns = mm.fields.List(
+            mm.fields.Str(), required=True, validate=mm.validate.Length(min=2, max=2)
+        )
+
+    def __init__(
+        self,
+        analyzed_resource: DimcatResource,
+        feature_columns: List[str, str],
+        value_column: Optional[str] = None,
+        dimension_column: Optional[str] = None,
+        formatted_column: Optional[str] = None,
+        resource: fl.Resource = None,
+        descriptor_filename: Optional[str] = None,
+        basepath: Optional[str] = None,
+        auto_validate: bool = False,
+        default_groupby: Optional[str | list[str]] = None,
+    ) -> None:
+        super().__init__(
+            analyzed_resource=analyzed_resource,
+            value_column=value_column,
+            dimension_column=dimension_column,
+            formatted_column=formatted_column,
+            resource=resource,
+            descriptor_filename=descriptor_filename,
+            basepath=basepath,
+            auto_validate=auto_validate,
+            default_groupby=default_groupby,
+        )
+        self._feature_columns = feature_columns
+
+    @property
+    def feature_columns(self) -> List[str]:
+        return self._feature_columns
+
+    @feature_columns.setter
+    def feature_columns(self, feature_columns: List[str]):
+        if not isinstance(feature_columns, list):
+            raise TypeError(f"Expected a list, got {feature_columns!r}")
+        assert len(feature_columns) == 2, (
+            "Expects exactly 2 column names, one for the antecedent, one for the "
+            "consequent"
+        )
+        self._feature_columns = feature_columns
+
+    def _combine_results(
+        self,
+        group_cols: Optional[str | Iterable[str]] = None,
+        sort_order: Optional[SortOrder] = SortOrder.DESCENDING,
+    ) -> D:
+        """Aggregate results for each group, typically by summing up and normalizing the values. By default,
+        the groups correspond to those that had been applied to the analyzed resource. If no Groupers had been
+        applied, the entire dataset is treated as a single group.
+        """
+        group_cols = self._resolve_group_cols_arg(group_cols)
+
+        if self.is_combination:
+            # this has been combined before, check if the grouping is the same or a subset of the current grouping
+            available_columns = set(self.df.columns) | set(self.df.index.names)
+            if group_cols == self.get_default_groupby():
+                return self.df
+            elif not set(group_cols).issubset(available_columns):
+                raise ValueError(
+                    f"Cannot group the results that are already combined by {group_cols}. "
+                    f"Available columns are {available_columns}"
+                )
+        df = self.df[
+            [self.dimension_column]
+        ]  # gets rid of existing proportion columns, we will get new ones
+
+        groupby = group_cols + self.feature_columns
+        groups_to_treat = groupby[:-1]  # normalize by and sort by antecedent groups
+        combined_result = df.groupby(groupby).sum()
+        normalize_by = combined_result.groupby(groups_to_treat).sum()
+        try:
+            group_proportions = (combined_result / normalize_by).rename(
+                columns=lambda x: "proportion"
+            )
+        except Exception as e:
+            raise RuntimeError(
+                f"Normalizing the combined results failed with the following exception:\n{e!r}\n"
+                f"We were trying to divide\n{combined_result}\nby\n{normalize_by}"
+            )
+        group_proportions_str = turn_proportions_into_percentage_strings(
+            group_proportions
+        )
+        combined_result = pd.concat(
+            [combined_result, group_proportions, group_proportions_str], axis=1
+        )
+        return self._sort_combined_result(combined_result, group_cols, sort_order)
+
+    def get_grouping_levels(
+        self, smallest_unit: UnitOfAnalysis = UnitOfAnalysis.SLICE
+    ) -> List[str]:
+        """Returns the levels of the grouping index, i.e., all levels until and including 'piece' or 'slice'."""
+        smallest_unit = UnitOfAnalysis(smallest_unit)
+        if smallest_unit == UnitOfAnalysis.SLICE:
+            return self.get_level_names()[:-2]
+        if smallest_unit == UnitOfAnalysis.PIECE:
+            return self.get_piece_index(max_levels=0).names
+        if smallest_unit == UnitOfAnalysis.GROUP:
+            return self.get_default_groupby()
+
+    def _sort_combined_result(
+        self,
+        combined_result: D,
+        group_cols: List[str],
+        sort_order: Optional[SortOrder] = SortOrder.NONE,
+    ):
+        if sort_order is None or sort_order == SortOrder.NONE:
+            return combined_result
+
+        antecedent, consequent = self.feature_columns
+        group_cols = self._resolve_group_cols_arg(group_cols)
+        ascending = sort_order == SortOrder.ASCENDING
+
+        def sort_transitions(df):
+            gpb = df.groupby(antecedent)
+            antecedent_order = (
+                gpb[self.dimension_column].sum().sort_values(ascending=ascending).index
+            )
+            sorted_groups = {}
+            for antecedent_group in antecedent_order:
+                sorted_consequents = (
+                    gpb.get_group(antecedent_group)
+                    .groupby(consequent)[self.dimension_column]
+                    .sum()
+                    .sort_values(ascending=ascending)
+                )
+                proportions = sorted_consequents / sorted_consequents.sum()
+                sorted_groups[antecedent_group] = pd.concat(
+                    [sorted_consequents, proportions.rename("proportion")], axis=1
+                )
+            return pd.concat(sorted_groups, names=[antecedent])
+
+        if group_cols:
+            gpb = combined_result.groupby(group_cols)
+            result = gpb.apply(sort_transitions)
+        else:
+            result = sort_transitions(combined_result)
+        proportion_str = turn_proportions_into_percentage_strings(result.proportion)
+        return pd.concat([result, proportion_str], axis=1)
