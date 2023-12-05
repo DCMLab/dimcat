@@ -32,6 +32,19 @@ from .dc import DimcatResource, UnitOfAnalysis
 logger = logging.getLogger(__name__)
 
 
+def turn_proportions_into_percentage_strings(
+    df: pd.DataFrame | pd.Series, column_name: str = "proportion_%"
+) -> pd.DataFrame | pd.Series:
+    """Interprets the Series or all columns of the DataFrame as proportions, multiplies them by 100 and turns them
+    into strings with a % sign.
+    """
+    result = df.mul(100).round(2).astype(str).add(" %")
+    if isinstance(df, pd.DataFrame):
+        return result.rename(columns=lambda x: column_name)
+    else:
+        return result.rename(column_name)
+
+
 def tuple2str(tup: tuple, join_str: Optional[str] = ", ") -> str:
     """Used for displaying n-grams on axes."""
     try:
@@ -201,35 +214,13 @@ class Result(DimcatResource):
                 f"Normalizing the combined results failed with the following exception:\n{e!r}\n"
                 f"We were trying to divide\n{combined_result}\nby\n{normalize_by}"
             )
-        group_proportions_str = (
-            group_proportions.mul(100)
-            .round(2)
-            .astype(str)
-            .add(" %")
-            .rename(columns=lambda x: "proportion_%")
+        group_proportions_str = turn_proportions_into_percentage_strings(
+            group_proportions
         )
         combined_result = pd.concat(
             [combined_result, group_proportions, group_proportions_str], axis=1
         )
-        if sort_order is None or sort_order == SortOrder.NONE:
-            pass
-        elif not group_cols:
-            # no grouping required
-            if sort_order == SortOrder.ASCENDING:
-                combined_result = combined_result.sort_values(self.y_column)
-            else:
-                combined_result = combined_result.sort_values(
-                    self.y_column, ascending=False
-                )
-        elif sort_order == SortOrder.ASCENDING:
-            combined_result = combined_result.groupby(
-                group_cols, group_keys=False
-            ).apply(lambda df: df.sort_values(self.y_column))
-        else:
-            combined_result = combined_result.groupby(
-                group_cols, group_keys=False
-            ).apply(lambda df: df.sort_values(self.y_column, ascending=False))
-        return combined_result
+        return self._sort_combined_result(combined_result, group_cols, sort_order)
 
     def combine_results(
         self,
@@ -266,7 +257,7 @@ class Result(DimcatResource):
         if smallest_unit == UnitOfAnalysis.SLICE:
             but_last = 2 if self.has_distinct_formatted_column else 1
             return self.get_level_names()[:-but_last]
-        if smallest_unit in (UnitOfAnalysis.PIECE, UnitOfAnalysis.SLICE):
+        if smallest_unit == UnitOfAnalysis.PIECE:
             return self.get_piece_index(max_levels=0).names
         if smallest_unit == UnitOfAnalysis.GROUP:
             return self.get_default_groupby()
@@ -546,7 +537,7 @@ class Result(DimcatResource):
         ] = SortOrder.DESCENDING,
         top_k=50,
         drop_cols: Optional[str | Iterable[str]] = None,
-    ):
+    ) -> D:
         """Sorts the values
 
         Args:
@@ -729,6 +720,29 @@ class Result(DimcatResource):
                 f"coloring."
             )
         return group_modes
+
+    def _sort_combined_result(
+        self,
+        combined_result: D,
+        group_cols: List[str],
+        sort_order: Optional[SortOrder] = SortOrder.NONE,
+    ):
+        if sort_order is None or sort_order == SortOrder.NONE:
+            return combined_result
+        if not group_cols:
+            # no grouping required
+            if sort_order == SortOrder.ASCENDING:
+                return combined_result.sort_values(self.y_column)
+            else:
+                return combined_result.sort_values(self.y_column, ascending=False)
+        if sort_order == SortOrder.ASCENDING:
+            return combined_result.groupby(group_cols, group_keys=False).apply(
+                lambda df: df.sort_values(self.y_column)
+            )
+        else:
+            return combined_result.groupby(group_cols, group_keys=False).apply(
+                lambda df: df.sort_values(self.y_column, ascending=False)
+            )
 
 
 class Counts(Result):

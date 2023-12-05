@@ -954,7 +954,7 @@ DimcatResource.__init__(
         smallest_unit = UnitOfAnalysis(smallest_unit)
         if smallest_unit == UnitOfAnalysis.SLICE:
             return self.get_level_names()[:-1]
-        if smallest_unit in (UnitOfAnalysis.PIECE, UnitOfAnalysis.SLICE):
+        if smallest_unit == UnitOfAnalysis.PIECE:
             return self.get_piece_index(max_levels=0).names
         if smallest_unit == UnitOfAnalysis.GROUP:
             return self.get_default_groupby()
