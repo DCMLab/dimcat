@@ -178,8 +178,10 @@ class Result(DimcatResource):
 
     def _combine_results(
         self,
-        group_cols: Optional[str | Iterable[str]] = None,
-        sort_order: Optional[SortOrder] = SortOrder.NONE,
+        group_cols: Optional[
+            UnitOfAnalysis | str | Iterable[str]
+        ] = UnitOfAnalysis.GROUP,
+        sort_order: Optional[SortOrder] = SortOrder.DESCENDING,
     ) -> D:
         """Aggregate results for each group, typically by summing up and normalizing the values. By default,
         the groups correspond to those that had been applied to the analyzed resource. If no Groupers had been
@@ -229,8 +231,10 @@ class Result(DimcatResource):
 
     def combine_results(
         self,
-        group_cols: Optional[str | Iterable[str]] = None,
-        sort_order: Optional[SortOrder] = SortOrder.NONE,
+        group_cols: Optional[
+            UnitOfAnalysis | str | Iterable[str]
+        ] = UnitOfAnalysis.GROUP,
+        sort_order: Optional[SortOrder] = SortOrder.DESCENDING,
     ) -> Self:
         """Aggregate results for each group, typically by summing up and normalizing the values. By default,
         the groups correspond to those that had been applied to the analyzed resource. If no Groupers had been
@@ -535,7 +539,9 @@ class Result(DimcatResource):
 
     def make_ranking_table(
         self,
-        group_cols: Optional[str | Iterable[str]] = None,
+        group_cols: Optional[
+            UnitOfAnalysis | str | Iterable[str]
+        ] = UnitOfAnalysis.GROUP,
         sort_column=None,
         sort_order: Literal[
             SortOrder.DESCENDING, SortOrder.ASCENDING
@@ -636,7 +642,9 @@ class Result(DimcatResource):
 
     def plot_grouped(
         self,
-        group_cols: Optional[str | Iterable[str]] = None,
+        group_cols: Optional[
+            UnitOfAnalysis | str | Iterable[str]
+        ] = UnitOfAnalysis.GROUP,
         group_modes: Optional[GroupMode | Iterable[GroupMode]] = None,
         title: Optional[str] = None,
         labels: Optional[dict] = None,
@@ -696,13 +704,20 @@ class Result(DimcatResource):
                 **kwargs,
             )
 
-    def _resolve_group_cols_arg(self, group_cols):
-        if group_cols is None:
-            groupby = self.get_default_groupby()
-        elif not group_cols:
+    def _resolve_group_cols_arg(
+        self, group_cols: Optional[UnitOfAnalysis | str | Iterable[str]]
+    ):
+        if not group_cols:
             groupby = []
         elif isinstance(group_cols, str):
-            groupby = [group_cols]
+            try:
+                u_o_a = UnitOfAnalysis(group_cols)
+            except ValueError:
+                u_o_a = None
+            if u_o_a is None:
+                groupby = [group_cols]
+            else:
+                groupby = self.get_grouping_levels(u_o_a)
         else:
             groupby = list(group_cols)
         return groupby
@@ -794,7 +809,9 @@ class CadenceCounts(Counts):
 
     def plot_grouped(
         self,
-        group_cols: Optional[str | Iterable[str]] = None,
+        group_cols: Optional[
+            UnitOfAnalysis | str | Iterable[str]
+        ] = UnitOfAnalysis.GROUP,
         group_modes: Optional[GroupMode | Iterable[GroupMode]] = None,
         title: Optional[str] = None,
         labels: Optional[dict] = None,
@@ -860,7 +877,7 @@ class NgramTable(Result):
         split: int = -1,
         join_str: Optional[str | bool] = None,
         fillna: Optional[Hashable] = None,
-        group_cols: Optional[str | Iterable[str]] = None,
+        group_cols: Optional[str | Iterable[str]] = UnitOfAnalysis.GROUP,
     ) -> D:
         """Get a Series that counts for each context the number of transitions to each possible following element.
 
@@ -896,12 +913,7 @@ class NgramTable(Result):
             join_str=join_str,
             fillna=fillna,
         )
-        if not group_cols:
-            group_cols = self.get_grouping_levels()
-        elif isinstance(group_cols, str):
-            group_cols = [group_cols]
-        else:
-            group_cols = list(group_cols)
+        group_cols = self._resolve_group_cols_arg(group_cols)
         if len(group_cols) == 0 or not group_cols[-1] == "a":
             group_cols.append("a")
         gpb = bigrams.groupby(group_cols).b
@@ -917,6 +929,9 @@ class NgramTable(Result):
         join_str: Optional[str | bool] = None,
         fillna: Optional[Hashable] = None,
         feature_columns: Optional[List[str, str]] = None,
+        group_cols: Optional[
+            UnitOfAnalysis | str | Iterable[str]
+        ] = UnitOfAnalysis.GROUP,
     ) -> Transitions:
         """Get a Series that counts for each context the number of transitions to each possible following element.
 
@@ -947,6 +962,7 @@ class NgramTable(Result):
             split=split,
             join_str=join_str,
             fillna=fillna,
+            group_cols=group_cols,
         )
         level_names = dict(zip(("a", "b"), feature_columns))
         transitions.index.set_names(level_names, inplace=True)
@@ -1190,7 +1206,9 @@ class NgramTable(Result):
 
     def make_ranking_table(
         self,
-        group_cols: Optional[str | Iterable[str]] = None,
+        group_cols: Optional[
+            UnitOfAnalysis | str | Iterable[str]
+        ] = UnitOfAnalysis.GROUP,
         sort_column: Optional[str | Tuple[str]] = None,
         sort_order: Literal[
             SortOrder.DESCENDING, SortOrder.ASCENDING
@@ -1274,7 +1292,9 @@ class NgramTuples(Result):
 
     def make_ranking_table(
         self,
-        group_cols: Optional[str | Iterable[str]] = None,
+        group_cols: Optional[
+            UnitOfAnalysis | str | Iterable[str]
+        ] = UnitOfAnalysis.GROUP,
         sort_column=None,
         sort_order: Literal[
             SortOrder.DESCENDING, SortOrder.ASCENDING
@@ -1346,7 +1366,9 @@ class Transitions(Result):
 
     def _combine_results(
         self,
-        group_cols: Optional[str | Iterable[str]] = None,
+        group_cols: Optional[
+            UnitOfAnalysis | str | Iterable[str]
+        ] = UnitOfAnalysis.GROUP,
         sort_order: Optional[SortOrder] = SortOrder.DESCENDING,
     ) -> D:
         """Aggregate results for each group, typically by summing up and normalizing the values. By default,
@@ -1497,7 +1519,9 @@ class Transitions(Result):
 
     def plot_grouped(
         self,
-        group_cols: Optional[str | Iterable[str]] = None,
+        group_cols: Optional[
+            UnitOfAnalysis | str | Iterable[str]
+        ] = UnitOfAnalysis.GROUP,
         group_modes: Optional[GroupMode | Iterable[GroupMode]] = None,
         title: Optional[str] = None,
         labels: Optional[dict] = None,
