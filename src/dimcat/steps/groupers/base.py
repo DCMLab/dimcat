@@ -19,6 +19,8 @@ from dimcat.dc_exceptions import (
     DatasetNotProcessableError,
     GrouperNotSetUpError,
     ResourceAlreadyTransformed,
+    ResourceIsMissingCorpusIndexError,
+    ResourceIsMissingPieceIndexError,
 )
 from dimcat.steps.base import ResourceTransformation
 from dimcat.utils import check_name
@@ -78,18 +80,36 @@ class _IdGrouper(Grouper):
     present in all Facets and Features.
     """
 
+    def transform_resource(self, resource: DimcatResource) -> D:
+        """Apply the grouper to a Feature."""
+        level_names = resource.get_level_names()
+        if level_names[0] != self.level_name:
+            level_names.remove(self.level_name)
+            level_names = [self.level_name] + level_names
+            return resource.df.reorder_levels(level_names)
+        else:
+            return resource.df
+
     def _process_resource(self, resource: Resource) -> Resource:
         """Apply this PipelineStep to a :class:`Resource` and return a copy containing the output(s)."""
         resource = self._pre_process_resource(resource)
-        if self.level_name not in resource.get_level_names():
+        level_names = resource.get_level_names()
+        if level_names[0] != self.level_name:
             result = self._make_new_resource(resource)
         else:
-            result = resource
+            result = resource.copy()
         return self._post_process_result(result, resource)
 
 
 class CorpusGrouper(_IdGrouper):
     """Results will be grouped by the 'corpus' part of the ('corpus', 'piece') index."""
+
+    def check_resource(self, resource: DimcatResource) -> None:
+        super().check_resource(resource)
+        if self.level_name not in resource.get_level_names():
+            raise ResourceIsMissingCorpusIndexError(
+                resource.resource_name, self.level_name
+            )
 
     def __init__(self, level_name: str = "corpus", **kwargs):
         super().__init__(level_name=level_name, **kwargs)
@@ -97,6 +117,13 @@ class CorpusGrouper(_IdGrouper):
 
 class PieceGrouper(_IdGrouper):
     """Results will be grouped by the 'piece' part of the ('corpus', 'piece') index."""
+
+    def check_resource(self, resource: DimcatResource) -> None:
+        super().check_resource(resource)
+        if self.level_name not in resource.get_level_names():
+            raise ResourceIsMissingPieceIndexError(
+                resource.resource_name, self.level_name
+            )
 
     def __init__(self, level_name: str = "piece", **kwargs):
         super().__init__(level_name=level_name, **kwargs)

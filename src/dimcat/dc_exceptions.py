@@ -357,6 +357,17 @@ class ResourceDescriptorHasWrongTypeError(DimcatError):
     }
 
 
+class ResourceIsMissingCorpusIndexError(DimcatError):
+    """optional args: (resource_name,)"""
+
+    nargs2message = {
+        0: "The resource is missing a corpus index level.",
+        1: lambda name: f"Resource {name!r} is missing a corpus index level.",
+        2: lambda name, name_of_missing: f"Resource {name!r} is missing a corpus index level, "
+        f"a column named {name_of_missing!r} could not be detected.",
+    }
+
+
 class ResourceIsMissingPieceIndexError(DimcatError):
     """optional args: (resource_name, name_of_missing)"""
 
