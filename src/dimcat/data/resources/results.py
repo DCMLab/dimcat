@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from functools import cache, cached_property
 from itertools import product
-from typing import ClassVar, Hashable, Iterable, List, Literal, Optional, Tuple
+from typing import ClassVar, Dict, Hashable, Iterable, List, Literal, Optional, Tuple
 
 import frictionless as fl
 import marshmallow as mm
@@ -14,16 +14,20 @@ from dimcat.plotting import (
     GroupMode,
     make_bar_plot,
     make_bubble_plot,
+    make_heatmap,
     make_lof_bar_plot,
     make_lof_bubble_plot,
     make_pie_chart,
     make_transition_heatmap_plots,
+    update_figure_layout,
     update_plot_grouping_settings,
+    write_image,
 )
 from dimcat.utils import SortOrder
 from matplotlib import pyplot as plt
 from matplotlib.figure import Figure as MatplotlibFigure
 from plotly import graph_objs as go
+from plotly.subplots import make_subplots
 from typing_extensions import Self
 
 from .base import D
@@ -1398,6 +1402,154 @@ class Transitions(Result):
         if smallest_unit == UnitOfAnalysis.GROUP:
             return self.get_default_groupby()
 
+    def make_heatmap(
+        self,
+        df: Optional[D] = None,
+        max_x: Optional[int] = None,
+        max_y: Optional[int] = None,
+        x_title: Optional[str] = "consequent",
+        y_title: Optional[str] = "antecedent",
+        facet_row: Optional[str] = None,
+        facet_col: Optional[str] = None,
+        column_colorscales: Optional[List[str] | Dict[str, str]] = None,
+        title: Optional[str] = None,
+        labels: Optional[dict] = None,
+        hover_data: Optional[List[str]] = None,
+        height: Optional[int] = None,
+        width: Optional[int] = None,
+        layout: Optional[dict] = None,
+        font_size: Optional[int] = None,
+        x_axis: Optional[dict] = None,
+        y_axis: Optional[dict] = None,
+        color_axis: Optional[dict] = None,
+        traces_settings: Optional[dict] = None,
+        output: Optional[str] = None,
+        **kwargs,
+    ):
+        if df is None:
+            df = self.df
+        if labels is not None:
+            raise NotImplementedError(
+                "Changing labels not implemented for heatmaps. You can use x_title and y_title or pass a dict with a "
+                "'hovertemplate' to traces_settings, or a dict with 'title_text' to x_axis or y_axis."
+            )
+        if hover_data is not None:
+            raise NotImplementedError(
+                "Including more hover_data not implemented for heatmaps."
+            )
+
+        return make_heatmaps_from_transitions(
+            df,
+            max_x=max_x,
+            max_y=max_y,
+            x_title=x_title,
+            y_title=y_title,
+            facet_row=facet_row,
+            facet_col=facet_col,
+            column_colorscales=column_colorscales,
+            title=title,
+            # labels=labels,
+            # hover_data=hover_data,
+            height=height,
+            width=width,
+            layout=layout,
+            font_size=font_size,
+            x_axis=x_axis,
+            y_axis=y_axis,
+            color_axis=color_axis,
+            traces_settings=traces_settings,
+            output=output,
+        )
+
+    def plot(
+        self,
+        title: Optional[str] = None,
+        labels: Optional[dict] = None,
+        hover_data: Optional[List[str]] = None,
+        height: Optional[int] = None,
+        width: Optional[int] = None,
+        layout: Optional[dict] = None,
+        font_size: Optional[int] = None,
+        x_axis: Optional[dict] = None,
+        y_axis: Optional[dict] = None,
+        color_axis: Optional[dict] = None,
+        traces_settings: Optional[dict] = None,
+        output: Optional[str] = None,
+        **kwargs,
+    ) -> go.Figure:
+        df = self._combine_results(group_cols=None)
+        return self.make_heatmap(
+            df=df,
+            title=title,
+            labels=labels,
+            hover_data=hover_data,
+            height=height,
+            width=width,
+            layout=layout,
+            font_size=font_size,
+            x_axis=x_axis,
+            y_axis=y_axis,
+            color_axis=color_axis,
+            traces_settings=traces_settings,
+            output=output,
+            **kwargs,
+        )
+
+    def plot_grouped(
+        self,
+        group_cols: Optional[str | Iterable[str]] = None,
+        group_modes: Optional[GroupMode | Iterable[GroupMode]] = None,
+        title: Optional[str] = None,
+        labels: Optional[dict] = None,
+        hover_data: Optional[List[str]] = None,
+        height: Optional[int] = None,
+        width: Optional[int] = None,
+        layout: Optional[dict] = None,
+        font_size: Optional[int] = None,
+        x_axis: Optional[dict] = None,
+        y_axis: Optional[dict] = None,
+        color_axis: Optional[dict] = None,
+        traces_settings: Optional[dict] = None,
+        output: Optional[str] = None,
+        **kwargs,
+    ) -> go.Figure:
+        group_cols = self._resolve_group_cols_arg(group_cols)
+
+        facet_row, facet_col, column_colorscales = None, None, None
+        if not group_cols:
+            pass
+        elif len(group_cols) == 1:
+            facet_row = group_cols[0]
+        elif len(group_cols) == 2:
+            if group_cols[0] == "mode":
+                facet_col, facet_row = group_cols
+            else:
+                facet_row, facet_col = group_cols
+            if facet_col == "mode" and column_colorscales is None:
+                column_colorscales = dict(major="Blues", minor="Reds")
+        else:
+            raise NotImplementedError(
+                f"Cannot show heatmaps for more than two groupings: {group_cols!r}"
+            )
+        return self.make_heatmap(
+            facet_row=facet_row,
+            facet_col=facet_col,
+            column_colorscales=column_colorscales,
+            title=title,
+            labels=labels,
+            hover_data=hover_data,
+            height=height,
+            width=width,
+            layout=layout,
+            font_size=font_size,
+            x_axis=x_axis,
+            y_axis=y_axis,
+            color_axis=color_axis,
+            traces_settings=traces_settings,
+            output=output,
+            **kwargs,
+        )
+
     def _sort_combined_result(
         self,
         combined_result: D,
@@ -1437,3 +1589,206 @@ class Transitions(Result):
             result = sort_transitions(combined_result)
         proportion_str = turn_proportions_into_percentage_strings(result.proportion)
         return pd.concat([result, proportion_str], axis=1)
+
+
+def prepare_transitions(
+    df: D, max_x: Optional[int] = None, max_y: Optional[int] = None
+) -> Tuple[D, D, D]:
+    make_subset = (max_x is not None) or (max_y is not None)
+    x_slice = slice(None) if max_x is None else slice(None, max_x)
+    y_slice = slice(None) if max_y is None else slice(None, max_y)
+    counts = df["count"].unstack(sort=False)
+    proportions = df["proportion"].unstack(sort=False)
+    proportions_str = df["proportion_%"].unstack(sort=False)
+    if make_subset:
+        counts = counts.iloc[y_slice, x_slice]
+        proportions = proportions.iloc[y_slice, x_slice]
+        proportions_str = proportions_str.iloc[y_slice, x_slice]
+    return proportions, counts, proportions_str
+
+
+def make_heatmaps_from_transitions(
+    transitions_df: D,
+    max_x: Optional[int] = None,
+    max_y: Optional[int] = None,
+    x_title: Optional[str] = "consequent",
+    y_title: Optional[str] = "antecedent",
+    facet_col: Optional[str] = None,
+    facet_row: Optional[str] = None,
+    column_colorscales: Optional[List[str] | Dict[str, str]] = None,
+    title: Optional[str] = None,
+    # labels: Optional[dict] = None,
+    # hover_data: Optional[List[str]] = None,
+    height: Optional[int] = None,
+    width: Optional[int] = None,
+    layout: Optional[dict] = None,
+    font_size: Optional[int] = None,
+    x_axis: Optional[dict] = None,
+    y_axis: Optional[dict] = None,
+    color_axis: Optional[dict] = None,
+    traces_settings: Optional[dict] = None,
+    output: Optional[str] = None,
+) -> go.Figure:
+    groupby = []
+    make_facet_rows = facet_row is not None
+    make_facet_cols = facet_col is not None
+    if make_facet_rows:
+        groupby.append(facet_row)
+    if make_facet_cols:
+        groupby.append(facet_col)
+    figure_layout = dict()
+    if title:
+        figure_layout["title_text"] = title
+    if height:
+        figure_layout["height"] = height
+    if width:
+        figure_layout["width"] = width
+    xaxis_settings = dict(scaleanchor="y", constrain="domain")
+    yaxis_settings = dict(scaleanchor="x", constrain="domain", autorange="reversed")
+    if x_axis:
+        xaxis_settings.update(x_axis)
+    if y_axis:
+        yaxis_settings.update(y_axis)
+
+    hovertemplate = (
+        f"{y_title}: <b>%{{y}}</b><br>"
+        f"{x_title}: <b>%{{x}}</b><br>"
+        f"proportion: <b>%{{text}}</b><br>"
+        f"count: <b>%{{customdata}}</b><br>"
+    )
+    texttemplate = "%{text}"
+    traces_update = dict(hovertemplate=hovertemplate, texttemplate=texttemplate)
+    if traces_settings:
+        traces_update.update(traces_settings)
+
+    if not groupby:
+        proportions, counts, proportions_str = prepare_transitions(
+            transitions_df, max_x=max_x, max_y=max_y
+        )
+        fig = go.Figure(
+            data=make_heatmap(
+                proportions, customdata=counts, text=proportions_str, name="Transition"
+            )
+        )
+        update_figure_layout(
+            fig=fig,
+            layout=layout,
+            font_size=font_size,
+            x_axis=xaxis_settings,
+            y_axis=yaxis_settings,
+            color_axis=color_axis,
+            traces_settings=traces_update,
+        )
+        if output:
+            write_image(fig=fig, filename=output, width=width, height=height)
+        return fig
+
+    facet_row_names, facet_col_names = [], []
+    group2row_col = {}
+    group2data, group2customdata, group2text = {}, {}, {}
+
+    def _update_facet_names(row_name=None, col_name=None) -> Tuple[int, int]:
+        if row_name is not None:
+            if row_name in facet_row_names:
+                row = facet_row_names.index(row_name) + 1
+            else:
+                facet_row_names.append(row_name)
+                row = len(facet_row_names)
+        else:
+            row = 1
+        if col_name is not None:
+            if col_name in facet_col_names:
+                col = facet_col_names.index(col_name) + 1
+            else:
+                facet_col_names.append(col_name)
+                col = len(facet_col_names)
+        else:
+            col = 1
+        return row, col
+
+    def update_facet_names(group):
+        if make_facet_rows and make_facet_cols:
+            row_name, col_name = group
+            row, col = _update_facet_names(row_name, col_name)
+        elif make_facet_rows:
+            row, col = _update_facet_names(row_name=group)
+        elif make_facet_cols:
+            row, col = _update_facet_names(col_name=group)
+        else:
+            raise RuntimeError("Shouldn't have reached here.")
+        group2row_col[group] = row, col
+
+    # prepare the transition data
+    for group, group_df in transitions_df.groupby(groupby, group_keys=False):
+        proportions, counts, proportions_str = prepare_transitions(
+            group_df, max_x=max_x, max_y=max_y
+        )
+        group2data[group] = proportions
+        group2customdata[group] = counts
+        group2text[group] = proportions_str
+        update_facet_names(group)
+
+    colorscale_list = []
+    if column_colorscales is not None:
+        if isinstance(column_colorscales, list):
+            assert len(column_colorscales) >= len(facet_col_names), (
+                f"length of column_colorscales ({len(column_colorscales)}) needs to be at least the number of columns "
+                f"({len(facet_row_names)})."
+            )
+            colorscale_list = column_colorscales
+        elif isinstance(column_colorscales, dict):
+            if make_facet_cols:
+                for col_name in facet_col_names:
+                    if col_name not in column_colorscales:
+                        print(f"No colorscale defined for group {col_name}.")
+                        colorscale_list.append(None)
+                    else:
+                        colorscale_list.append(column_colorscales[col_name])
+            else:
+                print("facet_colorscales has no effect if facet_col is False")
+        else:
+            raise TypeError(
+                f"Expected list or dict for column_colorscales, got {type(column_colorscales)}"
+            )
+
+    # make subplots figure
+    n_rows = max(1, len(facet_row_names))
+    n_cols = max(1, len(facet_col_names))
+    row_titles = facet_row_names if make_facet_rows else None
+    col_titles = facet_col_names if make_facet_cols else None
+    fig = make_subplots(
+        rows=n_rows,
+        cols=n_cols,
+        row_titles=row_titles,
+        column_titles=col_titles,
+        x_title=x_title,
+        y_title=y_title,
+    )
+
+    # populate figure with heatmaps
+    for group, proportions in group2data.items():
+        row, col = group2row_col[group]
+        if colorscale_list:
+            colorscale = colorscale_list[col - 1]
+        else:
+            colorscale = "Blues"
+        heatmap = make_heatmap(
+            proportions=proportions,
+            customdata=group2customdata[group],
+            text=group2text[group],
+            colorscale=colorscale,
+            name=group,
+        )
+        fig.add_trace(heatmap, row, col)
+    update_figure_layout(
+        fig=fig,
+        layout=layout,
+        font_size=font_size,
+        x_axis=xaxis_settings,
+        y_axis=yaxis_settings,
+        color_axis=color_axis,
+        traces_settings=traces_update,
+    )
+    if output:
+        write_image(fig=fig, filename=output, width=width, height=height)
+    return fig

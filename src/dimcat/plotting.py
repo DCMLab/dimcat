@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any, Callable, Iterable, List, Optional, Tuple
+from typing import Any, Callable, Iterable, List, Literal, Optional, Tuple, TypeAlias
 
 import colorlover
 import ms3
@@ -17,6 +17,7 @@ from matplotlib import pyplot as plt
 from matplotlib.figure import Figure as MatplotlibFigure
 from plotly import express as px
 from plotly import graph_objects as go
+from plotly.validators.heatmap import ColorscaleValidator
 from scipy.stats import entropy
 
 AVAILABLE_FIGURE_FORMATS: Tuple[str, ...] = PlotlyScope._all_formats
@@ -26,6 +27,10 @@ CADENCE_COLORS = dict(
     zip(("HC", "PAC", "PC", "IAC", "DC", "EC"), colorlover.scales["6"]["qual"]["Set1"])
 )
 """Fixed category colors for cadence labels."""
+
+PLOTLY_COLOR_SCALES = ColorscaleValidator().named_colorscales
+COLOR_SCALE_NAMES: List[str] = sorted(PLOTLY_COLOR_SCALES.keys())
+CS: TypeAlias = Literal[tuple(COLOR_SCALE_NAMES)]
 
 
 logger = logging.getLogger(__name__)
@@ -302,7 +307,7 @@ def make_bubble_plot(
         y_col:
     """
     df = df.reset_index()
-    xaxis_settings, yaxis_settings = dict(X_AXIS), dict(Y_AXIS)
+    xaxis_settings, yaxis_settings = dict(), dict()
     yaxis_settings["autorange"] = "reversed"
     figure_layout = dict(height=height, width=width)
     if layout is not None:
@@ -346,6 +351,30 @@ def make_bubble_plot(
         size=dimension_column,
         **kwargs,
     )
+
+
+def make_heatmap(
+    proportions: pd.DataFrame,
+    customdata: Optional[pd.DataFrame] = None,
+    text: Optional[pd.DataFrame] = None,
+    colorscale: CS = "Blues",
+    name: Optional[str | Iterable[str]] = None,
+    # **kwargs
+):
+    if name is not None and not isinstance(name, str):
+        name = ", ".join(str(e) for e in name)
+    heatmap = go.Heatmap(
+        x=proportions.columns,
+        y=proportions.index.get_level_values("antecedent"),
+        z=proportions,
+        customdata=customdata,
+        text=text,
+        colorscale=colorscale,
+        showscale=False,
+        name=name,
+        # **kwargs
+    )
+    return heatmap
 
 
 def make_lof_bar_plot(
@@ -898,12 +927,12 @@ def update_figure_layout(
     if font_size is not None:
         figure_layout["font"] = dict(size=font_size)
     fig.update_layout(**figure_layout)
-    xaxis_settings = dict(Y_AXIS)
+    xaxis_settings = dict(X_AXIS)
     if x_axis is not None:
         xaxis_settings.update(x_axis)
     fig.update_xaxes(**xaxis_settings)
 
-    yaxis_settings = dict(X_AXIS)
+    yaxis_settings = dict(Y_AXIS)
     if y_axis is not None:
         yaxis_settings.update(y_axis)
     fig.update_yaxes(**yaxis_settings)
