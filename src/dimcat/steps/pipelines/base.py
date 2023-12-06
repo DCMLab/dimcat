@@ -113,7 +113,7 @@ class Pipeline(PipelineStep):
         for step in pipeline_steps:
             previous_resource = processed_resource
             try:
-                processed_resource = step._process_resource(previous_resource)
+                processed_resource = step.process_resource(previous_resource)
             except Exception as e:
                 if ignore_exceptions:
                     self.logger.info(
