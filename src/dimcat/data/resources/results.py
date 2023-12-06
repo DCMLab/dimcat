@@ -18,14 +18,11 @@ from dimcat.plotting import (
     make_lof_bar_plot,
     make_lof_bubble_plot,
     make_pie_chart,
-    make_transition_heatmap_plots,
     update_figure_layout,
     update_plot_grouping_settings,
     write_image,
 )
 from dimcat.utils import SortOrder
-from matplotlib import pyplot as plt
-from matplotlib.figure import Figure as MatplotlibFigure
 from plotly import graph_objs as go
 from plotly.subplots import make_subplots
 from typing_extensions import Self
@@ -1230,8 +1227,38 @@ class NgramTable(Result):
             drop_cols=drop_cols,
         )
 
-    def plot(self):
-        raise NotImplementedError
+    def plot(
+        self,
+        title: Optional[str] = None,
+        labels: Optional[dict] = None,
+        hover_data: Optional[List[str]] = None,
+        height: Optional[int] = None,
+        width: Optional[int] = None,
+        layout: Optional[dict] = None,
+        font_size: Optional[int] = None,
+        x_axis: Optional[dict] = None,
+        y_axis: Optional[dict] = None,
+        color_axis: Optional[dict] = None,
+        traces_settings: Optional[dict] = None,
+        output: Optional[str] = None,
+        **kwargs,
+    ) -> go.Figure:
+        transitions = self.get_transitions(join_str=True, group_cols=None)
+        return transitions.plot(
+            title=title,
+            labels=labels,
+            hover_data=hover_data,
+            height=height,
+            width=width,
+            layout=layout,
+            font_size=font_size,
+            x_axis=x_axis,
+            y_axis=y_axis,
+            color_axis=color_axis,
+            traces_settings=traces_settings,
+            output=output,
+            **kwargs,
+        )
 
     def plot_grouped(
         self,
@@ -1248,43 +1275,26 @@ class NgramTable(Result):
         traces_settings: Optional[dict] = None,
         output: Optional[str] = None,
         **kwargs,
-    ) -> MatplotlibFigure:
-        """The arguments are currently ignored because the heatmaps have not been implemented in Plotly yet."""
-        transitions = self.get_transitions(self.x_column, as_string=True)
-        transition_matrix = transitions.proportion.unstack(fill_value=0.0)
-        unigram_stats = (
-            transitions.groupby("a", sort=False)["count"]
-            .sum()
-            .sort_values(ascending=False)
+    ) -> go.Figure:
+        transitions = self.get_transitions(
+            join_str=True,
+            group_cols=UnitOfAnalysis.GROUP,
         )
-        unigram_stats /= unigram_stats.sum()
-
-        def sort_by_prevalence(index):
-            missing = index.difference(unigram_stats.index)
-            if len(missing) > 0:
-                highest = unigram_stats.max()
-                shared = index.intersection(unigram_stats.index)
-                result = unigram_stats.loc[shared].reindex(
-                    index, fill_value=highest + 1
-                )
-            else:
-                result = unigram_stats.loc[index]
-            return pd.Index(result.values, name=index.name)
-
-        transition_matrix = (
-            transition_matrix.sort_index(
-                key=sort_by_prevalence, ascending=False
-            ).sort_index(axis=1, key=sort_by_prevalence, ascending=False)
-        ) * 100
-        fig = make_transition_heatmap_plots(
-            left_transition_matrix=transition_matrix,
-            left_unigrams=unigram_stats,
-            frequencies=True,
-            fontsize=font_size,
+        return transitions.plot_grouped(
+            title=title,
+            labels=labels,
+            hover_data=hover_data,
+            height=height,
+            width=width,
+            layout=layout,
+            font_size=font_size,
+            x_axis=x_axis,
+            y_axis=y_axis,
+            color_axis=color_axis,
+            traces_settings=traces_settings,
+            output=output,
+            **kwargs,
         )
-        if output is not None:
-            plt.savefig(output, dpi=400)
-        return fig
 
 
 class NgramTuples(Result):
