@@ -657,8 +657,7 @@ class Result(DimcatResource):
         output: Optional[str] = None,
         **kwargs,
     ) -> go.Figure:
-        if group_cols is None:
-            group_cols = self.get_default_groupby()
+        group_cols = self._resolve_group_cols_arg(group_cols)
         combined_result = self._combine_results(group_cols=group_cols)
         if not group_cols:
             return self.make_bar_plot(
@@ -824,8 +823,7 @@ class CadenceCounts(Counts):
         output: Optional[str] = None,
         **kwargs,
     ) -> go.Figure:
-        if group_cols is None:
-            group_cols = self.get_default_groupby()
+        group_cols = self._resolve_group_cols_arg(group_cols)
         combined_result = self._combine_results(group_cols=group_cols)
         return self.make_pie_chart(
             df=combined_result,
