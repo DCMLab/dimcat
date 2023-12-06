@@ -1,9 +1,10 @@
 import os
 from pathlib import Path
 
-from dimcat import Dataset, DimcatConfig
+from dimcat import Dataset
 from dimcat.data import resources
 from dimcat.steps import groupers
+from dimcat.utils import resolve_path
 
 
 def resource_names(path):
@@ -11,9 +12,15 @@ def resource_names(path):
 
 
 def load_dcml_corpora():
-    global D
     here = Path(__file__).parent
     package_path = here / ".." / "docs" / "manual" / "dcml_corpora.datapackage.json"
+    return Dataset.from_package(package_path)
+
+
+def load_distant_listening_corpus():
+    package_path = resolve_path(
+        "~/distant_listening_corpus/distant_listening_corpus.datapackage.json"
+    )
     return Dataset.from_package(package_path)
 
 
@@ -24,9 +31,5 @@ def make_grouper(D):
 
 
 if __name__ == "__main__":
-    c = DimcatConfig(dtype="Counter", features=dict(dtype="notes", format="banana"))
-    D = load_dcml_corpora()
-    grouper = make_grouper(D)
-    analyzed_dataset = D.apply_steps([grouper, dict(dtype="Counter", features="notes")])
-    result = analyzed_dataset.get_result()
-    assert result.get_default_groupby()
+    D = load_distant_listening_corpus()
+    feature = D.get_feature("keyannotations")
