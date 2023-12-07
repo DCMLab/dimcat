@@ -52,13 +52,20 @@ FALSY_VALUES = Boolean.falsy
 
 
 def align_with_grouping(
-    df: pd.DataFrame, grouping: pd.MultiIndex, sort_index: bool = True
+    df: pd.DataFrame, grouping: DimcatIndex | pd.MultiIndex, sort_index: bool = True
 ) -> pd.DataFrame:
     """Aligns a dataframe with a grouping index that has n levels such that the index levels of the  new dataframe
     start with the n levels of the grouping index and are followed by the remaining levels of the original dataframe.
     This is typically used to align a dataframe with feature information for many pieces with an index grouping
     piece names.
     """
+    if not isinstance(grouping, pd.MultiIndex):
+        if is_instance_of(grouping, "DimcatIndex"):
+            grouping = grouping.index
+        else:
+            raise TypeError(
+                f"Expected a MultiIndex or DimcatIndex, not {type(grouping)}"
+            )
     df_levels = list(df.index.names)
     gr_levels = grouping.names
     if "piece" in gr_levels and "piece" not in df_levels:

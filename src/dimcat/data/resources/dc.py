@@ -714,8 +714,6 @@ DimcatResource.__init__(
         ["<grouping_name>", "corpus", "piece"] and the result will be aligned such that every group contains the
         resource's sub-dataframes for the included pieces.
         """
-        if isinstance(grouping, DimcatIndex):
-            grouping = grouping.index
         if self.is_empty:
             self.logger.warning(f"Resource {self.name} is empty.")
             return pd.DataFrame(index=grouping)
