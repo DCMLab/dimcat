@@ -151,7 +151,7 @@ class DimcatResource(Resource, Generic[D]):
     creating the resource, any row containing a missing value in one of the feature columns is dropped."""
     # endregion column name class variables
     # region associated object types
-    _default_analyzer: ClassVar[str] = "Proportions"
+    _default_analyzer: ClassVar[StepSpecs] = "Proportions"
     """Name of the Analyzer that is used by default for plotting the resource. Needs to return a :obj:`Result`."""
     _extractable_features: ClassVar[Optional[Tuple[FeatureName, ...]]] = None
     """Tuple of :obj:`FeatureNames <FeatureName>` corresponding to the features that can be extracted from this

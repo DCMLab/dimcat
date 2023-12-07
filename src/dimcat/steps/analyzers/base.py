@@ -40,7 +40,7 @@ class Analyzer(FeatureProcessingStep):
     The base class performs no analysis, instantiating it serves mere testing purpose.
     """
 
-    _dimension_column_name: ClassVar[Optional[str]] = None
+    _default_dimension_column: ClassVar[Optional[str]] = None
     """Name of a column, contained in the Results produced by this analyzer, containing some dimension,
     e.g. one to be interpreted as quantity (durations, counts, etc.) or as color."""
     _enum_type: ClassVar[Type[Enum]] = AnalyzerName
@@ -140,14 +140,32 @@ class Analyzer(FeatureProcessingStep):
         features: Optional[FeatureSpecs | Iterable[FeatureSpecs]] = None,
         strategy: DispatchStrategy = DispatchStrategy.GROUPBY_APPLY,
         smallest_unit: UnitOfAnalysis = UnitOfAnalysis.SLICE,
-        fill_na: Any = None,
+        dimension_column: str = None,
     ):
         super().__init__(features=features)
         self._strategy: DispatchStrategy = None
         self.strategy = strategy
         self._smallest_unit: UnitOfAnalysis = None
         self.smallest_unit = smallest_unit
-        self.fill_na: Any = fill_na
+        self._dimension_column = None
+        self.dimension_column = dimension_column
+
+    @property
+    def dimension_column(self) -> Optional[str]:
+        """Name of a column, contained in the Results produced by this analyzer, containing some dimension,
+        e.g. one to be interpreted as quantity (durations, counts, etc.) or as color."""
+        return self._dimension_column
+
+    @dimension_column.setter
+    def dimension_column(self, dimension_column: Optional[str]):
+        if dimension_column is None:
+            self._dimension_column = self._default_dimension_column
+            return
+        if not isinstance(dimension_column, str):
+            raise TypeError(
+                f"dimension_column must be a string, not {type(dimension_column)}"
+            )
+        self._dimension_column = dimension_column
 
     @property
     def strategy(self) -> DispatchStrategy:
@@ -183,10 +201,11 @@ class Analyzer(FeatureProcessingStep):
             formatted_column = resource.formatted_column
         else:
             formatted_column = None
+        print("DIMCOL: ", self.dimension_column)
         result = result_constructor.from_dataframe(
             analyzed_resource=resource,
             value_column=value_column,
-            dimension_column=self._dimension_column_name,
+            dimension_column=self.dimension_column,
             formatted_column=formatted_column,
             df=results,
             resource_name=result_name,

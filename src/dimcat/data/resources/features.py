@@ -26,7 +26,8 @@ logger = logging.getLogger(__name__)
 
 
 class Metadata(Feature):
-    pass
+    _default_analyzer = dict(dtype="Proportions", dimension_column="length_qb")
+    _default_value_column = "piece"
 
 
 # region Annotations

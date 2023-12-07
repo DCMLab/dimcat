@@ -163,7 +163,7 @@ class Result(DimcatResource):
     @property
     def x_column(self) -> str:
         """Name of the result column from which to create one marker per distinct value to show over the x-axis."""
-        if self.uses_line_of_fifths_colors:
+        if self.uses_line_of_fifths_colors or not self.formatted_column:
             return self.value_column
         else:
             return self.formatted_column

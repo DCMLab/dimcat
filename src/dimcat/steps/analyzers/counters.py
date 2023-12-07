@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class Counter(Analyzer):
-    _dimension_column_name = "count"
+    _default_dimension_column = "count"
     _new_resource_type = Counts
 
     @staticmethod
@@ -25,11 +25,14 @@ class Counter(Analyzer):
             and feature.formatted_column not in groupby
         ):
             groupby.append(feature.formatted_column)
-        result = feature.groupby(groupby)[Counter._dimension_column_name].value_counts(
-            dropna=False
-        )
-        result = result.to_frame(Counter._dimension_column_name)
+        result = feature.groupby(groupby)[
+            Counter._default_dimension_column
+        ].value_counts(dropna=False)
+        result = result.to_frame(Counter._default_dimension_column)
         return result
+
+    class Schema(Analyzer.Schema):
+        dimension_column = mm.fields.Str(load_default="count")
 
     def groupby_apply(self, feature: Feature, groupby: SomeSeries = None, **kwargs):
         """Performs the computation on a groupby. The value of ``groupby`` needs to be
@@ -47,7 +50,7 @@ class Counter(Analyzer):
         ):
             groupby.append(feature.formatted_column)
         result = feature.groupby(groupby).size()
-        result = result.to_frame(self._dimension_column_name)
+        result = result.to_frame(self.dimension_column)
 
         return result
 

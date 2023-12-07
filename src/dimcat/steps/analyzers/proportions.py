@@ -1,5 +1,6 @@
 import logging
 
+import marshmallow as mm
 from dimcat.data.resources.base import D, FeatureName, SomeSeries
 from dimcat.data.resources.dc import DimcatResource, Feature
 from dimcat.data.resources.results import Durations
@@ -10,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class Proportions(Analyzer):
-    _dimension_column_name = "duration_qb"
+    _default_dimension_column = "duration_qb"
     _new_resource_type = Durations
 
     @staticmethod
@@ -22,12 +23,15 @@ class Proportions(Analyzer):
         ):
             groupby.append(feature.formatted_column)
         result = (
-            feature.groupby(groupby)[Proportions._dimension_column_name]
+            feature.groupby(groupby)[Proportions._default_dimension_column]
             .sum()
             .astype(float)
         )
         result = result.to_frame()
         return result
+
+    class Schema(Analyzer.Schema):
+        dimension_column = mm.fields.Str(load_default="duration_qb")
 
     def check_resource(self, resource: DimcatResource) -> None:
         """Check if the resource has a value column."""
@@ -53,7 +57,7 @@ class Proportions(Analyzer):
         ):
             groupby.append(feature.formatted_column)
         result = (
-            feature.groupby(groupby, group_keys=False)[self._dimension_column_name]
+            feature.groupby(groupby, group_keys=False)[self.dimension_column]
             .sum()
             .astype(float)
         )
