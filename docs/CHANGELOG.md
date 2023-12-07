@@ -1,5 +1,35 @@
 # Changelog
 
+## [2.1.0](https://github.com/DCMLab/dimcat/compare/v2.0.0...v2.1.0) (2023-12-07)
+
+
+### Features
+
+* adds 'dimension_column' as argument for all Analyzers; enables default_analyzer for Metadata ([d192a07](https://github.com/DCMLab/dimcat/commit/d192a074af0b1b4799aadd06e222ef8fd8380a8d))
+* adds convenience module `dimcat.enums` for easily importing any enum from DiMCAT. ([7cd3a3f](https://github.com/DCMLab/dimcat/commit/7cd3a3fc11d07d37d3dd3a3de5437334798e25de))
+* adds PieceGrouper ([55c6d54](https://github.com/DCMLab/dimcat/commit/55c6d546635440c7d623d0db23ad75e1c990bd37))
+* enable .make_ranking_table() for NgramTable (convenience for calling .make_ngram_tuples() first) ([5a788d5](https://github.com/DCMLab/dimcat/commit/5a788d5ee96b1ad66a13944c49177a309d005dc8))
+* enables group_cols and group_modes for bubble_plots, too ([0d8ba17](https://github.com/DCMLab/dimcat/commit/0d8ba177542e60499f029f4110022e96559c3b0c))
+* includes the UnitOfAnalysis enum as 'group_cols' argument for Result's methods ([efd7fdb](https://github.com/DCMLab/dimcat/commit/efd7fdb625b0c7219718d7ea2b397e4231c6c836))
+* introduces new HarmonyLabelsFormat "ROMAN_REDUCED" ([0a08952](https://github.com/DCMLab/dimcat/commit/0a089525379b8bf80e6da75daea9fb4a3d994828))
+* NgramTable.get_transitions() returns new result type Transitions ([0723fe1](https://github.com/DCMLab/dimcat/commit/0723fe15bad6013f60b0415ae0db18053a984c68))
+* NgramTable.make_ngram_tuples() now actually returns tuples, not tables (which are retrieved via .make_ngram_table()). They come as a new Result type, NgramTuples, which also allows for .make_ranking_table() ([3746437](https://github.com/DCMLab/dimcat/commit/3746437c7084fcc4f7705525f8a39443980804d4))
+* NgramTable() uses the new Transitions for both .plot() and .plot_grouped() ([b12b130](https://github.com/DCMLab/dimcat/commit/b12b1302a0655f415ab77eabb72b0e18bbe67d12))
+* PieceGrouper and CorpusGrouper move the respective index level to level 0 ([1b7f436](https://github.com/DCMLab/dimcat/commit/1b7f436746cfd5c709bbe7c619e0de3ff558e852))
+* Transitions result type plots methods return Plotly heatmaps ([3df7880](https://github.com/DCMLab/dimcat/commit/3df78807b7c1de1be8b57534d460b918820915a9))
+
+
+### Bug Fixes
+
+* base.resolve_object_spec() needs to check if config first, then if DimcatObject ([8c8c4d2](https://github.com/DCMLab/dimcat/commit/8c8c4d2955ae4eff23fac762b2d84799e5703e8a))
+* do not convert "count" column to "Int64" by default (because of Plotly bug); instead convert integer columns when making ranking tables to prevent counts coming as floats ([59bd92a](https://github.com/DCMLab/dimcat/commit/59bd92a7ee96be0e6daa5f122dc4f470d66e9a97))
+* Pipeline calls step.process_resource() instead of ._process_resource() because otherwise the call to .check_resource() is skipped ([024bf65](https://github.com/DCMLab/dimcat/commit/024bf65ec50587f02a9c83f28eb9855d3ccbf173))
+
+
+### Documentation
+
+* moves error to dedicated errors.md notebook. fixes [#61](https://github.com/DCMLab/dimcat/issues/61) ([390b76e](https://github.com/DCMLab/dimcat/commit/390b76ea3788206a666c147b36ebe9ff6c71b71c))
+
 ## [2.0.0](https://github.com/DCMLab/dimcat/compare/v1.1.0...v2.0.0) (2023-11-27)
 
 
