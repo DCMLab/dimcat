@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.2.0](https://github.com/DCMLab/dimcat/compare/v2.1.0...v2.2.0) (2023-12-07)
+
+
+### Features
+
+* adds HasHarmonyLabels grouper ([4fa92de](https://github.com/DCMLab/dimcat/commit/4fa92debd399a7649ed59c59c98bc334d1228b95))
+* enables .get_feature("metadata") for Dataset and DimcatPackage which, in return, enables Dataset.get_metadata(raw=False) (default), i.e. returning a processed Metadata feature (old behaviour, i.e. without processing, via Dataset.get_metadata(raw=True)) ([731c4d1](https://github.com/DCMLab/dimcat/commit/731c4d1385ba35beaad374c777274ab2331caf67))
+
+
+### Bug Fixes
+
+* align_with_grouping() makes sure to be unpacking DimcatIndex ([a279691](https://github.com/DCMLab/dimcat/commit/a279691f940c2fd220386cec835e25f768009081))
+* Analyzer.Schema() adapted ([57748ca](https://github.com/DCMLab/dimcat/commit/57748caacaaf7172aaaf1c8052e68c540fc5577c))
+* DimcatResource.from_resource_and_dataframe() also detaches new resource from filepath, if necessary ([6665fdd](https://github.com/DCMLab/dimcat/commit/6665fddaf60c991be505df7b9bc86731e9b8fbd8))
+
 ## [2.1.0](https://github.com/DCMLab/dimcat/compare/v2.0.0...v2.1.0) (2023-12-07)
 
 
