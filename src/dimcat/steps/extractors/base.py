@@ -5,6 +5,7 @@ from typing import Iterable, Type
 from dimcat.base import DimcatConfig
 from dimcat.data.datasets.base import Dataset
 from dimcat.data.resources import Feature, FeatureName
+from dimcat.data.resources.base import DR
 from dimcat.data.resources.dc import DimcatResource
 from dimcat.dc_exceptions import ResourceNotProcessableError
 from dimcat.steps.base import FeatureProcessingStep
@@ -39,7 +40,7 @@ class FeatureExtractor(FeatureProcessingStep):
             )
         return feature_name.get_class()
 
-    def _make_new_resource(self, resource: DimcatResource) -> DimcatResource:
+    def _make_new_resource(self, resource: DimcatResource) -> DR:
         """Dispatch the passed resource to the appropriate method."""
         resource_constructor = self._get_new_resource_type(resource)
         if resource.__class__ == resource_constructor:

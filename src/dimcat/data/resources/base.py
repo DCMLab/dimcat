@@ -76,12 +76,16 @@ except ImportError:
     SomeIndex: TypeAlias = pd.Index
 
 if TYPE_CHECKING:
-    from .dc import Feature
+    from .dc import DimcatResource, Feature, Result
 
 logger = logging.getLogger(__name__)
 resource_status_logger = logging.getLogger("dimcat.data.resources.ResourceStatus")
 
 D = TypeVar("D", bound=SomeDataframe)
+DR = TypeVar("DR", bound="DimcatResource")
+F = TypeVar("F", bound="Feature")
+R = TypeVar("R", bound="Resource")
+Rs = TypeVar("Rs", bound="Result")
 S = TypeVar("S", bound=SomeSeries)
 IX = TypeVar("IX", bound=SomeIndex)
 
@@ -1363,7 +1367,7 @@ Resource(
 ResourceSpecs: TypeAlias = Union[Resource, str, Path]
 
 
-def resource_specs2resource(resource: ResourceSpecs) -> Resource:
+def resource_specs2resource(resource: ResourceSpecs) -> R:
     """Converts a resource specification to a resource.
 
     Args:
@@ -1393,5 +1397,5 @@ class FeatureName(ObjectEnum):
     Metadata = "Metadata"
     Notes = "Notes"
 
-    def get_class(self) -> Type[Feature]:
+    def get_class(self) -> Type[F]:
         return get_class(self.name)

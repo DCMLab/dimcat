@@ -5,6 +5,7 @@ import marshmallow as mm
 import pandas as pd
 from dimcat.data.datasets.processed import SlicedDataset
 from dimcat.data.resources import DimcatResource, FeatureName
+from dimcat.data.resources.base import Rs
 from dimcat.data.resources.dc import SliceIntervals
 from dimcat.dc_exceptions import ResourceAlreadyTransformed
 from dimcat.steps.base import ResourceTransformation
@@ -58,9 +59,9 @@ class Slicer(ResourceTransformation):
 
     def _post_process_result(
         self,
-        result: DimcatResource,
+        result: Rs,
         original_resource: DimcatResource,
-    ) -> DimcatResource:
+    ) -> Rs:
         return result
 
     def transform_resource(self, resource: DimcatResource) -> pd.DataFrame:

@@ -27,12 +27,15 @@ from dimcat.data.base import Data
 from dimcat.data.datasets.base import Dataset
 from dimcat.data.packages.dc import DimcatPackage
 from dimcat.data.resources.base import (
+    DR,
+    F,
     FeatureName,
     Resource,
     ResourceSpecs,
+    Rs,
     resource_specs2resource,
 )
-from dimcat.data.resources.dc import DimcatResource, Feature, FeatureSpecs, R
+from dimcat.data.resources.dc import DimcatResource, FeatureSpecs
 from dimcat.data.resources.utils import (
     feature_specs2config,
     features_argument2config_list,
@@ -63,7 +66,7 @@ class PipelineStep(DimcatObject):
     _new_dataset_type: ClassVar[Optional[Type[Dataset]]] = None
     """If specified, :meth:`process_dataset` will return Datasets of this type, otherwise same as input type."""
 
-    _new_resource_type: ClassVar[Optional[Type[R]]] = None
+    _new_resource_type: ClassVar[Optional[Type[DR]]] = None
     """If specified, :meth:`process_resource` will return Resources of this type, otherwise same as input type."""
 
     _applicable_to_empty_datasets: ClassVar[bool] = True
@@ -134,7 +137,7 @@ class PipelineStep(DimcatObject):
         """
         return
 
-    def _make_new_resource(self, resource: DimcatResource) -> DimcatResource:
+    def _make_new_resource(self, resource: DimcatResource) -> DR:
         """Dispatch the passed resource to the appropriate method."""
         resource_constructor = self._get_new_resource_type(resource)
         # This is where the input resource is being processed
@@ -147,7 +150,7 @@ class PipelineStep(DimcatObject):
         )
         return new_resource
 
-    def _get_new_resource_type(self, resource: DimcatResource) -> Type[R]:
+    def _get_new_resource_type(self, resource: DimcatResource) -> Type[DR]:
         if self._new_resource_type is None:
             resource_constructor = resource.__class__
         else:
@@ -167,13 +170,13 @@ class PipelineStep(DimcatObject):
 
     def _post_process_result(
         self,
-        result: R,
+        result: Rs,
         original_resource: DimcatResource,
-    ) -> R:
+    ) -> Rs:
         """Perform some post-processing on a resource after processing it."""
         return result
 
-    def _pre_process_resource(self, resource: DimcatResource) -> DimcatResource:
+    def _pre_process_resource(self, resource: DR) -> DR:
         """Perform some pre-processing on a resource before processing it."""
         return resource
 
@@ -196,10 +199,10 @@ class PipelineStep(DimcatObject):
         ...
 
     @overload
-    def process_data(self, data: DimcatResource) -> R:
+    def process_data(self, data: DimcatResource) -> DR:
         ...
 
-    def process_data(self, data: Dataset | DimcatResource) -> Dataset | R:
+    def process_data(self, data: Dataset | DimcatResource) -> Dataset | DR:
         """
         Perform a transformation on an input Data object. This should never alter the
         Data or its properties in place, instead returning a copy or view of the input.
@@ -228,13 +231,13 @@ class PipelineStep(DimcatObject):
         self.check_dataset(dataset)
         return self._process_dataset(dataset)
 
-    def _process_resource(self, resource: Resource) -> R:
+    def _process_resource(self, resource: Resource) -> DR:
         """Apply this PipelineStep to a :class:`Resource` and return a copy containing the output(s)."""
         resource = self._pre_process_resource(resource)
         result = self._make_new_resource(resource)
         return self._post_process_result(result, resource)
 
-    def process_resource(self, resource: ResourceSpecs) -> R:
+    def process_resource(self, resource: ResourceSpecs) -> DR:
         resource = resource_specs2resource(resource)
         self.check_resource(resource)
         return self._process_resource(resource)
@@ -402,7 +405,7 @@ class ResourceTransformation(FeatureProcessingStep):
     only these, or, if no features are specified, transform all resources in the outputs catalog.
     """
 
-    def _make_new_resource(self, resource: Feature) -> Feature:
+    def _make_new_resource(self, resource: F) -> DR:
         """Create a new resource by transforming the existing one."""
         result_constructor = self._get_new_resource_type(resource)
         result_df = self.transform_resource(resource)
@@ -429,7 +432,7 @@ class ResourceTransformation(FeatureProcessingStep):
         )
         return new_resource
 
-    def _pre_process_resource(self, resource: DimcatResource) -> DimcatResource:
+    def _pre_process_resource(self, resource: DR) -> DR:
         """Perform some pre-processing on a resource before processing it."""
         resource = super()._pre_process_resource(resource)
         resource.load()

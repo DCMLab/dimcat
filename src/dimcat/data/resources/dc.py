@@ -17,7 +17,6 @@ from typing import (
     Sequence,
     Tuple,
     TypeAlias,
-    TypeVar,
     Union,
 )
 
@@ -37,9 +36,11 @@ from dimcat.data.base import Data
 from dimcat.data.resources.base import (
     IX,
     D,
+    F,
     FeatureName,
     Resource,
     ResourceStatus,
+    Rs,
     SomeDataframe,
     SomeIndex,
 )
@@ -798,7 +799,7 @@ DimcatResource.__init__(
         self,
         feature: FeatureSpecs,
         new_name: Optional[str] = None,
-    ) -> Feature:
+    ) -> F:
         feature_config = feature_specs2config(feature)
         self._check_feature_config(feature_config)
         return self._extract_feature(feature_config=feature_config, new_name=new_name)
@@ -807,7 +808,7 @@ DimcatResource.__init__(
         self,
         feature_config: DimcatConfig,
         new_name: Optional[str] = None,
-    ) -> Feature:
+    ) -> F:
         """The internal part of the feature extraction that subclasses can override to perform certain transformations
         necessary for creating the Feature.
         """
@@ -937,7 +938,7 @@ DimcatResource.__init__(
         return dataframe
 
     @cache
-    def get_default_analysis(self) -> Result:
+    def get_default_analysis(self) -> Rs:
         """Returns the default analysis of the resource."""
         return self.apply_steps(self._default_analyzer)
 
@@ -1404,9 +1405,6 @@ DimcatResource.__init__(
             if get_setting("never_store_unvalidated_data") and raise_exception:
                 raise fl.FrictionlessException("\n".join(errors))
         return report
-
-
-R = TypeVar("R", bound="DimcatResource")
 
 
 # endregion DimcatResource

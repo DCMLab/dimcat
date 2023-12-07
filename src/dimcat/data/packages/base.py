@@ -26,8 +26,10 @@ import marshmallow as mm
 from dimcat.base import DimcatConfig, FriendlyEnum, get_class
 from dimcat.data.base import Data
 from dimcat.data.resources.base import (
+    F,
     FeatureName,
     PathResource,
+    R,
     Resource,
     reconcile_base_and_file,
 )
@@ -590,7 +592,7 @@ class Package(Data):
         if auto_validate:
             self.validate(raise_exception=True)
 
-    def __getitem__(self, item: str | int) -> Resource:
+    def __getitem__(self, item: str | int) -> R:
         if isinstance(item, int):
             return self._resources[item]
         try:
@@ -598,7 +600,7 @@ class Package(Data):
         except Exception as e:
             raise KeyError(str(e)) from e
 
-    def __iter__(self) -> Iterator[Resource]:
+    def __iter__(self) -> Iterator[R]:
         yield from self._resources
 
     def __len__(self):
@@ -900,7 +902,7 @@ class Package(Data):
         self,
         resource: Resource,
         mode: Optional[PackageMode] = None,
-    ) -> Resource:
+    ) -> R:
         """Tries to add resource to the package. Behaviour depends on the ``mode``.
 
         Args:
@@ -933,7 +935,7 @@ class Package(Data):
         self._update_status()
         return resource
 
-    def _amend_resource_type(self, resource) -> Resource:
+    def _amend_resource_type(self, resource) -> R:
         """Change the type of the given resource and perform transformations, if needed, before
         adding it to the package.
 
@@ -1022,7 +1024,7 @@ class Package(Data):
                 f"Status changed from {status_before!r} to {status_after!r}"
             )
 
-    def extract_feature(self, feature: FeatureSpecs) -> Feature:
+    def extract_feature(self, feature: FeatureSpecs) -> F:
         feature_config = feature_specs2config(feature)
         feature_name = FeatureName(feature_config.options_dtype)
         if feature_name == FeatureName.Metadata:
@@ -1072,7 +1074,7 @@ class Package(Data):
             self._descriptor_filename = descriptor_filename
         return descriptor_filename
 
-    def get_feature(self, feature: FeatureSpecs) -> Feature:
+    def get_feature(self, feature: FeatureSpecs) -> F:
         """Checks if the package includes a feature matching the specs, and extracts it otherwise, if possible.
 
         Raises:
@@ -1132,7 +1134,7 @@ class Package(Data):
             raise NoMatchingResourceFoundError(resource.name, self.package_name)
         return resources[0]
 
-    def get_resource_by_config(self, config: DimcatConfig) -> Resource:
+    def get_resource_by_config(self, config: DimcatConfig) -> R:
         """Returns the first resource that matches the given config.
 
         Raises:
@@ -1150,7 +1152,7 @@ class Package(Data):
                 return resource
         raise NoMatchingResourceFoundError(config)
 
-    def get_resource_by_name(self, name: Optional[str] = None) -> Resource:
+    def get_resource_by_name(self, name: Optional[str] = None) -> R:
         """Returns the Resource with the given name. If no name is given, returns the last resource.
 
         Raises:
@@ -1263,9 +1265,9 @@ class Package(Data):
 
     def _reconcile_resource(
         self,
-        resource: Resource,
+        resource: R,
         mode: Optional[PackageMode] = None,
-    ) -> Resource:
+    ) -> R:
         if mode is None:
             mode = self._default_mode
         if mode == PackageMode.ALLOW_MISALIGNMENT:

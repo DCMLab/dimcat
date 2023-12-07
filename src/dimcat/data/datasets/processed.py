@@ -8,6 +8,7 @@ import logging
 from typing import TYPE_CHECKING, List, Optional
 
 from dimcat.base import DimcatConfig
+from dimcat.data.resources.base import Rs
 from dimcat.dc_exceptions import NoMatchingResourceFoundError
 
 from .base import Dataset
@@ -53,22 +54,22 @@ class _AnalyzedMixin(_ProcessedMixin):
         else:
             return results[-1]
 
-    def get_result_by_config(self, config: DimcatConfig) -> Result:
+    def get_result_by_config(self, config: DimcatConfig) -> Rs:
         """Returns the result of the previously applied analyzer with the given name."""
         results = self.outputs.get_package("results")
         return results.get_resource_by_config(config=config)
 
-    def get_result_by_name(self, name: str) -> Result:
+    def get_result_by_name(self, name: str) -> Rs:
         """Returns the result of the previously applied analyzer with the given name."""
         results = self.outputs.get_package("results")
         return results.get_resource_by_name(name=name)
 
-    def get_results_by_regex(self, regex: str) -> List[Result]:
+    def get_results_by_regex(self, regex: str) -> List[Rs]:
         """Returns the result of the previously applied analyzer with the given name."""
         results = self.outputs.get_package("results")
         return results.get_resources_by_regex(regex=regex)
 
-    def get_results_by_type(self, resource_type: type) -> List[Result]:
+    def get_results_by_type(self, resource_type: type) -> List[Rs]:
         """Returns the result of the previously applied analyzer with the given name."""
         results = self.outputs.get_package("results")
         return results.get_resources_by_type(resource_type=resource_type)

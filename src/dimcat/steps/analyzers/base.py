@@ -9,7 +9,7 @@ import marshmallow as mm
 from dimcat.base import FriendlyEnumField, ObjectEnum
 from dimcat.data.datasets.processed import AnalyzedDataset
 from dimcat.data.resources import Feature
-from dimcat.data.resources.base import SomeSeries
+from dimcat.data.resources.base import DR, Rs, SomeSeries
 from dimcat.data.resources.dc import DimcatResource, FeatureSpecs, UnitOfAnalysis
 from dimcat.data.resources.results import Result
 from dimcat.steps.base import FeatureProcessingStep
@@ -187,7 +187,7 @@ class Analyzer(FeatureProcessingStep):
             smallest_unit = UnitOfAnalysis(smallest_unit)
         self._smallest_unit = smallest_unit
 
-    def _make_new_resource(self, resource: Feature) -> Result:
+    def _make_new_resource(self, resource: Feature) -> Rs:
         """Dispatch the passed resource to the appropriate method."""
         if self.strategy == DispatchStrategy.ITER_STACK:  # more cases to follow
             raise NotImplementedError()
@@ -224,7 +224,7 @@ class Analyzer(FeatureProcessingStep):
             )
         return feature.groupby(groupby).apply(self.compute, **self.to_dict())
 
-    def _pre_process_resource(self, resource: DimcatResource) -> DimcatResource:
+    def _pre_process_resource(self, resource: DR) -> DR:
         """Perform some pre-processing on a resource before processing it."""
         resource = super()._pre_process_resource(resource)
         resource.load()

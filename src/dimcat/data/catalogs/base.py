@@ -7,7 +7,7 @@ import marshmallow as mm
 from dimcat import DimcatConfig, get_class
 from dimcat.data.base import Data
 from dimcat.data.packages.base import Package, PackageSpecs
-from dimcat.data.resources.base import Resource
+from dimcat.data.resources.base import R, Resource
 from dimcat.data.resources.dc import FeatureSpecs
 from dimcat.dc_exceptions import (
     DuplicatePackageNameError,
@@ -200,7 +200,7 @@ class DimcatCatalog(Data):
                 pass
         raise NoMatchingResourceFoundError(config)
 
-    def get_resource_by_name(self, name: str) -> Resource:
+    def get_resource_by_name(self, name: str) -> R:
         """Returns the Resource with the given name.
 
         Raises:

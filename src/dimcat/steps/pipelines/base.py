@@ -4,6 +4,7 @@ from typing import Iterable, Iterator, List, Literal, Optional, Type, overload
 
 from dimcat import Dataset, DimcatConfig
 from dimcat.base import DimcatObject, DimcatObjectField, get_class, resolve_object_specs
+from dimcat.data.resources.base import DR
 from dimcat.data.resources.dc import DimcatResource
 from dimcat.steps.base import PipelineStep, StepSpecs
 from marshmallow import fields
@@ -92,7 +93,7 @@ class Pipeline(PipelineStep):
         resource: DimcatResource,
         ignore_exceptions: bool = False,
         skip_step_types: Optional[Iterable[Type[PipelineStep] | str]] = None,
-    ) -> DimcatResource:
+    ) -> DR:
         if skip_step_types:
             if isinstance(skip_step_types, (str, type)):
                 skip_step_types = [skip_step_types]

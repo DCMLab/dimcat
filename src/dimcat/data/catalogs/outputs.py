@@ -3,12 +3,13 @@ from __future__ import annotations
 from typing import Iterator, Optional, Tuple
 
 from dimcat.data.catalogs.base import DimcatCatalog
+from dimcat.data.resources.base import F
 from dimcat.data.resources.dc import DimcatResource, FeatureSpecs
 from dimcat.data.resources.utils import feature_specs2config
 
 
 class OutputsCatalog(DimcatCatalog):
-    def get_feature(self, feature: Optional[FeatureSpecs] = None) -> DimcatResource:
+    def get_feature(self, feature: Optional[FeatureSpecs] = None) -> F:
         """Looks up the given feature in the "features" package and returns it.
 
         Raises:

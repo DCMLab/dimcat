@@ -7,8 +7,7 @@ import pandas as pd
 from dimcat import Dataset
 from dimcat.base import FriendlyEnumField, is_subclass_of
 from dimcat.data.datasets.processed import GroupedDataset
-from dimcat.data.resources import Resource
-from dimcat.data.resources.base import D, FeatureName
+from dimcat.data.resources.base import DR, D, FeatureName, Rs
 from dimcat.data.resources.dc import (
     DimcatIndex,
     DimcatResource,
@@ -56,16 +55,16 @@ class Grouper(ResourceTransformation):
         check_name(level_name)
         self._level_name = level_name
 
-    def check_resource(self, resource: DimcatResource) -> None:
+    def check_resource(self, resource: DR) -> None:
         super().check_resource(resource)
         if self.level_name in resource.get_default_groupby():
             raise ResourceAlreadyTransformed(resource.resource_name, self.name)
 
     def _post_process_result(
         self,
-        result: DimcatResource,
-        original_resource: DimcatResource,
-    ) -> DimcatResource:
+        result: Rs,
+        original_resource: DR,
+    ) -> Rs:
         """Change the default_groupby value of the returned Feature."""
         result.update_default_groupby(self.level_name)
         return result
@@ -80,7 +79,7 @@ class _IdGrouper(Grouper):
     present in all Facets and Features.
     """
 
-    def transform_resource(self, resource: DimcatResource) -> D:
+    def transform_resource(self, resource: DR) -> D:
         """Apply the grouper to a Feature."""
         level_names = resource.get_level_names()
         if level_names[0] != self.level_name:
@@ -90,7 +89,7 @@ class _IdGrouper(Grouper):
         else:
             return resource.df
 
-    def _process_resource(self, resource: Resource) -> Resource:
+    def _process_resource(self, resource: DR) -> DR:
         """Apply this PipelineStep to a :class:`Resource` and return a copy containing the output(s)."""
         resource = self._pre_process_resource(resource)
         level_names = resource.get_level_names()

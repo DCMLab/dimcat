@@ -32,8 +32,8 @@ from dimcat.data.catalogs.inputs import InputsCatalog
 from dimcat.data.catalogs.outputs import OutputsCatalog
 from dimcat.data.packages.base import Package, PackageSpecs
 from dimcat.data.packages.dc import DimcatPackage
-from dimcat.data.resources.base import FeatureName
-from dimcat.data.resources.dc import DimcatResource, Feature, FeatureSpecs
+from dimcat.data.resources.base import F, FeatureName
+from dimcat.data.resources.dc import DimcatResource, FeatureSpecs
 from dimcat.data.resources.features import Metadata
 from dimcat.data.resources.utils import (
     feature_specs2config,
@@ -230,7 +230,7 @@ class Dataset(Data):
         """Returns a copy of this Dataset."""
         return Dataset.from_dataset(self)
 
-    def _extract_feature(self, feature_config: DimcatConfig) -> Feature:
+    def _extract_feature(self, feature_config: DimcatConfig) -> F:
         """Extracts a feature from the Dataset's input catalog, sends it through its pipeline and returns the result,
         without storing it.
 
@@ -250,7 +250,7 @@ class Dataset(Data):
             skip_step_types=["FeatureExtractor"],
         )
 
-    def extract_feature(self, feature: FeatureSpecs) -> Feature:
+    def extract_feature(self, feature: FeatureSpecs) -> F:
         """Extracts a feature from this Dataset's input catalog, sends it through its pipeline, adds the result to the
         OutputsCatalog, and adds the corresponding FeatureExtractor to the dataset's pipeline.
 
@@ -265,7 +265,7 @@ class Dataset(Data):
         self._pipeline.add_step(feature_extractor)
         return extracted
 
-    def get_feature(self, feature: Optional[FeatureSpecs] = None) -> Feature:
+    def get_feature(self, feature: Optional[FeatureSpecs] = None) -> F:
         """High-level method that first looks up a feature fitting the specs in the outputs catalog,
         and adds a FeatureExtractor to the dataset's pipeline otherwise."""
         feature_config = feature_specs2config(feature)
@@ -370,7 +370,7 @@ class Dataset(Data):
             f"with basepath {self.inputs.basepath}."
         )
 
-    def load_feature(self, feature: FeatureSpecs) -> Feature:
+    def load_feature(self, feature: FeatureSpecs) -> F:
         """ToDo: Harmonize with FeatureExtractor"""
         feature = self.get_feature(feature)
         feature.load()

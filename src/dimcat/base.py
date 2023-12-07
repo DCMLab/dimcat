@@ -640,7 +640,7 @@ def is_name_of_dimcat_class(name) -> bool:
         return False
 
 
-def is_instance_of(obj, class_or_tuple: Type | Tuple[Type | str, ...]):
+def is_instance_of(obj, class_or_tuple: Type | str | Tuple[Type | str, ...]):
     """Returns True if the given object is an instance of the given class or one of the given classes."""
     if not isinstance(class_or_tuple, tuple):
         class_or_tuple = (class_or_tuple,)
