@@ -679,7 +679,9 @@ class Package(Data):
     def extractable_features(self) -> Set[FeatureName]:
         """The dtypes of all features that can be extracted from the facet resources included in the package."""
         f_name_tuples = [facet.extractable_features for facet in self.iter_facets()]
-        return set(sum(f_name_tuples, tuple()))
+        result = set(sum(f_name_tuples, tuple()))
+        result.add(FeatureName.Metadata)
+        return result
 
     @property
     def filepath(self) -> str:
@@ -1023,6 +1025,8 @@ class Package(Data):
     def extract_feature(self, feature: FeatureSpecs) -> Feature:
         feature_config = feature_specs2config(feature)
         feature_name = FeatureName(feature_config.options_dtype)
+        if feature_name == FeatureName.Metadata:
+            return self.get_metadata()
         if feature_name not in self.extractable_features:
             raise NoMatchingResourceFoundError(feature_config)
         candidate_facets = [

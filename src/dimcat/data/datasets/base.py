@@ -312,9 +312,15 @@ class Dataset(Data):
     #         new_package.add_resource(feature)
     #     return new_package
 
-    def get_metadata(self) -> Metadata:
+    def get_metadata(
+        self,
+        raw: bool = False,
+    ) -> Metadata:
         metadata = self.inputs.get_metadata()
-        return metadata
+        if raw:
+            return metadata
+        else:
+            return self.get_feature(DimcatConfig(dtype="Metadata"))
 
     def load(
         self,
