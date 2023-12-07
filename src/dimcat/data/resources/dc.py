@@ -410,8 +410,10 @@ class DimcatResource(Resource, Generic[D]):
             default_groupby=default_groupby,
             **kwargs,
         )
-        if not descriptor_filename:
+        if not descriptor_filename and new_object.descriptor_exists:
             new_object.detach_from_descriptor()
+        if new_object.resource_exists:
+            new_object.detach_from_filepath()
         # copy additional fields
         for attr in ("_corpus_name",):
             if (
@@ -871,7 +873,7 @@ DimcatResource.__init__(
             case (True, False, False):
                 warnings.warn(
                     f"The serialized data exists at {self.normpath!r} but no descriptor was found at "
-                    f"{self.get_descriptor_path()!r}. You can create on using .store_descriptor(), set the "
+                    f"{self.get_descriptor_path()!r}. You can create one using .store_descriptor(), set the "
                     f"descriptor_filename pointing to one (should be done upon instantiation), or, if this is supposed "
                     f"to be a PathResource only, it should not be instantiated as DimcatResource at all.",
                     RuntimeWarning,
@@ -1207,8 +1209,10 @@ DimcatResource.__init__(
 
     def set_dataframe(self, df):
         if self.descriptor_exists:
+            # ToDo: Enable creating new, date-based descriptor name for new Resources
             raise PotentiallyUnrelatedDescriptorError(
-                message=f"Cannot set dataframe on a resource the points to an existing descriptor file, because that "
+                message=f"Cannot set dataframe on a resource the points to the existing descriptor file at "
+                f"{self.get_descriptor_path()}, because that "
                 f"could lead to a discrepancy between the dataframe and the descriptor."
                 f"Maybe you want to create a new resource via {self.name}.from_dataframe(<dataframe>)?"
             )

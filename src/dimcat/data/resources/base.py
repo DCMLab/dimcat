@@ -897,6 +897,16 @@ Resource(
         self._detach_from_descriptor()
         self._update_status()
 
+    def _detach_from_filepath(self):
+        self._resource.path = None
+        self.logger.debug(
+            f"Detached {self.resource_name!r} from filepath by setting the property .filepath to None."
+        )
+
+    def detach_from_filepath(self):
+        self._detach_from_filepath()
+        self._update_status()
+
     def get_corpus_name(self) -> str:
         """Returns the value of :attr:`corpus_name` or, if not set, a name derived from the
         resource's filepath.
