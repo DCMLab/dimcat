@@ -122,7 +122,7 @@ class Analyzer(FeatureProcessingStep):
     class Schema(FeatureProcessingStep.Schema):
         strategy = FriendlyEnumField(DispatchStrategy, metadata={"expose": False})
         smallest_unit = FriendlyEnumField(UnitOfAnalysis, metadata={"expose": False})
-        fill_na = mm.fields.Raw(allow_none=True, metadata={"expose": False})
+        dimension_column = mm.fields.Str()
 
         @mm.pre_load()
         def features_as_list(self, obj, **kwargs):
