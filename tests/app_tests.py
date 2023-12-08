@@ -5,10 +5,10 @@ from dimcat import Pipeline, get_class, get_schema
 from dimcat.data.resources import DimcatIndex, FeatureName
 from dimcat.steps.analyzers.base import AnalyzerName
 
-EXCLUDED_ANALYZERS = [
+EXCLUDED_ANALYZERS = [  # to be synchronized with AnalyzerConstants.analyzer_to_hide
     "Analyzer"
 ]  # to be synchronized with AnalyzerConstants.analyzer_to_hide
-EXCLUDED_FEATURES = [
+EXCLUDED_FEATURES = [  # to be synchronized with AnalyzerConstants.feature_to_hide
     # abstract features
     "Metadata",
     "Annotations",
@@ -17,7 +17,7 @@ EXCLUDED_FEATURES = [
     "CadenceLabels",
     "KeyAnnotations",
     "Measures",
-]  # to be synchronized with AnalyzerConstants.feature_to_hide
+]
 
 # region Interface
 
@@ -177,8 +177,8 @@ def test_analyze(
     """
     step_configs = [
         dict(dtype="FeatureExtractor", features=[feature_config]),
-        analyzer_config,
         grouper_config,
+        analyzer_config,
     ]
     analyzer = get_class(analyzer_config["dtype"])
     if (
@@ -200,7 +200,9 @@ def test_analyze(
         msg = "Some required fields are missing or wrong: " + error_message
         raise mm.ValidationError(msg) from e
     result_process = pl.process(dataset_from_single_package)
-    _ = result_process.get_result()
+    result = result_process.get_result()
+    result.plot_grouped()
+    result.plot()
 
 
 # endregion Analyzing

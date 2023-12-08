@@ -46,7 +46,6 @@ def get_piece_groups(dataset):
     n_groups = 4
     grouping = {f"group_{i}": piece_index.sample(i) for i in range(n_groups)}
     grouped_pieces = DimcatIndex.from_grouping(grouping)
-    print(len(grouped_pieces))
     return grouped_pieces
 
 
