@@ -68,12 +68,12 @@ try:
 
     SomeDataframe: TypeAlias = Union[pd.DataFrame, mpd.DataFrame]
     SomeSeries: TypeAlias = Union[pd.Series, mpd.Series]
-    SomeIndex: TypeAlias = Union[pd.Index, mpd.Index]
+    SomeIndex: TypeAlias = Union[pd.MultiIndex, mpd.MultiIndex]
 except ImportError:
     # DiMCAT has not been installed via dimcat[modin], hence the dependency is missing
     SomeDataframe: TypeAlias = pd.DataFrame
     SomeSeries: TypeAlias = pd.Series
-    SomeIndex: TypeAlias = pd.Index
+    SomeIndex: TypeAlias = pd.MultiIndex
 
 if TYPE_CHECKING:
     from .dc import DimcatResource, Feature, Result
@@ -432,7 +432,14 @@ class Resource(Data):
         """
         if not isinstance(resource, Resource):
             raise TypeError(f"Expected a Resource, got {type(resource)!r}.")
-        fl_resource = resource.resource.to_copy()
+        fl_resource = resource.resource
+        no_filepath = not fl_resource.path
+        if no_filepath:
+            fl_resource.path = "dummy/value"
+            new_fl_resource = fl_resource.to_copy()
+            new_fl_resource.path = None
+        else:
+            new_fl_resource = fl_resource.to_copy()
         resource_kwargs = {
             arg: getattr(resource, arg)
             for arg in resource.schema.fields
@@ -446,7 +453,7 @@ class Resource(Data):
             {arg: val for arg, val in kwargs.items() if val is not None}
         )
         new_object = cls(
-            resource=fl_resource,
+            resource=new_fl_resource,
             **resource_kwargs,
         )
         if resource_name:

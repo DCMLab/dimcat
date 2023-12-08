@@ -15,6 +15,7 @@ from typing import (
     MutableMapping,
     Optional,
     Sequence,
+    Set,
     Tuple,
     TypeAlias,
     Union,
@@ -848,6 +849,41 @@ DimcatResource.__init__(
         )
         return feature
 
+    def filter_index_level(
+        self,
+        keep_values: Optional[Hashable | Iterable[Hashable]] = None,
+        drop_values: Optional[Hashable | Iterable[Hashable]] = None,
+        level: int | str = 0,
+        drop_level: Optional[bool] = None,
+    ) -> Self:
+        """Returns a copy of the resource with only those rows where the given level has desired values.
+
+        Args:
+            keep_values:
+                One or several values to keep (dropping the rest). If a value is specified both for keeping and
+                dropping, it is dropped.
+            drop_values: One or several values to drop.
+            level: Which index level to filter on.
+            drop_level:
+                Boolean specifies whether to keep the filtered level or to drop it. The default (None) corresponds
+                to automatic behaviour, where the level is dropped if only one value remains, otherwise kept.
+
+        Returns:
+            A copy of the resource with only those rows where the given level has desired values.
+        """
+        if not isinstance(level, (int, str)):
+            raise TypeError(
+                f"Level must be an int position or name string, got {type(level)!r}."
+            )
+        idx = self.get_index()
+        drop_this, keep_values = idx.get_level_values_to_drop(
+            drop_values, keep_values, level
+        )
+        new_df = self.df.drop(drop_this, level=level)
+        if drop_level or (drop_level is None and len(keep_values) == 1):
+            new_df = new_df.droplevel(level)
+        return self.__class__.from_resource_and_dataframe(resource=self, df=new_df)
+
     def _format_dataframe(self, df: D) -> D:
         """Format the dataframe before it is set for this resource. The method is called by :meth:`_set_dataframe`
         and typically adds convenience columns. Assumes that the dataframe can be mutated safely, i.e. that it is a
@@ -885,13 +921,13 @@ DimcatResource.__init__(
             case (True, False, True):
                 return ResourceStatus.SERIALIZED
             case (True, False, False):
-                warnings.warn(
-                    f"The serialized data exists at {self.normpath!r} but no descriptor was found at "
-                    f"{self.get_descriptor_path()!r}. You can create one using .store_descriptor(), set the "
-                    f"descriptor_filename pointing to one (should be done upon instantiation), or, if this is supposed "
-                    f"to be a PathResource only, it should not be instantiated as DimcatResource at all.",
-                    RuntimeWarning,
-                )
+                # warnings.warn(
+                #     f"The serialized data exists at {self.normpath!r} but no descriptor was found at "
+                #     f"{self.get_descriptor_path()!r}. You can create one using .store_descriptor(), set the "
+                #     f"descriptor_filename pointing to one (should be done upon instantiation), or, if this is
+                #     supposed to be a PathResource only, it should not be instantiated as DimcatResource at all.",
+                #     RuntimeWarning,
+                # )
                 return ResourceStatus.PATH_ONLY
             case (False, _, True):
                 if self.descriptor_exists:
@@ -1554,16 +1590,14 @@ class DimcatIndex(Generic[IX], Data):
         super().__init__(basepath=basepath)
         if index is None:
             self._index = pd.MultiIndex.from_tuples([], names=["corpus", "piece"])
-        elif isinstance(index, pd.Index):
+        elif isinstance(index, pd.MultiIndex):
             if None in index.names:
                 raise ValueError("Index cannot have a None name: {index.names}.")
             for name in index.names:
                 check_name(name)
             self._index = index.copy()
         else:
-            raise TypeError(
-                f"Expected None or pandas.(Multi)Index, got {type(index)!r}."
-            )
+            raise TypeError(f"Expected None or pandas.MultiIndex, got {type(index)!r}.")
 
     def __contains__(self, item):
         if isinstance(item, tuple):
@@ -1624,35 +1658,64 @@ class DimcatIndex(Generic[IX], Data):
         keep_values: Optional[Hashable | Iterable[Hashable]] = None,
         drop_values: Optional[Hashable | Iterable[Hashable]] = None,
         level: int | str = 0,
-        drop_level: bool = False,
+        drop_level: Optional[bool] = None,
     ) -> Self:
-        """Returns a copy of the index with only those items where the given level has wanted values."""
+        """Returns a copy of the index with only those items where the given level has wanted values.
+
+        Args:
+            keep_values:
+                One or several values to keep (dropping the rest). If a value is specified both for keeping and
+                dropping, it is dropped.
+            drop_values: One or several values to drop.
+            level: Which index level to filter on.
+            drop_level:
+                Boolean specifies whether to keep the filtered level or to drop it. The default (None) corresponds
+                to automatic behaviour, where the level is dropped if only one value remains, otherwise kept.
+
+        Returns:
+            A copy of the index with only those items where the given level has wanted values and may have been removed.
+        """
         if not isinstance(level, (int, str)):
             raise TypeError(
                 f"Level must be an int position or name string, got {type(level)!r}."
             )
+        drop_this, keep_values = self.get_level_values_to_drop(
+            drop_values, keep_values, level
+        )
+        new_index = self.index.drop(tuple(drop_this), level=level, errors="ignore")
+        if drop_level or (drop_level is None and len(keep_values) == 1):
+            new_index = new_index.droplevel(level)
+        return self.__class__(new_index)
+
+    def get_level_values_to_drop(
+        self, drop_values, keep_values, level
+    ) -> Tuple[Set[Hashable], Set[Hashable]]:
+        level_ints = resolve_levels_argument(level, self.names)
+        assert (
+            len(level_ints) == 1
+        ), f"Level argumented should have resolved to a single integer, got {level_ints}."
+        level_int = level_ints[0]
+        level_values = set(self._index.levels[level_int])
         if drop_values is None:
             drop_this = set()
         elif isinstance(drop_values, Hashable):
             drop_this = {drop_values}
         else:
             drop_this = set(drop_values)
+        not_valid = drop_this.difference(level_values)
+        if len(not_valid) > 0:
+            self.logger.warning(
+                f"The following drop_values are not present on level {level}: {not_valid}."
+            )
+            drop_this = drop_this.difference(not_valid)
         if keep_values:
-            level_ints = resolve_levels_argument(level, self.names)
-            assert (
-                len(level_ints) == 1
-            ), f"Level argumented should have resolved to a single integer, got {level_ints}."
-            level_int = level_ints[0]
-            level_values = set(self._index.levels[level_int])
             if isinstance(keep_values, Hashable):
                 keep_values = {keep_values}
             else:
                 keep_values = set(keep_values)
             drop_this.update(level_values.difference(keep_values))
-        new_index = self.index.drop(tuple(drop_this), level=level, errors="ignore")
-        if drop_level:
-            new_index = new_index.droplevel(level)
-        return self.__class__(new_index)
+        keep_values = level_values.difference(drop_this)
+        return drop_this, keep_values
 
     def sample(self, n: int) -> Self:
         """Return a random sample of n elements."""

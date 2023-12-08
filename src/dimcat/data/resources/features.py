@@ -21,6 +21,7 @@ from dimcat.dc_exceptions import (
     FeatureIsMissingFormatColumnError,
     ResourceIsMissingPieceIndexError,
 )
+from dimcat.utils import get_middle_composition_year
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,11 @@ logger = logging.getLogger(__name__)
 class Metadata(Feature):
     _default_analyzer = dict(dtype="Proportions", dimension_column="length_qb")
     _default_value_column = "piece"
+
+    def get_composition_years(
+        self,
+    ):
+        return get_middle_composition_year(metadata=self.df)
 
 
 # region Annotations

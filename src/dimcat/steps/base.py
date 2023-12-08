@@ -41,7 +41,6 @@ from dimcat.data.resources.base import (
     FeatureName,
     Resource,
     ResourceSpecs,
-    Rs,
     resource_specs2resource,
 )
 from dimcat.data.resources.dc import DimcatResource, FeatureSpecs
@@ -188,9 +187,9 @@ class PipelineStep(DimcatObject):
 
     def _post_process_result(
         self,
-        result: Rs,
+        result: DR,
         original_resource: DimcatResource,
-    ) -> Rs:
+    ) -> DR:
         """Perform some post-processing on a resource after processing it."""
         return result
 
@@ -314,6 +313,8 @@ class FeatureProcessingStep(PipelineStep):
     ):
         self._features: List[DimcatConfig] = []
         self.features = features
+        if len(kwargs) > 0:
+            self.logger.warning(f"Ignored unknown keyword arguments: {kwargs}")
 
     @property
     def features(self) -> List[DimcatConfig]:
