@@ -1425,6 +1425,8 @@ DimcatResource.__init__(
 
 
 class IndexField(mm.fields.Field):
+    """A marshmallow field for :obj:`DimcatIndex` objects."""
+
     def _serialize(self, value, attr, obj, **kwargs):
         return value.to_list()
 
@@ -1443,12 +1445,26 @@ class DimcatIndex(Generic[IX], Data):
     """
 
     class PickleSchema(Data.Schema):
-        index = IndexField(required=True)
-        names = mm.fields.List(mm.fields.Str(), required=True)
+        index = IndexField(allow_none=True)
+        names = mm.fields.List(mm.fields.Str(), allow_none=True)
 
         @mm.post_load
-        def init_object(self, data, **kwargs) -> pd.MultiIndex:
-            return pd.MultiIndex.from_tuples(data["index"], names=data["names"])
+        def init_object(self, data, **kwargs) -> DimcatIndex:
+            index_value = data["index"]
+            if isinstance(index_value, dict):
+                raise NotImplementedError(index_value)
+            if isinstance(index_value, pd.MultiIndex):
+                return DimcatIndex(index_value)
+            if isinstance(index_value, DimcatIndex):
+                return index_value
+            # should be an iterable of tuples
+            if "names" not in data:
+                raise mm.ValidationError(
+                    f"When deserializing from {type(index_value)}, 'names' must be specified."
+                )
+            dtype = data.get("dtype", "DimcatIndex")
+            Constructor = get_class(dtype)
+            return Constructor.from_tuples(index_value, level_names=data.get("names"))
 
     class Schema(PickleSchema, Data.Schema):
         pass

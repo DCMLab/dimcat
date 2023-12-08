@@ -128,20 +128,39 @@ class PieceGrouper(_IdGrouper):
         super().__init__(level_name=level_name, **kwargs)
 
 
+class GroupedUnitsField(mm.fields.Nested):
+    def __init__(
+        self,
+        nested=DimcatIndex.Schema,
+        **kwargs,
+    ):
+        super().__init__(
+            nested=nested,
+            **kwargs,
+        )
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        if isinstance(value, DimcatIndex):
+            return value
+        return super()._deserialize(value, attr, data, **kwargs)
+
+
 class MappingGrouper(Grouper):
     """Superclass for all Groupers that function on the basis of a {group_name: [index_tuples]} dictionary."""
 
     class Schema(Grouper.Schema):
-        grouped_units = mm.fields.Nested(DimcatIndex.Schema)
+        grouped_units = GroupedUnitsField(allow_none=True)
 
         @mm.pre_load
         def deal_with_dict(self, data, **kwargs):
-            if isinstance(data["grouped_units"], MutableMapping):
-                if "dtype" not in data["grouped_units"] or not is_subclass_of(
-                    data["grouped_units"]["dtype"], DimcatIndex
+            if (grouped_units := data.get("grouped_units")) and isinstance(
+                grouped_units, MutableMapping
+            ):
+                if "dtype" not in grouped_units or not is_subclass_of(
+                    grouped_units["dtype"], DimcatIndex
                 ):
                     # dealing with a manually compiled DimcatConfig where grouped_units are a grouping dict
-                    grouped_units = DimcatIndex.from_grouping(data["grouped_units"])
+                    grouped_units = DimcatIndex.from_grouping(grouped_units)
                     data["grouped_units"] = grouped_units.to_dict()
             return data
 
