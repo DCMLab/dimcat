@@ -205,7 +205,6 @@ class Analyzer(FeatureProcessingStep):
             formatted_column = resource.formatted_column
         else:
             formatted_column = None
-        print("DIMCOL: ", self.dimension_column)
         result = result_constructor.from_dataframe(
             analyzed_resource=resource,
             value_column=value_column,

@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Iterable, Optional
+from typing import Iterable, Optional
 
 import marshmallow as mm
 import pandas as pd
@@ -110,13 +110,13 @@ class NgramAnalyzer(Analyzer):
         features: Optional[FeatureSpecs | Iterable[FeatureSpecs]] = None,
         strategy: DispatchStrategy = DispatchStrategy.GROUPBY_APPLY,
         smallest_unit: UnitOfAnalysis = UnitOfAnalysis.SLICE,
-        fill_na: Any = None,
+        dimension_column: str = None,
     ):
         super().__init__(
             features=features,
             strategy=strategy,
             smallest_unit=smallest_unit,
-            fill_na=fill_na,
+            dimension_column=dimension_column,
         )
         self._n = None
         self.n = n
