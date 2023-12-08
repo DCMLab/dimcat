@@ -9,8 +9,14 @@ EXCLUDED_ANALYZERS = [
     "Analyzer"
 ]  # to be synchronized with AnalyzerConstants.analyzer_to_hide
 EXCLUDED_FEATURES = [
+    # abstract features
     "Metadata",
     "Annotations",
+    # untested features
+    "Articulation",
+    "CadenceLabels",
+    "KeyAnnotations",
+    "Measures",
 ]  # to be synchronized with AnalyzerConstants.feature_to_hide
 
 # region Interface
@@ -174,6 +180,14 @@ def test_analyze(
         analyzer_config,
         grouper_config,
     ]
+    analyzer = get_class(analyzer_config["dtype"])
+    if (
+        analyzer._allowed_features is not None
+        and feature_config["dtype"] not in analyzer._allowed_features
+    ):
+        pytest.skip(
+            f"{analyzer_config['dtype']} cannot process {feature_config['dtype']}"
+        )
 
     try:
         pl = Pipeline.from_step_configs(step_configs)
