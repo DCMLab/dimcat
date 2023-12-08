@@ -944,6 +944,7 @@ def merge_ties(
         df.loc[new_dur.index, "duration"] = new_dur.duration
     except Exception:
         print(new_dur)
+        raise
     if return_dropped:
         df.loc[new_dur.index, "dropped"] = new_dur.dropped
     df = df.drop(new_dur.dropped.sum())
