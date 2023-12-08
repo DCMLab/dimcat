@@ -32,7 +32,9 @@ class Counter(Analyzer):
         return result
 
     class Schema(Analyzer.Schema):
-        dimension_column = mm.fields.Str(load_default="count")
+        dimension_column = mm.fields.Str(
+            load_default="count", allow_none=True, metadata=dict(expose=False)
+        )
 
     def groupby_apply(self, feature: Feature, groupby: SomeSeries = None, **kwargs):
         """Performs the computation on a groupby. The value of ``groupby`` needs to be
@@ -87,9 +89,18 @@ class NgramAnalyzer(Analyzer):
         return len(feature.index)
 
     class Schema(Analyzer.Schema):
-        n = mm.fields.Integer(load_default=2)
+        n = mm.fields.Integer(
+            load_default=2,
+            validate=mm.validate.Range(min=2),
+            metadata=dict(
+                expose=True,
+                description="The n in n-grams, i.e., how many consecutive elements are grouped in one entity.",
+            ),
+        )
         format = FriendlyEnumField(
-            NgramTableFormat, load_default=NgramTableFormat.CONVENIENCE
+            NgramTableFormat,
+            load_default=NgramTableFormat.CONVENIENCE,
+            metadata=dict(expose=False),
         )
 
     def __init__(

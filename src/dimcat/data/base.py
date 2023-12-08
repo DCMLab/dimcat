@@ -112,9 +112,10 @@ class Data(DimcatObject):
 
     class Schema(DimcatObject.Schema):
         basepath = mm.fields.Str(
-            required=False,
             allow_none=True,
-            metadata=dict(description="The directory where data would be stored."),
+            metadata=dict(
+                expose=False, description="The directory where data would be stored."
+            ),
         )
 
     def __init__(

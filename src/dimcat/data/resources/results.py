@@ -83,7 +83,7 @@ class Result(DimcatResource):
         analyzed_resource = mm.fields.Nested(DimcatResource.Schema, required=True)
         value_column = mm.fields.Str(required=True)
         dimension_column = mm.fields.Str(required=True)
-        formatted_column = mm.fields.Str(required=False)
+        formatted_column = mm.fields.Str(allow_none=True)
 
     def __init__(
         self,

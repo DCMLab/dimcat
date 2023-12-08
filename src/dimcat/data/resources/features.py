@@ -243,6 +243,9 @@ def extend_harmony_feature(
 
 
 class HarmonyLabelsFormat(FriendlyEnum):
+    """Format to display the chord labels in. ROMAN stands for Roman numerals, ROMAN_REDUCED for the same numerals
+    without any suspensions, alterations, additions, etc."""
+
     ROMAN = "ROMAN"
     ROMAN_REDUCED = "ROMAN_REDUCED"
 
@@ -279,7 +282,15 @@ class HarmonyLabels(DcmlAnnotations):
     _default_value_column = "chord_and_mode"
 
     class Schema(DcmlAnnotations.Schema):
-        format = FriendlyEnumField(HarmonyLabelsFormat)
+        format = FriendlyEnumField(
+            HarmonyLabelsFormat,
+            load_default=HarmonyLabelsFormat.ROMAN,
+            metadata=dict(
+                expose=True,
+                description="Format to display the chord labels in. ROMAN stands for Roman numerals, ROMAN_REDUCED "
+                "for the same numerals without any suspensions, alterations, additions, etc.",
+            ),
+        )
 
     def __init__(
         self,
@@ -431,6 +442,12 @@ def extend_bass_notes_feature(
 
 
 class BassNotesFormat(FriendlyEnum):
+    """Format to display the bass notes in. INTERVAL stands for the interval between the bass note and the local
+    tonic, FIFTHS expresses that same interval as a number of fifths, SCALE_DEGREE expresses the bass note as a scale
+    degree depending on the local key (i.e. scale degrees 3, 6, 7 are minor intervals in minor and major intervals in
+    major), whereas SCALE_DEGREE_MAJOR and SCALE_DEGREE_MINOR express the bass note as a scale degree independent of
+    the local key"""
+
     FIFTHS = "FIFTHS"
     INTERVAL = "INTERVAL"
     SCALE_DEGREE = "SCALE_DEGREE"
@@ -459,7 +476,19 @@ class BassNotes(HarmonyLabels):
     _extractable_features = None
 
     class Schema(DcmlAnnotations.Schema):
-        format = FriendlyEnumField(BassNotesFormat)
+        format = FriendlyEnumField(
+            BassNotesFormat,
+            load_default=BassNotesFormat.INTERVAL,
+            metadata=dict(
+                expose=True,
+                description="Format to display the bass notes in. INTERVAL stands for the interval between the bass "
+                "note and the local tonic, FIFTHS expresses that same interval as a number of fifths, "
+                "SCALE_DEGREE expresses the bass note as a scale degree depending on the local key (i.e. "
+                "scale degrees 3, 6, 7 are minor intervals in minor and major intervals in major), "
+                "whereas SCALE_DEGREE_MAJOR and SCALE_DEGREE_MINOR express the bass note as a scale "
+                "degree independent of the local key",
+            ),
+        )
 
     def __init__(
         self,
@@ -558,6 +587,10 @@ def extend_cadence_feature(
 
 
 class CadenceLabelFormat(FriendlyEnum):
+    """Format to display the cadence labels in. RAW stands for 'as-is'. TYPE omits the subtype, reducing more
+    specific labels, whereas SUBTYPE displays subtypes only, omitting all labels that do not specify one.
+    """
+
     RAW = "RAW"
     TYPE = "TYPE"
     SUBTYPE = "SUBTYPE"
@@ -579,7 +612,16 @@ class CadenceLabels(DcmlAnnotations):
     _extractable_features = None
 
     class Schema(DcmlAnnotations.Schema):
-        format = FriendlyEnumField(CadenceLabelFormat)
+        format = FriendlyEnumField(
+            CadenceLabelFormat,
+            load_default=CadenceLabelFormat.RAW,
+            metadata=dict(
+                expose=True,
+                description="Format to display the cadence labels in. RAW stands for 'as-is'. TYPE omits the subtype, "
+                "reducing more specific labels, whereas SUBTYPE displays subtypes only, omitting all "
+                "labels that do not specify one.",
+            ),
+        )
 
     def __init__(
         self,
@@ -671,6 +713,9 @@ class Articulation(Feature):
 
 
 class NotesFormat(FriendlyEnum):
+    """Format to display the notes in. NAME stands for note names, FIFTHS for the number of fifths from C,
+    and MIDI for MIDI numbers."""
+
     NAME = "NAME"
     FIFTHS = "FIFTHS"
     MIDI = "MIDI"
@@ -724,11 +769,20 @@ class Notes(Feature):
     _default_value_column = "tpc"
 
     class Schema(Feature.Schema):
-        format = FriendlyEnumField(NotesFormat)
+        format = FriendlyEnumField(
+            NotesFormat,
+            load_default=NotesFormat.NAME,
+            metadata=dict(
+                expose=True,
+                description="Format to display the notes in. NAME stands for note names, FIFTHS for the number of "
+                "fifths from C, and MIDI for MIDI numbers.",
+            ),
+        )
         merge_ties = mm.fields.Boolean(
             load_default=False,
             metadata=dict(
                 title="Merge tied notes",
+                expose=True,
                 description="If set, notes that are tied together in the score are merged together, counting them "
                 "as a single event of the corresponding length. Otherwise, every note head is counted.",
             ),
@@ -738,6 +792,7 @@ class Notes(Feature):
             validate=mm.validate.Range(min=0.0, max=1.0),
             metadata=dict(
                 title="Weight grace notes",
+                expose=True,
                 description="Set a factor > 0.0 to multiply the nominal duration of grace notes which, otherwise, have "
                 "duration 0 and are therefore excluded from many statistics.",
             ),

@@ -466,9 +466,22 @@ class DimcatResource(Resource, Generic[D]):
         return column_names
 
     class Schema(Resource.Schema):
-        auto_validate = mm.fields.Boolean(metadata={"expose": False})
+        auto_validate = mm.fields.Boolean(
+            metadata=dict(
+                expose=False,
+                description="By default, the DimcatResource will not be validated upon instantiation or change (but "
+                "always before writing to disk). Set True to raise an exception during creation or "
+                "modification of the resource, e.g. replacing the :attr:`column_schema`.",
+            )
+        )
         default_groupby = mm.fields.List(
-            mm.fields.String(), allow_none=True, metadata={"expose": False}
+            mm.fields.String(),
+            allow_none=True,
+            metadata=dict(
+                expose=False,
+                description="Pass a list of column names or index levels to groupby something else than the default "
+                "(by piece).",
+            ),
         )
 
         # @mm.post_load

@@ -32,7 +32,6 @@ class DimcatCatalog(Data):
     class PickleSchema(Data.PickleSchema):
         packages = mm.fields.List(
             mm.fields.Nested(Package.Schema),
-            required=False,
             allow_none=True,
             metadata=dict(description="The packages in the catalog."),
         )

@@ -269,6 +269,11 @@ class FeatureProcessingStep(PipelineStep):
         features = fields.List(
             fields.Nested(DimcatConfig.Schema),
             allow_none=True,
+            metadata=dict(
+                expose=True,
+                description="The Feature objects you want this PipelineStep to process. If not specified, "
+                "the step will try to process all features in a given Dataset's Outputs catalog.",
+            ),
         )
 
         @pre_load
@@ -294,6 +299,8 @@ class FeatureProcessingStep(PipelineStep):
 
     @property
     def features(self) -> List[DimcatConfig]:
+        """The Feature objects you want this PipelineStep to process. If not specified, the step will try to process
+        all features in a given Dataset's Outputs catalog."""
         return self._features
 
     @features.setter
