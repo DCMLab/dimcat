@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from collections import defaultdict
 from itertools import repeat
 from pprint import pformat
@@ -22,9 +23,17 @@ from typing import (
 
 import marshmallow as mm
 import pandas as pd
-from dimcat.base import DimcatConfig, DimcatObject, ObjectEnum, get_class, get_schema
+from dimcat.base import (
+    DimcatConfig,
+    DimcatObject,
+    ObjectEnum,
+    get_class,
+    get_schema,
+    is_instance_of,
+)
 from dimcat.data.base import Data
 from dimcat.data.datasets.base import Dataset
+from dimcat.data.datasets.processed import _AnalyzedMixin
 from dimcat.data.packages.dc import DimcatPackage
 from dimcat.data.resources.base import (
     DR,
@@ -48,6 +57,7 @@ from dimcat.dc_exceptions import (
     ResourceAlreadyTransformed,
     ResourceNotProcessableError,
 )
+from dimcat.dc_warnings import OrderOfPipelineStepsWarning
 from marshmallow import fields, pre_load
 
 logger = logging.getLogger(__name__)
@@ -113,6 +123,14 @@ class PipelineStep(DimcatObject):
         """
         if not isinstance(dataset, Dataset):
             raise TypeError(f"Expected Dataset, got {type(dataset)}")
+        if isinstance(dataset, _AnalyzedMixin) and not is_instance_of(
+            self.name, "Analyzer"
+        ):
+            warnings.warn(
+                f"You're applying a {self.name} to an AnalyzedDataset. As things stand, Analyzers should "
+                f"always be the last thing to be applied to a Dataset. Consider a different Pipeline.",
+                OrderOfPipelineStepsWarning,
+            )
         if not self._applicable_to_empty_datasets:
             if dataset.n_features_available == 0:
                 raise EmptyDatasetError
