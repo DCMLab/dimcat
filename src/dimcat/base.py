@@ -477,6 +477,7 @@ class DimcatConfig(MutableMapping, DimcatObject):
             raise mm.ValidationError(
                 f"{self.options_schema}: Cannot instantiate DimcatConfig with dtype={dtype!r} and invalid options:"
                 f"\n{report}"
+                f"\n\nOPTIONS:\n{pformat(self._options, sort_dicts=False)}"
             )
 
     def __delitem__(self, key):
@@ -663,7 +664,10 @@ def get_pickle_schema(name, init=True):
     dc_class = get_class(name)
     dc_schema = dc_class.PickleSchema
     if init:
-        return dc_schema()
+        initialized_schema = dc_schema()
+        dtype_field = initialized_schema.fields["dtype"]
+        dtype_field.load_default = str(name)
+        return initialized_schema
     return dc_schema
 
 
@@ -673,7 +677,10 @@ def get_schema(name, init=True):
     dc_class = get_class(name)
     dc_schema = dc_class.Schema
     if init:
-        return dc_schema()
+        initialized_schema = dc_schema()
+        dtype_field = initialized_schema.fields["dtype"]
+        dtype_field.load_default = str(name)
+        return initialized_schema
     return dc_schema
 
 
