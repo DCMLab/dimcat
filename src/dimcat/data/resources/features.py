@@ -9,10 +9,17 @@ import ms3
 import pandas as pd
 from dimcat.base import FriendlyEnum, FriendlyEnumField
 from dimcat.data.resources.base import D, FeatureName
-from dimcat.data.resources.dc import HARMONY_FEATURE_NAMES, Feature, UnitOfAnalysis
+from dimcat.data.resources.dc import (
+    HARMONY_FEATURE_NAMES,
+    DimcatIndex,
+    Feature,
+    SliceIntervals,
+    UnitOfAnalysis,
+)
 from dimcat.data.resources.utils import (
     boolean_is_minor_column_to_mode,
     condense_dataframe_by_groups,
+    join_df_on_index,
     make_adjacency_groups,
     merge_ties,
 )
@@ -29,6 +36,18 @@ logger = logging.getLogger(__name__)
 class Metadata(Feature):
     _default_analyzer = dict(dtype="Proportions", dimension_column="length_qb")
     _default_value_column = "piece"
+
+    def apply_slice_intervals(
+        self,
+        slice_intervals: SliceIntervals | pd.MultiIndex,
+    ) -> pd.DataFrame:
+        """"""
+        if isinstance(slice_intervals, DimcatIndex):
+            slice_intervals = slice_intervals.index
+        if self.is_empty:
+            self.logger.warning(f"Resource {self.name} is empty.")
+            return pd.DataFrame(index=slice_intervals)
+        return join_df_on_index(self.df, slice_intervals)
 
     def get_composition_years(
         self,
