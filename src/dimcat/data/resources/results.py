@@ -27,7 +27,7 @@ from plotly import graph_objs as go
 from plotly.subplots import make_subplots
 from typing_extensions import Self
 
-from .base import D
+from .base import D, S
 from .dc import DimcatResource, UnitOfAnalysis
 
 logger = logging.getLogger(__name__)
@@ -860,7 +860,10 @@ class NgramTable(Result):
         return list(self.df.columns.levels[0])
 
     def _add_context_columns(
-        self, df: D, context_columns: Optional[Literal[True], str, Tuple[str]] = None
+        self,
+        df: D,
+        context_columns: Optional[Literal[True], str, Tuple[str]] = None,
+        terminal_symbols: Optional[Literal[False]] = None,
     ):
         if context_columns is True:
             if not self._auxiliary_column_names:
@@ -894,6 +897,8 @@ class NgramTable(Result):
             )
             return df
         context_columns = self.df.loc[:, double_level].droplevel(0, axis=1)
+        if terminal_symbols is False:
+            return context_columns.join(df, how="right")
         return pd.concat([context_columns, df], axis=1)
 
     def get_grouping_levels(
@@ -902,6 +907,24 @@ class NgramTable(Result):
         # do not follow the behaviour of Result.get_grouping_levels, which assumes that the last one or two levels
         # are value_column or [value_column, formatted_column] and omits these
         return DimcatResource.get_grouping_levels(self, smallest_unit=smallest_unit)
+
+    def _get_terminal_drop_mask(
+        self, df: Optional[D] = None, ngram_levels: Optional[List[str]] = None
+    ) -> S:
+        if df is None:
+            df = self.df
+        if ngram_levels is None:
+            ngram_levels = self.ngram_levels[1:]
+        if isinstance(df.columns, pd.MultiIndex):
+            drop_mask = pd.Series(False, index=self.df.index)
+            levels = list(set(ngram_levels).intersection(df.columns.levels[0]))
+            for level in levels:
+                drop_mask |= df.loc[:, level].isna().all(axis=1)
+        else:
+            # this is an ngram table and has columns a, b...
+            levels = list(set(ngram_levels).intersection(df.columns))
+            drop_mask = df.loc[:, levels].isna().any(axis=1)
+        return drop_mask
 
     def _get_transitions(
         self,
@@ -1013,6 +1036,7 @@ class NgramTable(Result):
         split: int = -1,
         join_str: Optional[str | bool] = None,
         fillna: Optional[Hashable] = None,
+        terminal_symbols: Optional[Literal[False]] = None,
         context_columns: Optional[Literal[True], str, Tuple[str]] = None,
     ) -> pd.DataFrame:
         """Reduce the selected columns into to, called 'a' and 'b', that contain the values of the reduced columns
@@ -1036,6 +1060,9 @@ class NgramTable(Result):
                 In all of these non-default cases, you end up with two columns containing strings.
             fillna:
                 Pass a value to replace all missing values it. When ``join_str`` is set, "" is often a good choice.
+            terminal_symbols:
+                By default, the consequent of each last bigram has only missing values. Pass False to
+                drop these rows.
             context_columns:
                 Columns preceding the bigram columns for context, such as measure numbers etc. Pass True to use the
                 default context columns or one or several column names to subselect.
@@ -1053,6 +1080,7 @@ class NgramTable(Result):
             columns=columns,
             join_str=join_str,
             fillna=fillna,
+            terminal_symbols=terminal_symbols,
         )
         if len(self.ngram_levels) == 2:
             result = ngram_table
@@ -1063,7 +1091,9 @@ class NgramTable(Result):
             ]
             result = pd.DataFrame(data, columns=["a", "b"], index=self.df.index)
         if context_columns:
-            result = self._add_context_columns(result, context_columns)
+            result = self._add_context_columns(
+                result, context_columns, terminal_symbols
+            )
         return result
 
     def make_bigram_tuples(
@@ -1072,6 +1102,7 @@ class NgramTable(Result):
         split: int = -1,
         join_str: Optional[str | bool] = None,
         fillna: Optional[Hashable] = None,
+        terminal_symbols: Optional[Literal[False]] = None,
         drop_identical: bool = False,
         n_gram_column_name: str = "n_gram",
         context_columns: Optional[Literal[True], str, Tuple[str]] = None,
@@ -1094,6 +1125,9 @@ class NgramTable(Result):
                 In all of these non-default cases, you end up with two columns containing strings.
             fillna:
                 Pass a value to replace all missing values it. When ``join_str`` is set, "" is often a good choice.
+            terminal_symbols:
+                By default, the consequent of each last bigram has only missing values. Pass False to
+                drop these rows.
             drop_identical: Pass True to drop all tuples where left and right gram are identical.
             n_gram_column_name: Name of the value_column in the resulting :class:`NgramTuples` object.
             context_columns:
@@ -1113,7 +1147,11 @@ class NgramTable(Result):
             columns = [columns]
         columns = tuple(columns)
         table = self.make_bigram_table(
-            columns=columns, split=split, join_str=join_str, fillna=fillna
+            columns=columns,
+            split=split,
+            join_str=join_str,
+            fillna=fillna,
+            terminal_symbols=terminal_symbols,
         )
         df = table.apply(tuple, axis=1).to_frame(n_gram_column_name)
         if drop_identical:
@@ -1136,6 +1174,7 @@ class NgramTable(Result):
         n: Optional[int] = None,
         join_str: Optional[str | bool] = None,
         fillna: Optional[Hashable] = None,
+        terminal_symbols: Optional[Literal[False]] = None,
         context_columns: Optional[Literal[True], str, Tuple[str]] = None,
     ) -> pd.DataFrame:
         """Reduce the selected columns for the n first n-gram levels a, b, ... so that the resulting dataframe
@@ -1153,6 +1192,10 @@ class NgramTable(Result):
                 In all of these non-default cases, you end up with two columns containing strings.
             fillna:
                 Pass a value to replace all missing values it. When ``join_str`` is set, "" is often a good choice.
+            terminal_symbols:
+                By default, the consequent of each last bigram (for example) has only missing values. Pass False to
+                drop these rows. For 3-grams this drops the last 2 rows, etc.
+                ToDo: Allow for passing a Mapping from 'b', 'c' etc. to terminal symbols.
             context_columns:
                 Columns preceding the bigram columns for context, such as measure numbers etc. Pass True to use the
                 default context columns or one or several column names to subselect.
@@ -1175,6 +1218,10 @@ class NgramTable(Result):
             selected_levels = self.ngram_levels
         selected_columns = list(product(selected_levels, columns))
         selection = self.df[selected_columns]
+        ngram_levels = selected_levels[1:]
+        if terminal_symbols is False:
+            drop_mask = self._get_terminal_drop_mask(selection, ngram_levels)
+            selection = selection[~drop_mask]
         if fillna is not None:
             selection = selection.fillna(fillna)
         if join_str is None:
@@ -1203,7 +1250,9 @@ class NgramTable(Result):
                 .T
             )
         if context_columns:
-            result = self._add_context_columns(result, context_columns)
+            result = self._add_context_columns(
+                result, context_columns, terminal_symbols
+            )
         return result
 
     def make_ngram_tuples(
@@ -1212,6 +1261,7 @@ class NgramTable(Result):
         n: Optional[int] = None,
         join_str: Optional[str | bool] = None,
         fillna: Optional[Hashable] = None,
+        terminal_symbols: Optional[Literal[False]] = None,
         drop_identical: bool = False,
         n_gram_column_name: str = "n_gram",
         context_columns: Optional[Literal[True], str, Tuple[str]] = None,
@@ -1231,6 +1281,9 @@ class NgramTable(Result):
                 In all of these non-default cases, you end up with two columns containing strings.
             fillna:
                 Pass a value to replace all missing values it. When ``join_str`` is set, "" is often a good choice.
+            terminal_symbols:
+                By default, the consequent of each last bigram (for example) has only missing values. Pass False to
+                drop these rows. For 3-grams this drops the last 2 rows, etc.
             drop_identical: Pass True to drop all tuples where all elements are identical.
             n_gram_column_name: Name of the value_column in the resulting :class:`NgramTuples` object.
             context_columns:
@@ -1250,7 +1303,11 @@ class NgramTable(Result):
             columns = [columns]
         columns = tuple(columns)
         table = self.make_ngram_table(
-            columns=columns, n=n, join_str=join_str, fillna=fillna
+            columns=columns,
+            n=n,
+            join_str=join_str,
+            fillna=fillna,
+            terminal_symbols=terminal_symbols,
         )
         df = table.apply(tuple, axis=1).to_frame(n_gram_column_name)
         if drop_identical:
