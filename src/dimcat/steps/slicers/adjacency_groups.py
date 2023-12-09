@@ -3,7 +3,8 @@ from typing import ClassVar, Optional
 import marshmallow as mm
 import pandas as pd
 from dimcat import Dataset
-from dimcat.data.resources import Feature, FeatureName
+from dimcat.data.resources import DimcatResource, Feature, FeatureName, Metadata
+from dimcat.data.resources.base import DR
 from dimcat.data.resources.dc import SliceIntervals
 from dimcat.dc_exceptions import SlicerNotSetUpError
 from dimcat.steps.slicers.base import Slicer
@@ -34,6 +35,9 @@ class AdjacencyGroupSlicer(Slicer):
         self._slice_intervals: Optional[SliceIntervals] = None
         if slice_intervals is not None:
             self.slice_intervals = slice_intervals
+        self.slice_metadata: Optional[Feature] = None
+        """Reference to the processed Feature that determines the slice intervals of the current fit. This feature,
+        sliced, serves as metadata and will be joined with :obj:`Metadata` features whenever they are processed."""
 
     @property
     def required_feature(self) -> FeatureName:
@@ -59,6 +63,7 @@ class AdjacencyGroupSlicer(Slicer):
         """Set the slice intervals to the intervals provided by the relevant feature."""
         feature = dataset.get_feature(self.required_feature)
         self.slice_intervals = feature.get_slice_intervals(level_name=self.level_name)
+        self.slice_metadata = self.process_resource(feature)
 
     def get_slice_intervals(self, resource: Feature) -> SliceIntervals:
         """Get the slice intervals from the relevant feature."""
@@ -72,6 +77,35 @@ class AdjacencyGroupSlicer(Slicer):
             else:
                 raise SlicerNotSetUpError(self.dtype)
         return self.slice_intervals
+
+    def _is_resource_required_one(self, resource: DR) -> bool:
+        """Check if a given resource is the one that has previously been processed during self.fit_to_dataset() and
+        stored in :attr:`slice_metadata`."""
+        return (
+            self.slice_metadata is not None
+            and self.slice_metadata.name == resource.name
+            and self.slice_metadata.resource_name
+            == self.resource_name_factory(resource)
+        )
+
+    def _process_resource(self, resource: DR) -> DR:
+        """Apply this PipelineStep to a :class:`Resource` and return a copy containing the output(s)."""
+        if self._is_resource_required_one(resource):
+            # this resource has already been processed during self.fit_to_dataset()
+            return self.slice_metadata
+        return super()._process_resource(resource)
+
+    def transform_resource(self, resource: DimcatResource) -> pd.DataFrame:
+        """Apply the slicer to a Feature."""
+        if isinstance(resource, Metadata):
+            if self.slice_metadata is None:
+                self.logger.warning(
+                    f"The slicer has no slice_metadata that could be added while processing the "
+                    f"Metadata feature {resource.resource_name!r}."
+                )
+            else:
+                return self.slice_metadata.join(resource.df, how="left")
+        return super().transform_resource(resource)
 
 
 class KeySlicer(AdjacencyGroupSlicer):
