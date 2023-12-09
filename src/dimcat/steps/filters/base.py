@@ -1,8 +1,15 @@
 from typing import Hashable, Iterable, Optional
 
+import marshmallow as mm
 from dimcat.data.resources import DimcatResource
 from dimcat.data.resources.base import DR
 from dimcat.steps.groupers import CorpusGrouper, PieceGrouper
+
+
+class FilterSchema(mm.Schema):
+    keep_values = mm.fields.List(mm.fields.Raw, allow_none=True)
+    drop_values = mm.fields.List(mm.fields.Raw, allow_none=True)
+    drop_level = mm.fields.Boolean(allow_none=True)
 
 
 class _FilterMixin:
@@ -48,8 +55,10 @@ class _FilterMixin:
 
 
 class CorpusFilter(_FilterMixin, CorpusGrouper):
-    pass
+    class Schema(CorpusGrouper.Schema, FilterSchema):
+        pass
 
 
 class PieceFilter(_FilterMixin, PieceGrouper):
-    pass
+    class Schema(PieceGrouper.Schema, FilterSchema):
+        pass
