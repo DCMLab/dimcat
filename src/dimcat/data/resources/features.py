@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import List, Optional
+from typing import Iterable, List, Optional, Tuple
 
 import frictionless as fl
 import marshmallow as mm
@@ -267,6 +267,70 @@ def extend_harmony_feature(
     return feature_df
 
 
+def chord_tones2interval_structure(
+    fifths: Iterable[int], reference: Optional[int] = None
+) -> Tuple[str]:
+    """The fifth are interpreted as intervals expressing distances from the local tonic ("neutral degrees").
+    The result will be a tuple of strings that express the same intervals but expressed with respect to the given
+    reference (neutral degree), removing unisons.
+    If no reference is specified, the first degree (usually, the bass note) is used as such.
+    """
+    try:
+        fifths = tuple(fifths)
+        if len(fifths) == 0:
+            return ()
+    except Exception:
+        return ()
+    if reference is None:
+        reference = fifths[0]
+    elif reference in fifths:
+        position = fifths.index(reference)
+        if position > 0:
+            fifths = fifths[position:] + fifths[:position]
+    adapted_intervals = [
+        ms3.fifths2iv(adapted)
+        for interval in fifths
+        if (adapted := interval - reference) != 0
+    ]
+    return tuple(adapted_intervals)
+
+
+def add_chord_tone_intervals(
+    feature_df,
+):
+    """Turns 'chord_tones' column into one or two additional columns, depending on whether a 'root' column is
+    present, where the chord_tones (which come as fifths) are represented as strings representing intervals over the
+    bass_note and above the root, if present.
+    """
+    columns_to_add = (
+        "intervals_over_bass",
+        "intervals_over_root",
+    )
+    if all(col in feature_df.columns for col in columns_to_add):
+        return feature_df
+    expected_columns = ("chord_tones",)  # "root" is optional
+    if not all(col in feature_df.columns for col in expected_columns):
+        raise DataframeIsMissingExpectedColumnsError(
+            [col for col in expected_columns if col not in feature_df.columns],
+            feature_df.columns.to_list(),
+        )
+    concatenate_this = [feature_df]
+    if "intervals_over_bass" not in feature_df.columns:
+        concatenate_this.append(
+            ms3.transform(
+                feature_df, chord_tones2interval_structure, ["chord_tones"]
+            ).rename("intervals_over_bass")
+        )
+    if "intervals_over_root" not in feature_df.columns and "root" in feature_df.columns:
+        concatenate_this.append(
+            ms3.transform(
+                feature_df, chord_tones2interval_structure, ["chord_tones", "root"]
+            ).rename("intervals_over_root")
+        )
+    feature_df = pd.concat(concatenate_this, axis=1)
+    return feature_df
+
+
 class HarmonyLabelsFormat(FriendlyEnum):
     """Format to display the chord labels in. ROMAN stands for Roman numerals, ROMAN_REDUCED for the same numerals
     without any suspensions, alterations, additions, etc."""
@@ -289,6 +353,8 @@ class HarmonyLabels(DcmlAnnotations):
         "chord_reduced",
         "chord_reduced_and_mode",
         "chord_tones",
+        "intervals_over_bass",
+        "intervals_over_root",
         "chord_type",
         "figbass",
         "form",
@@ -400,6 +466,7 @@ class HarmonyLabels(DcmlAnnotations):
         )
         feature_df = extend_keys_feature(feature_df)
         feature_df = extend_harmony_feature(feature_df)
+        feature_df = add_chord_tone_intervals(feature_df)
         return self._sort_columns(feature_df)
 
 
@@ -492,6 +559,7 @@ class BassNotes(HarmonyLabels):
         "bass_degree_major",
         "bass_degree_minor",
         "bass_note_over_local_tonic",
+        "intervals_over_bass",
     ]
     _feature_column_names = [
         "globalkey",
@@ -587,6 +655,7 @@ class BassNotes(HarmonyLabels):
         )
         feature_df = extend_keys_feature(feature_df)
         feature_df = extend_bass_notes_feature(feature_df)
+        feature_df = add_chord_tone_intervals(feature_df)
         return self._sort_columns(feature_df)
 
 
