@@ -7,7 +7,7 @@ import pandas as pd
 from dimcat import Dataset
 from dimcat.base import FriendlyEnumField, is_subclass_of
 from dimcat.data.datasets.processed import GroupedDataset
-from dimcat.data.resources.base import DR, D, FeatureName, Rs
+from dimcat.data.resources.base import DR, D, FeatureName
 from dimcat.data.resources.dc import (
     DimcatIndex,
     DimcatResource,
@@ -17,7 +17,6 @@ from dimcat.data.resources.dc import (
 from dimcat.dc_exceptions import (
     DatasetNotProcessableError,
     GrouperNotSetUpError,
-    ResourceAlreadyTransformed,
     ResourceIsMissingCorpusIndexError,
     ResourceIsMissingPieceIndexError,
 )
@@ -55,19 +54,38 @@ class Grouper(ResourceTransformation):
         check_name(level_name)
         self._level_name = level_name
 
-    def check_resource(self, resource: DR) -> None:
-        super().check_resource(resource)
-        if self.level_name in resource.get_default_groupby():
-            raise ResourceAlreadyTransformed(resource.resource_name, self.name)
+    def _make_new_resource(self, resource: DR) -> DR:
+        if self.level_name in resource.get_level_names():
+            return self._reorder_levels(resource)
+        return super()._make_new_resource(resource)
 
     def _post_process_result(
         self,
-        result: Rs,
-        original_resource: DR,
-    ) -> Rs:
-        """Change the default_groupby value of the returned Feature."""
+        result: DR,
+        original_resource: DimcatResource,
+    ) -> DR:
+        """Change the default_groupby value of the returned Feature. Subclasses with a
+        :obj:`_FilterMixin` also call the filter's :meth:`_post_process_result` method.
+        """
         result.update_default_groupby(self.level_name)
         return result
+
+    def _reorder_levels(self, resource: DR) -> DR:
+        """Make this grouper's level name the first (if it existed before)."""
+        level_names = resource.get_level_names()
+        if level_names[0] == self.level_name:
+            self.logger.info(
+                f"The resource {resource.resource_name} had already been grouped by a {self.name} "
+                f"and is returned as is."
+            )
+            return resource
+        else:
+            level_names.remove(self.level_name)
+            level_names = [self.level_name] + level_names
+            new_df = resource.df.reorder_levels(level_names)
+            return resource.__class__.from_resource_and_dataframe(
+                resource=resource, df=new_df
+            )
 
     def transform_resource(self, resource: DimcatResource) -> D:
         """Apply the grouper to a Feature."""
@@ -78,16 +96,6 @@ class _IdGrouper(Grouper):
     """Superclass for CorpusGrouper and PieceGrouper, which both concern the two index levels that are expected to be
     present in all Facets and Features.
     """
-
-    def transform_resource(self, resource: DR) -> D:
-        """Apply the grouper to a Feature."""
-        level_names = resource.get_level_names()
-        if level_names[0] != self.level_name:
-            level_names.remove(self.level_name)
-            level_names = [self.level_name] + level_names
-            return resource.df.reorder_levels(level_names)
-        else:
-            return resource.df
 
     def _process_resource(self, resource: DR) -> DR:
         """Apply this PipelineStep to a :class:`Resource` and return a copy containing the output(s)."""
@@ -128,20 +136,39 @@ class PieceGrouper(_IdGrouper):
         super().__init__(level_name=level_name, **kwargs)
 
 
+class GroupedUnitsField(mm.fields.Nested):
+    def __init__(
+        self,
+        nested=DimcatIndex.Schema,
+        **kwargs,
+    ):
+        super().__init__(
+            nested=nested,
+            **kwargs,
+        )
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        if isinstance(value, DimcatIndex):
+            return value
+        return super()._deserialize(value, attr, data, **kwargs)
+
+
 class MappingGrouper(Grouper):
     """Superclass for all Groupers that function on the basis of a {group_name: [index_tuples]} dictionary."""
 
     class Schema(Grouper.Schema):
-        grouped_units = mm.fields.Nested(DimcatIndex.Schema)
+        grouped_units = GroupedUnitsField(allow_none=True)
 
         @mm.pre_load
         def deal_with_dict(self, data, **kwargs):
-            if isinstance(data["grouped_units"], MutableMapping):
-                if "dtype" not in data["grouped_units"] or not is_subclass_of(
-                    data["grouped_units"]["dtype"], DimcatIndex
+            if (grouped_units := data.get("grouped_units")) and isinstance(
+                grouped_units, MutableMapping
+            ):
+                if "dtype" not in grouped_units or not is_subclass_of(
+                    grouped_units["dtype"], DimcatIndex
                 ):
                     # dealing with a manually compiled DimcatConfig where grouped_units are a grouping dict
-                    grouped_units = DimcatIndex.from_grouping(data["grouped_units"])
+                    grouped_units = DimcatIndex.from_grouping(grouped_units)
                     data["grouped_units"] = grouped_units.to_dict()
             return data
 

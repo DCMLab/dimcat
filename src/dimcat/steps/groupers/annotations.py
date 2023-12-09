@@ -12,7 +12,7 @@ from typing_extensions import Self
 logger = logging.getLogger(__name__)
 
 
-class HasCadenceAnnotations(CriterionGrouper):
+class HasCadenceAnnotationsGrouper(CriterionGrouper):
     """Boolean grouper that categorizes slices, pieces, or groups by whether they have at least one cadence label or
     not."""
 
@@ -63,7 +63,7 @@ class HasCadenceAnnotations(CriterionGrouper):
         )
 
 
-class HasHarmonyLabels(CustomPieceGrouper):
+class HasHarmonyLabelsGrouper(CustomPieceGrouper):
     """Boolean grouper that categorizes pieces by whether they have at least one DCML harmony label or not."""
 
     @classmethod

@@ -120,9 +120,13 @@ class Analyzer(FeatureProcessingStep):
     #         raise ValueError(f"{cls.name} cannot be applied after {excluded_names}.")
 
     class Schema(FeatureProcessingStep.Schema):
-        strategy = FriendlyEnumField(DispatchStrategy, metadata={"expose": False})
-        smallest_unit = FriendlyEnumField(UnitOfAnalysis, metadata={"expose": False})
-        dimension_column = mm.fields.Str()
+        strategy = FriendlyEnumField(DispatchStrategy, metadata=dict(expose=False))
+        smallest_unit = FriendlyEnumField(
+            UnitOfAnalysis,
+            load_default=UnitOfAnalysis.SLICE,
+            metadata=dict(expose=False),
+        )  # not to be exposed until Slicers become available in the UI
+        dimension_column = mm.fields.Str(allow_none=True, metadata=dict(expose=False))
 
         @mm.pre_load()
         def features_as_list(self, obj, **kwargs):
@@ -201,7 +205,6 @@ class Analyzer(FeatureProcessingStep):
             formatted_column = resource.formatted_column
         else:
             formatted_column = None
-        print("DIMCOL: ", self.dimension_column)
         result = result_constructor.from_dataframe(
             analyzed_resource=resource,
             value_column=value_column,
@@ -233,24 +236,3 @@ class Analyzer(FeatureProcessingStep):
     def resource_name_factory(self, resource: DimcatResource) -> str:
         """Returns a name for the resource based on its name and the name of the pipeline step."""
         return f"{resource.resource_name}.analyzed"
-
-
-# def typestrings2types(
-#     typestrings: Union[Union[str, Enum], Collection[Union[str, Enum]]]
-# ) -> Tuple[type]:
-#     """Turns one or several names of classes into a tuple of references to these classes."""
-#     if isinstance(typestrings, (str, Enum)):
-#         typestrings = [typestrings]
-#     result = [typestring2type(typestring) for typestring in typestrings]
-#     return tuple(result)
-#
-#
-# def typestring2type(typestring: Union[str, Enum]) -> type:
-#     if isinstance(typestring, Enum):
-#         typestring = typestring.value
-#     if typestring in DimcatObject._registry:
-#         return DimcatObject._registry[typestring]
-#     raise KeyError(
-#         f"Typestring '{typestring}' does not correspond to a known subclass of DimcatObject:\n"
-#         f"{DimcatObject._registry}"
-#     )

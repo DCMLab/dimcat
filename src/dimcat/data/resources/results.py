@@ -83,7 +83,7 @@ class Result(DimcatResource):
         analyzed_resource = mm.fields.Nested(DimcatResource.Schema, required=True)
         value_column = mm.fields.Str(required=True)
         dimension_column = mm.fields.Str(required=True)
-        formatted_column = mm.fields.Str(required=False)
+        formatted_column = mm.fields.Str(allow_none=True)
 
     def __init__(
         self,
@@ -1694,6 +1694,7 @@ def make_heatmaps_from_transitions(
         traces_update.update(traces_settings)
 
     if not groupby:
+        # no subplots needed, return single heatmap
         proportions, counts, proportions_str = prepare_transitions(
             transitions_df, max_x=max_x, max_y=max_y
         )
@@ -1715,6 +1716,7 @@ def make_heatmaps_from_transitions(
             write_image(fig=fig, filename=output, width=width, height=height)
         return fig
 
+    # prepare subplots according to groupby
     facet_row_names, facet_col_names = [], []
     group2row_col = {}
     group2data, group2customdata, group2text = {}, {}, {}
@@ -1752,6 +1754,11 @@ def make_heatmaps_from_transitions(
 
     # prepare the transition data
     for group, group_df in transitions_df.groupby(groupby, group_keys=False):
+        if not isinstance(group, str):
+            if isinstance(group, tuple):
+                group = ", ".join(str(g) for g in group)
+            else:
+                group = str(group)
         proportions, counts, proportions_str = prepare_transitions(
             group_df, max_x=max_x, max_y=max_y
         )
@@ -1760,6 +1767,7 @@ def make_heatmaps_from_transitions(
         group2text[group] = proportions_str
         update_facet_names(group)
 
+    # prepare the colorscales
     colorscale_list = []
     if column_colorscales is not None:
         if isinstance(column_colorscales, list):
@@ -1812,6 +1820,8 @@ def make_heatmaps_from_transitions(
             name=group,
         )
         fig.add_trace(heatmap, row, col)
+
+    # layout and return
     update_figure_layout(
         fig=fig,
         layout=layout,

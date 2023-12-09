@@ -31,7 +31,9 @@ class Proportions(Analyzer):
         return result
 
     class Schema(Analyzer.Schema):
-        dimension_column = mm.fields.Str(load_default="duration_qb")
+        dimension_column = mm.fields.Str(
+            load_default="duration_qb", allow_none=True, metadata=dict(expose=False)
+        )
 
     def check_resource(self, resource: DimcatResource) -> None:
         """Check if the resource has a value column."""

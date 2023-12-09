@@ -234,6 +234,8 @@ class Music21Score:
             return self._parse_Clef
         if isinstance(element, m21.harmony.Harmony):
             return self._parse_Harmony
+        if isinstance(element, m21.key.KeySignature):
+            return self._parse_Key
         raise NotImplementedError(
             f"Method {method_name} for parsing {element.__class__} not implemented."
         )

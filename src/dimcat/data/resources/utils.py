@@ -76,11 +76,16 @@ def align_with_grouping(
     shared_levels = set(df_levels).intersection(set(gr_levels))
     if len(shared_levels) == 0:
         raise ValueError(f"No shared levels between {df_levels!r} and {gr_levels!r}")
-    grouping_df = pd.DataFrame(index=grouping)
-    df_aligned = grouping_df.join(
-        df,
-        how="left",
-    )
+    if df.columns.nlevels > 1:
+        column_index = pd.MultiIndex.from_tuples(df.columns, names=df.columns.names)
+        grouping_df = pd.DataFrame(index=grouping, columns=column_index)
+        df_aligned = grouping_df.join(df, how="left", lsuffix="_")
+    else:
+        grouping_df = pd.DataFrame(index=grouping)
+        df_aligned = grouping_df.join(
+            df,
+            how="left",
+        )
     level_order = gr_levels + [level for level in df_levels if level not in gr_levels]
     result = df_aligned.reorder_levels(level_order)
     if sort_index:
@@ -841,6 +846,8 @@ def make_index_from_grouping_dict(
     Returns:
         A MultiIndex with the given names and the tuples from the grouping dictionary.
     """
+    if not isinstance(grouping, dict):
+        raise TypeError(f"grouping must be a dict, not {type(grouping)}")
     if raise_if_multiple_membership:
         all_members = []
         for members in grouping.values():
@@ -937,6 +944,7 @@ def merge_ties(
         df.loc[new_dur.index, "duration"] = new_dur.duration
     except Exception:
         print(new_dur)
+        raise
     if return_dropped:
         df.loc[new_dur.index, "dropped"] = new_dur.dropped
     df = df.drop(new_dur.dropped.sum())

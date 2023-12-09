@@ -108,10 +108,8 @@ class Dataset(Data):
     class PickleSchema(Data.Schema):
         """Dataset serialization schema."""
 
-        inputs = mm.fields.Nested(DimcatCatalog.Schema, required=True)
-        outputs = mm.fields.Nested(
-            DimcatCatalog.Schema, required=False, load_default=[]
-        )
+        inputs = mm.fields.Nested(DimcatCatalog.Schema, load_default=[])
+        outputs = mm.fields.Nested(DimcatCatalog.Schema, load_default=[])
         pipeline = (
             DimcatObjectField()
         )  # mm.fields.Nested(Pipeline.Schema) would cause circular import

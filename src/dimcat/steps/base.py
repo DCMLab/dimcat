@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from collections import defaultdict
 from itertools import repeat
 from pprint import pformat
@@ -22,9 +23,17 @@ from typing import (
 
 import marshmallow as mm
 import pandas as pd
-from dimcat.base import DimcatConfig, DimcatObject, ObjectEnum, get_class, get_schema
+from dimcat.base import (
+    DimcatConfig,
+    DimcatObject,
+    ObjectEnum,
+    get_class,
+    get_schema,
+    is_instance_of,
+)
 from dimcat.data.base import Data
 from dimcat.data.datasets.base import Dataset
+from dimcat.data.datasets.processed import _AnalyzedMixin
 from dimcat.data.packages.dc import DimcatPackage
 from dimcat.data.resources.base import (
     DR,
@@ -32,7 +41,6 @@ from dimcat.data.resources.base import (
     FeatureName,
     Resource,
     ResourceSpecs,
-    Rs,
     resource_specs2resource,
 )
 from dimcat.data.resources.dc import DimcatResource, FeatureSpecs
@@ -48,6 +56,7 @@ from dimcat.dc_exceptions import (
     ResourceAlreadyTransformed,
     ResourceNotProcessableError,
 )
+from dimcat.dc_warnings import OrderOfPipelineStepsWarning
 from marshmallow import fields, pre_load
 
 logger = logging.getLogger(__name__)
@@ -113,6 +122,14 @@ class PipelineStep(DimcatObject):
         """
         if not isinstance(dataset, Dataset):
             raise TypeError(f"Expected Dataset, got {type(dataset)}")
+        if isinstance(dataset, _AnalyzedMixin) and not is_instance_of(
+            self.name, "Analyzer"
+        ):
+            warnings.warn(
+                f"You're applying a {self.name} to an AnalyzedDataset. As things stand, Analyzers should "
+                f"always be the last thing to be applied to a Dataset. Consider a different Pipeline.",
+                OrderOfPipelineStepsWarning,
+            )
         if not self._applicable_to_empty_datasets:
             if dataset.n_features_available == 0:
                 raise EmptyDatasetError
@@ -170,9 +187,9 @@ class PipelineStep(DimcatObject):
 
     def _post_process_result(
         self,
-        result: Rs,
+        result: DR,
         original_resource: DimcatResource,
-    ) -> Rs:
+    ) -> DR:
         """Perform some post-processing on a resource after processing it."""
         return result
 
@@ -269,6 +286,11 @@ class FeatureProcessingStep(PipelineStep):
         features = fields.List(
             fields.Nested(DimcatConfig.Schema),
             allow_none=True,
+            metadata=dict(
+                expose=True,
+                description="The Feature objects you want this PipelineStep to process. If not specified, "
+                "the step will try to process all features in a given Dataset's Outputs catalog.",
+            ),
         )
 
         @pre_load
@@ -291,9 +313,13 @@ class FeatureProcessingStep(PipelineStep):
     ):
         self._features: List[DimcatConfig] = []
         self.features = features
+        if len(kwargs) > 0:
+            self.logger.warning(f"Ignored unknown keyword arguments: {kwargs}")
 
     @property
     def features(self) -> List[DimcatConfig]:
+        """The Feature objects you want this PipelineStep to process. If not specified, the step will try to process
+        all features in a given Dataset's Outputs catalog."""
         return self._features
 
     @features.setter

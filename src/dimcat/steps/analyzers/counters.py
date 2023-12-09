@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Iterable, Optional
+from typing import Iterable, Optional
 
 import marshmallow as mm
 import pandas as pd
@@ -32,7 +32,9 @@ class Counter(Analyzer):
         return result
 
     class Schema(Analyzer.Schema):
-        dimension_column = mm.fields.Str(load_default="count")
+        dimension_column = mm.fields.Str(
+            load_default="count", allow_none=True, metadata=dict(expose=False)
+        )
 
     def groupby_apply(self, feature: Feature, groupby: SomeSeries = None, **kwargs):
         """Performs the computation on a groupby. The value of ``groupby`` needs to be
@@ -87,9 +89,18 @@ class NgramAnalyzer(Analyzer):
         return len(feature.index)
 
     class Schema(Analyzer.Schema):
-        n = mm.fields.Integer(load_default=2)
+        n = mm.fields.Integer(
+            load_default=2,
+            validate=mm.validate.Range(min=2),
+            metadata=dict(
+                expose=True,
+                description="The n in n-grams, i.e., how many consecutive elements are grouped in one entity.",
+            ),
+        )
         format = FriendlyEnumField(
-            NgramTableFormat, load_default=NgramTableFormat.CONVENIENCE
+            NgramTableFormat,
+            load_default=NgramTableFormat.CONVENIENCE,
+            metadata=dict(expose=False),
         )
 
     def __init__(
@@ -99,13 +110,13 @@ class NgramAnalyzer(Analyzer):
         features: Optional[FeatureSpecs | Iterable[FeatureSpecs]] = None,
         strategy: DispatchStrategy = DispatchStrategy.GROUPBY_APPLY,
         smallest_unit: UnitOfAnalysis = UnitOfAnalysis.SLICE,
-        fill_na: Any = None,
+        dimension_column: str = None,
     ):
         super().__init__(
             features=features,
             strategy=strategy,
             smallest_unit=smallest_unit,
-            fill_na=fill_na,
+            dimension_column=dimension_column,
         )
         self._n = None
         self.n = n

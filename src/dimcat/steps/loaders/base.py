@@ -196,7 +196,6 @@ class Loader(PipelineStep):
 
     class Schema(PipelineStep.Schema):
         basepath = mm.fields.Str(
-            required=False,
             allow_none=True,
             metadata=dict(
                 description="The directory where the generated package(s) will be stored."
@@ -540,7 +539,6 @@ class ScoreLoader(Loader):
 
     class Schema(Loader.Schema):
         loader_name = mm.fields.Str(
-            required=True,
             allow_none=True,
             metadata=dict(
                 description="The name of the loader. Used to name the generated package."
