@@ -76,16 +76,7 @@ def align_with_grouping(
     shared_levels = set(df_levels).intersection(set(gr_levels))
     if len(shared_levels) == 0:
         raise ValueError(f"No shared levels between {df_levels!r} and {gr_levels!r}")
-    if df.columns.nlevels > 1:
-        column_index = pd.MultiIndex.from_tuples(df.columns, names=df.columns.names)
-        grouping_df = pd.DataFrame(index=grouping, columns=column_index)
-        df_aligned = grouping_df.join(df, how="left", lsuffix="_")
-    else:
-        grouping_df = pd.DataFrame(index=grouping)
-        df_aligned = grouping_df.join(
-            df,
-            how="left",
-        )
+    df_aligned = join_df_on_index(df, grouping)
     level_order = gr_levels + [level for level in df_levels if level not in gr_levels]
     result = df_aligned.reorder_levels(level_order)
     if sort_index:
@@ -522,6 +513,25 @@ def infer_schema_from_df(
         **kwargs,
     )
     return fl.Schema(descriptor)
+
+
+def join_df_on_index(
+    df: pd.DataFrame, index: DimcatIndex | pd.MultiIndex
+) -> pd.DataFrame:
+    if is_instance_of(index, "DimcatIndex"):
+        index = index.index
+    if df.columns.nlevels > 1:
+        # workaround because pandas enforces column indices to have same number of levels for merging
+        column_index = pd.MultiIndex.from_tuples(df.columns, names=df.columns.names)
+        grouping_df = pd.DataFrame(index=index, columns=column_index)
+        df_aligned = grouping_df.join(df, how="left", lsuffix="_")
+    else:
+        grouping_df = pd.DataFrame(index=index)
+        df_aligned = grouping_df.join(
+            df,
+            how="left",
+        )
+    return df_aligned
 
 
 def load_fl_resource(
