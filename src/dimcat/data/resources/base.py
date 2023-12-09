@@ -435,8 +435,10 @@ class Resource(Data):
         fl_resource = resource.resource
         no_filepath = not fl_resource.path
         if no_filepath:
+            # here we need a little work-around because the path property cannot be undefined lest Frictionless complain
             fl_resource.path = "dummy/value"
             new_fl_resource = fl_resource.to_copy()
+            fl_resource.path = None
             new_fl_resource.path = None
         else:
             new_fl_resource = fl_resource.to_copy()
