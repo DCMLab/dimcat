@@ -572,7 +572,9 @@ DimcatResource.__init__(
         try:
             return getattr(self.df, item)
         except AttributeError:
-            raise AttributeError(msg)
+            raise AttributeError(
+                f"AttributeError: {self.name!r} object has no attribute {item!r}"
+            )
 
     def __getitem__(self, item):
         if self.is_loaded:
@@ -1625,7 +1627,12 @@ class DimcatIndex(Generic[IX], Data):
 
     def __getattr__(self, item):
         """Enables using DimcatIndex just like the wrapped Index object."""
-        return getattr(self._index, item)
+        try:
+            return getattr(self._index, item)
+        except AttributeError:
+            raise AttributeError(
+                f"AttributeError: {self.name!r} object has no attribute {item!r}"
+            )
 
     def __getitem__(self, item):
         """Enables using DimcatIndex just like the wrapped Index object."""
