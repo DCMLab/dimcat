@@ -1573,8 +1573,6 @@ class DimcatIndex(Generic[IX], Data):
         if len(list_of_tuples) == 0:
             return cls(pd.MultiIndex.from_tuples([], names=level_names))
         first_tuple = list_of_tuples[0]
-        if not isinstance(first_tuple, tuple):
-            raise ValueError(f"Expected tuples, got {type(first_tuple)!r}.")
         if len(first_tuple) != len(level_names):
             raise ValueError(
                 f"Expected tuples of length {len(level_names)}, got {len(first_tuple)}."
