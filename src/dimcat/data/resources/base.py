@@ -433,15 +433,10 @@ class Resource(Data):
         if not isinstance(resource, Resource):
             raise TypeError(f"Expected a Resource, got {type(resource)!r}.")
         fl_resource = resource.resource
-        no_filepath = not fl_resource.path
-        if no_filepath:
-            # here we need a little work-around because the path property cannot be undefined lest Frictionless complain
-            fl_resource.path = "dummy/value"
-            new_fl_resource = fl_resource.to_copy()
-            fl_resource.path = None
-            new_fl_resource.path = None
-        else:
-            new_fl_resource = fl_resource.to_copy()
+        if fl_resource.path is None:
+            # needed because otherwise frictionless complains when asked to make a copy
+            fl_resource.path = ""
+        new_fl_resource = fl_resource.to_copy()
         resource_kwargs = {
             arg: getattr(resource, arg)
             for arg in resource.schema.fields
