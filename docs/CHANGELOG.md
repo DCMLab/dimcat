@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.3.0](https://github.com/DCMLab/dimcat/compare/v2.2.0...v2.3.0) (2023-12-09)
+
+
+### Features
+
+* all schemas retrieved via the .schema or .pickled_schema property allow for loading dicts without 'dtype' key by assuming their own dtype as default ([9ff060e](https://github.com/DCMLab/dimcat/commit/9ff060ea0718242ce7a3b05cad50163bd3c5dc58))
+* new category of objects: Filters. They extend any Grouper by adding the init args 'keep_values', 'drop_values', and 'drop_level' to it. They use these arguments to post-process any resource first processed by the corresponding grouper. This required renaming the relatively new HasCadenceAnnotations and HasHarmonyLabels to HasCadenceAnnotationsGrouper and HasHarmonyLabelsGrouper, to differentiate them from the new HasCadenceAnnotationsFilter and HasHarmonyLabelsFilter. The other two filters that have been implemented so far are the CorpusFilter and the PieceFilter. As an aside, Groupers do not complain anymore when they are applied to a resource that has already been grouped by a Grouper of the same type. If the grouping level exists but isn't the first one, it is systematically made the first one. This applies, by extension, to the Filters (for now) ([ec3d1f7](https://github.com/DCMLab/dimcat/commit/ec3d1f7980b5a18a01b0cdb37e93823f1549236d))
+
+
+### Bug Fixes
+
+* adapts NgramAnalyzer's init args & schema ([3e51f97](https://github.com/DCMLab/dimcat/commit/3e51f979d06ee275672ffba8b36e4ad9cff51e61))
+* align_with_grouping() did not work for NgramTables because pandas prevents merge with diverging column nlevels, even if one of the sides has no columns ([e51625f](https://github.com/DCMLab/dimcat/commit/e51625fd6b7fd004ff1eb7afeb93139f5d728adc))
+* allows passing a list of list (instead of a list of tuples) to DimcatIndex.from_tuples(), useful for de-serializing from JSON ([0cff3c1](https://github.com/DCMLab/dimcat/commit/0cff3c1bd0405b9dda786cb1d8c14e1f0e4c7779))
+* extends app_tests.test_analyze() to the actual plotting; warns about non-Analyzer PipelineSteps applied after an Analyzer ([72ef210](https://github.com/DCMLab/dimcat/commit/72ef210eb007db3ef5a5158d7890ddf3add6ee38))
+* facet titles be strings ([ed185f7](https://github.com/DCMLab/dimcat/commit/ed185f792115ecee571e0b24a903a8e2604d35cd))
+* improves (de-)serialization of DimcatIndex and, by extension, the MappingGroupers' 'grouped_units' field ([f59673d](https://github.com/DCMLab/dimcat/commit/f59673da2e1a3075d8881d51cc5e3ce60c84e7db))
+* parses music21.key.KeySignature the same way as usic21.key.Key ([5aa7902](https://github.com/DCMLab/dimcat/commit/5aa790269d43c18f0ebfeebe1c0a097e5b1029a6))
+* the frictionless workaround for copying a resource with no path specified is now complete ([5d1426d](https://github.com/DCMLab/dimcat/commit/5d1426d33dbe81f7f97dec2edb967895fe82883b))
+* the frictionless workaround for copying a resource with no path specified is now complete ([98ee01d](https://github.com/DCMLab/dimcat/commit/98ee01deda6f6e1e92a88bea416fc4b210794e37))
+
 ## [2.2.0](https://github.com/DCMLab/dimcat/compare/v2.1.0...v2.2.0) (2023-12-07)
 
 
