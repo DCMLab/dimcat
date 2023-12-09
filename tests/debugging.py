@@ -1,11 +1,10 @@
 import os
 from pathlib import Path
 
-from dimcat import Dataset, DimcatConfig, Pipeline
+from dimcat import Dataset
 from dimcat.data import resources
 from dimcat.data.resources import DimcatIndex
-from dimcat.steps import groupers
-from dimcat.steps.groupers import CustomPieceGrouper
+from dimcat.steps import filters, groupers, slicers
 from dimcat.utils import resolve_path
 
 
@@ -50,21 +49,9 @@ def get_piece_groups(dataset):
 
 
 if __name__ == "__main__":
-    D = load_unittest_corpora()
-    analyzer_config = {"dtype": "BigramAnalyzer"}
-    feature_config = {"dtype": "Articulation"}
-    grouped_pieces = get_piece_groups(D)
-    CustomPieceGrouper.schema.load(
-        dict(dtype="CustomPieceGrouper", grouped_units=grouped_pieces)
-    )
-    grouper_config = DimcatConfig(
-        dtype="CustomPieceGrouper", grouped_units=grouped_pieces
-    )
-    pl = Pipeline.from_step_configs(
-        [
-            dict(dtype="FeatureExtractor", features=[feature_config]),
-            analyzer_config,
-            grouper_config,
-        ]
-    )
-    print(pl.to_dict())
+    D = load_distant_listening_corpus()
+    filtered_D = filters.HasHarmonyLabelsFilter(keep_values=[True]).process(D)
+    # all_metadata = filtered_D.get_metadata()
+    # all_annotations = filtered_D.get_feature("HarmonyLabels")
+    key_slicer = slicers.KeySlicer()
+    keys_segmented = key_slicer.process(filtered_D)

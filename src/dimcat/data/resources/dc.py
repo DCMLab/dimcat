@@ -1084,10 +1084,24 @@ DimcatResource.__init__(
         df = self.df
         if "quarterbeats_all_endings" in df.columns:
             start_col = "quarterbeats_all_endings"
+            if "quarterbeats" in df.columns:
+                has_nan = df[start_col].isna().any()
+                has_empty_strings = df[start_col].eq("").any()
+                if has_nan or has_empty_strings:
+                    df = df.copy()
+                    if has_nan:
+                        df[start_col].fillna(df["quarterbeats"], inplace=True)
+                    if has_empty_strings:
+                        df[start_col].where(
+                            df[start_col].ne(""), df["quarterbeats"], inplace=True
+                        )
         else:
             start_col = "quarterbeats"
+        self.logger.debug(
+            f"Using column {start_col!r} as for the left side of the computed time spans."
+        )
         return get_time_spans_from_resource_df(
-            df=self.df,
+            df=df,
             start_column_name=start_col,
             duration_column_name="duration_qb",
             round=round,
