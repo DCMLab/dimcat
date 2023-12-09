@@ -186,6 +186,19 @@ class NgramAnalyzer(Analyzer):
             concatenate_this[key] = df_to_shift
         return pd.concat(concatenate_this, axis=1)
 
+    def _post_process_result(
+        self,
+        result: NgramTable,
+        original_resource: Feature,
+    ) -> NgramTable:
+        result._auxiliary_columns = original_resource.get_available_column_names(
+            context_columns=True
+        )
+        result._convenience_columns = original_resource.get_available_column_names(
+            auxiliary_columns=True, convenience_columns=True
+        )
+        return result
+
     def resource_name_factory(self, resource: DimcatResource) -> str:
         """Returns a name for the resource based on its name and the name of the pipeline step."""
         return f"{resource.resource_name}.ngram_table"

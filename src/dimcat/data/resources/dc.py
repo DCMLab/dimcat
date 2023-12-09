@@ -1867,10 +1867,10 @@ class Feature(DimcatResource):
     def get_available_column_names(
         self,
         index_levels: bool = False,
-        context_columns: bool = True,
-        auxiliary_columns: bool = True,
-        convenience_columns: bool = True,
-        feature_columns: bool = True,
+        context_columns: bool = False,
+        auxiliary_columns: bool = False,
+        convenience_columns: bool = False,
+        feature_columns: bool = False,
     ):
         """Returns the column names that are available on the resource."""
         column_names = []

@@ -859,6 +859,43 @@ class NgramTable(Result):
     def ngram_levels(self) -> List[str]:
         return list(self.df.columns.levels[0])
 
+    def _add_context_columns(
+        self, df: D, context_columns: Optional[Literal[True], str, Tuple[str]] = None
+    ):
+        if context_columns is True:
+            if not self._auxiliary_column_names:
+                raise NotImplementedError(
+                    f"The _auxiliary_column_names should have been set to the names of the original Feature's context "
+                    f"columns by the object that created this {self.name}."
+                )
+            single_level = self._auxiliary_column_names
+        elif isinstance(context_columns, str):
+            single_level = [context_columns]
+        else:
+            single_level = list(context_columns)
+        if not context_columns or not single_level:
+            self.logger.info(
+                f"context_columns {context_columns!r} didn't resolve to anything, not adding any columns."
+            )
+            return df
+        double_level = []
+        for single in single_level:
+            for level, column in self.df.columns:
+                if column == single:
+                    double_level.append((level, column))
+                    break
+            else:
+                self.logger.warning(
+                    f"{single!r} does not correspond to a column in this {self.name}. Skipping."
+                )
+        if not double_level:
+            self.logger.info(
+                f"None of the desired context columns {single_level} was found."
+            )
+            return df
+        context_columns = self.df.loc[:, double_level].droplevel(0, axis=1)
+        return pd.concat([context_columns, df], axis=1)
+
     def get_grouping_levels(
         self, smallest_unit: UnitOfAnalysis = UnitOfAnalysis.SLICE
     ) -> List[str]:
@@ -976,6 +1013,7 @@ class NgramTable(Result):
         split: int = -1,
         join_str: Optional[str | bool] = None,
         fillna: Optional[Hashable] = None,
+        context_columns: Optional[Literal[True], str, Tuple[str]] = None,
     ) -> pd.DataFrame:
         """Reduce the selected columns into to, called 'a' and 'b', that contain the values of the reduced columns
         as tuples (default, where ``join_str`` is None) or strings. If this object represents bigrams only, the
@@ -998,6 +1036,9 @@ class NgramTable(Result):
                 In all of these non-default cases, you end up with two columns containing strings.
             fillna:
                 Pass a value to replace all missing values it. When ``join_str`` is set, "" is often a good choice.
+            context_columns:
+                Columns preceding the bigram columns for context, such as measure numbers etc. Pass True to use the
+                default context columns or one or several column names to subselect.
 
 
         Returns:
@@ -1009,7 +1050,9 @@ class NgramTable(Result):
             columns = [columns]
         columns = tuple(columns)
         ngram_table = self.make_ngram_table(
-            columns=columns, join_str=join_str, fillna=fillna
+            columns=columns,
+            join_str=join_str,
+            fillna=fillna,
         )
         if len(self.ngram_levels) == 2:
             result = ngram_table
@@ -1019,6 +1062,8 @@ class NgramTable(Result):
                 (ngram_tuple[:split], ngram_tuple[split:]) for ngram_tuple in table_rows
             ]
             result = pd.DataFrame(data, columns=["a", "b"], index=self.df.index)
+        if context_columns:
+            result = self._add_context_columns(result, context_columns)
         return result
 
     def make_bigram_tuples(
@@ -1029,6 +1074,7 @@ class NgramTable(Result):
         fillna: Optional[Hashable] = None,
         drop_identical: bool = False,
         n_gram_column_name: str = "n_gram",
+        context_columns: Optional[Literal[True], str, Tuple[str]] = None,
     ) -> NgramTuples:
         """Get a Resource with a single column that contains bigram tuples, where each element is a tuple or string
         based on the specified (or default) columns. If this object represents trigrams or higher, it is always
@@ -1050,6 +1096,10 @@ class NgramTable(Result):
                 Pass a value to replace all missing values it. When ``join_str`` is set, "" is often a good choice.
             drop_identical: Pass True to drop all tuples where left and right gram are identical.
             n_gram_column_name: Name of the value_column in the resulting :class:`NgramTuples` object.
+            context_columns:
+                Columns preceding the bigram columns for context, such as measure numbers etc. Pass True to use the
+                default context columns or one or several column names to subselect.
+
 
         Returns:
 
@@ -1069,13 +1119,15 @@ class NgramTable(Result):
         if drop_identical:
             keep_mask = df[n_gram_column_name].map(lambda tup: len(set(tup)) > 1)
             df = df[keep_mask]
-        new_result = NgramTuples.from_resource_and_dataframe(
+        if context_columns:
+            df = self._add_context_columns(df, context_columns, terminal_symbols)
+        result = NgramTuples.from_resource_and_dataframe(
             self,
             df,
             value_column=n_gram_column_name,
         )
-        new_result.formatted_column = None
-        return new_result
+        result.formatted_column = None
+        return result
 
     @cache
     def make_ngram_table(
@@ -1084,6 +1136,7 @@ class NgramTable(Result):
         n: Optional[int] = None,
         join_str: Optional[str | bool] = None,
         fillna: Optional[Hashable] = None,
+        context_columns: Optional[Literal[True], str, Tuple[str]] = None,
     ) -> pd.DataFrame:
         """Reduce the selected columns for the n first n-gram levels a, b, ... so that the resulting dataframe
         contains n columns, each of which contains tuples or strings.
@@ -1100,6 +1153,9 @@ class NgramTable(Result):
                 In all of these non-default cases, you end up with two columns containing strings.
             fillna:
                 Pass a value to replace all missing values it. When ``join_str`` is set, "" is often a good choice.
+            context_columns:
+                Columns preceding the bigram columns for context, such as measure numbers etc. Pass True to use the
+                default context columns or one or several column names to subselect.
 
         Returns:
 
@@ -1111,7 +1167,9 @@ class NgramTable(Result):
         columns = tuple(columns)
         if n is not None:
             n = int(n)
-            assert 1 < n <= len(self.ngram_levels)
+            assert (
+                1 < n <= len(self.ngram_levels)
+            ), f"n needs to be between 2 and {len(self.ngram_levels)}, got {n}"
             selected_levels = self.ngram_levels[:n]
         else:
             selected_levels = self.ngram_levels
@@ -1120,7 +1178,7 @@ class NgramTable(Result):
         if fillna is not None:
             selection = selection.fillna(fillna)
         if join_str is None:
-            return (
+            result = (  # this stunt is necessary because pandas is deprecating .groupby(axis=1)
                 selection.T.groupby(level=0, group_keys=False)
                 .apply(lambda df: df.apply(tuple, result_type="reduce"))
                 .T
@@ -1135,7 +1193,7 @@ class NgramTable(Result):
                     raise TypeError(
                         f"join_str must be a string or a boolean, got {join_str!r} ({type(join_str)})"
                     )
-            return (
+            result = (  # this stunt is necessary because pandas is deprecating .groupby(axis=1)
                 selection.T.groupby(level=0, group_keys=False)
                 .apply(
                     lambda df: df.apply(
@@ -1144,6 +1202,9 @@ class NgramTable(Result):
                 )
                 .T
             )
+        if context_columns:
+            result = self._add_context_columns(result, context_columns)
+        return result
 
     def make_ngram_tuples(
         self,
@@ -1153,6 +1214,7 @@ class NgramTable(Result):
         fillna: Optional[Hashable] = None,
         drop_identical: bool = False,
         n_gram_column_name: str = "n_gram",
+        context_columns: Optional[Literal[True], str, Tuple[str]] = None,
     ) -> NgramTuples:
         """Get a Resource with a single column that contains n-gram tuples, where each element is a tuple or string
         based on the specified (or default) columns.
@@ -1171,6 +1233,9 @@ class NgramTable(Result):
                 Pass a value to replace all missing values it. When ``join_str`` is set, "" is often a good choice.
             drop_identical: Pass True to drop all tuples where all elements are identical.
             n_gram_column_name: Name of the value_column in the resulting :class:`NgramTuples` object.
+            context_columns:
+                Columns preceding the bigram columns for context, such as measure numbers etc. Pass True to use the
+                default context columns or one or several column names to subselect.
 
 
         Returns:
@@ -1191,13 +1256,15 @@ class NgramTable(Result):
         if drop_identical:
             keep_mask = df[n_gram_column_name].map(lambda tup: len(set(tup)) > 1)
             df = df[keep_mask]
-        new_result = NgramTuples.from_resource_and_dataframe(
+        if context_columns:
+            df = self._add_context_columns(df, context_columns, terminal_symbols)
+        result = NgramTuples.from_resource_and_dataframe(
             self,
             df,
             value_column=n_gram_column_name,
         )
-        new_result.formatted_column = None
-        return new_result
+        result.formatted_column = None
+        return result
 
     def make_ranking_table(
         self,
@@ -1297,6 +1364,8 @@ class NgramTable(Result):
 
 class NgramTuples(Result):
     """Result that has a :attr:`value_column` containing tuples and no `dimension_column`."""
+
+    _default_analyzer = "Counter"
 
     def make_ranking_table(
         self,
