@@ -72,7 +72,14 @@ class Analyzer(FeatureProcessingStep):
 
     @staticmethod
     def compute(feature: Feature, **kwargs) -> Any:
-        """Static method that performs the actual computation."""
+        """Static method that performs the actual computation on a single unit of analysis (slice, piece, or group).
+        The result of analyzing a resource should be tantamount to a concatenation of the results of applying
+        self.compute() to each contained unit, turned into a Feature object in its own right.
+        In practice, the analyzers .groupby_apply() method re-implements the same computation and performs it on the
+        entire DataFrame at once using .groupby(). In other words, it would be redundant to turn each group into a
+        Feature first. self.compute(), however, cannot take a DataFrame as input because it is a static method that
+        needs to rely on the Feature object to know which column(s) to process.
+        """
         return feature
 
     # @classmethod

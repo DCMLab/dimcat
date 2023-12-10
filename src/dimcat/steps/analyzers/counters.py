@@ -19,15 +19,13 @@ class Counter(Analyzer):
 
     @staticmethod
     def compute(feature: Feature, **kwargs) -> D:
-        groupby = [feature.value_column]
+        count_columns = [feature.value_column]
         if (
             feature.formatted_column is not None
-            and feature.formatted_column not in groupby
+            and feature.formatted_column not in count_columns
         ):
-            groupby.append(feature.formatted_column)
-        result = feature.groupby(groupby)[
-            Counter._default_dimension_column
-        ].value_counts(dropna=False)
+            count_columns.append(feature.formatted_column)
+        result = feature.df.value_counts(subset=count_columns)
         result = result.to_frame(Counter._default_dimension_column)
         return result
 
@@ -45,13 +43,15 @@ class Counter(Analyzer):
             self.logger.debug(
                 f"Using the {feature.resource_name}'s grouping levels {groupby!r}"
             )
-        groupby.append(feature.value_column)
+        if not groupby:
+            return self.compute(feature, **kwargs)
+        count_columns = [feature.value_column]
         if (
             feature.formatted_column is not None
             and feature.formatted_column not in groupby
         ):
-            groupby.append(feature.formatted_column)
-        result = feature.groupby(groupby).size()
+            count_columns.append(feature.formatted_column)
+        result = feature.groupby(groupby).value_counts(subset=count_columns)
         result = result.to_frame(self.dimension_column)
 
         return result
