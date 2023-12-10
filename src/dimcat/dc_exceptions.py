@@ -358,7 +358,7 @@ class ResourceDescriptorHasWrongTypeError(DimcatError):
 
 
 class ResourceIsMissingCorpusIndexError(DimcatError):
-    """optional args: (resource_name,)"""
+    """optional args: (resource_name, name_of_missing)"""
 
     nargs2message = {
         0: "The resource is missing a corpus index level.",

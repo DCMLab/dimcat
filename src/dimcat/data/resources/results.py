@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import logging
-from functools import cache, cached_property
-from itertools import product
+from functools import cache, cached_property, partial
+from itertools import product, repeat
 from typing import ClassVar, Dict, Hashable, Iterable, List, Literal, Optional, Tuple
 
 import frictionless as fl
@@ -865,41 +865,28 @@ class NgramTable(Result):
         context_columns: Optional[Literal[True], str, Tuple[str]] = None,
         terminal_symbols: Optional[Literal[False]] = None,
     ):
-        if context_columns is True:
+        context_df = self._get_context_df(context_columns)
+        if terminal_symbols is False:
+            return context_df.join(df, how="right")
+        return pd.concat([context_df, df], axis=1)
+
+    def _get_context_df(
+        self,
+        context_columns: Optional[str, Tuple[str]] = None,
+    ) -> D:
+        """Retrieve context columns to be included in an n-grams table."""
+        if context_columns is True or context_columns is None:
             if not self._auxiliary_column_names:
                 raise NotImplementedError(
                     f"The _auxiliary_column_names should have been set to the names of the original Feature's context "
                     f"columns by the object that created this {self.name}."
                 )
-            single_level = self._auxiliary_column_names
+            context_columns = self._auxiliary_column_names
         elif isinstance(context_columns, str):
-            single_level = [context_columns]
-        else:
-            single_level = list(context_columns)
-        if not context_columns or not single_level:
-            self.logger.info(
-                f"context_columns {context_columns!r} didn't resolve to anything, not adding any columns."
-            )
-            return df
-        double_level = []
-        for single in single_level:
-            for level, column in self.df.columns:
-                if column == single:
-                    double_level.append((level, column))
-                    break
-            else:
-                self.logger.warning(
-                    f"{single!r} does not correspond to a column in this {self.name}. Skipping."
-                )
-        if not double_level:
-            self.logger.info(
-                f"None of the desired context columns {single_level} was found."
-            )
-            return df
-        context_columns = self.df.loc[:, double_level].droplevel(0, axis=1)
-        if terminal_symbols is False:
-            return context_columns.join(df, how="right")
-        return pd.concat([context_columns, df], axis=1)
+            context_columns = [context_columns]
+        return self._subselect_component_columns(
+            level="a", columns=context_columns, droplevel=True
+        )
 
     def get_default_analysis(self) -> Transitions:
         return self.get_transitions()
@@ -931,7 +918,7 @@ class NgramTable(Result):
 
     def _get_transitions(
         self,
-        columns: Optional[str | List[str]] = None,
+        *gram_component_columns: Optional[str | List[str]],
         split: int = -1,
         join_str: Optional[str | bool] = None,
         fillna: Optional[Hashable] = None,
@@ -940,41 +927,41 @@ class NgramTable(Result):
         """Get a Series that counts for each context the number of transitions to each possible following element.
 
         Args:
-            columns: Columns from which to construct bigrams. Defaults to feature columns.
+            gram_component_columns:
+                One or several column specifications. If zero or one are passed, the same specification will be used
+                for each n-gram component. The number of specifications can be at most the number of components ('a',
+                'b', etc.) that this NgramTable contains. Each specification can be None (default feature columns),
+                a single column name, or a tuple of column names.
             split:
                 Relevant only for NgramAnalyzer with n > 2: Then the value can be modified to decide how many
-                elements are to be part of the left and the right gram. Defaults to -1, i.e. the last element is
-                used as the right gram. This is a useful default for settings where the (n-1) previous elements are
-                the context for predicting the next element.
+                elements are to be part of the left ('antecedent') and the right ('consequent') component.
+                Defaults to -1, i.e. the last element is used as the right component. This is a useful default for
+                evaluations where the (n-1) previous elements are the context for predicting the next element.
             join_str:
-                By default (None), the columns contain tuples. Pass True to concatenate the values of each tuple,
-                separated by ", " -- yielding strings that look like tuples without parentheses. You can also pass
-                a string to separate the values, or False to concatenate without any value in-between the values.
-                In all of these non-default cases, you end up with two columns containing strings.
+                Parameter passed to :meth:`make_ngram_table`. It determines whether the antecedent and consequent
+                columns contain [tuples of] tuples (the default) or [tuples of] strings. If n == 2, each cell is of
+                type (tuple|str), if n > 2, it's Tuple[(tuple|str)].
             fillna:
-                Pass a value to replace all missing values it. When ``join_str`` is set, "" is often a good choice.
+                Pass a value to replace all missing values with it. Pass a tuple tuple of n values to fill missing
+                values differently for the n components (e.g. (None, '') to fill missing values with empty strings
+                only for the second n-gram components). "" is often a good choice for components for which ``join_str``
+                is specified to avoid strings looking like ``"value<NA>"``.
 
         Returns:
             Dataframe with columns 'count' and 'proportion', showing each (n-1) previous elements (index level 0),
             the count and proportion of transitions to each possible following element (index level 1).
         """
-        if columns is None:
-            if self.has_distinct_formatted_column:
-                columns = self.formatted_column
-            else:
-                columns = self.value_column
-        elif not isinstance(columns, str):
-            columns = tuple(columns)
+        self._check_gram_component_columns_arg(gram_component_columns)
         bigrams = self.make_bigram_table(
-            columns=columns,
+            *gram_component_columns,
             split=split,
             join_str=join_str,
             fillna=fillna,
         )
         group_cols = self._resolve_group_cols_arg(group_cols)
-        if len(group_cols) == 0 or not group_cols[-1] == "a":
-            group_cols.append("a")
-        gpb = bigrams.groupby(group_cols).b
+        if len(group_cols) == 0 or not group_cols[-1] == "antecedent":
+            group_cols.append("antecedent")
+        gpb = bigrams.groupby(group_cols).consequent
         counts = gpb.value_counts()
         proportion = gpb.value_counts(normalize=True)
         proportion_str = turn_proportions_into_percentage_strings(proportion)
@@ -982,11 +969,11 @@ class NgramTable(Result):
 
     def get_transitions(
         self,
-        columns: Optional[str | List[str]] = None,
+        *gram_component_columns: Optional[str | List[str]],
         split: int = -1,
         join_str: Optional[str | bool] = None,
         fillna: Optional[Hashable] = None,
-        feature_columns: Optional[List[str, str]] = None,
+        feature_columns: Optional[Tuple[str, str]] = None,
         group_cols: Optional[
             UnitOfAnalysis | str | Iterable[str]
         ] = UnitOfAnalysis.GROUP,
@@ -994,36 +981,44 @@ class NgramTable(Result):
         """Get a Series that counts for each context the number of transitions to each possible following element.
 
         Args:
-            columns: Columns from which to construct bigrams. Defaults to feature columns.
+            gram_component_columns:
+                One or several column specifications. If zero or one are passed, the same specification will be used
+                for each n-gram component. The number of specifications can be at most the number of components ('a',
+                'b', etc.) that this NgramTable contains. Each specification can be None (default feature columns),
+                a single column name, or a tuple of column names.
             split:
                 Relevant only for NgramAnalyzer with n > 2: Then the value can be modified to decide how many
-                elements are to be part of the left and the right gram. Defaults to -1, i.e. the last element is
-                used as the right gram. This is a useful default for settings where the (n-1) previous elements are
-                the context for predicting the next element.
+                elements are to be part of the left ('antecedent') and the right ('consequent') component.
+                Defaults to -1, i.e. the last element is used as the right component. This is a useful default for
+                evaluations where the (n-1) previous elements are the context for predicting the next element.
             join_str:
-                By default (None), the columns contain tuples. Pass True to concatenate the values of each tuple,
-                separated by ", " -- yielding strings that look like tuples without parentheses. You can also pass
-                a string to separate the values, or False to concatenate without any value in-between the values.
-                In all of these non-default cases, you end up with two columns containing strings.
+                Parameter passed to :meth:`make_ngram_table`. It determines whether the antecedent and consequent
+                columns contain [tuples of] tuples (the default) or [tuples of] strings. If n == 2, each cell is of
+                type (tuple|str), if n > 2, it's Tuple[(tuple|str)].
             fillna:
-                Pass a value to replace all missing values it. When ``join_str`` is set, "" is often a good choice.
+                Pass a value to replace all missing values with it. Pass a tuple tuple of n values to fill missing
+                values differently for the n components (e.g. (None, '') to fill missing values with empty strings
+                only for the second n-gram components). "" is often a good choice for components for which ``join_str``
+                is specified to avoid strings looking like ``"value<NA>"``.
             feature_columns: Defaults to ["antecedent", "consequent"]. Pass a List with two strings to change.
 
         Returns:
             Dataframe with columns 'count' and 'proportion', showing each (n-1) previous elements (index level 0),
             the count and proportion of transitions to each possible following element (index level 1).
         """
-        if feature_columns is None:
-            feature_columns = ["antecedent", "consequent"]
         transitions = self._get_transitions(
-            columns=columns,
+            *gram_component_columns,
             split=split,
             join_str=join_str,
             fillna=fillna,
             group_cols=group_cols,
         )
-        level_names = dict(zip(("a", "b"), feature_columns))
-        transitions.index.set_names(level_names, inplace=True)
+        if feature_columns:
+            feature_columns = list(feature_columns)
+            level_names = dict(zip(("antecedent", "consequent"), feature_columns))
+            transitions.index.set_names(level_names, inplace=True)
+        else:
+            feature_columns = ["antecedent", "consequent"]
         new_result = Transitions.from_resource_and_dataframe(
             self,
             transitions,
@@ -1035,34 +1030,42 @@ class NgramTable(Result):
     @cache
     def make_bigram_table(
         self,
-        columns: Optional[str | Tuple[str]] = None,
+        *gram_component_columns: Optional[str | Tuple[str]],
         split: int = -1,
-        join_str: Optional[str | bool] = None,
-        fillna: Optional[Hashable] = None,
+        join_str: Optional[bool | str | Tuple[str]] = None,
+        fillna: Optional[Hashable | Tuple[Hashable]] = None,
         terminal_symbols: Optional[Literal[False]] = None,
         context_columns: Optional[Literal[True], str, Tuple[str]] = None,
     ) -> pd.DataFrame:
-        """Reduce the selected columns into to, called 'a' and 'b', that contain the values of the reduced columns
-        as tuples (default, where ``join_str`` is None) or strings. If this object represents bigrams only, the
-        column contain tuples or strings; if it represents trigrams or higher, the columns contain tuples thereof (of
-        tuples or of strings); then, the parameter ``split`` determines how many elements the tuples of both columns
-        have. Then, by default, column 'b' contains a tuple only with the last element, and column 'a' the
-        n-1 preceding elements.
+        """Reduce the selected specified n-gram components to two columns, called 'antecedent' and 'consequent'.
+        For NgramTables produced by a :obj:`BigramAnalyzer` or by an :obj:`NgramAnalyzer(n=2) <NgramAnalyzer>`, the
+        result is equivalent to :attr:`make_ngram_table`, just with renamed columns. For higher n, the components are
+        split split into an antecedent and a consequent part based on the ``split`` parameter.
+        as tuples (default, where ``join_str`` is None) or strings.
+        If the result corresponds to n=2 (i.e., neither antecedent nor consequent combine n-gram components), the
+        columns contain strings or tuples (depending on whether join_str is specified or not); otherwise, both column
+        contain tuples thereof.
 
         Args:
-            columns: Columns from which to construct bigrams. Defaults to feature columns.
+            gram_component_columns:
+                One or several column specifications. If zero or one are passed, the same specification will be used
+                for each n-gram component. The number of specifications can be at most the number of components ('a',
+                'b', etc.) that this NgramTable contains. Each specification can be None (default feature columns),
+                a single column name, or a tuple of column names.
             split:
                 Relevant only for NgramAnalyzer with n > 2: Then the value can be modified to decide how many
-                elements are to be part of the left and the right gram. Defaults to -1, i.e. the last element is
-                used as the right gram. This is a useful default for settings where the (n-1) previous elements are
-                the context for predicting the next element.
+                elements are to be part of the left ('antecedent') and the right ('consequent') component.
+                Defaults to -1, i.e. the last element is used as the right component. This is a useful default for
+                evaluations where the (n-1) previous elements are the context for predicting the next element.
             join_str:
-                By default (None), the columns contain tuples. Pass True to concatenate the values of each tuple,
-                separated by ", " -- yielding strings that look like tuples without parentheses. You can also pass
-                a string to separate the values, or False to concatenate without any value in-between the values.
-                In all of these non-default cases, you end up with two columns containing strings.
+                Parameter passed to :meth:`make_ngram_table`. It determines whether the antecedent and consequent
+                columns contain [tuples of] tuples (the default) or [tuples of] strings. If n == 2, each cell is of
+                type (tuple|str), if n > 2, it's Tuple[(tuple|str)].
             fillna:
-                Pass a value to replace all missing values it. When ``join_str`` is set, "" is often a good choice.
+                Pass a value to replace all missing values with it. Pass a tuple tuple of n values to fill missing
+                values differently for the n components (e.g. (None, '') to fill missing values with empty strings
+                only for the second n-gram components). "" is often a good choice for components for which ``join_str``
+                is specified to avoid strings looking like ``"value<NA>"``.
             terminal_symbols:
                 By default, the consequent of each last bigram has only missing values. Pass False to
                 drop these rows.
@@ -1074,37 +1077,45 @@ class NgramTable(Result):
         Returns:
             Like :meth:`make_ngram_tuples`, but condensed to two columns.
         """
-        if columns is None:
-            columns = self.feature_columns
-        elif isinstance(columns, str):
-            columns = [columns]
-        columns = tuple(columns)
+        self._check_gram_component_columns_arg(gram_component_columns)
         ngram_table = self.make_ngram_table(
-            columns=columns,
+            *gram_component_columns,
             join_str=join_str,
             fillna=fillna,
             terminal_symbols=terminal_symbols,
         )
         if len(self.ngram_levels) == 2:
             result = ngram_table
+            result.columns = ["antecedent", "consequent"]
         else:
             table_rows = ngram_table.itertuples(index=False, name=None)
-            data = [
+            data = (
                 (ngram_tuple[:split], ngram_tuple[split:]) for ngram_tuple in table_rows
-            ]
-            result = pd.DataFrame(data, columns=["a", "b"], index=self.df.index)
+            )
+            result = pd.DataFrame(
+                data, columns=["antecedent", "consequent"], index=self.df.index
+            )
         if context_columns:
             result = self._add_context_columns(
                 result, context_columns, terminal_symbols
             )
         return result
 
+    def _check_gram_component_columns_arg(self, gram_component_columns):
+        for component_columns in gram_component_columns:
+            if component_columns is not None and not isinstance(
+                component_columns, (str, tuple)
+            ):
+                raise TypeError(
+                    f"Component columns must be None, a string or a tuple of strings, got {type(component_columns)}"
+                )
+
     def make_bigram_tuples(
         self,
-        columns: Optional[str | Tuple[str]] = None,
+        *gram_component_columns: Optional[str | Tuple[str]],
         split: int = -1,
-        join_str: Optional[str | bool] = None,
-        fillna: Optional[Hashable] = None,
+        join_str: Optional[bool | str | Tuple[str]] = None,
+        fillna: Optional[Hashable | Tuple[Hashable]] = None,
         terminal_symbols: Optional[Literal[False]] = None,
         drop_identical: bool = False,
         n_gram_column_name: str = "n_gram",
@@ -1115,19 +1126,25 @@ class NgramTable(Result):
         tuples of tuples (never of strings). See :meth:`make_bigram_table` for details.
 
         Args:
-            columns: Columns from which to construct bigrams. Defaults to feature columns.
+            gram_component_columns:
+                One or several column specifications. If zero or one are passed, the same specification will be used
+                for each n-gram component. The number of specifications can be at most the number of components ('a',
+                'b', etc.) that this NgramTable contains. Each specification can be None (default feature columns),
+                a single column name, or a tuple of column names.
             split:
                 Relevant only for NgramAnalyzer with n > 2: Then the value can be modified to decide how many
-                elements are to be part of the left and the right gram. Defaults to -1, i.e. the last element is
-                used as the right gram. This is a useful default for settings where the (n-1) previous elements are
-                the context for predicting the next element.
+                elements are to be part of the left ('antecedent') and the right ('consequent') component.
+                Defaults to -1, i.e. the last element is used as the right component. This is a useful default for
+                evaluations where the (n-1) previous elements are the context for predicting the next element.
             join_str:
-                By default (None), the columns contain tuples. Pass True to concatenate the values of each tuple,
-                separated by ", " -- yielding strings that look like tuples without parentheses. You can also pass
-                a string to separate the values, or False to concatenate without any value in-between the values.
-                In all of these non-default cases, you end up with two columns containing strings.
+                Parameter passed to :meth:`make_ngram_table`. It determines whether the antecedent and consequent
+                columns contain [tuples of] tuples (the default) or [tuples of] strings. If n == 2, each cell is of
+                type (tuple|str), if n > 2, it's Tuple[(tuple|str)].
             fillna:
-                Pass a value to replace all missing values it. When ``join_str`` is set, "" is often a good choice.
+                Pass a value to replace all missing values with it. Pass a tuple tuple of n values to fill missing
+                values differently for the n components (e.g. (None, '') to fill missing values with empty strings
+                only for the second n-gram components). "" is often a good choice for components for which ``join_str``
+                is specified to avoid strings looking like ``"value<NA>"``.
             terminal_symbols:
                 By default, the consequent of each last bigram has only missing values. Pass False to
                 drop these rows.
@@ -1141,16 +1158,10 @@ class NgramTable(Result):
         Returns:
 
         """
-        if columns is None:
-            if self.has_distinct_formatted_column:
-                columns = [self.formatted_column]
-            else:
-                columns = [self.value_column]
-        elif isinstance(columns, str):
-            columns = [columns]
-        columns = tuple(columns)
+
+        self._check_gram_component_columns_arg(gram_component_columns)
         table = self.make_bigram_table(
-            columns=columns,
+            *gram_component_columns,
             split=split,
             join_str=join_str,
             fillna=fillna,
@@ -1171,30 +1182,70 @@ class NgramTable(Result):
         return result
 
     @cache
-    def make_ngram_table(
+    def _make_ngram_component(
         self,
-        columns: Optional[str | Tuple[str]] = None,
-        n: Optional[int] = None,
+        level: str,
+        columns: Optional[str, Tuple[str]] = None,
         join_str: Optional[str | bool] = None,
         fillna: Optional[Hashable] = None,
+        terminal_symbols: Optional[Literal[False]] = None,
+    ):
+        """Create one of the components for :attr:`make_ngram_table` as a subset of the NgramTable with the requested
+        columns (if specified) for one of the n-gram levels 'a', 'b', etc. Such components, concatenated sideways
+        make up the n_gram table.
+        """
+        selection = self._subselect_component_columns(level, columns, fillna)
+        tuple_iterator = selection.itertuples(index=False, name=None)
+        if join_str is not None:
+            if not isinstance(join_str, str):
+                if join_str is True:
+                    join_str = ", "
+                elif join_str is False:
+                    join_str = ""
+                else:
+                    raise TypeError(
+                        f"join_str must be a string or a boolean, got {join_str!r} ({type(join_str)})"
+                    )
+            to_string_function = partial(tuple2str, join_str=join_str)
+            tuple_iterator = map(to_string_function, tuple_iterator)
+        return pd.Series(tuple_iterator, index=selection.index, name=level)
+
+    @cache
+    def make_ngram_table(
+        self,
+        *gram_component_columns: Optional[str | Tuple[str]],
+        n: Optional[int] = None,
+        join_str: Optional[bool | str | Tuple[str]] = None,
+        fillna: Optional[Hashable | Tuple[Hashable]] = None,
         terminal_symbols: Optional[Literal[False]] = None,
         context_columns: Optional[Literal[True], str, Tuple[str]] = None,
     ) -> pd.DataFrame:
         """Reduce the selected columns for the n first n-gram levels a, b, ... so that the resulting dataframe
-        contains n columns, each of which contains tuples or strings.
+        contains n columns, each of which contains tuples or strings. You may pass several column specifications to
+        create n-gram components from differing columns, e.g. to evaluate how well one feature predicts another.
 
         Args:
-            columns: Use only the selected column(s). Defaults to feature columns.
+            gram_component_columns:
+                One or several column specifications. If one (or only the default, None) is passed, the same
+                specification will be used for each n-gram component, otherwise the number of specifications must
+                match ``n``. Each specification can be None (default feature columns), a single column name, or a
+                tuple of column names.
             n:
-                Only make tuples for the first n n-gram levels. If None, use all n-gram levels. Minimum is 2, maximum
-                is the number of n-gram levels determined by the :obj:`NgramAnalyzer` used to create the n-gram table.
+                Only make columns for the first n n-gram components. If None, use all n-gram levels. Minimum is 2,
+                maximum is the number of n-gram levels determined by the :obj:`NgramAnalyzer` used to create the n-gram
+                table.
             join_str:
-                By default (None), the columns contain tuples. Pass True to concatenate the values of each tuple,
-                separated by ", " -- yielding strings that look like tuples without parentheses. You can also pass
-                a string to separate the values, or False to concatenate without any value in-between the values.
-                In all of these non-default cases, you end up with two columns containing strings.
+                By default (None), the resulting columns contain tuples. If you want them to contain strings,
+                you may pass a single specification (bool or string) to use for all n-gram components, or a tuple
+                thereof to use different specifications for each component. True stands for concatenating the tuple
+                values for a given n-gram component separated by ", " -- yielding strings that look like tuples without
+                parentheses. False stands for concatenating without any value in-between the values. If a string is
+                passed, it will be used as the separator between the tuple values.
             fillna:
-                Pass a value to replace all missing values it. When ``join_str`` is set, "" is often a good choice.
+                Pass a value to replace all missing values with it. Pass a tuple tuple of n values to fill missing
+                values differently for the n components (e.g. (None, '') to fill missing values with empty strings
+                only for the second n-gram components). "" is often a good choice for components for which ``join_str``
+                is specified to avoid strings looking like ``"value<NA>"``
             terminal_symbols:
                 By default, the consequent of each last bigram (for example) has only missing values. Pass False to
                 drop these rows. For 3-grams this drops the last 2 rows, etc.
@@ -1206,64 +1257,71 @@ class NgramTable(Result):
         Returns:
 
         """
-        if columns is None:
-            columns = self.feature_columns
-        elif isinstance(columns, str):
-            columns = [columns]
-        columns = tuple(columns)
+        # region prepare parameters
+        n_level_specs = len(gram_component_columns)
         if n is not None:
             n = int(n)
             assert (
                 1 < n <= len(self.ngram_levels)
             ), f"n needs to be between 2 and {len(self.ngram_levels)}, got {n}"
+            if n_level_specs > 1:
+                if n != n_level_specs:
+                    raise ValueError(
+                        f"When n is specified, the number of column specifications needs to be either zero, one or n.\n"
+                        f"n={n}, but {n_level_specs} column specifications were passed: {gram_component_columns}"
+                    )
             selected_levels = self.ngram_levels[:n]
         else:
             selected_levels = self.ngram_levels
-        selected_columns = list(product(selected_levels, columns))
-        selection = self.df[selected_columns]
-        ngram_levels = selected_levels[1:]
-        if terminal_symbols is False:
-            drop_mask = self._get_terminal_drop_mask(selection, ngram_levels)
-            selection = selection[~drop_mask]
-        if fillna is not None:
-            selection = selection.fillna(fillna)
-        if join_str is None:
-            result = (  # this stunt is necessary because pandas is deprecating .groupby(axis=1)
-                selection.T.groupby(level=0, group_keys=False)
-                .apply(lambda df: df.apply(tuple, result_type="reduce"))
-                .T
-            )
+        n = len(selected_levels)
+        if len(gram_component_columns) == 0:
+            component_columns = [self.feature_columns] * n
+        elif len(gram_component_columns) == 1:
+            component_columns = [gram_component_columns[0]] * n
         else:
-            if not isinstance(join_str, str):
-                if join_str is True:
-                    join_str = ", "
-                elif join_str is False:
-                    join_str = ""
+            component_columns = gram_component_columns
+        if isinstance(join_str, tuple):
+            assert (
+                len(join_str) == n
+            ), f"If you pass a 'join_str' tuple it needs to have n={n} elements, not {len(join_str)}."
+            join_strings = join_str
+        else:
+            join_strings = repeat(join_str)
+        if isinstance(fillna, tuple):
+            assert (
+                len(fillna) == n
+            ), f"If you pass a 'fillna' tuple it needs to have n={n} elements, not {len(fillna)}."
+            fillna_values = fillna
+        else:
+            fillna_values = repeat(fillna)
+        # endregion
+        gram_components = []
+        for level, columns, join_string, fillna_val in zip(
+            selected_levels, component_columns, join_strings, fillna_values
+        ):
+            if columns is not None:
+                if isinstance(columns, str):
+                    columns = (columns,)
                 else:
-                    raise TypeError(
-                        f"join_str must be a string or a boolean, got {join_str!r} ({type(join_str)})"
-                    )
-            result = (  # this stunt is necessary because pandas is deprecating .groupby(axis=1)
-                selection.T.groupby(level=0, group_keys=False)
-                .apply(
-                    lambda df: df.apply(
-                        tuple2str, args=(join_str,), result_type="reduce"
-                    )
-                )
-                .T
+                    columns = tuple(columns)
+            gram_components.append(
+                self._make_ngram_component(level, columns, join_string, fillna_val)
             )
+
         if context_columns:
-            result = self._add_context_columns(
-                result, context_columns, terminal_symbols
-            )
+            gram_components = [self._get_context_df(context_columns)] + gram_components
+        result = pd.concat(gram_components, axis=1)
+        if terminal_symbols is False:
+            drop_mask = self._get_terminal_drop_mask(result, selected_levels)
+            result = result[~drop_mask]
         return result
 
     def make_ngram_tuples(
         self,
-        columns: Optional[str | Tuple[str]] = None,
+        *gram_component_columns: Optional[str | Tuple[str]],
         n: Optional[int] = None,
-        join_str: Optional[str | bool] = None,
-        fillna: Optional[Hashable] = None,
+        join_str: Optional[bool | str | Tuple[str]] = None,
+        fillna: Optional[Hashable | Tuple[Hashable]] = None,
         terminal_symbols: Optional[Literal[False]] = None,
         drop_identical: bool = False,
         n_gram_column_name: str = "n_gram",
@@ -1273,17 +1331,27 @@ class NgramTable(Result):
         based on the specified (or default) columns.
 
         Args:
-            columns: Use only the selected column(s). Defaults to feature columns.
+            gram_component_columns:
+                One or several column specifications. If one (or only the default, None) is passed, the same
+                specification will be used for each n-gram component, otherwise the number of specifications must
+                match ``n``. Each specification can be None (default feature columns), a single column name, or a
+                tuple of column names.
             n:
-                Only make tuples for the first n n-gram levels. If None, use all n-gram levels. Minimum is 2, maximum
-                is the number of n-gram levels determined by the :obj:`NgramAnalyzer` used to create the n-gram table.
+                Make tuples from the first n n-gram components only. If None, use all n-gram levels. Minimum is 2,
+                maximum is the number of n-gram levels determined by the :obj:`NgramAnalyzer` used to create the n-gram
+                table.
             join_str:
-                By default (None), the columns contain tuples. Pass True to concatenate the values of each tuple,
-                separated by ", " -- yielding strings that look like tuples without parentheses. You can also pass
-                a string to separate the values, or False to concatenate without any value in-between the values.
-                In all of these non-default cases, you end up with two columns containing strings.
+                By default (None), the resulting columns contain tuples. If you want them to contain strings,
+                you may pass a single specification (bool or string) to use for all n-gram components, or a tuple
+                thereof to use different specifications for each component. True stands for concatenating the tuple
+                values for a given n-gram component separated by ", " -- yielding strings that look like tuples without
+                parentheses. False stands for concatenating without any value in-between the values. If a string is
+                passed, it will be used as the separator between the tuple values.
             fillna:
-                Pass a value to replace all missing values it. When ``join_str`` is set, "" is often a good choice.
+                Pass a value to replace all missing values with it. Pass a tuple tuple of n values to fill missing
+                values differently for the n components (e.g. (None, '') to fill missing values with empty strings
+                only for the second n-gram components). "" is often a good choice for components for which ``join_str``
+                is specified to avoid strings looking like ``"value<NA>"``.
             terminal_symbols:
                 By default, the consequent of each last bigram (for example) has only missing values. Pass False to
                 drop these rows. For 3-grams this drops the last 2 rows, etc.
@@ -1297,16 +1365,9 @@ class NgramTable(Result):
         Returns:
 
         """
-        if columns is None:
-            if self.has_distinct_formatted_column:
-                columns = [self.formatted_column]
-            else:
-                columns = [self.value_column]
-        elif isinstance(columns, str):
-            columns = [columns]
-        columns = tuple(columns)
+        self._check_gram_component_columns_arg(gram_component_columns)
         table = self.make_ngram_table(
-            columns=columns,
+            *gram_component_columns,
             n=n,
             join_str=join_str,
             fillna=fillna,
@@ -1351,6 +1412,34 @@ class NgramTable(Result):
             top_k=top_k,
             drop_cols=drop_cols,
         )
+
+    def _subselect_component_columns(
+        self,
+        level: str,
+        columns: Optional[str, Tuple[str]] = None,
+        fillna: Optional[Hashable] = None,
+        droplevel: bool = True,
+    ) -> D:
+        """Retrieve the specified columns for the specified n-gram level ('a, 'b', etc.) from the NgramTable."""
+        if columns is None:
+            columns = self.feature_columns
+        elif isinstance(columns, str):
+            columns = [columns]
+        column_names = list(product([level], columns))
+        missing = [col for col in column_names if col not in self.df.columns]
+        n_missing = len(missing)
+        if n_missing:
+            if n_missing == len(column_names):
+                msg = f"None of the requested columns {columns} are present in the NgramTable."
+            else:
+                msg = f"The following columns are not present in the NgramTable: {missing}"
+            raise ValueError(msg)
+        selection = self.df.loc[:, column_names]
+        if droplevel:
+            selection = selection.droplevel(0, axis=1)
+        if fillna is not None:
+            selection = selection.fillna(fillna)
+        return selection
 
     def plot(
         self,
@@ -1489,7 +1578,7 @@ class Transitions(Result):
 
     @property
     def feature_columns(self) -> List[str]:
-        return self._feature_columns
+        return list(self._feature_columns)
 
     @feature_columns.setter
     def feature_columns(self, feature_columns: List[str]):
