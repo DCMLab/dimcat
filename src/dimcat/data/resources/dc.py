@@ -893,7 +893,7 @@ DimcatResource.__init__(
         new_resource = self.__class__.from_resource_and_dataframe(
             resource=self, df=new_df
         )
-        if do_level_drop and level in new_resource.get_default_groupby():
+        if do_level_drop and level in new_resource.default_groupby:
             new_resource._default_groupby.remove(level)
         return new_resource
 
@@ -1004,12 +1004,6 @@ DimcatResource.__init__(
         """Returns the default analysis of the resource."""
         return self.apply_steps(self._default_analyzer)
 
-    def get_default_groupby(self) -> List[str]:
-        """Returns the default index levels for grouping the resource."""
-        if not self.default_groupby:
-            return []
-        return self.default_groupby
-
     def get_grouping_levels(
         self, smallest_unit: UnitOfAnalysis = UnitOfAnalysis.SLICE
     ) -> List[str]:
@@ -1020,7 +1014,7 @@ DimcatResource.__init__(
         if smallest_unit == UnitOfAnalysis.PIECE:
             return self.get_piece_index(max_levels=0).names
         if smallest_unit == UnitOfAnalysis.GROUP:
-            return self.get_default_groupby()
+            return self.default_groupby
 
     def get_index(self) -> DimcatIndex:
         """Returns the index of the resource based on the ``primaryKey`` of the :obj:`frictionless.Schema`."""
@@ -1403,7 +1397,7 @@ DimcatResource.__init__(
 
     def update_default_groupby(self, new_level_name: str) -> None:
         """Updates the value of :attr:`default_groupby` by prepending the new level name to it."""
-        current_default = self.get_default_groupby()
+        current_default = self.default_groupby
         if len(current_default) == 0:
             self.logger.debug(f"Default grouping level set to {new_level_name!r}.")
             new_default_value = [new_level_name]

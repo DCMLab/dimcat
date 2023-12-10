@@ -212,7 +212,7 @@ class Analyzer(FeatureProcessingStep):
             formatted_column=formatted_column,
             df=results,
             resource_name=result_name,
-            default_groupby=resource.get_default_groupby(),
+            default_groupby=resource.default_groupby,
         )
         return result
 

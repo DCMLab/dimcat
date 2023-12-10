@@ -442,12 +442,12 @@ class HarmonyLabels(DcmlAnnotations):
     @property
     def formatted_column(self) -> str:
         if self.format == HarmonyLabelsFormat.ROMAN:
-            if "mode" in self.get_default_groupby():
+            if "mode" in self.default_groupby:
                 return "chord"
             else:
                 return "chord_and_mode"
         elif self._format == HarmonyLabelsFormat.ROMAN_REDUCED:
-            if "mode" in self.get_default_groupby():
+            if "mode" in self.default_groupby:
                 return "chord_reduced"
             else:
                 return "chord_reduced_and_mode"
@@ -632,7 +632,7 @@ class BassNotes(HarmonyLabels):
     @property
     def formatted_column(self) -> str:
         if self.format == BassNotesFormat.SCALE_DEGREE:
-            if "mode" in self.get_default_groupby():
+            if "mode" in self.default_groupby:
                 return "bass_degree"
             else:
                 return "bass_degree_and_mode"

@@ -189,7 +189,7 @@ class Result(DimcatResource):
         if self.is_combination:
             # this has been combined before, check if the grouping is the same or a subset of the current grouping
             available_columns = set(self.df.columns) | set(self.df.index.names)
-            if group_cols == self.get_default_groupby():
+            if group_cols == self.default_groupby:
                 return self.df
             elif not set(group_cols).issubset(available_columns):
                 raise ValueError(
@@ -266,7 +266,7 @@ class Result(DimcatResource):
         if smallest_unit == UnitOfAnalysis.PIECE:
             return self.get_piece_index(max_levels=0).names
         if smallest_unit == UnitOfAnalysis.GROUP:
-            return self.get_default_groupby()
+            return self.default_groupby
 
     def make_bar_plot(
         self,
@@ -1514,7 +1514,7 @@ class Transitions(Result):
         if self.is_combination:
             # this has been combined before, check if the grouping is the same or a subset of the current grouping
             available_columns = set(self.df.columns) | set(self.df.index.names)
-            if group_cols == self.get_default_groupby():
+            if group_cols == self.default_groupby:
                 return self.df
             elif not set(group_cols).issubset(available_columns):
                 raise ValueError(
@@ -1556,7 +1556,7 @@ class Transitions(Result):
         if smallest_unit == UnitOfAnalysis.PIECE:
             return self.get_piece_index(max_levels=0).names
         if smallest_unit == UnitOfAnalysis.GROUP:
-            return self.get_default_groupby()
+            return self.default_groupby
 
     def make_heatmap(
         self,
