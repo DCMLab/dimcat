@@ -1,9 +1,9 @@
 """Convenience module collecting DiMCAT's enum types for easy import."""
 
 from dimcat.base import FriendlyEnum, ObjectEnum
-from dimcat.data.packages.base import PackageMode
+from dimcat.data.packages.base import PackageMode, PackageStatus
 from dimcat.data.resources.base import FeatureName
-from dimcat.data.resources.dc import UnitOfAnalysis
+from dimcat.data.resources.dc import ResourceStatus, UnitOfAnalysis
 from dimcat.data.resources.facets import MuseScoreFacetName
 from dimcat.data.resources.features import (
     BassNotesFormat,
@@ -32,7 +32,9 @@ __all__ = [
     NotesFormat,
     ObjectEnum,
     PackageMode,
+    PackageStatus,
     ResultName,
+    ResourceStatus,
     SortOrder,
     UnitOfAnalysis,
 ]

@@ -15,12 +15,15 @@ finally:
 # of the imports here is syntactic sugar, some are required.
 from .base import (
     DimcatConfig,
+    change_setting,
     deserialize_config,
     deserialize_dict,
     deserialize_json_file,
     deserialize_json_str,
     get_class,
     get_schema,
+    get_setting,
+    reset_settings,
 )
 from .data import catalogs, datasets, packages, resources
 from .data.datasets.base import Dataset
