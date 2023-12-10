@@ -11,7 +11,7 @@ from dimcat.data.resources.features import (
     HarmonyLabelsFormat,
     NotesFormat,
 )
-from dimcat.data.resources.results import ResultName
+from dimcat.data.resources.results import ResultName, TerminalSymbol
 from dimcat.plotting import GroupMode
 from dimcat.steps.analyzers.base import AnalyzerName
 from dimcat.steps.analyzers.counters import NgramTableFormat
@@ -36,5 +36,6 @@ __all__ = [
     ResultName,
     ResourceStatus,
     SortOrder,
+    TerminalSymbol,
     UnitOfAnalysis,
 ]

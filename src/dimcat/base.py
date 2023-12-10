@@ -778,7 +778,7 @@ class DimcatSettings(DimcatObject):
     The current settings can be loaded anywhere in the code by calling :func:`get_setting`.
     Defining a new setting means adding it in three places:
 
-    1. as a class attribute with type annotation (=dataclass field)  and default (factory)
+    1. as a class attribute with type annotation (=dataclass field)  and default (factory where needed)
     2. as a marshmallow field in the Schema with the same name and corresponding type, which
        gives access to marshmallow's full serialization and validation functionality. By default,
        we add ``required=True`` to all settings.
@@ -815,6 +815,9 @@ class DimcatSettings(DimcatObject):
     default_figure_height: int = 1620
     """default height in pixels for figures stored by DiMCAT"""
     default_resource_name: str = "unnamed"
+    """default name for resources created from scratch"""
+    default_terminal_symbol = "⋉"
+    """default symbol to be used for the end of sequences"""
     never_store_unvalidated_data: bool = True
     """setting this to False allows for skipping mandatory validations; set to True for production"""
     recognized_piece_columns: List[str] = dataclass_field(
@@ -873,7 +876,16 @@ class DimcatSettings(DimcatObject):
                 "description": "default height in pixels for figures stored by DiMCAT"
             },
         )
-        default_resource_name = mm.fields.String(required=True)
+        default_resource_name = mm.fields.String(
+            required=True,
+            metadata={"description": "default name for resources created from scratch"},
+        )
+        default_terminal_symbol = mm.fields.String(
+            required=True,
+            metadata={
+                "description": "default symbol to be used for the end of sequences"
+            },
+        )
         never_store_unvalidated_data = mm.fields.Boolean(
             required=True,
             metadata={

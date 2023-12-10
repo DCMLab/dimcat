@@ -8,7 +8,7 @@ from typing import ClassVar, Dict, Hashable, Iterable, List, Literal, Optional, 
 import frictionless as fl
 import marshmallow as mm
 import pandas as pd
-from dimcat.base import ObjectEnum
+from dimcat.base import LowercaseEnum, ObjectEnum, get_setting
 from dimcat.plotting import (
     CADENCE_COLORS,
     GroupMode,
@@ -31,6 +31,19 @@ from .base import D, S
 from .dc import DimcatResource, UnitOfAnalysis
 
 logger = logging.getLogger(__name__)
+
+
+class TerminalSymbol(LowercaseEnum):
+    """Used to control arguments for n-gram creation. DEFAULT defines the default terminal symbol.
+    NA replaces each terminal value with pd.NA values (rather than, say, with a tuple of null values).
+    DROP results in terminal n-grams being dropped entirely, that is, those starting with one of the n-1 last n-grams
+    of a sequence.
+    """
+
+    DEFAULT = get_setting("default_terminal_symbol")
+    NA = pd.NA
+    DROP = "DROP"
+    # Caution: adding options needs to be done with care, in particular with NgramTable._make_ngram_component()
 
 
 def turn_proportions_into_percentage_strings(
@@ -540,7 +553,7 @@ class Result(DimcatResource):
         group_cols: Optional[
             UnitOfAnalysis | str | Iterable[str]
         ] = UnitOfAnalysis.GROUP,
-        sort_column: Optional[str | Tuple[str]] = None,
+        sort_column: Optional[str | Tuple[str, ...]] = None,
         sort_order: Literal[
             SortOrder.DESCENDING, SortOrder.ASCENDING
         ] = SortOrder.DESCENDING,
@@ -566,8 +579,11 @@ class Result(DimcatResource):
             drop_columns: Optional[List[str]] = None,
             make_int_nullable: bool = False,
         ):
-            if top_k and top_k > 0:
-                ranking = df.nlargest(top_k, sort_column, keep=keep)
+            if top_k:
+                if top_k > 0:
+                    ranking = df.nlargest(top_k, sort_column, keep=keep)
+                else:
+                    ranking = df.nsmallest(-top_k, sort_column, keep=keep)
             else:
                 ranking = df.sort_values(sort_column, ascending=ascending)
             ranking = ranking.reset_index()
@@ -863,17 +879,36 @@ class NgramTable(Result):
     def _add_context_columns(
         self,
         df: D,
-        context_columns: Optional[Literal[True], str, Tuple[str]] = None,
-        terminal_symbols: Optional[Literal[False]] = None,
-    ):
+        context_columns: Optional[Literal[True], str, Tuple[str, ...]] = None,
+        terminal_symbols: Optional[
+            TerminalSymbol | Hashable, Tuple[TerminalSymbol | Hashable, ...]
+        ] = None,
+    ) -> D:
+        """Concatenates requested context columns to the left side of the computed ngram_table or
+        :obj:`NgramTuples`. If terminals are being dropped, this is accomplished by a join to not
+        restore the dropped rows.
+        """
         context_df = self._get_context_df(context_columns)
-        if terminal_symbols is False:
+        if terminal_symbols == "DROP":
             return context_df.join(df, how="right")
         return pd.concat([context_df, df], axis=1)
 
+    @cache
+    def _get_component_missing_mask(
+        self,
+        level: str,
+        columns: Optional[str, Tuple[str, ...]] = None,
+    ) -> S:
+        """Returns a boolean mask in which those entries are True at which entire rows consist of missing values for a
+        a given n-gram component as defined by level and columns.
+        This method is cached and calls the cached :meth:`_subselect_component_columns`.
+        """
+        selection = self._subselect_component_columns(level, columns)
+        return selection.isna().all(axis=1)
+
     def _get_context_df(
         self,
-        context_columns: Optional[str, Tuple[str]] = None,
+        context_columns: Optional[str, Tuple[str, ...]] = None,
     ) -> D:
         """Retrieve context columns to be included in an n-grams table."""
         if context_columns is True or context_columns is None:
@@ -898,24 +933,6 @@ class NgramTable(Result):
         # do not follow the behaviour of Result.get_grouping_levels, which assumes that the last one or two levels
         # are value_column or [value_column, formatted_column] and omits these
         return DimcatResource.get_grouping_levels(self, smallest_unit=smallest_unit)
-
-    def _get_terminal_drop_mask(
-        self, df: Optional[D] = None, ngram_levels: Optional[List[str]] = None
-    ) -> S:
-        if df is None:
-            df = self.df
-        if ngram_levels is None:
-            ngram_levels = self.ngram_levels[1:]
-        if isinstance(df.columns, pd.MultiIndex):
-            drop_mask = pd.Series(False, index=self.df.index)
-            levels = list(set(ngram_levels).intersection(df.columns.levels[0]))
-            for level in levels:
-                drop_mask |= df.loc[:, level].isna().all(axis=1)
-        else:
-            # this is an ngram table and has columns a, b...
-            levels = list(set(ngram_levels).intersection(df.columns))
-            drop_mask = df.loc[:, levels].isna().any(axis=1)
-        return drop_mask
 
     def _get_transitions(
         self,
@@ -1031,12 +1048,14 @@ class NgramTable(Result):
     @cache
     def make_bigram_table(
         self,
-        *gram_component_columns: Optional[str | Tuple[str]],
+        *gram_component_columns: Optional[str | Tuple[str, ...]],
         split: int = -1,
-        join_str: Optional[bool | str | Tuple[str]] = None,
-        fillna: Optional[Hashable | Tuple[Hashable]] = None,
-        terminal_symbols: Optional[Literal[False]] = None,
-        context_columns: Optional[Literal[True], str, Tuple[str]] = None,
+        join_str: Optional[bool | str | Tuple[str, ...]] = None,
+        fillna: Optional[Hashable | Tuple[Hashable, ...]] = None,
+        terminal_symbols: Optional[
+            TerminalSymbol | Hashable, Tuple[TerminalSymbol | Hashable, ...]
+        ] = None,
+        context_columns: Optional[Literal[True], str, Tuple[str, ...]] = None,
     ) -> pd.DataFrame:
         """Reduce the selected specified n-gram components to two columns, called 'antecedent' and 'consequent'.
         For NgramTables produced by a :obj:`BigramAnalyzer` or by an :obj:`NgramAnalyzer(n=2) <NgramAnalyzer>`, the
@@ -1068,8 +1087,16 @@ class NgramTable(Result):
                 only for the second n-gram components). "" is often a good choice for components for which ``join_str``
                 is specified to avoid strings looking like ``"value<NA>"``.
             terminal_symbols:
-                By default, the consequent of each last bigram has only missing values. Pass False to
-                drop these rows.
+                By default, the last bigram in a sequence ends on (a tuple or string concatenation of) missing
+                values. These rows can either be dropped, or the missing components replaced with a terminal symbol.
+                In the case of bigrams, there is only one consequent component. However, when dealing with bigrams
+                constructed by splitting higher-level grams, you can either specify a single value to be used for all
+                consequent components (b, c, ...) or a tuple of (n-1) values to obtain different behaviours.  For each
+                component to be left untouched, pass None (the default). To drop terminal rows for
+                a component, pass "DROP". To replace all terminal cells with pd.NA (independent of whether they would
+                be tuples or strings), pass "NA". To replace them with the default_terminal_symbol, pass "DEFAULT".
+                Or, pass a string or other Hashable to replace terminals with that string. In the latter two cases,
+                the terminal cells will be tuples of terminal strings if ``join_str`` is None, or strings otherwise.
             context_columns:
                 Columns preceding the bigram columns for context, such as measure numbers etc. Pass True to use the
                 default context columns or one or several column names to subselect.
@@ -1094,7 +1121,7 @@ class NgramTable(Result):
                 (ngram_tuple[:split], ngram_tuple[split:]) for ngram_tuple in table_rows
             )
             result = pd.DataFrame(
-                data, columns=["antecedent", "consequent"], index=self.df.index
+                data, columns=["antecedent", "consequent"], index=ngram_table.index
             )
         if context_columns:
             result = self._add_context_columns(
@@ -1113,14 +1140,16 @@ class NgramTable(Result):
 
     def make_bigram_tuples(
         self,
-        *gram_component_columns: Optional[str | Tuple[str]],
+        *gram_component_columns: Optional[str | Tuple[str, ...]],
         split: int = -1,
-        join_str: Optional[bool | str | Tuple[str]] = None,
-        fillna: Optional[Hashable | Tuple[Hashable]] = None,
-        terminal_symbols: Optional[Literal[False]] = None,
+        join_str: Optional[bool | str | Tuple[str, ...]] = None,
+        fillna: Optional[Hashable | Tuple[Hashable, ...]] = None,
+        terminal_symbols: Optional[
+            TerminalSymbol | Hashable, Tuple[TerminalSymbol | Hashable, ...]
+        ] = None,
         drop_identical: bool = False,
         n_gram_column_name: str = "n_gram",
-        context_columns: Optional[Literal[True], str, Tuple[str]] = None,
+        context_columns: Optional[Literal[True], str, Tuple[str, ...]] = None,
     ) -> NgramTuples:
         """Get a Resource with a single column that contains bigram tuples, where each element is a tuple or string
         based on the specified (or default) columns. If this object represents trigrams or higher, it is always
@@ -1147,8 +1176,16 @@ class NgramTable(Result):
                 only for the second n-gram components). "" is often a good choice for components for which ``join_str``
                 is specified to avoid strings looking like ``"value<NA>"``.
             terminal_symbols:
-                By default, the consequent of each last bigram has only missing values. Pass False to
-                drop these rows.
+                By default, the last bigram in a sequence ends on (a tuple or string concatenation of) missing
+                values. These rows can either be dropped, or the missing components replaced with a terminal symbol.
+                In the case of bigrams, there is only one consequent component. However, when dealing with bigrams
+                constructed by splitting higher-level grams, you can either specify a single value to be used for all
+                consequent components (b, c, ...) or a tuple of (n-1) values to obtain different behaviours.  For each
+                component to be left untouched, pass None (the default). To drop terminal rows for
+                a component, pass "DROP". To replace all terminal cells with pd.NA (independent of whether they would
+                be tuples or strings), pass "NA". To replace them with the default_terminal_symbol, pass "DEFAULT".
+                Or, pass a string or other Hashable to replace terminals with that string. In the latter two cases,
+                the terminal cells will be tuples of terminal strings if ``join_str`` is None, or strings otherwise.
             drop_identical: Pass True to drop all tuples where left and right gram are identical.
             n_gram_column_name: Name of the value_column in the resulting :class:`NgramTuples` object.
             context_columns:
@@ -1186,16 +1223,18 @@ class NgramTable(Result):
     def _make_ngram_component(
         self,
         level: str,
-        columns: Optional[str, Tuple[str]] = None,
+        columns: Optional[str, Tuple[str, ...]] = None,
         join_str: Optional[str | bool] = None,
         fillna: Optional[Hashable] = None,
-        terminal_symbols: Optional[Literal[False]] = None,
+        terminal_symbols: Optional[TerminalSymbol | Hashable] = None,
     ):
         """Create one of the components for :attr:`make_ngram_table` as a subset of the NgramTable with the requested
         columns (if specified) for one of the n-gram levels 'a', 'b', etc. Such components, concatenated sideways
         make up the n_gram table.
         """
-        selection = self._subselect_component_columns(level, columns, fillna)
+        selection = self._subselect_component_columns(level, columns)
+        if fillna is not None:
+            selection = selection.fillna(fillna)
         tuple_iterator = selection.itertuples(index=False, name=None)
         if join_str is not None:
             if not isinstance(join_str, str):
@@ -1209,17 +1248,44 @@ class NgramTable(Result):
                     )
             to_string_function = partial(tuple2str, join_str=join_str)
             tuple_iterator = map(to_string_function, tuple_iterator)
-        return pd.Series(tuple_iterator, index=selection.index, name=level)
+        result = pd.Series(tuple_iterator, index=selection.index, name=level)
+
+        # deal with terminal rows if required
+        replace_terminals = not (
+            terminal_symbols is None or terminal_symbols == TerminalSymbol.DROP
+        )
+        terminal_mask: Optional[S] = None  # for type checking
+        if replace_terminals:
+            terminal_mask = self._get_component_missing_mask(level, columns)
+            replace_terminals = terminal_mask.any()  # false if nothing to replace
+        if not replace_terminals:
+            return result
+        if terminal_symbols == TerminalSymbol.DEFAULT:
+            replace_with = get_setting("default_terminal_symbol")
+        elif terminal_symbols == TerminalSymbol.NA:
+            replace_with = None
+        else:
+            # at this point, all other members of TerminalSymbol have been dealt with, so that any other will be
+            # accepted as fill value. If DROP, replace_terminals should be False, so we never get here.
+            replace_with = terminal_symbols
+        if replace_with is None:
+            return result.where(~terminal_mask)
+        if join_str is None:
+            replace_with = (replace_with,) * len(columns)
+        replacement_series = pd.Series([replace_with] * len(result), index=result.index)
+        return result.where(~terminal_mask, other=replacement_series)
 
     @cache
     def make_ngram_table(
         self,
-        *gram_component_columns: Optional[str | Tuple[str]],
+        *gram_component_columns: Optional[str | Tuple[str, ...]],
         n: Optional[int] = None,
-        join_str: Optional[bool | str | Tuple[str]] = None,
-        fillna: Optional[Hashable | Tuple[Hashable]] = None,
-        terminal_symbols: Optional[Literal[False]] = None,
-        context_columns: Optional[Literal[True], str, Tuple[str]] = None,
+        join_str: Optional[bool | str | Tuple[bool | str, ...]] = None,
+        fillna: Optional[Hashable | Tuple[Hashable, ...]] = None,
+        terminal_symbols: Optional[
+            TerminalSymbol | Hashable, Tuple[TerminalSymbol | Hashable, ...]
+        ] = None,
+        context_columns: Optional[Literal[True], str, Tuple[str, ...]] = None,
     ) -> pd.DataFrame:
         """Reduce the selected columns for the n first n-gram levels a, b, ... so that the resulting dataframe
         contains n columns, each of which contains tuples or strings. You may pass several column specifications to
@@ -1248,9 +1314,15 @@ class NgramTable(Result):
                 only for the second n-gram components). "" is often a good choice for components for which ``join_str``
                 is specified to avoid strings looking like ``"value<NA>"``
             terminal_symbols:
-                By default, the consequent of each last bigram (for example) has only missing values. Pass False to
-                drop these rows. For 3-grams this drops the last 2 rows, etc.
-                ToDo: Allow for passing a Mapping from 'b', 'c' etc. to terminal symbols.
+                By default, the last n-1 n-grams in a sequence end on (tuples or string concatenations of) missing
+                values. These rows can either be dropped, or the missing components replaced with a terminal symbol.
+                You can either specify a single value to be used for all consequent components (b, c, ...) or a tuple
+                of (n-1) values to obtain different behaviours. In the case of bigrams, there is only one consequent
+                component. For each component to be left untouched, pass None (the default). To drop terminal rows for
+                a component, pass "DROP". To replace all terminal cells with pd.NA (independent of whether they would
+                be tuples or strings), pass "NA". To replace them with the default_terminal_symbol, pass "DEFAULT".
+                Or, pass a string or other Hashable to replace terminals with that string. In the latter two cases,
+                the terminal cells will be tuples of terminal strings if ``join_str`` is None, or strings otherwise.
             context_columns:
                 Columns preceding the bigram columns for context, such as measure numbers etc. Pass True to use the
                 default context columns or one or several column names to subselect.
@@ -1281,52 +1353,81 @@ class NgramTable(Result):
             component_columns = [gram_component_columns[0]] * n
         else:
             component_columns = gram_component_columns
+        # ensure that all collections are tuples
+        component_columns = [
+            arg if arg is None or isinstance(arg, str) else tuple(arg)
+            for arg in component_columns
+        ]
+
         if isinstance(join_str, tuple):
             assert (
                 len(join_str) == n
-            ), f"If you pass a 'join_str' tuple it needs to have n={n} elements, not {len(join_str)}."
+            ), f"If you specify 'join_str' as a tuple it needs to have n ({n}) elements, not {len(join_str)}."
             join_strings = join_str
         else:
             join_strings = repeat(join_str)
         if isinstance(fillna, tuple):
             assert (
                 len(fillna) == n
-            ), f"If you pass a 'fillna' tuple it needs to have n={n} elements, not {len(fillna)}."
+            ), f"If you specify 'fillna' as a tuple it needs to have n ({n}) elements, not {len(fillna)}."
             fillna_values = fillna
         else:
             fillna_values = repeat(fillna)
-        # endregion
+        drop_terminals_for_components = []
+        if isinstance(terminal_symbols, tuple):
+            assert len(terminal_symbols) == n - 1, (
+                f"If you specify 'terminal_symbols' as a tuple it needs to have n-1 ({n - 1}) elements, not "
+                f"{len(terminal_symbols)}."
+            )
+            terminal_symbols = (None,) + terminal_symbols
+            drop_terminals_for_components = [
+                level
+                for level, terminal_symbol in zip(selected_levels, terminal_symbols)
+                if terminal_symbol == TerminalSymbol.DROP
+            ]
+        else:
+            if terminal_symbols == TerminalSymbol.DROP:
+                drop_terminals_for_components = selected_levels[1:]
+            terminal_symbols = repeat(terminal_symbols)
+        # endregion prepare parameters
+
         gram_components = []
-        for level, columns, join_string, fillna_val in zip(
-            selected_levels, component_columns, join_strings, fillna_values
+        for level, columns, join_string, fillna_val, terminal in zip(
+            selected_levels,
+            component_columns,
+            join_strings,
+            fillna_values,
+            terminal_symbols,
         ):
-            if columns is not None:
-                if isinstance(columns, str):
-                    columns = (columns,)
-                else:
-                    columns = tuple(columns)
             gram_components.append(
-                self._make_ngram_component(level, columns, join_string, fillna_val)
+                self._make_ngram_component(
+                    level, columns, join_string, fillna_val, terminal
+                )
             )
 
         if context_columns:
             gram_components = [self._get_context_df(context_columns)] + gram_components
         result = pd.concat(gram_components, axis=1)
-        if terminal_symbols is False:
-            drop_mask = self._get_terminal_drop_mask(result, selected_levels)
+        if drop_terminals_for_components:
+            drop_mask = pd.Series(False, index=result.index)
+            for level, columns in zip(selected_levels, component_columns):
+                if level in drop_terminals_for_components:
+                    drop_mask |= self._get_component_missing_mask(level, columns)
             result = result[~drop_mask]
         return result
 
     def make_ngram_tuples(
         self,
-        *gram_component_columns: Optional[str | Tuple[str]],
+        *gram_component_columns: Optional[str | Tuple[str, ...]],
         n: Optional[int] = None,
-        join_str: Optional[bool | str | Tuple[str]] = None,
-        fillna: Optional[Hashable | Tuple[Hashable]] = None,
-        terminal_symbols: Optional[Literal[False]] = None,
+        join_str: Optional[bool | str | Tuple[str, ...]] = None,
+        fillna: Optional[Hashable | Tuple[Hashable, ...]] = None,
+        terminal_symbols: Optional[
+            TerminalSymbol | Hashable, Tuple[TerminalSymbol | Hashable, ...]
+        ] = None,
         drop_identical: bool = False,
         n_gram_column_name: str = "n_gram",
-        context_columns: Optional[Literal[True], str, Tuple[str]] = None,
+        context_columns: Optional[Literal[True], str, Tuple[str, ...]] = None,
     ) -> NgramTuples:
         """Get a Resource with a single column that contains n-gram tuples, where each element is a tuple or string
         based on the specified (or default) columns.
@@ -1354,8 +1455,15 @@ class NgramTable(Result):
                 only for the second n-gram components). "" is often a good choice for components for which ``join_str``
                 is specified to avoid strings looking like ``"value<NA>"``.
             terminal_symbols:
-                By default, the consequent of each last bigram (for example) has only missing values. Pass False to
-                drop these rows. For 3-grams this drops the last 2 rows, etc.
+                By default, the last n-1 n-grams in a sequence end on (tuples or string concatenations of) missing
+                values. These rows can either be dropped, or the missing components replaced with a terminal symbol.
+                You can either specify a single value to be used for all consequent components (b, c, ...) or a tuple
+                of (n-1) values to obtain different behaviours. In the case of bigrams, there is only one consequent
+                component. For each component to be left untouched, pass None (the default). To drop terminal rows for
+                a component, pass "DROP". To replace all terminal cells with pd.NA (independent of whether they would
+                be tuples or strings), pass "NA". To replace them with the default_terminal_symbol, pass "DEFAULT".
+                Or, pass a string or other Hashable to replace terminals with that string. In the latter two cases,
+                the terminal cells will be tuples of terminal strings if ``join_str`` is None, or strings otherwise.
             drop_identical: Pass True to drop all tuples where all elements are identical.
             n_gram_column_name: Name of the value_column in the resulting :class:`NgramTuples` object.
             context_columns:
@@ -1394,7 +1502,7 @@ class NgramTable(Result):
         group_cols: Optional[
             UnitOfAnalysis | str | Iterable[str]
         ] = UnitOfAnalysis.GROUP,
-        sort_column: Optional[str | Tuple[str]] = None,
+        sort_column: Optional[str | Tuple[str, ...]] = None,
         sort_order: Literal[
             SortOrder.DESCENDING, SortOrder.ASCENDING
         ] = SortOrder.DESCENDING,
@@ -1415,11 +1523,36 @@ class NgramTable(Result):
             drop_cols=drop_cols,
         )
 
+    def _make_tuples_from_table(
+        self,
+        table: D,
+        terminal_symbols: Optional[
+            TerminalSymbol | Hashable, Tuple[TerminalSymbol | Hashable, ...]
+        ] = None,
+        drop_identical: bool = False,
+        n_gram_column_name: str = "n_gram",
+        context_columns: Optional[Literal[True], str, Tuple[str, ...]] = None,
+    ) -> NgramTuples:
+        """Boilerplate used by :meth:`make_ngram_tuples` and :meth:`make_bigram_tuples`."""
+        df = table.apply(tuple, axis=1).to_frame(n_gram_column_name)
+        if drop_identical:
+            keep_mask = df[n_gram_column_name].map(lambda tup: len(set(tup)) > 1)
+            df = df[keep_mask]
+        if context_columns:
+            df = self._add_context_columns(df, context_columns, terminal_symbols)
+        result = NgramTuples.from_resource_and_dataframe(
+            self,
+            df,
+            value_column=n_gram_column_name,
+        )
+        result.formatted_column = None
+        return result
+
+    @cache
     def _subselect_component_columns(
         self,
         level: str,
-        columns: Optional[str, Tuple[str]] = None,
-        fillna: Optional[Hashable] = None,
+        columns: Optional[str, Tuple[str, ...]] = None,
         droplevel: bool = True,
     ) -> D:
         """Retrieve the specified columns for the specified n-gram level ('a, 'b', etc.) from the NgramTable."""
@@ -1439,8 +1572,8 @@ class NgramTable(Result):
         selection = self.df.loc[:, column_names]
         if droplevel:
             selection = selection.droplevel(0, axis=1)
-        if fillna is not None:
-            selection = selection.fillna(fillna)
+        else:
+            selection = selection.copy()
         return selection
 
     def plot(
@@ -1524,7 +1657,7 @@ class NgramTuples(Result):
         group_cols: Optional[
             UnitOfAnalysis | str | Iterable[str]
         ] = UnitOfAnalysis.GROUP,
-        sort_column: Optional[str | Tuple[str]] = None,
+        sort_column: Optional[str | Tuple[str, ...]] = None,
         sort_order: Literal[
             SortOrder.DESCENDING, SortOrder.ASCENDING
         ] = SortOrder.DESCENDING,
