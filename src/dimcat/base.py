@@ -816,7 +816,7 @@ class DimcatSettings(DimcatObject):
     """default height in pixels for figures stored by DiMCAT"""
     default_resource_name: str = "unnamed"
     """default name for resources created from scratch"""
-    default_terminal_symbol = "⋉"
+    default_terminal_symbol: str = "⋉"
     """default symbol to be used for the end of sequences"""
     never_store_unvalidated_data: bool = True
     """setting this to False allows for skipping mandatory validations; set to True for production"""

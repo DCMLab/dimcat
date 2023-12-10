@@ -524,13 +524,19 @@ def join_df_on_index(
         # workaround because pandas enforces column indices to have same number of levels for merging
         column_index = pd.MultiIndex.from_tuples(df.columns, names=df.columns.names)
         grouping_df = pd.DataFrame(index=index, columns=column_index)
-        df_aligned = grouping_df.join(df, how="left", lsuffix="_")
+        df_aligned = grouping_df.join(df, how="inner", lsuffix="_")
     else:
         grouping_df = pd.DataFrame(index=index)
         df_aligned = grouping_df.join(
             df,
-            how="left",
+            how="inner",
         )
+    index_level_order = list(grouping_df.index.names)
+    index_level_order += [
+        level for level in df.index.names if level not in index_level_order
+    ]
+    if df_aligned.index.names != index_level_order:
+        df_aligned = df_aligned.reorder_levels(index_level_order)
     return df_aligned
 
 

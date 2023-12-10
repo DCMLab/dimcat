@@ -2,7 +2,6 @@ import os
 from pathlib import Path
 
 from dimcat import Dataset
-from dimcat.base import DimcatConfig, resolve_object_specs
 from dimcat.data import resources
 from dimcat.data.resources import DimcatIndex
 from dimcat.steps import groupers
@@ -50,7 +49,10 @@ def get_piece_groups(dataset):
 
 
 if __name__ == "__main__":
-    # D = load_distant_listening_corpus()
-    specs = dict(dtype="HasHarmonyLabelsFilter", keep_values=[True])
-    c = DimcatConfig(specs)
-    filter = resolve_object_specs(specs)
+    D = load_distant_listening_corpus()
+    pipeline = [
+        dict(dtype="HasHarmonyLabelsFilter", keep_values=[True]),
+        "KeySlicer",
+    ]
+    analyzed_D = D.apply_steps(pipeline)
+    analyzed_D
