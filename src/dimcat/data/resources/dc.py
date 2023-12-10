@@ -881,10 +881,21 @@ DimcatResource.__init__(
         drop_this, keep_values = idx.get_level_values_to_drop(
             drop_values, keep_values, level
         )
+        do_level_drop = drop_level or (drop_level is None and len(keep_values) == 1)
+        if not (drop_this or do_level_drop):
+            self.logger.info(
+                f"Nothing to filter based on keep_values={keep_values} and drop_values={drop_values}."
+            )
+            return self.copy()
         new_df = self.df.drop(drop_this, level=level)
-        if drop_level or (drop_level is None and len(keep_values) == 1):
+        if do_level_drop:
             new_df = new_df.droplevel(level)
-        return self.__class__.from_resource_and_dataframe(resource=self, df=new_df)
+        new_resource = self.__class__.from_resource_and_dataframe(
+            resource=self, df=new_df
+        )
+        if do_level_drop and level in new_resource.get_default_groupby():
+            new_resource._default_groupby.remove(level)
+        return new_resource
 
     def _format_dataframe(self, df: D) -> D:
         """Format the dataframe before it is set for this resource. The method is called by :meth:`_set_dataframe`
