@@ -901,6 +901,9 @@ class NgramTable(Result):
             return context_columns.join(df, how="right")
         return pd.concat([context_columns, df], axis=1)
 
+    def get_default_analysis(self) -> Transitions:
+        return self.get_transitions()
+
     def get_grouping_levels(
         self, smallest_unit: UnitOfAnalysis = UnitOfAnalysis.SLICE
     ) -> List[str]:
