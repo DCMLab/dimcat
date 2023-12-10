@@ -295,30 +295,54 @@ class DimcatObject(ABC):
         self.logger.info(f"{self.name} has been serialized to {filepath!r}")
 
 
-class FriendlyEnum(str, Enum):
+class LowercaseEnum(str, Enum):
     """Members of this Enum can be created from and compared to strings in a case-insensitive
     manner."""
 
     @classmethod
     def _missing_(cls, value) -> Self:
         value_lower = value.lower()
-        lc_values = {member.value.lower(): member for member in cls}
-        if value_lower in lc_values:
-            return lc_values[value_lower]
-        for lc_value, member in lc_values.items():
-            if lc_value.startswith(value_lower):
-                return member
+        lowercase_names = {member.name.lower(): member for member in cls}
+        if value_lower in lowercase_names:
+            return lowercase_names[value_lower]
         raise ValueError(f"ValueError: {value!r} is not a valid {cls.__name__}.")
 
     def __eq__(self, other) -> bool:
-        if self.value == other:
+        if self.name == other:
             return True
         if isinstance(other, str):
-            return other.lower() == self.value.lower()
+            return other.lower() == self.name.lower()
         return False
 
     def __hash__(self):
         return hash(self.value)
+
+
+class FriendlyEnum(LowercaseEnum):
+    """Like LowercaseEnum, Members of this Enum can be created from and compared to strings in a case-insensitive
+    manner. In addition, this type of Enum is friendly enough to also allow for shortened values (i.e. having only
+    the first few letters), as long as the abbreviation is unambiguous.
+    """
+
+    @classmethod
+    def _missing_(cls, value) -> Self:
+        value_lower = value.lower()
+        lowercase_names = {member.name.lower(): member for member in cls}
+        if value_lower in lowercase_names:
+            return lowercase_names[value_lower]
+        # try to dissolve unambiguous abbreviation
+        candidates = [
+            (lc_name, member)
+            for lc_name, member in lowercase_names.items()
+            if lc_name.startswith(value_lower)
+        ]
+        if len(candidates) == 1:
+            return candidates[0][1]
+        if len(candidates) > 1:
+            raise ValueError(
+                f"{value!r} is ambiguous and could correspond to {candidates}"
+            )
+        raise ValueError(f"ValueError: {value!r} is not a valid {cls.__name__}.")
 
 
 class ObjectEnum(FriendlyEnum):
