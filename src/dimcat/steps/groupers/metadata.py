@@ -43,7 +43,7 @@ class YearGrouper(CustomPieceGrouper):
         super().__init__(level_name=level_name, grouped_units=grouped_units, **kwargs)
 
     def fit_to_dataset(self, dataset: Dataset) -> None:
-        metadata = dataset.get_metadata()
+        metadata = dataset.get_metadata(raw=True)
         sorted_composition_years = get_middle_composition_year(metadata).sort_values()
         grouping = sorted_composition_years.groupby(
             sorted_composition_years, sort=True

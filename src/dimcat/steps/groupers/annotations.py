@@ -99,7 +99,7 @@ class HasHarmonyLabelsGrouper(CustomPieceGrouper):
         super().__init__(level_name=level_name, grouped_units=grouped_units, **kwargs)
 
     def fit_to_dataset(self, dataset: Dataset) -> None:
-        metadata = dataset.get_metadata()
+        metadata = dataset.get_metadata(raw=True)
         has_labels = metadata.df["label_count"] > 0
         grouping = has_labels.groupby(has_labels, sort=True).groups
         group_index = DimcatIndex.from_grouping(
