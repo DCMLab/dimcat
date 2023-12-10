@@ -536,14 +536,15 @@ class Result(DimcatResource):
 
     def make_ranking_table(
         self,
+        /,
         group_cols: Optional[
             UnitOfAnalysis | str | Iterable[str]
         ] = UnitOfAnalysis.GROUP,
-        sort_column=None,
+        sort_column: Optional[str | Tuple[str]] = None,
         sort_order: Literal[
             SortOrder.DESCENDING, SortOrder.ASCENDING
         ] = SortOrder.DESCENDING,
-        top_k=50,
+        top_k: Optional[int] = None,
         drop_cols: Optional[str | Iterable[str]] = None,
     ) -> D:
         """Sorts the values
@@ -1389,6 +1390,7 @@ class NgramTable(Result):
 
     def make_ranking_table(
         self,
+        /,
         group_cols: Optional[
             UnitOfAnalysis | str | Iterable[str]
         ] = UnitOfAnalysis.GROUP,
@@ -1396,7 +1398,7 @@ class NgramTable(Result):
         sort_order: Literal[
             SortOrder.DESCENDING, SortOrder.ASCENDING
         ] = SortOrder.DESCENDING,
-        top_k=50,
+        top_k: Optional[int] = None,
         drop_cols: Optional[str | Iterable[str]] = None,
     ):
         """Shortcut for creating the default :class:`NgramTuples` object and calling
@@ -1518,14 +1520,15 @@ class NgramTuples(Result):
 
     def make_ranking_table(
         self,
+        /,
         group_cols: Optional[
             UnitOfAnalysis | str | Iterable[str]
         ] = UnitOfAnalysis.GROUP,
-        sort_column=None,
+        sort_column: Optional[str | Tuple[str]] = None,
         sort_order: Literal[
             SortOrder.DESCENDING, SortOrder.ASCENDING
         ] = SortOrder.DESCENDING,
-        top_k=50,
+        top_k: Optional[int] = None,
         drop_cols: Optional[str | Iterable[str]] = None,
     ):
         n_gram_counts = self.apply_step("Counter")
