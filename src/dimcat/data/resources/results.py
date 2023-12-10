@@ -3,7 +3,17 @@ from __future__ import annotations
 import logging
 from functools import cache, cached_property, partial
 from itertools import product, repeat
-from typing import ClassVar, Dict, Hashable, Iterable, List, Literal, Optional, Tuple
+from typing import (
+    ClassVar,
+    Dict,
+    Hashable,
+    Iterable,
+    List,
+    Literal,
+    Optional,
+    Tuple,
+    overload,
+)
 
 import frictionless as fl
 import marshmallow as mm
@@ -1533,18 +1543,42 @@ class NgramTable(Result):
         result.formatted_column = None
         return result
 
+    @overload
+    def _subselect_component_columns(
+        self, level: str, columns: str, droplevel: bool
+    ) -> S:
+        ...
+
+    @overload
+    def _subselect_component_columns(
+        self, level: str, columns: Tuple[str, ...], droplevel: bool
+    ) -> D:
+        ...
+
+    @overload
+    def _subselect_component_columns(
+        self, level: str, columns: Literal[None], droplevel: bool
+    ) -> D | S:
+        ...
+
     @cache
     def _subselect_component_columns(
         self,
         level: str,
         columns: Optional[str, Tuple[str, ...]] = None,
         droplevel: bool = True,
-    ) -> D:
+    ) -> D | S:
         """Retrieve the specified columns for the specified n-gram level ('a, 'b', etc.) from the NgramTable."""
+        return_series = False
         if columns is None:
             columns = self.feature_columns
+            if len(columns) == 1:
+                return_series = True
         elif isinstance(columns, str):
+            return_series = True
             columns = [columns]
+        else:
+            columns = list(columns)
         column_names = list(product([level], columns))
         missing = [col for col in column_names if col not in self.df.columns]
         n_missing = len(missing)
@@ -1554,9 +1588,15 @@ class NgramTable(Result):
             else:
                 msg = f"The following columns are not present in the NgramTable: {missing}"
             raise ValueError(msg)
-        selection = self.df.loc[:, column_names]
+        if return_series:
+            selection = self.df.loc[:, column_names[0]]
+        else:
+            selection = self.df.loc[:, column_names]
         if droplevel:
-            selection = selection.droplevel(0, axis=1)
+            if return_series:
+                selection = selection.rename(columns[0])
+            else:
+                selection = selection.droplevel(0, axis=1)
         else:
             selection = selection.copy()
         return selection
