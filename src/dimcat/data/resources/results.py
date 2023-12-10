@@ -186,6 +186,25 @@ class Result(DimcatResource):
         """Name of the numerical result column used for determining each marker's dimension along the y-axis."""
         return self.dimension_column
 
+    def _add_proportion_columns(self, combined_result: D, normalize_by: S | float) -> D:
+        """Normalize the combined results and concatenate them as two new column, 'proportion' and 'proportion_%'."""
+        try:
+            group_proportions = (combined_result / normalize_by).rename(
+                columns=lambda x: "proportion"
+            )
+        except Exception as e:
+            raise RuntimeError(
+                f"Normalizing the combined results failed with the following exception:\n{e!r}\n"
+                f"We were trying to divide\n{combined_result}\nby\n{normalize_by}"
+            )
+        group_proportions_str = turn_proportions_into_percentage_strings(
+            group_proportions
+        )
+        combined_result = pd.concat(
+            [combined_result, group_proportions, group_proportions_str], axis=1
+        )
+        return combined_result
+
     def _combine_results(
         self,
         group_cols: Optional[
@@ -222,21 +241,7 @@ class Result(DimcatResource):
             normalize_by = combined_result.groupby(group_cols).sum()
         else:
             normalize_by = combined_result.sum()
-        try:
-            group_proportions = (combined_result / normalize_by).rename(
-                columns=lambda x: "proportion"
-            )
-        except Exception as e:
-            raise RuntimeError(
-                f"Normalizing the combined results failed with the following exception:\n{e!r}\n"
-                f"We were trying to divide\n{combined_result}\nby\n{normalize_by}"
-            )
-        group_proportions_str = turn_proportions_into_percentage_strings(
-            group_proportions
-        )
-        combined_result = pd.concat(
-            [combined_result, group_proportions, group_proportions_str], axis=1
-        )
+        combined_result = self._add_proportion_columns(combined_result, normalize_by)
         return self._sort_combined_result(combined_result, group_cols, sort_order)
 
     def combine_results(
@@ -1205,19 +1210,9 @@ class NgramTable(Result):
             fillna=fillna,
             terminal_symbols=terminal_symbols,
         )
-        df = table.apply(tuple, axis=1).to_frame(n_gram_column_name)
-        if drop_identical:
-            keep_mask = df[n_gram_column_name].map(lambda tup: len(set(tup)) > 1)
-            df = df[keep_mask]
-        if context_columns:
-            df = self._add_context_columns(df, context_columns, terminal_symbols)
-        result = NgramTuples.from_resource_and_dataframe(
-            self,
-            df,
-            value_column=n_gram_column_name,
+        return self._make_tuples_from_table(
+            table, terminal_symbols, drop_identical, n_gram_column_name, context_columns
         )
-        result.formatted_column = None
-        return result
 
     @cache
     def _make_ngram_component(
@@ -1482,19 +1477,9 @@ class NgramTable(Result):
             fillna=fillna,
             terminal_symbols=terminal_symbols,
         )
-        df = table.apply(tuple, axis=1).to_frame(n_gram_column_name)
-        if drop_identical:
-            keep_mask = df[n_gram_column_name].map(lambda tup: len(set(tup)) > 1)
-            df = df[keep_mask]
-        if context_columns:
-            df = self._add_context_columns(df, context_columns, terminal_symbols)
-        result = NgramTuples.from_resource_and_dataframe(
-            self,
-            df,
-            value_column=n_gram_column_name,
+        return self._make_tuples_from_table(
+            table, terminal_symbols, drop_identical, n_gram_column_name, context_columns
         )
-        result.formatted_column = None
-        return result
 
     def make_ranking_table(
         self,
@@ -1757,21 +1742,7 @@ class Transitions(Result):
         groups_to_treat = groupby[:-1]  # normalize by and sort by antecedent groups
         combined_result = df.groupby(groupby).sum()
         normalize_by = combined_result.groupby(groups_to_treat).sum()
-        try:
-            group_proportions = (combined_result / normalize_by).rename(
-                columns=lambda x: "proportion"
-            )
-        except Exception as e:
-            raise RuntimeError(
-                f"Normalizing the combined results failed with the following exception:\n{e!r}\n"
-                f"We were trying to divide\n{combined_result}\nby\n{normalize_by}"
-            )
-        group_proportions_str = turn_proportions_into_percentage_strings(
-            group_proportions
-        )
-        combined_result = pd.concat(
-            [combined_result, group_proportions, group_proportions_str], axis=1
-        )
+        combined_result = self._add_proportion_columns(combined_result, normalize_by)
         return self._sort_combined_result(combined_result, group_cols, sort_order)
 
     def get_grouping_levels(
