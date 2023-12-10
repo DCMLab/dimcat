@@ -65,6 +65,7 @@ AUXILIARY_HARMONYLABEL_COLUMNS = [
     "figbass",
     "form",
     "numeral",
+    "root",
 ]
 """These columns are included in sub-features of HarmonyLabels to enable more means of investigation,
 such as groupers."""
