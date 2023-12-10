@@ -11,7 +11,9 @@ from typing import (
     List,
     Literal,
     Optional,
+    Sequence,
     Tuple,
+    Union,
     overload,
 )
 
@@ -41,6 +43,8 @@ from .base import D, S
 from .dc import DimcatResource, UnitOfAnalysis
 
 logger = logging.getLogger(__name__)
+
+str_or_sequence = TypeAlias = Union[str, Sequence[str]]
 
 
 class TerminalSymbol(LowercaseEnum):
@@ -919,6 +923,8 @@ class NgramTable(Result):
         This method is cached and calls the cached :meth:`_subselect_component_columns`.
         """
         selection = self._subselect_component_columns(level, columns)
+        if isinstance(selection, pd.Series):
+            return selection.isna()
         return selection.isna().all(axis=1)
 
     def _get_context_df(
@@ -951,8 +957,8 @@ class NgramTable(Result):
 
     def _get_transitions(
         self,
-        *gram_component_columns: Optional[str | List[str]],
-        split: int = -1,
+        *ngram_component_columns: Optional[str | List[str]],
+        split: int | Tuple[str_or_sequence, str_or_sequence] = -1,
         join_str: Optional[str | bool] = None,
         fillna: Optional[Hashable] = None,
         group_cols: Optional[str | Iterable[str]] = UnitOfAnalysis.GROUP,
@@ -970,6 +976,13 @@ class NgramTable(Result):
                 elements are to be part of the left ('antecedent') and the right ('consequent') component.
                 Defaults to -1, i.e. the last element is used as the right component. This is a useful default for
                 evaluations where the (n-1) previous elements are the context for predicting the next element.
+                If you pass an integer within ±[1, n-1], the split will be performed after the indicated column
+                position and any side (left or ride) that includes more than one level will be turned into a column of
+                tuples. To override this automatic behaviour, you may instead pass a tuple that indicates the split in
+                terms of column names ('a, 'b', etc.) in the way that tuples become tuples, individual strings not.
+                Example: (('a', 'b'), 'c') corresponds to the default behaviour, where the left side has tuples, the
+                right side not. (('a', 'b'), ('c')), on the other hand, would turn the right-hand side into 1-element
+                tuples.
             join_str:
                 Parameter passed to :meth:`make_ngram_table`. It determines whether the antecedent and consequent
                 columns contain [tuples of] tuples (the default) or [tuples of] strings. If n == 2, each cell is of
@@ -984,9 +997,9 @@ class NgramTable(Result):
             Dataframe with columns 'count' and 'proportion', showing each (n-1) previous elements (index level 0),
             the count and proportion of transitions to each possible following element (index level 1).
         """
-        self._check_gram_component_columns_arg(gram_component_columns)
+        self._check_ngram_component_columns_arg(ngram_component_columns)
         bigrams = self.make_bigram_table(
-            *gram_component_columns,
+            *ngram_component_columns,
             split=split,
             join_str=join_str,
             fillna=fillna,
@@ -1002,8 +1015,8 @@ class NgramTable(Result):
 
     def get_transitions(
         self,
-        *gram_component_columns: Optional[str | List[str]],
-        split: int = -1,
+        *ngram_component_columns: Optional[str | List[str]],
+        split: int | Tuple[str_or_sequence, str_or_sequence] = -1,
         join_str: Optional[str | bool] = None,
         fillna: Optional[Hashable] = None,
         feature_columns: Optional[Tuple[str, str]] = None,
@@ -1024,6 +1037,13 @@ class NgramTable(Result):
                 elements are to be part of the left ('antecedent') and the right ('consequent') component.
                 Defaults to -1, i.e. the last element is used as the right component. This is a useful default for
                 evaluations where the (n-1) previous elements are the context for predicting the next element.
+                If you pass an integer within ±[1, n-1], the split will be performed after the indicated column
+                position and any side (left or ride) that includes more than one level will be turned into a column of
+                tuples. To override this automatic behaviour, you may instead pass a tuple that indicates the split in
+                terms of column names ('a, 'b', etc.) in the way that tuples become tuples, individual strings not.
+                Example: (('a', 'b'), 'c') corresponds to the default behaviour, where the left side has tuples, the
+                right side not. (('a', 'b'), ('c')), on the other hand, would turn the right-hand side into 1-element
+                tuples.
             join_str:
                 Parameter passed to :meth:`make_ngram_table`. It determines whether the antecedent and consequent
                 columns contain [tuples of] tuples (the default) or [tuples of] strings. If n == 2, each cell is of
@@ -1040,7 +1060,7 @@ class NgramTable(Result):
             the count and proportion of transitions to each possible following element (index level 1).
         """
         transitions = self._get_transitions(
-            *gram_component_columns,
+            *ngram_component_columns,
             split=split,
             join_str=join_str,
             fillna=fillna,
@@ -1063,8 +1083,8 @@ class NgramTable(Result):
     @cache
     def make_bigram_table(
         self,
-        *gram_component_columns: Optional[str | Tuple[str, ...]],
-        split: int = -1,
+        *ngram_component_columns: Optional[str | Tuple[str, ...]],
+        split: int | Tuple[str_or_sequence, str_or_sequence] = -1,
         join_str: Optional[bool | str | Tuple[str, ...]] = None,
         fillna: Optional[Hashable | Tuple[Hashable, ...]] = None,
         terminal_symbols: Optional[
@@ -1092,6 +1112,13 @@ class NgramTable(Result):
                 elements are to be part of the left ('antecedent') and the right ('consequent') component.
                 Defaults to -1, i.e. the last element is used as the right component. This is a useful default for
                 evaluations where the (n-1) previous elements are the context for predicting the next element.
+                If you pass an integer within ±[1, n-1], the split will be performed after the indicated column
+                position and any side (left or ride) that includes more than one level will be turned into a column of
+                tuples. To override this automatic behaviour, you may instead pass a tuple that indicates the split in
+                terms of column names ('a, 'b', etc.) in the way that tuples become tuples, individual strings not.
+                Example: (('a', 'b'), 'c') corresponds to the default behaviour, where the left side has tuples, the
+                right side not. (('a', 'b'), ('c')), on the other hand, would turn the right-hand side into 1-element
+                tuples.
             join_str:
                 Parameter passed to :meth:`make_ngram_table`. It determines whether the antecedent and consequent
                 columns contain [tuples of] tuples (the default) or [tuples of] strings. If n == 2, each cell is of
@@ -1120,31 +1147,79 @@ class NgramTable(Result):
         Returns:
             Like :meth:`make_ngram_tuples`, but condensed to two columns.
         """
-        self._check_gram_component_columns_arg(gram_component_columns)
+        self._check_ngram_component_columns_arg(ngram_component_columns)
         ngram_table = self.make_ngram_table(
-            *gram_component_columns,
+            *ngram_component_columns,
             join_str=join_str,
             fillna=fillna,
             terminal_symbols=terminal_symbols,
         )
-        if len(self.ngram_levels) == 2:
-            result = ngram_table
-            result.columns = ["antecedent", "consequent"]
+        component_names = ngram_table.columns.to_list()
+        n_components = len(component_names)
+        if isinstance(split, int):
+            if not 0 < abs(split) < n_components:
+                raise ValueError(
+                    f"split must be within ±[1, n-1], not {split} for n={n_components}"
+                )
+            left_cols, right_cols = component_names[:split], component_names[split:]
+            if len(left_cols) == 1:
+                left_cols = left_cols[0]
+            if len(right_cols) == 1:
+                right_cols = right_cols[0]
         else:
-            table_rows = ngram_table.itertuples(index=False, name=None)
-            data = (
-                (ngram_tuple[:split], ngram_tuple[split:]) for ngram_tuple in table_rows
+            try:
+                left_cols, right_cols = split
+            except ValueError:
+                raise ValueError(
+                    f"Since you are requesting bigrams, you need to distribute the components {component_names} on "
+                    f"two sides, each of which can be a list or tuple, or a single character. Got: {split}."
+                )
+        left_tuples = not isinstance(left_cols, str)
+        right_tuples = not isinstance(right_cols, str)
+        component_selection = []
+        if left_tuples:
+            component_selection.extend(left_cols)
+        else:
+            component_selection.append(left_cols)
+        if right_tuples:
+            component_selection.extend(right_cols)
+        else:
+            component_selection.append(right_cols)
+        if component_selection != component_names:
+            if set(component_selection) == set(component_names):
+                self.logger.warning(
+                    f"The specified split {split} does not bring the gram components ({component_names}) in the "
+                    f"correct order."
+                )
+            else:
+                raise ValueError(
+                    f"The specified split {split} does not contain exactly the gram components "
+                    f"{component_names}."
+                )
+        if left_tuples:
+            left_side = pd.Series(
+                ngram_table[list(left_cols)].itertuples(index=False, name=None),
+                index=ngram_table.index,
+                name="antecedent",
             )
-            result = pd.DataFrame(
-                data, columns=["antecedent", "consequent"], index=ngram_table.index
+        else:
+            left_side = ngram_table[left_cols].rename("antecedent")
+        if right_tuples:
+            right_side = pd.Series(
+                ngram_table[list(right_cols)].itertuples(index=False, name=None),
+                index=ngram_table.index,
+                name="consequent",
             )
+        else:
+            right_side = ngram_table[right_cols].rename("consequent")
+        result = pd.concat([left_side, right_side], axis=1)
         if context_columns:
             result = self._add_context_columns(
                 result, context_columns, terminal_symbols
             )
         return result
 
-    def _check_gram_component_columns_arg(self, gram_component_columns):
+    def _check_ngram_component_columns_arg(self, gram_component_columns):
         for component_columns in gram_component_columns:
             if component_columns is not None and not isinstance(
                 component_columns, (str, tuple)
@@ -1155,8 +1230,8 @@ class NgramTable(Result):
 
     def make_bigram_tuples(
         self,
-        *gram_component_columns: Optional[str | Tuple[str, ...]],
-        split: int = -1,
+        *ngram_component_columns: Optional[str | Tuple[str, ...]],
+        split: int | Tuple[str_or_sequence, str_or_sequence] = -1,
         join_str: Optional[bool | str | Tuple[str, ...]] = None,
         fillna: Optional[Hashable | Tuple[Hashable, ...]] = None,
         terminal_symbols: Optional[
@@ -1181,6 +1256,13 @@ class NgramTable(Result):
                 elements are to be part of the left ('antecedent') and the right ('consequent') component.
                 Defaults to -1, i.e. the last element is used as the right component. This is a useful default for
                 evaluations where the (n-1) previous elements are the context for predicting the next element.
+                If you pass an integer within ±[1, n-1], the split will be performed after the indicated column
+                position and any side (left or ride) that includes more than one level will be turned into a column of
+                tuples. To override this automatic behaviour, you may instead pass a pair that indicates the split in
+                terms of column names ('a, 'b', etc.) in the way that tuples become tuples, individual strings not.
+                Example: (('a', 'b'), 'c') corresponds to the default behaviour, where the left side has tuples, the
+                right side not. (('a', 'b'), ('c')), on the other hand, would turn the right-hand side into 1-element
+                tuples.
             join_str:
                 Parameter passed to :meth:`make_ngram_table`. It determines whether the antecedent and consequent
                 columns contain [tuples of] tuples (the default) or [tuples of] strings. If n == 2, each cell is of
@@ -1212,9 +1294,9 @@ class NgramTable(Result):
 
         """
 
-        self._check_gram_component_columns_arg(gram_component_columns)
+        self._check_ngram_component_columns_arg(ngram_component_columns)
         table = self.make_bigram_table(
-            *gram_component_columns,
+            *ngram_component_columns,
             split=split,
             join_str=join_str,
             fillna=fillna,
@@ -1232,37 +1314,38 @@ class NgramTable(Result):
         join_str: Optional[str | bool] = None,
         fillna: Optional[Hashable] = None,
         terminal_symbols: Optional[TerminalSymbol | Hashable] = None,
-    ):
+    ) -> S:
         """Create one of the components for :attr:`make_ngram_table` as a subset of the NgramTable with the requested
         columns (if specified) for one of the n-gram levels 'a', 'b', etc. Such components, concatenated sideways
         make up the n_gram table.
         """
         selection = self._subselect_component_columns(level, columns)
+        return_tuples = not isinstance(selection, pd.Series)
         if fillna is not None:
             selection = selection.fillna(fillna)
-        tuple_iterator = selection.itertuples(index=False, name=None)
-        if join_str is not None:
-            if not isinstance(join_str, str):
-                if join_str is True:
-                    join_str = ", "
-                elif join_str is False:
-                    join_str = ""
-                else:
-                    raise TypeError(
-                        f"join_str must be a string or a boolean, got {join_str!r} ({type(join_str)})"
-                    )
-            to_string_function = partial(tuple2str, join_str=join_str)
-            tuple_iterator = map(to_string_function, tuple_iterator)
-        result = pd.Series(tuple_iterator, index=selection.index, name=level)
+        if return_tuples:
+            gram_iterator = selection.itertuples(index=False, name=None)
+            if join_str is not None:
+                if not isinstance(join_str, str):
+                    if join_str is True:
+                        join_str = ", "
+                    elif join_str is False:
+                        join_str = ""
+                    else:
+                        raise TypeError(
+                            f"join_str must be a string or a boolean, got {join_str!r} ({type(join_str)})"
+                        )
+                to_string_function = partial(tuple2str, join_str=join_str)
+                gram_iterator = map(to_string_function, gram_iterator)
+            result = pd.Series(gram_iterator, index=selection.index, name=level)
+        else:
+            result = selection.rename(level)
 
-        # deal with terminal rows if required
-        replace_terminals = not (
-            terminal_symbols is None or terminal_symbols == TerminalSymbol.DROP
-        )
-        terminal_mask: Optional[S] = None  # for type checking
-        if replace_terminals:
-            terminal_mask = self._get_component_missing_mask(level, columns)
-            replace_terminals = terminal_mask.any()  # false if nothing to replace
+        # deal with terminal grams if required
+        if terminal_symbols is None or terminal_symbols == TerminalSymbol.DROP:
+            return result
+        terminal_mask = self._get_component_missing_mask(level, columns)
+        replace_terminals = terminal_mask.any()  # false if nothing to replace
         if not replace_terminals:
             return result
         if terminal_symbols == TerminalSymbol.DEFAULT:
@@ -1275,7 +1358,7 @@ class NgramTable(Result):
             replace_with = terminal_symbols
         if replace_with is None:
             return result.where(~terminal_mask)
-        if join_str is None:
+        if join_str is None and return_tuples:
             replace_with = (replace_with,) * len(columns)
         replacement_series = pd.Series([replace_with] * len(result), index=result.index)
         return result.where(~terminal_mask, other=replacement_series)
@@ -1283,7 +1366,7 @@ class NgramTable(Result):
     @cache
     def make_ngram_table(
         self,
-        *gram_component_columns: Optional[str | Tuple[str, ...]],
+        *ngram_component_columns: Optional[str | Tuple[str, ...]],
         n: Optional[int] = None,
         join_str: Optional[bool | str | Tuple[bool | str, ...]] = None,
         fillna: Optional[Hashable | Tuple[Hashable, ...]] = None,
@@ -1336,7 +1419,7 @@ class NgramTable(Result):
 
         """
         # region prepare parameters
-        n_level_specs = len(gram_component_columns)
+        n_level_specs = len(ngram_component_columns)
         if n is not None:
             n = int(n)
             assert (
@@ -1346,18 +1429,18 @@ class NgramTable(Result):
                 if n != n_level_specs:
                     raise ValueError(
                         f"When n is specified, the number of column specifications needs to be either zero, one or n.\n"
-                        f"n={n}, but {n_level_specs} column specifications were passed: {gram_component_columns}"
+                        f"n={n}, but {n_level_specs} column specifications were passed: {ngram_component_columns}"
                     )
             selected_levels = self.ngram_levels[:n]
         else:
             selected_levels = self.ngram_levels
         n = len(selected_levels)
-        if len(gram_component_columns) == 0:
+        if len(ngram_component_columns) == 0:
             component_columns = [self.feature_columns] * n
-        elif len(gram_component_columns) == 1:
-            component_columns = [gram_component_columns[0]] * n
+        elif len(ngram_component_columns) == 1:
+            component_columns = [ngram_component_columns[0]] * n
         else:
-            component_columns = gram_component_columns
+            component_columns = ngram_component_columns
         # ensure that all collections are tuples
         component_columns = [
             arg if arg is None or isinstance(arg, str) else tuple(arg)
@@ -1396,7 +1479,7 @@ class NgramTable(Result):
             terminal_symbols = repeat(terminal_symbols)
         # endregion prepare parameters
 
-        gram_components = []
+        ngram_components = []
         for level, columns, join_string, fillna_val, terminal in zip(
             selected_levels,
             component_columns,
@@ -1404,15 +1487,17 @@ class NgramTable(Result):
             fillna_values,
             terminal_symbols,
         ):
-            gram_components.append(
+            ngram_components.append(
                 self._make_ngram_component(
                     level, columns, join_string, fillna_val, terminal
                 )
             )
 
         if context_columns:
-            gram_components = [self._get_context_df(context_columns)] + gram_components
-        result = pd.concat(gram_components, axis=1)
+            ngram_components = [
+                self._get_context_df(context_columns)
+            ] + ngram_components
+        result = pd.concat(ngram_components, axis=1)
         if drop_terminals_for_components:
             drop_mask = pd.Series(False, index=result.index)
             for level, columns in zip(selected_levels, component_columns):
@@ -1423,7 +1508,7 @@ class NgramTable(Result):
 
     def make_ngram_tuples(
         self,
-        *gram_component_columns: Optional[str | Tuple[str, ...]],
+        *ngram_component_columns: Optional[str | Tuple[str, ...]],
         n: Optional[int] = None,
         join_str: Optional[bool | str | Tuple[str, ...]] = None,
         fillna: Optional[Hashable | Tuple[Hashable, ...]] = None,
@@ -1479,9 +1564,9 @@ class NgramTable(Result):
         Returns:
 
         """
-        self._check_gram_component_columns_arg(gram_component_columns)
+        self._check_ngram_component_columns_arg(ngram_component_columns)
         table = self.make_ngram_table(
-            *gram_component_columns,
+            *ngram_component_columns,
             n=n,
             join_str=join_str,
             fillna=fillna,
