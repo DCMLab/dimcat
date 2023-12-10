@@ -741,7 +741,7 @@ class Result(DimcatResource):
         self,
         combined_result: D,
         group_cols: List[str],
-        sort_order: Optional[SortOrder] = SortOrder.NONE,
+        sort_order: Optional[SortOrder] = SortOrder.DESCENDING,
     ):
         if sort_order is None or sort_order == SortOrder.NONE:
             return combined_result
@@ -1715,7 +1715,7 @@ class Transitions(Result):
         self,
         combined_result: D,
         group_cols: List[str],
-        sort_order: Optional[SortOrder] = SortOrder.NONE,
+        sort_order: Optional[SortOrder] = SortOrder.DESCENDING,
     ):
         if sort_order is None or sort_order == SortOrder.NONE:
             return combined_result
