@@ -37,6 +37,12 @@ class _FilterMixin:
         self.keep_values = keep_values
         self.drop_values = drop_values
         self.drop_level = drop_level
+        if drop_level:
+            # if the level is dropped, the Filter will not change the Dataset into a GroupedDataset, which is the
+            # default value for the ClassVar '_new_dataset_type' inherited from the Grouper. For the automatic
+            # behaviour, the decision cannot be made at this point and chances are that some resources will be grouped
+            # and others not, so the type of the Dataset should be turned into/left as a GroupedDataset.
+            self._new_dataset_type = None
         super().__init__(*args, **kwargs)
 
     def _post_process_result(
@@ -46,6 +52,8 @@ class _FilterMixin:
     ) -> DR:
         """Perform the filtering on the grouped resource."""
         result = super()._post_process_result(result, original_resource)
+        # the call to the super method adds the parent grouper's level to the default_groupby;
+        # if the subsequent operation removes the level in question, it will also remove it from the default_groupby
         return result.filter_index_level(
             keep_values=self.keep_values,
             drop_values=self.drop_values,
