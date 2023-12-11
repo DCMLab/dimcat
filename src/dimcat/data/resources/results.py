@@ -2047,40 +2047,33 @@ class Transitions(Result):
 
         def sort_transitions(df):
             gpb = df.groupby(antecedent)
+            # order antecedents by overall occurrence
             antecedent_order = (
                 gpb[self.dimension_column].sum().sort_values(ascending=ascending).index
             )
-            sorted_groups = {}
-            for antecedent_group in antecedent_order:
-                sorted_consequents = (
-                    gpb.get_group(antecedent_group)
-                    .groupby(consequent)[self.dimension_column]
-                    .sum()
-                    .sort_values(ascending=ascending)
+            # then, order each antecedent group by occurrence of consequents
+            sorted_groups = [
+                gpb.get_group(antecedent_group).sort_values(
+                    self.dimension_column,
+                    ascending=ascending,
                 )
-                proportions = sorted_consequents / sorted_consequents.sum()
-                sorted_groups[antecedent_group] = pd.concat(
-                    [sorted_consequents, proportions.rename("proportion")], axis=1
-                )
-            if isinstance(antecedent_group, tuple) and len(antecedent_group) > 1:
-                # in the case where each antecedent is a tuple, the 'levels' argument ensures that they are not turned
-                # into multiple index levels
-                keys = list(sorted_groups.keys())
-                return pd.concat(sorted_groups, levels=[keys], names=[antecedent])
+                for antecedent_group in antecedent_order
+            ]
             return pd.concat(sorted_groups, names=[antecedent])
 
         if group_cols:
-            gpb = combined_result.groupby(group_cols)
-            result = gpb.apply(sort_transitions)
-        else:
-            result = sort_transitions(combined_result)
-        proportion_str = turn_proportions_into_percentage_strings(result.proportion)
-        return pd.concat([result, proportion_str], axis=1)
+            gpb = combined_result.groupby(group_cols, group_keys=False)
+            return gpb.apply(sort_transitions)
+        return sort_transitions(combined_result)
 
 
 def prepare_transitions(
     df: D, max_x: Optional[int] = None, max_y: Optional[int] = None
 ) -> Tuple[D, D, D]:
+    """Turns transitions that come in long format into wide format (transition matrix), optionally subselecting
+    the first n columns (max_x) and rows (max_y). Transitions are expected to be sorted, have the consequents (the new
+    columns) in the last (right-most) index level, and come with the columns "count", "proportion" and "proportion_%".
+    """
     make_subset = (max_x is not None) or (max_y is not None)
     x_slice = slice(None) if max_x is None else slice(None, max_x)
     y_slice = slice(None) if max_y is None else slice(None, max_y)
