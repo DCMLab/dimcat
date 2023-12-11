@@ -2062,6 +2062,11 @@ class Transitions(Result):
                 sorted_groups[antecedent_group] = pd.concat(
                     [sorted_consequents, proportions.rename("proportion")], axis=1
                 )
+            if isinstance(antecedent_group, tuple) and len(antecedent_group) > 1:
+                # in the case where each antecedent is a tuple, the 'levels' argument ensures that they are not turned
+                # into multiple index levels
+                keys = list(sorted_groups.keys())
+                return pd.concat(sorted_groups, levels=[keys], names=[antecedent])
             return pd.concat(sorted_groups, names=[antecedent])
 
         if group_cols:
