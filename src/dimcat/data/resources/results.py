@@ -1181,7 +1181,7 @@ class NgramTable(Result):
             the count and proportion of transitions to each possible following element (index level 1).
         """
         self._check_ngram_component_columns_arg(ngram_component_columns)
-        bigrams = self.make_bigram_table(
+        bigrams = self.make_bigram_df(
             *ngram_component_columns,
             split=split,
             join_str=join_str,
@@ -1264,7 +1264,7 @@ class NgramTable(Result):
         return new_result
 
     @cache
-    def make_bigram_table(
+    def make_bigram_df(
         self,
         *ngram_component_columns: Optional[str | Tuple[str, ...]],
         split: int | Tuple[str_or_sequence, str_or_sequence] = -1,
@@ -1274,7 +1274,7 @@ class NgramTable(Result):
             TerminalSymbol | Hashable, Tuple[TerminalSymbol | Hashable, ...]
         ] = None,
         context_columns: Optional[Literal[True], str, Tuple[str, ...]] = None,
-    ) -> pd.DataFrame:
+    ) -> D:
         """Reduce the selected specified n-gram components to two columns, called 'antecedent' and 'consequent'.
         For NgramTables produced by a :obj:`BigramAnalyzer` or by an :obj:`NgramAnalyzer(n=2) <NgramAnalyzer>`, the
         result is equivalent to :attr:`make_ngram_table`, just with renamed columns. For higher n, the components are
@@ -1331,7 +1331,7 @@ class NgramTable(Result):
             Like :meth:`make_ngram_tuples`, but condensed to two columns.
         """
         self._check_ngram_component_columns_arg(ngram_component_columns)
-        ngram_table = self.make_ngram_table(
+        ngram_table = self.make_ngram_df(
             *ngram_component_columns,
             join_str=join_str,
             fillna=fillna,
@@ -1411,6 +1411,31 @@ class NgramTable(Result):
                     f"Component columns must be None, a string or a tuple of strings, got {type(component_columns)}"
                 )
 
+    def make_bigram_table(
+        self,
+        *ngram_component_columns: Optional[str | Tuple[str, ...]],
+        split: int | Tuple[str_or_sequence, str_or_sequence] = -1,
+        join_str: Optional[bool | str | Tuple[str, ...]] = None,
+        fillna: Optional[Hashable | Tuple[Hashable, ...]] = None,
+        terminal_symbols: Optional[
+            TerminalSymbol | Hashable, Tuple[TerminalSymbol | Hashable, ...]
+        ] = None,
+        context_columns: Optional[Literal[True], str, Tuple[str, ...]] = None,
+    ) -> Self:
+        """Returns the result of :meth:`make_bigram_df` as a new :class:`NgramTable` object."""
+        df = self.make_bigram_df(
+            *ngram_component_columns,
+            split=split,
+            join_str=join_str,
+            fillna=fillna,
+            terminal_symbols=terminal_symbols,
+            context_columns=context_columns,
+        )
+        return self.from_resource_and_dataframe(
+            resource=self,
+            df=df,
+        )
+
     def make_bigram_tuples(
         self,
         *ngram_component_columns: Optional[str | Tuple[str, ...]],
@@ -1478,7 +1503,7 @@ class NgramTable(Result):
         """
 
         self._check_ngram_component_columns_arg(ngram_component_columns)
-        table = self.make_bigram_table(
+        table = self.make_bigram_df(
             *ngram_component_columns,
             split=split,
             join_str=join_str,
@@ -1548,7 +1573,7 @@ class NgramTable(Result):
         return result.where(~terminal_mask, other=replacement_series)
 
     @cache
-    def make_ngram_table(
+    def make_ngram_df(
         self,
         *ngram_component_columns: Optional[str | Tuple[str, ...]],
         n: Optional[int] = None,
@@ -1558,7 +1583,7 @@ class NgramTable(Result):
             TerminalSymbol | Hashable, Tuple[TerminalSymbol | Hashable, ...]
         ] = None,
         context_columns: Optional[Literal[True], str, Tuple[str, ...]] = None,
-    ) -> pd.DataFrame:
+    ) -> D:
         """Reduce the selected columns for the n first n-gram levels a, b, ... so that the resulting dataframe
         contains n columns, each of which contains tuples or strings. You may pass several column specifications to
         create n-gram components from differing columns, e.g. to evaluate how well one feature predicts another.
@@ -1690,6 +1715,28 @@ class NgramTable(Result):
             result = result[~drop_mask]
         return result
 
+    def make_ngram_table(
+        self,
+        *ngram_component_columns: Optional[str | Tuple[str, ...]],
+        n: Optional[int] = None,
+        join_str: Optional[bool | str | Tuple[bool | str, ...]] = None,
+        fillna: Optional[Hashable | Tuple[Hashable, ...]] = None,
+        terminal_symbols: Optional[
+            TerminalSymbol | Hashable, Tuple[TerminalSymbol | Hashable, ...]
+        ] = None,
+        context_columns: Optional[Literal[True], str, Tuple[str, ...]] = None,
+    ) -> Self:
+        """Returns the result of :attr:`make_ngram_df` as a new :class:`NgramTable` object."""
+        df = self.make_ngram_df(
+            *ngram_component_columns,
+            n=n,
+            join_str=join_str,
+            fillna=fillna,
+            terminal_symbols=terminal_symbols,
+            context_columns=context_columns,
+        )
+        return self.__class__.from_resource_and_dataframe(resource=self, df=df)
+
     def make_ngram_tuples(
         self,
         *ngram_component_columns: Optional[str | Tuple[str, ...]],
@@ -1749,7 +1796,7 @@ class NgramTable(Result):
 
         """
         self._check_ngram_component_columns_arg(ngram_component_columns)
-        table = self.make_ngram_table(
+        table = self.make_ngram_df(
             *ngram_component_columns,
             n=n,
             join_str=join_str,
