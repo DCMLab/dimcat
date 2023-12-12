@@ -1110,6 +1110,84 @@ class NgramTable(Result):
             ".get_bigram_tuples(), .get_ngram_table(), .get_bigram_table(), .get_transitions()"
         )
 
+    def compute_information_gain(
+        self,
+        *ngram_component_columns: Optional[str | Tuple[str, ...]],
+        split: int | Tuple[str_or_sequence, str_or_sequence] = -1,
+        join_str: Optional[str | bool] = None,
+        fillna: Optional[Hashable] = None,
+        terminal_symbols: Optional[
+            TerminalSymbol | Hashable, Tuple[TerminalSymbol | Hashable, ...]
+        ] = None,
+        group_cols: Optional[
+            UnitOfAnalysis | str | Iterable[str]
+        ] = UnitOfAnalysis.GROUP,
+        reverse: bool = False,
+    ) -> S | float:
+        """Computes the gain in information about  (reduction in entropy of) the consequent from knowing the antecedent.
+        This can be interpreted as measure of how much we know on average about the consequent given an antecedent.
+        This method provides a shortcut to calling :attr:`TransitionTable.compute_information_gain` on the result of
+        :meth:`get_transitions`.
+
+
+        Args:
+            gram_component_columns:
+                One or several column specifications. If zero or one are passed, the same specification will be used
+                for each n-gram component. The number of specifications can be at most the number of components ('a',
+                'b', etc.) that this NgramTable contains. Each specification can be None (default feature columns),
+                a single column name, or a tuple of column names.
+            split:
+                Relevant only for NgramAnalyzer with n > 2: Then the value can be modified to decide how many
+                components are to be part of the antecedent (context, left) and the consequent (target, right).
+                Defaults to -1, i.e. the last component is used as consequent. This is a useful default for
+                evaluations where the (n-1) previous components are the context for predicting the next one.
+                If you pass an integer within ±[1, n-1], the split will be performed after the indicated component
+                and any side (left or ride) that includes only a single component will contain single values (tuples or
+                strings). To override this automatic behaviour, you may instead pass a tuple that indicates the split in
+                terms of column names ('a, 'b', etc.) in the way that tuples become tuples, individual strings not.
+                Example: (('a', 'b'), 'c') corresponds to the default behaviour, where the left side has tuples, the
+                right side not. (('a', 'b'), ('c')), on the other hand, would turn the right-hand side into 1-element
+                tuples, too.
+            join_str:
+                Parameter passed to :meth:`make_ngram_table`. It determines whether the antecedent and consequent
+                columns contain [tuples of] tuples (the default) or [tuples of] strings. If n == 2, each cell is of
+                type (tuple|str), if n > 2, it's Tuple[(tuple|str)].
+            fillna:
+                Pass a value to replace all missing values with it. Pass a tuple tuple of n values to fill missing
+                values differently for the n components (e.g. (None, '') to fill missing values with empty strings
+                only for the second n-gram components). "" is often a good choice for components for which ``join_str``
+                is specified to avoid strings looking like ``"value<NA>"``.
+            terminal_symbols:
+                By default, the last bigram in a sequence ends on (a tuple or string concatenation of) missing
+                values. These rows can either be dropped, or the missing components replaced with a terminal symbol.
+                In the case of bigrams, there is only one consequent component. However, when dealing with bigrams
+                constructed by splitting higher-level grams, you can either specify a single value to be used for all
+                consequent components (b, c, ...) or a tuple of (n-1) values to obtain different behaviours.  For each
+                component to be left untouched, pass None (the default). To drop terminal rows for
+                a component, pass "DROP". To replace all terminal cells with pd.NA (independent of whether they would
+                be tuples or strings), pass "NA". To replace them with the default_terminal_symbol, pass "DEFAULT".
+                Or, pass a string or other Hashable to replace terminals with that string. In the latter two cases,
+                the terminal cells will be tuples of terminal strings if ``join_str`` is None, or strings otherwise.
+            group_cols: Defines the groups for which to compute the information gain.
+            reverse: Reverse the argument: How much more do we know about the antecedent when we know the consequent?
+
+        Returns:
+            If group_cols is None or empty or resolves to empty (the default when no groupers have been applied),
+            the resulting value is a float expressing the difference in entropy. Otherwise, when a grouping is
+            performed, the result is a Series of floats.
+        """
+        transitions = self.get_transitions(
+            *ngram_component_columns,
+            split=split,
+            join_str=join_str,
+            fillna=fillna,
+            terminal_symbols=terminal_symbols,
+            group_cols=group_cols,
+        )
+        return transitions.compute_information_gain(
+            group_cols=group_cols, reverse=reverse
+        )
+
     def _get_context_df(
         self,
         context_columns: Optional[str, Tuple[str, ...]] = None,
@@ -1161,16 +1239,16 @@ class NgramTable(Result):
                 a single column name, or a tuple of column names.
             split:
                 Relevant only for NgramAnalyzer with n > 2: Then the value can be modified to decide how many
-                elements are to be part of the left ('antecedent') and the right ('consequent') component.
-                Defaults to -1, i.e. the last element is used as the right component. This is a useful default for
-                evaluations where the (n-1) previous elements are the context for predicting the next element.
-                If you pass an integer within ±[1, n-1], the split will be performed after the indicated column
-                position and any side (left or ride) that includes more than one level will be turned into a column of
-                tuples. To override this automatic behaviour, you may instead pass a tuple that indicates the split in
+                components are to be part of the antecedent (context, left) and the consequent (target, right).
+                Defaults to -1, i.e. the last component is used as consequent. This is a useful default for
+                evaluations where the (n-1) previous components are the context for predicting the next one.
+                If you pass an integer within ±[1, n-1], the split will be performed after the indicated component
+                and any side (left or ride) that includes only a single component will contain single values (tuples or
+                strings). To override this automatic behaviour, you may instead pass a tuple that indicates the split in
                 terms of column names ('a, 'b', etc.) in the way that tuples become tuples, individual strings not.
                 Example: (('a', 'b'), 'c') corresponds to the default behaviour, where the left side has tuples, the
                 right side not. (('a', 'b'), ('c')), on the other hand, would turn the right-hand side into 1-element
-                tuples.
+                tuples, too.
             join_str:
                 Parameter passed to :meth:`make_ngram_table`. It determines whether the antecedent and consequent
                 columns contain [tuples of] tuples (the default) or [tuples of] strings. If n == 2, each cell is of
@@ -1238,16 +1316,16 @@ class NgramTable(Result):
                 a single column name, or a tuple of column names.
             split:
                 Relevant only for NgramAnalyzer with n > 2: Then the value can be modified to decide how many
-                elements are to be part of the left ('antecedent') and the right ('consequent') component.
-                Defaults to -1, i.e. the last element is used as the right component. This is a useful default for
-                evaluations where the (n-1) previous elements are the context for predicting the next element.
-                If you pass an integer within ±[1, n-1], the split will be performed after the indicated column
-                position and any side (left or ride) that includes more than one level will be turned into a column of
-                tuples. To override this automatic behaviour, you may instead pass a tuple that indicates the split in
+                components are to be part of the antecedent (context, left) and the consequent (target, right).
+                Defaults to -1, i.e. the last component is used as consequent. This is a useful default for
+                evaluations where the (n-1) previous components are the context for predicting the next one.
+                If you pass an integer within ±[1, n-1], the split will be performed after the indicated component
+                and any side (left or ride) that includes only a single component will contain single values (tuples or
+                strings). To override this automatic behaviour, you may instead pass a tuple that indicates the split in
                 terms of column names ('a, 'b', etc.) in the way that tuples become tuples, individual strings not.
                 Example: (('a', 'b'), 'c') corresponds to the default behaviour, where the left side has tuples, the
                 right side not. (('a', 'b'), ('c')), on the other hand, would turn the right-hand side into 1-element
-                tuples.
+                tuples, too.
             join_str:
                 Parameter passed to :meth:`make_ngram_table`. It determines whether the antecedent and consequent
                 columns contain [tuples of] tuples (the default) or [tuples of] strings. If n == 2, each cell is of
@@ -1326,16 +1404,16 @@ class NgramTable(Result):
                 a single column name, or a tuple of column names.
             split:
                 Relevant only for NgramAnalyzer with n > 2: Then the value can be modified to decide how many
-                elements are to be part of the left ('antecedent') and the right ('consequent') component.
-                Defaults to -1, i.e. the last element is used as the right component. This is a useful default for
-                evaluations where the (n-1) previous elements are the context for predicting the next element.
-                If you pass an integer within ±[1, n-1], the split will be performed after the indicated column
-                position and any side (left or ride) that includes more than one level will be turned into a column of
-                tuples. To override this automatic behaviour, you may instead pass a tuple that indicates the split in
+                components are to be part of the antecedent (context, left) and the consequent (target, right).
+                Defaults to -1, i.e. the last component is used as consequent. This is a useful default for
+                evaluations where the (n-1) previous components are the context for predicting the next one.
+                If you pass an integer within ±[1, n-1], the split will be performed after the indicated component
+                and any side (left or ride) that includes only a single component will contain single values (tuples or
+                strings). To override this automatic behaviour, you may instead pass a tuple that indicates the split in
                 terms of column names ('a, 'b', etc.) in the way that tuples become tuples, individual strings not.
                 Example: (('a', 'b'), 'c') corresponds to the default behaviour, where the left side has tuples, the
                 right side not. (('a', 'b'), ('c')), on the other hand, would turn the right-hand side into 1-element
-                tuples.
+                tuples, too.
             join_str:
                 Parameter passed to :meth:`make_ngram_table`. It determines whether the antecedent and consequent
                 columns contain [tuples of] tuples (the default) or [tuples of] strings. If n == 2, each cell is of
@@ -1495,16 +1573,16 @@ class NgramTable(Result):
                 a single column name, or a tuple of column names.
             split:
                 Relevant only for NgramAnalyzer with n > 2: Then the value can be modified to decide how many
-                elements are to be part of the left ('antecedent') and the right ('consequent') component.
-                Defaults to -1, i.e. the last element is used as the right component. This is a useful default for
-                evaluations where the (n-1) previous elements are the context for predicting the next element.
-                If you pass an integer within ±[1, n-1], the split will be performed after the indicated column
-                position and any side (left or ride) that includes more than one level will be turned into a column of
-                tuples. To override this automatic behaviour, you may instead pass a pair that indicates the split in
+                components are to be part of the antecedent (context, left) and the consequent (target, right).
+                Defaults to -1, i.e. the last component is used as consequent. This is a useful default for
+                evaluations where the (n-1) previous components are the context for predicting the next one.
+                If you pass an integer within ±[1, n-1], the split will be performed after the indicated component
+                and any side (left or ride) that includes only a single component will contain single values (tuples or
+                strings). To override this automatic behaviour, you may instead pass a pair that indicates the split in
                 terms of column names ('a, 'b', etc.) in the way that tuples become tuples, individual strings not.
                 Example: (('a', 'b'), 'c') corresponds to the default behaviour, where the left side has tuples, the
                 right side not. (('a', 'b'), ('c')), on the other hand, would turn the right-hand side into 1-element
-                tuples.
+                tuples, too.
             join_str:
                 Parameter passed to :meth:`make_ngram_table`. It determines whether the antecedent and consequent
                 columns contain [tuples of] tuples (the default) or [tuples of] strings. If n == 2, each cell is of
@@ -2171,7 +2249,7 @@ class Transitions(Result):
         ] = UnitOfAnalysis.GROUP,
         reverse: bool = False,
     ) -> S | float:
-        """Computes the gain in information (reduction in entropy) about the consequent from knowing the antecedent.
+        """Computes the gain in information about  (reduction in entropy of) the consequent from knowing the antecedent.
         This can be interpreted as measure of how much we know on average about the consequent given an antecedent.
 
         It is typically explained as the difference between the entropy of the consequents' frequency distribution
