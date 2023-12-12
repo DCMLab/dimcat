@@ -1138,15 +1138,20 @@ class NgramTable(Result):
         # are value_column or [value_column, formatted_column] and omits these
         return DimcatResource.get_grouping_levels(self, smallest_unit=smallest_unit)
 
+    @cache
     def _get_transitions(
         self,
         *ngram_component_columns: Optional[str | Tuple[str, ...]],
         split: int | Tuple[str_or_sequence, str_or_sequence] = -1,
         join_str: Optional[str | bool] = None,
         fillna: Optional[Hashable] = None,
+        terminal_symbols: Optional[
+            TerminalSymbol | Hashable, Tuple[TerminalSymbol | Hashable, ...]
+        ] = None,
         group_cols: Optional[str | Iterable[str]] = UnitOfAnalysis.GROUP,
     ) -> D:
-        """Get a Series that counts for each context the number of transitions to each possible following element.
+        """Get a Series that counts for each antecedent (context) the number of transitions to each possible consequent
+        (following element, target).
 
         Args:
             gram_component_columns:
@@ -1175,6 +1180,18 @@ class NgramTable(Result):
                 values differently for the n components (e.g. (None, '') to fill missing values with empty strings
                 only for the second n-gram components). "" is often a good choice for components for which ``join_str``
                 is specified to avoid strings looking like ``"value<NA>"``.
+            terminal_symbols:
+                By default, the last bigram in a sequence ends on (a tuple or string concatenation of) missing
+                values. These rows can either be dropped, or the missing components replaced with a terminal symbol.
+                In the case of bigrams, there is only one consequent component. However, when dealing with bigrams
+                constructed by splitting higher-level grams, you can either specify a single value to be used for all
+                consequent components (b, c, ...) or a tuple of (n-1) values to obtain different behaviours.  For each
+                component to be left untouched, pass None (the default). To drop terminal rows for
+                a component, pass "DROP". To replace all terminal cells with pd.NA (independent of whether they would
+                be tuples or strings), pass "NA". To replace them with the default_terminal_symbol, pass "DEFAULT".
+                Or, pass a string or other Hashable to replace terminals with that string. In the latter two cases,
+                the terminal cells will be tuples of terminal strings if ``join_str`` is None, or strings otherwise.
+            group_cols: Determines based for which grouping the transitions should be counted and normalized.
 
         Returns:
             Dataframe with columns 'count' and 'proportion', showing each (n-1) previous elements (index level 0),
@@ -1186,6 +1203,7 @@ class NgramTable(Result):
             split=split,
             join_str=join_str,
             fillna=fillna,
+            terminal_symbols=terminal_symbols,
         )
         group_cols = self._resolve_group_cols_arg(group_cols)
         if len(group_cols) == 0 or not group_cols[-1] == "antecedent":
@@ -1202,10 +1220,13 @@ class NgramTable(Result):
         split: int | Tuple[str_or_sequence, str_or_sequence] = -1,
         join_str: Optional[str | bool] = None,
         fillna: Optional[Hashable] = None,
-        feature_columns: Optional[Tuple[str, str]] = None,
+        terminal_symbols: Optional[
+            TerminalSymbol | Hashable, Tuple[TerminalSymbol | Hashable, ...]
+        ] = None,
         group_cols: Optional[
             UnitOfAnalysis | str | Iterable[str]
         ] = UnitOfAnalysis.GROUP,
+        feature_columns: Optional[Tuple[str, str]] = None,
     ) -> Transitions:
         """Get a Series that counts for each context the number of transitions to each possible following element.
 
@@ -1236,6 +1257,18 @@ class NgramTable(Result):
                 values differently for the n components (e.g. (None, '') to fill missing values with empty strings
                 only for the second n-gram components). "" is often a good choice for components for which ``join_str``
                 is specified to avoid strings looking like ``"value<NA>"``.
+            terminal_symbols:
+                By default, the last bigram in a sequence ends on (a tuple or string concatenation of) missing
+                values. These rows can either be dropped, or the missing components replaced with a terminal symbol.
+                In the case of bigrams, there is only one consequent component. However, when dealing with bigrams
+                constructed by splitting higher-level grams, you can either specify a single value to be used for all
+                consequent components (b, c, ...) or a tuple of (n-1) values to obtain different behaviours.  For each
+                component to be left untouched, pass None (the default). To drop terminal rows for
+                a component, pass "DROP". To replace all terminal cells with pd.NA (independent of whether they would
+                be tuples or strings), pass "NA". To replace them with the default_terminal_symbol, pass "DEFAULT".
+                Or, pass a string or other Hashable to replace terminals with that string. In the latter two cases,
+                the terminal cells will be tuples of terminal strings if ``join_str`` is None, or strings otherwise.
+            group_cols: Determines based for which grouping the transitions should be counted and normalized.
             feature_columns: Defaults to ["antecedent", "consequent"]. Pass a List with two strings to change.
 
         Returns:
@@ -1247,6 +1280,7 @@ class NgramTable(Result):
             split=split,
             join_str=join_str,
             fillna=fillna,
+            terminal_symbols=terminal_symbols,
             group_cols=group_cols,
         )
         if feature_columns:
@@ -2171,11 +2205,19 @@ class Transitions(Result):
                 make_original_entropy
             )
             conditioned_entropies = weighted_entropies.groupby(group_cols).sum()
+            self.logger.debug(
+                f"H({consequent})={original_entropies}\n"
+                f"H({consequent}|{antecedent})={conditioned_entropies}"
+            )
             return original_entropies - conditioned_entropies
 
         # result will be float
         original_entropy = make_original_entropy(combined_result)
         conditioned_entropy = weighted_entropies.sum()
+        self.logger.debug(
+            f"H({consequent})={original_entropy}\n"
+            f"H({consequent}|{antecedent})={conditioned_entropy}"
+        )
         return original_entropy - conditioned_entropy
 
     def get_grouping_levels(
