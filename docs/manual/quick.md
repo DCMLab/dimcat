@@ -5,7 +5,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.15.2
+    jupytext_version: 1.16.0
 kernelspec:
   display_name: dimcat
   language: python
@@ -133,7 +133,7 @@ apply the grouper and the analyzer once more:
 
 ```{code-cell}
 D = dc.Dataset.from_package(package_path)
-analyzed_dataset = D.apply_steps([grouper, counter])
+analyzed_dataset = D.apply_step(grouper, counter)
 analyzed_dataset
 ```
 

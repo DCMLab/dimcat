@@ -16,16 +16,20 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Iterable, Iterator, List, Optional, Set
+from typing import (
+    TYPE_CHECKING,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    TypeVar,
+    overload,
+)
 
 import marshmallow as mm
-from dimcat.base import (
-    DO,
-    DimcatConfig,
-    DimcatObjectField,
-    get_class,
-    resolve_object_specs,
-)
+from dimcat.base import DimcatConfig, DimcatObjectField, get_class, resolve_object_specs
 from dimcat.data.base import Data
 from dimcat.data.catalogs.base import DimcatCatalog
 from dimcat.data.catalogs.inputs import InputsCatalog
@@ -59,6 +63,8 @@ logger = logging.getLogger(__name__)
 
 # endregion DimcatCatalog
 # region Dataset
+
+Ds = TypeVar("Ds", bound="Dataset")
 
 
 class Dataset(Data):
@@ -204,15 +210,26 @@ class Dataset(Data):
                 )
         self.outputs.add_resource(resource=resource, package_name=package_name)
 
-    def apply_step(self, step: StepSpecs) -> DO:
-        """Applies a pipeline step to the features it is configured for or, if None, to all active features."""
-        step = resolve_object_specs(step, "PipelineStep")
-        return step.process_dataset(self)
+    @overload
+    def apply_step(self, step: StepSpecs | List | Tuple) -> Ds:
+        ...
 
-    def apply_steps(self, steps: StepSpecs | Iterable[StepSpecs]) -> DO:
-        """Applies one or several pipeline steps to this dataset by turning them into a pipeline."""
+    @overload
+    def apply_step(self, *step: StepSpecs) -> Ds:
+        ...
+
+    def apply_step(self, *step: StepSpecs) -> Ds:
+        """Applies one or several pipeline steps to this dataset.For backward compatibility, when only a single
+        argument is passed, the method accepts it to be a list or tuple of step specs, too.
+        """
+        if len(step) == 1:
+            single_step = step[0]
+            if isinstance(single_step, (list, tuple)):
+                return self.apply_step(*single_step)
+            step_obj = resolve_object_specs(single_step, "PipelineStep")
+            return step_obj.process_dataset(self)
         Constructor = get_class("Pipeline")
-        pipeline = Constructor(steps=steps)
+        pipeline = Constructor(steps=step)
         return pipeline.process_dataset(self)
 
     def check_feature_availability(self, feature: FeatureSpecs) -> bool:
