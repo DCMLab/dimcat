@@ -202,13 +202,25 @@ class PipelineStep(DimcatObject):
         ...
 
     @overload
-    def process(self, data: Iterable[D]) -> List[D]:
+    def process(self, data: List[D] | Tuple[D]) -> List[D]:
         ...
 
-    def process(self, data: D | Iterable[D]) -> D | List[D]:
-        """Same as process_data(), with the difference that an Iterable is accepted."""
-        if isinstance(data, Data):
-            return self.process_data(data)
+    @overload
+    def process(self, *data: D) -> List[D]:
+        ...
+
+    def process(self, *data: D) -> D | List[D]:
+        """Same as process_data(), with the difference that arbitrarily many objects are accepted."""
+        if not data:
+            raise ValueError("Please pass a Dataset or a Resource to process.")
+        if len(data) == 1:
+            single_obj = data[0]
+            if isinstance(single_obj, (Tuple, List)):
+                data = single_obj
+            else:
+                # a single object was given which is neither a list nor a tuple, this is the
+                # case where not to return a list
+                return self.process_data(single_obj)
         return [self.process_data(d) for d in data]
 
     @overload
