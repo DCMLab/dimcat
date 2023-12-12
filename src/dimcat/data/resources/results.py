@@ -1115,7 +1115,7 @@ class NgramTable(Result):
 
     def _get_transitions(
         self,
-        *ngram_component_columns: Optional[str | List[str]],
+        *ngram_component_columns: Optional[str | Tuple[str, ...]],
         split: int | Tuple[str_or_sequence, str_or_sequence] = -1,
         join_str: Optional[str | bool] = None,
         fillna: Optional[Hashable] = None,
@@ -1173,7 +1173,7 @@ class NgramTable(Result):
 
     def get_transitions(
         self,
-        *ngram_component_columns: Optional[str | List[str]],
+        *ngram_component_columns: Optional[str | Tuple[str, ...]],
         split: int | Tuple[str_or_sequence, str_or_sequence] = -1,
         join_str: Optional[str | bool] = None,
         fillna: Optional[Hashable] = None,
@@ -1496,7 +1496,8 @@ class NgramTable(Result):
                             f"join_str must be a string or a boolean, got {join_str!r} ({type(join_str)})"
                         )
                 selection = ms3.transform(selection, tuple2str, join_str=join_str)
-
+        elif join_str is not None:
+            selection = selection.astype("string")
         result = selection.rename(level)
 
         # deal with terminal grams if required
