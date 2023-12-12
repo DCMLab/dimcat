@@ -50,9 +50,7 @@ def get_piece_groups(dataset):
 
 if __name__ == "__main__":
     D = load_distant_listening_corpus()
-    pipeline = [
-        dict(dtype="HasHarmonyLabelsFilter", keep_values=[True]),
-        "KeySlicer",
-    ]
-    analyzed_D = D.apply_steps(pipeline)
-    analyzed_D
+    bn = D.get_feature("BassNotes")
+    bigram_table = bn.apply_step("BigramAnalyzer")
+    transitions = bigram_table.get_transitions(("bass_degree", "intervals_over_bass"))
+    transitions.compute_information_gain()

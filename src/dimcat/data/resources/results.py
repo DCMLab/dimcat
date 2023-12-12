@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import logging
-from functools import cache, cached_property
+import math
+from functools import cache, cached_property, partial
 from itertools import product, repeat
 from typing import (
+    Any,
+    Callable,
     ClassVar,
     Dict,
     Hashable,
@@ -17,9 +20,10 @@ from typing import (
     overload,
 )
 
-import ms3
 import frictionless as fl
 import marshmallow as mm
+import ms3
+import numpy as np
 import pandas as pd
 from dimcat.base import LowercaseEnum, ObjectEnum, get_setting
 from dimcat.plotting import (
@@ -38,6 +42,7 @@ from dimcat.plotting import (
 from dimcat.utils import SortOrder
 from plotly import graph_objs as go
 from plotly.subplots import make_subplots
+from scipy import stats
 from typing_extensions import Self
 
 from .base import D, S
@@ -46,6 +51,74 @@ from .dc import DimcatResource, UnitOfAnalysis
 logger = logging.getLogger(__name__)
 
 str_or_sequence = TypeAlias = Union[str, Sequence[str]]
+
+
+@cache
+def logarithm_function(
+    base: Literal[10, 2, math.e] = 2,
+    numpy=False,
+) -> Callable:
+    if numpy:
+        if base == 2:
+            return math.log2
+        if base == 10:
+            return math.log10
+        if base == math.e:
+            return math.log
+        raise NotImplementedError(f"base {base} not implemented")
+    if base == 2:
+        return np.log2
+    if base == 10:
+        return np.log10
+    if base == math.e:
+        return np.log
+    raise NotImplementedError(f"base {base} not implemented")
+
+
+def compute_entropy_of_observations(
+    observations: Iterable[Any],
+    base: Literal[10, 2, math.e] = 2,
+) -> float:
+    """Compute the Shannon entropy of an array of observations by counting the values."""
+    return compute_entropy_of_probabilities(
+        pd.Series(observations).value_counts(), base, skip_check=True
+    )
+
+
+def compute_entropy_of_occurrences(
+    occurrences: Iterable[int],
+    base: Literal[10, 2, math.e] = 2,
+) -> float:
+    """Compute the Shannon entropy of the given absolute frequencies where each integer represents the number of
+    observed occurrences of a category."""
+    return compute_entropy_of_probabilities(occurrences, base, skip_check=True)
+
+
+def compute_entropy_of_probabilities(
+    probabilities: Iterable[float] | Iterable[int],
+    base: Literal[10, 2, math.e] = 2,
+    skip_check: bool = False,
+) -> float:
+    """Compute the Shannon entropy of the given probability distribution, which is expected to be normalized.
+
+    Args:
+        probabilities:
+        normalize:
+            If True (default), the entropy is normalized to the range [0, 1] based on the maximum entropy for the
+            given number of propabilities.
+        base: Logarithmic base for computing the entropy.
+        skip_check:
+            If False (default) the probabilities are asserted to sum to 1. Pass True when you have normalized the
+            data yourself or when you're passing occurrences rather than probabilities.
+
+    Returns:
+        The absolute or normalized Shannon entropy of the given probability distribution.
+    """
+    if not skip_check:
+        assert math.isclose(
+            (p_sum := sum(probabilities)), 1
+        ), f"Expecting normalized probabilites, these sum to {p_sum}."
+    return stats.entropy(probabilities, base=base)
 
 
 class TerminalSymbol(LowercaseEnum):
@@ -75,12 +148,12 @@ def turn_proportions_into_percentage_strings(
 
 
 def tuple2str(
-        tup: tuple,
-        join_str: Optional[str] = ", ",
+    tup: tuple,
+    join_str: Optional[str] = ", ",
     recursive: bool = True,
     keep_parentheses: bool = False,
 ) -> str:
-    """ Used for turning n-gram components into strings, e.g. for display on plot axes.
+    """Used for turning n-gram components into strings, e.g. for display on plot axes.
 
     Args:
         tup: Tuple to be returned as string.
@@ -102,10 +175,12 @@ def tuple2str(
                 return result
             return result[1:-1]
         if recursive:
-            result = join_str.join(tuple2str(
-                e,
-                join_str=join_str,
-                keep_parentheses=True) if isinstance(e, tuple) else str(e) for e in tup)
+            result = join_str.join(
+                tuple2str(e, join_str=join_str, keep_parentheses=True)
+                if isinstance(e, tuple)
+                else str(e)
+                for e in tup
+            )
         else:
             result = join_str.join(str(e) for e in tup)
     except TypeError:
@@ -113,6 +188,7 @@ def tuple2str(
     if keep_parentheses:
         return f"({result})"
     return result
+
 
 class ResultName(ObjectEnum):
     """Identifies the available analyzers."""
@@ -310,6 +386,46 @@ class Result(DimcatResource):
         )
         new_result.is_combination = True
         return new_result
+
+    def _compute_entropy(
+        self, combined_result: D, group_cols: List[str], weighted: bool = False
+    ) -> S:
+        if group_cols:
+            gpb = combined_result.groupby(group_cols)
+            group_entropies = gpb.proportion.apply(compute_entropy_of_probabilities)
+            if not weighted:
+                return group_entropies.rename("entropy")
+            group_occurrences = gpb["count"].sum()
+            return (
+                group_entropies.mul(group_occurrences) / group_occurrences.sum()
+            ).rename("weighted_entropy")
+        return compute_entropy_of_probabilities(combined_result.proportion).rename(
+            "entropy"
+        )
+
+    def compute_entropy(
+        self,
+        group_cols: Optional[
+            UnitOfAnalysis | str | Iterable[str]
+        ] = UnitOfAnalysis.GROUP,
+        weighted: bool = False,
+    ) -> S:
+        """Compute the Shannon entropies of the probability distributions for the default or specified grouping.
+
+        Args:
+            group_cols: For which groups to compute entropy values.
+            weighted:
+                If True, the entropy values will be weighted by the relative prevalence of the respective group. If
+                no grouping is specified, this argument has no effect.
+
+        Returns:
+            A Series of entropy values, indexed by the group names.
+        """
+        group_cols = self._resolve_group_cols_arg(group_cols)
+        combined_result = self._combine_results(
+            group_cols=group_cols, sort_order=SortOrder.NONE
+        )
+        return self._compute_entropy(combined_result, group_cols, weighted=weighted)
 
     def _get_color_midpoint(self) -> int:
         if self.analyzed_resource.format == "NAME":
@@ -966,7 +1082,8 @@ class NgramTable(Result):
     ) -> D:
         raise NotImplementedError(
             "NgramTable does not support this action. Try one of .get_ngram_tuples(), "
-            ".get_bigram_tuples(), .get_ngram_table(), .get_bigram_table(), .get_transitions()")
+            ".get_bigram_tuples(), .get_ngram_table(), .get_bigram_table(), .get_transitions()"
+        )
 
     def _get_context_df(
         self,
@@ -1365,7 +1482,9 @@ class NgramTable(Result):
         if fillna is not None:
             selection = selection.fillna(fillna)
         if return_tuples:
-            selection = pd.Series(selection.itertuples(index=False, name=None), index=selection.index)
+            selection = pd.Series(
+                selection.itertuples(index=False, name=None), index=selection.index
+            )
             if join_str is not None:
                 if not isinstance(join_str, str):
                     if join_str is True:
@@ -1914,6 +2033,77 @@ class Transitions(Result):
         normalize_by = combined_result.groupby(groups_to_treat).sum()
         combined_result = self._add_proportion_columns(combined_result, normalize_by)
         return self._sort_combined_result(combined_result, group_cols, sort_order)
+
+    def _compute_entropy(
+        self, combined_result: D, group_cols: List[str], weighted: bool = False
+    ) -> S:
+        antecedent_col, _ = self.feature_columns
+        super_method = partial(super()._compute_entropy, group_cols=antecedent_col)
+        if not group_cols:
+            return super_method(combined_result, weighted=weighted)
+        return combined_result.groupby(group_cols).apply(
+            super_method, weighted=weighted
+        )
+
+    @overload
+    def compute_information_gain(
+        self, group_cols: Optional[Literal[False]], reverse: bool
+    ) -> float:
+        ...
+
+    @overload
+    def compute_information_gain(
+        self, group_cols: UnitOfAnalysis | str | Iterable[str], reverse: bool
+    ) -> S:
+        ...
+
+    def compute_information_gain(
+        self,
+        group_cols: Optional[
+            UnitOfAnalysis | str | Iterable[str]
+        ] = UnitOfAnalysis.GROUP,
+        reverse: bool = False,
+    ) -> S | float:
+        """Computes the gain in information (reduction in entropy) about the consequent from knowing the antecedent.
+        This can be interpreted as measure of how much we know on average about the consequent given an antecedent.
+
+        It is typically explained as the difference between the entropy of the consequents' frequency distribution
+        and the weighted frequency-weighted sum of entropies of each antecedent's consequent distribution (which
+        is considered as a 'split' in the context of decision trees).
+
+
+        Args:
+            group_cols: Defines the groups for which to compute the information gain.
+            reverse: Reverse the argument: How much more do we know about the antecedent when we know the consequent?
+
+        Returns:
+            If group_cols is None or empty or resolves to empty (the default when no groupers have been applied),
+            the resulting value is a float expressing the difference in entropy. Otherwise, when a grouping is
+            performed, the result is a Series of floats.
+        """
+        group_cols = self._resolve_group_cols_arg(group_cols)
+        combined_result = self._combine_results(group_cols=group_cols)
+        weighted_entropies = self.compute_entropy(group_cols=group_cols, weighted=True)
+        if reverse:
+            consequent, antecedent = self.feature_columns
+        else:
+            antecedent, consequent = self.feature_columns
+
+        def make_original_entropy(df):
+            return compute_entropy_of_occurrences(df.groupby(consequent)["count"].sum())
+
+        if group_cols:
+            # result will be Series
+            original_entropies = combined_result.groupby(group_cols).apply(
+                make_original_entropy
+            )
+            conditioned_entropies = weighted_entropies.groupby(group_cols).sum()
+            return original_entropies - conditioned_entropies
+
+        # result will be float
+        original_entropy = make_original_entropy(combined_result)
+        conditioned_entropy = weighted_entropies.sum()
+        return original_entropy - conditioned_entropy
 
     def get_grouping_levels(
         self, smallest_unit: UnitOfAnalysis = UnitOfAnalysis.SLICE
