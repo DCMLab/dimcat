@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from functools import cache, cached_property, partial
+from functools import cache, cached_property
 from itertools import product, repeat
 from typing import (
     ClassVar,
@@ -17,6 +17,7 @@ from typing import (
     overload,
 )
 
+import ms3
 import frictionless as fl
 import marshmallow as mm
 import pandas as pd
@@ -73,16 +74,45 @@ def turn_proportions_into_percentage_strings(
         return result.rename(column_name)
 
 
-def tuple2str(tup: tuple, join_str: Optional[str] = ", ") -> str:
-    """Used for displaying n-grams on axes."""
+def tuple2str(
+        tup: tuple,
+        join_str: Optional[str] = ", ",
+    recursive: bool = True,
+    keep_parentheses: bool = False,
+) -> str:
+    """ Used for turning n-gram components into strings, e.g. for display on plot axes.
+
+    Args:
+        tup: Tuple to be returned as string.
+        join_str:
+            String to be interspersed between tuple elements. If None, result is ``str(tup)`` and ``recursive`` is
+            ignored.
+        recursive:
+            If True (default) tuple elements that are tuples themselves will be joined together recursively, using the
+            same ``join_str`` (except when it's None). Inner tuples always keep their parentheses.
+        keep_parentheses: If False (default), the outer parentheses are removed. Pass True to keep them in the string.
+
+    Returns:
+        A string representing the tuple.
+    """
     try:
         if join_str is None:
-            return str(tup)
+            result = str(tup)
+            if keep_parentheses:
+                return result
+            return result[1:-1]
+        if recursive:
+            result = join_str.join(tuple2str(
+                e,
+                join_str=join_str,
+                keep_parentheses=True) if isinstance(e, tuple) else str(e) for e in tup)
         else:
-            return join_str.join(str(e) for e in tup)
+            result = join_str.join(str(e) for e in tup)
     except TypeError:
         return str(tup)
-
+    if keep_parentheses:
+        return f"({result})"
+    return result
 
 class ResultName(ObjectEnum):
     """Identifies the available analyzers."""
@@ -1324,7 +1354,7 @@ class NgramTable(Result):
         if fillna is not None:
             selection = selection.fillna(fillna)
         if return_tuples:
-            gram_iterator = selection.itertuples(index=False, name=None)
+            selection = pd.Series(selection.itertuples(index=False, name=None), index=selection.index)
             if join_str is not None:
                 if not isinstance(join_str, str):
                     if join_str is True:
@@ -1335,11 +1365,9 @@ class NgramTable(Result):
                         raise TypeError(
                             f"join_str must be a string or a boolean, got {join_str!r} ({type(join_str)})"
                         )
-                to_string_function = partial(tuple2str, join_str=join_str)
-                gram_iterator = map(to_string_function, gram_iterator)
-            result = pd.Series(gram_iterator, index=selection.index, name=level)
-        else:
-            result = selection.rename(level)
+                selection = ms3.transform(selection, tuple2str, join_str=join_str)
+
+        result = selection.rename(level)
 
         # deal with terminal grams if required
         if terminal_symbols is None or terminal_symbols == TerminalSymbol.DROP:
