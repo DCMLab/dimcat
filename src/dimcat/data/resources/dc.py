@@ -899,7 +899,10 @@ DimcatResource.__init__(
                 f"Nothing to filter based on keep_values={keep_values} and drop_values={drop_values}."
             )
             return self.copy()
-        new_df = self.df.drop(drop_this, level=level)
+        if drop_this:
+            new_df = self.df.drop(drop_this, level=level)
+        else:
+            new_df = self.df
         if do_level_drop:
             new_df = new_df.droplevel(level)
         new_resource = self.__class__.from_resource_and_dataframe(
