@@ -42,7 +42,7 @@ from dimcat.plotting import (
 from dimcat.utils import SortOrder
 from plotly import graph_objs as go
 from plotly.subplots import make_subplots
-from scipy import stats
+from scipy import special
 from typing_extensions import Self
 
 from .base import D, S
@@ -94,6 +94,31 @@ def compute_entropy_of_occurrences(
     return compute_entropy_of_probabilities(occurrences, base, skip_check=True)
 
 
+def _entropy(
+    pk: np.typing.ArrayLike, base: float | None = None, axis: int = 0
+) -> np.number | np.ndarray:
+    """This is a copy of scipy.stats.entropy @ v1.11.4 leaving out the `np.asarray` call causing the problem
+    reported under https://github.com/pandas-dev/pandas/issues/56472 Tested for unidimensional input only (had to
+    drop the 'keepdims' argument). Apparently, this workaround will not be necessary anymore from pandas 2.2 on.
+    """
+    if base is not None and base <= 0:
+        raise ValueError("`base` must be a positive number or `None`.")
+
+    # pk = np.asarray(pk)
+    pk = 1.0 * pk / np.sum(pk, axis=axis)
+    # if qk is None:
+    vec = special.entr(pk)
+    # else:
+    #     qk = np.asarray(qk)
+    #     pk, qk = np.broadcast_arrays(pk, qk)
+    #     qk = 1.0*qk / np.sum(qk, axis=axis, keepdims=True)
+    #     vec = special.rel_entr(pk, qk)
+    S = np.sum(vec, axis=axis)
+    if base is not None:
+        S /= np.log(base)
+    return S
+
+
 def compute_entropy_of_probabilities(
     probabilities: Iterable[float] | Iterable[int],
     base: Literal[10, 2, math.e] = 2,
@@ -118,7 +143,7 @@ def compute_entropy_of_probabilities(
         assert math.isclose(
             (p_sum := sum(probabilities)), 1
         ), f"Expecting normalized probabilites, these sum to {p_sum}."
-    return stats.entropy(probabilities, base=base)
+    return _entropy(probabilities, base=base)
 
 
 class TerminalSymbol(LowercaseEnum):
