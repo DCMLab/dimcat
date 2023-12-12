@@ -768,7 +768,7 @@ class Result(DimcatResource):
 
     def _resolve_group_cols_arg(
         self, group_cols: Optional[UnitOfAnalysis | str | Iterable[str]]
-    ):
+    ) -> List[str]:
         if not group_cols:
             groupby = []
         elif isinstance(group_cols, str):
@@ -956,6 +956,17 @@ class NgramTable(Result):
         if isinstance(selection, pd.Series):
             return selection.isna()
         return selection.isna().all(axis=1)
+
+    def _combine_results(
+        self,
+        group_cols: Optional[
+            UnitOfAnalysis | str | Iterable[str]
+        ] = UnitOfAnalysis.GROUP,
+        sort_order: Optional[SortOrder] = SortOrder.DESCENDING,
+    ) -> D:
+        raise NotImplementedError(
+            "NgramTable does not support this action. Try one of .get_ngram_tuples(), "
+            ".get_bigram_tuples(), .get_ngram_table(), .get_bigram_table(), .get_transitions()")
 
     def _get_context_df(
         self,
@@ -1863,6 +1874,12 @@ class Transitions(Result):
             "consequent"
         )
         self._feature_columns = feature_columns
+
+    @property
+    def x_column(self) -> str:
+        raise NotImplementedError(
+            "x_column not defined for Transitions because it could be 'antecedent' or 'consequent'."
+        )
 
     def _combine_results(
         self,
