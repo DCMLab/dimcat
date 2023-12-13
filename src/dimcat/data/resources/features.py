@@ -16,6 +16,7 @@ from dimcat.data.resources.dc import (
     SliceIntervals,
     UnitOfAnalysis,
 )
+from dimcat.data.resources.results import tuple2str
 from dimcat.data.resources.utils import (
     boolean_is_minor_column_to_mode,
     condense_dataframe_by_groups,
@@ -65,6 +66,7 @@ AUXILIARY_HARMONYLABEL_COLUMNS = [
     "figbass",
     "form",
     "numeral",
+    "chord",
     "root",
 ]
 """These columns are included in sub-features of HarmonyLabels to enable more means of investigation,
@@ -296,6 +298,56 @@ def chord_tones2interval_structure(
     return tuple(adapted_intervals)
 
 
+def add_chord_tone_scale_degrees(
+    feature_df,
+):
+    """Turns 'chord_tones' column into multiple scale-degree columns."""
+    columns_to_add = (
+        "scale_degrees",
+        "scale_degrees_and_mode" "scale_degrees_major",
+        "scale_degrees_minor",
+    )
+    if all(col in feature_df.columns for col in columns_to_add):
+        return feature_df
+    expected_columns = ("chord_tones", "localkey_is_minor", "localkey_mode")
+    if not all(col in feature_df.columns for col in expected_columns):
+        raise DataframeIsMissingExpectedColumnsError(
+            [col for col in expected_columns if col not in feature_df.columns],
+            feature_df.columns.to_list(),
+        )
+    concatenate_this = [feature_df]
+    if "scale_degrees" not in feature_df.columns:
+        concatenate_this.append(
+            ms3.transform(
+                feature_df, ms3.fifths2sd, ["chord_tones", "localkey_is_minor"]
+            ).rename("scale_degrees")
+        )
+    if "scale_degrees_major" not in feature_df.columns:
+        concatenate_this.append(
+            ms3.transform(feature_df.chord_tones, ms3.fifths2sd, minor=False).rename(
+                "scale_degrees_major"
+            )
+        )
+    if "scale_degrees_minor" not in feature_df.columns:
+        concatenate_this.append(
+            ms3.transform(feature_df.chord_tones, ms3.fifths2sd, minor=True).rename(
+                "scale_degrees_minor"
+            )
+        )
+    feature_df = pd.concat(concatenate_this, axis=1)
+    if "scale_degrees_and_mode" not in feature_df.columns:
+        sd_and_mode = pd.Series(
+            feature_df[["scale_degrees", "localkey_mode"]].itertuples(
+                index=False, name=None
+            ),
+            index=feature_df.index,
+            name="scale_degrees_and_mode",
+        )
+        concatenate_this = [feature_df, sd_and_mode.apply(tuple2str)]
+        feature_df = pd.concat(concatenate_this, axis=1)
+    return feature_df
+
+
 def add_chord_tone_intervals(
     feature_df,
 ):
@@ -319,7 +371,7 @@ def add_chord_tone_intervals(
     if "intervals_over_bass" not in feature_df.columns:
         concatenate_this.append(
             ms3.transform(
-                feature_df, chord_tones2interval_structure, ["chord_tones"]
+                feature_df.chord_tones, chord_tones2interval_structure
             ).rename("intervals_over_bass")
         )
     if "intervals_over_root" not in feature_df.columns and "root" in feature_df.columns:
@@ -338,6 +390,9 @@ class HarmonyLabelsFormat(FriendlyEnum):
 
     ROMAN = "ROMAN"
     ROMAN_REDUCED = "ROMAN_REDUCED"
+    SCALE_DEGREE = "SCALE_DEGREE"
+    SCALE_DEGREE_MAJOR = "SCALE_DEGREE_MAJOR"
+    SCALE_DEGREE_MINOR = "SCALE_DEGREE_MINOR"
 
 
 class HarmonyLabels(DcmlAnnotations):
@@ -354,6 +409,10 @@ class HarmonyLabels(DcmlAnnotations):
         "chord_reduced",
         "chord_reduced_and_mode",
         "chord_tones",
+        "scale_degrees",
+        "scale_degrees_and_mode",
+        "scale_degrees_major",
+        "scale_degrees_minor",
         "intervals_over_bass",
         "intervals_over_root",
         "chord_type",
@@ -431,6 +490,12 @@ class HarmonyLabels(DcmlAnnotations):
             new_formatted_column = "chord_and_mode"
         elif format == HarmonyLabelsFormat.ROMAN_REDUCED:
             new_formatted_column = "chord_reduced_and_mode"
+        elif format == HarmonyLabelsFormat.SCALE_DEGREE:
+            new_formatted_column = "scale_degrees_and_mode"
+        elif format == HarmonyLabelsFormat.SCALE_DEGREE_MAJOR:
+            new_formatted_column = "scale_degrees_major"
+        elif format == HarmonyLabelsFormat.SCALE_DEGREE_MINOR:
+            new_formatted_column = "scale_degrees_minor"
         else:
             raise NotImplementedError(f"Unknown format {format!r}.")
         if self.is_loaded and new_formatted_column not in self.field_names:
@@ -452,6 +517,11 @@ class HarmonyLabels(DcmlAnnotations):
                 return "chord_reduced"
             else:
                 return "chord_reduced_and_mode"
+        elif self._format == HarmonyLabelsFormat.SCALE_DEGREE:
+            if "mode" in self.default_groupby:
+                return "scale_degrees"
+            else:
+                return "scale_degrees_and_mode"
         if self._formatted_column is not None:
             return self._formatted_column
         if self._default_formatted_column is not None:
@@ -468,6 +538,7 @@ class HarmonyLabels(DcmlAnnotations):
         feature_df = extend_keys_feature(feature_df)
         feature_df = extend_harmony_feature(feature_df)
         feature_df = add_chord_tone_intervals(feature_df)
+        feature_df = add_chord_tone_scale_degrees(feature_df)
         return self._sort_columns(feature_df)
 
 
@@ -561,6 +632,11 @@ class BassNotes(HarmonyLabels):
         "bass_degree_minor",
         "bass_note_over_local_tonic",
         "intervals_over_bass",
+        "intervals_over_root",
+        "scale_degrees",
+        "scale_degrees_and_mode",
+        "scale_degrees_major",
+        "scale_degrees_minor",
     ]
     _feature_column_names = [
         "globalkey",
@@ -657,6 +733,7 @@ class BassNotes(HarmonyLabels):
         feature_df = extend_keys_feature(feature_df)
         feature_df = extend_bass_notes_feature(feature_df)
         feature_df = add_chord_tone_intervals(feature_df)
+        feature_df = add_chord_tone_scale_degrees(feature_df)
         return self._sort_columns(feature_df)
 
 
