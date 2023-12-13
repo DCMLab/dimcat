@@ -1,5 +1,56 @@
 # Changelog
 
+## [3.0.0](https://github.com/DCMLab/dimcat/compare/v2.3.0...v3.0.0) (2023-12-13)
+
+
+### ⚠ BREAKING CHANGES
+
+* eliminates .apply_steps() in favour of a single .apply_step(*step), that is, with variadic argument. For backward compatibility, the method still accepts a single list or tuple
+
+### Features
+
+* adds four additional columns to HarmonyLabels and BassNotes which contain the (main) chord tones expressed as scale degrees ([396dce9](https://github.com/DCMLab/dimcat/commit/396dce9ad3aa036d13f4e623a5d2954e98dbbdba))
+* adds Result.compute_entropy() and Transitions.compute_information_gain() ([c1257a8](https://github.com/DCMLab/dimcat/commit/c1257a84e7073544ec252c6ae3e5a9fe47e8c4bc))
+* AdjacencyGroupSlicers now process the required_feature during .fit_to_dataset(), store it as property .slice_metadata and join it onto any processed Metadata object. In the future, there could also be a mode where this metadata is joined onto any processed feature. ([cea586e](https://github.com/DCMLab/dimcat/commit/cea586e6c318da224382a7119baedfb6be0add22))
+* empowers NgramTable to make_bi/ngram_tables and NgramTuples with components made up from different columns and with individual join_str and fillna settings ([c8488cf](https://github.com/DCMLab/dimcat/commit/c8488cf9d3bb22b3480af021c24af2add0b96cb6))
+* enables adding context_columns for the NgramTable's methods .get_bi/ngram_tuples() and get_bi/ngram_table(). The NgramAnalyzer therefore adds the relevant column names in post-processing. ([fe7ee3a](https://github.com/DCMLab/dimcat/commit/fe7ee3a969712528849dfbedfa28f6914a6e2e6c))
+* enables applying Slicers to Metadata by joining them on the SliceIntervals (DimcatIndex) ([a4c3929](https://github.com/DCMLab/dimcat/commit/a4c39291cdfc09f5d99e50d072eaa49ebb625274))
+* enables dropping ngram rows which include/correspond to terminals ([89a2552](https://github.com/DCMLab/dimcat/commit/89a25522ff1d02e94e549ccedd1935c931ea2a8c))
+* enables the detailed control of terminals which may differ for different n-gram components (except the first one). ([f6a807f](https://github.com/DCMLab/dimcat/commit/f6a807f4417ccb706343b832ef5ca764ac82d709))
+* HarmonyLabels and BassNotes features now come with an intervals_over_bass and (for the former) with an intervals_over_root column ([be8d06d](https://github.com/DCMLab/dimcat/commit/be8d06d461dc1cabf9802b9af39cac8d845df1a1))
+* includes "root" as auxiliary column for BassNotes ([3f7bd35](https://github.com/DCMLab/dimcat/commit/3f7bd35db460011cb362c812f12dbdc3c9026703))
+* makes the 'data' argument to PipelineStep.process() a variadic one, too (concordant with .apply_step()), while still accepting a single argument that can be a list or tuple ([7a37aaa](https://github.com/DCMLab/dimcat/commit/7a37aaaf1bb7607035292efcc072a649b69c3f77))
+* Metadata.get_composition_years() now with 'group_cols' parameter to compute composition year means of groups (e.g. corpora) ([fef9860](https://github.com/DCMLab/dimcat/commit/fef986000a4cbd2eaf37d89a61d05442fe64ee5b))
+* methods .make_ngram_table() and .make_bigram_table() of NgramTable now actually return a new NgramTable, whereas the previous functions of that name (which returned dataframes) have been renamed to .make_bigram_df() and .make_ngram_df(). ([8dbff20](https://github.com/DCMLab/dimcat/commit/8dbff202f8d71c54ecbbf2bcc32e00d0363a45f4))
+* NgramTable gets the convenience method .compute_information_gain() to skip an intermediate call to .get_transitions() ([5b37414](https://github.com/DCMLab/dimcat/commit/5b374141cdb55216fa86cbb668b7867fbead2a6f))
+* NgramTable._get_transitions() is cached and now complete with the terminal_symbols argument ([bd12568](https://github.com/DCMLab/dimcat/commit/bd1256825f7ddc128459519068ce6d2955f73eac))
+* reduces the amount of parentheses in n-grams by not turning 'single' components (with only one column) into tuples ([02f91d4](https://github.com/DCMLab/dimcat/commit/02f91d40d9935996e0e12625801ab1e646d54fb2))
+* streamlines turning n-grams into strings and allows for doing it recursively (useful when columns making up n-gram components contain tuples themselves) ([745df2e](https://github.com/DCMLab/dimcat/commit/745df2ed8471ceafc8eb3d41028e205161724f20))
+
+
+### Bug Fixes
+
+* adapts scipy.stats.entropy() to fix bug caused by pd.Float64Dtype ([4938170](https://github.com/DCMLab/dimcat/commit/4938170539e6072bcd9795797ef29c863cd63f60))
+* allow DimcatResource.filter_index_level() to just drop the level without filtering rows ([5c07d97](https://github.com/DCMLab/dimcat/commit/5c07d9794ca1c5beed49aa7a282f0b9e5e9a8e04))
+* applying a Grouper needs to be an inner join. Also, the index levels should come in systematic order, first the grouper levels, then the remaining ones ([8f80fc2](https://github.com/DCMLab/dimcat/commit/8f80fc2bc07582ea6584c2b494384daf5ac1199a))
+* enables (de-)serialization for Filter objects ([976c179](https://github.com/DCMLab/dimcat/commit/976c1797561d1d2076fd1a1479da64815d247fa9))
+* fills up missing 'quarterbeats_all_endings' column for older parts of the dataset ([390e0a5](https://github.com/DCMLab/dimcat/commit/390e0a5ce99c3b3f77ddd9d0d9be903fd854caad))
+* Groupers that use metadata now should use Dataset.get_metadata(raw=True) ([5d35b20](https://github.com/DCMLab/dimcat/commit/5d35b20044a24a47cfa3848dc4d2dbd226ba4a8f))
+* grouping by a single level that contains tuples resulted in several levels in the resulting MultiIndex; this fix applied for completeness before the whole function is simplified ([0ed6091](https://github.com/DCMLab/dimcat/commit/0ed6091e323074670281c7389603b4605412e494))
+* NgramTable.get_default_analysis() returns Transitions ([b90f0ae](https://github.com/DCMLab/dimcat/commit/b90f0aea80240077085f2b85bafacc3124222be4))
+* omit duplicate computation of 'proportions' by Transitions._sort_combined_result() ([2f09bbb](https://github.com/DCMLab/dimcat/commit/2f09bbb600919c7ccb80749306ea449dcfc2b238))
+* raise NotImplementedError when trying to use convenience methods directly on Transitions object ([7cf61c4](https://github.com/DCMLab/dimcat/commit/7cf61c47b07e91e928c749836469f7e4d4b7e5f3))
+* re-inserts missing import ([02bd96c](https://github.com/DCMLab/dimcat/commit/02bd96c7c26711e2fb634ac6cd34be2c42517ac6))
+* singular ngram_components should also become strings (even if they are not joined on 'join_str') ([3987162](https://github.com/DCMLab/dimcat/commit/398716226ce3ca3e9b0c421a68d15583f25b909e))
+* when an index level is dropped, make sure to remove it from the default_groupby ([260f8f1](https://github.com/DCMLab/dimcat/commit/260f8f1ae011a917026ea1f4d20e0c50cc8a7035))
+* when applying a Filter with drop_level=True, do not turn a Dataset into a GroupedDataset (as per virtue of the respective parent Grouper) ([937002c](https://github.com/DCMLab/dimcat/commit/937002c9eed97418bbc2d75267e9626289eb1eb9))
+* when Counter is used with smallest_unit=GROUP, it recurs to self.compute() ([737b6a6](https://github.com/DCMLab/dimcat/commit/737b6a6051f7256596adf8d7f0d665de13962e12))
+
+
+### Reverts
+
+* eliminates .apply_steps() in favour of a single .apply_step(*step), that is, with variadic argument. For backward compatibility, the method still accepts a single list or tuple ([fab8e13](https://github.com/DCMLab/dimcat/commit/fab8e13fafc895ee6338aad2c499dfc497ebfabc))
+
 ## [2.3.0](https://github.com/DCMLab/dimcat/compare/v2.2.0...v2.3.0) (2023-12-09)
 
 
