@@ -907,24 +907,6 @@ class Result(DimcatResource):
                 **kwargs,
             )
 
-    def _resolve_group_cols_arg(
-        self, group_cols: Optional[UnitOfAnalysis | str | Iterable[str]]
-    ) -> List[str]:
-        if not group_cols:
-            groupby = []
-        elif isinstance(group_cols, str):
-            try:
-                u_o_a = UnitOfAnalysis(group_cols)
-            except ValueError:
-                u_o_a = None
-            if u_o_a is None:
-                groupby = [group_cols]
-            else:
-                groupby = self.get_grouping_levels(u_o_a)
-        else:
-            groupby = list(group_cols)
-        return groupby
-
     def _resolve_group_modes_arg(
         self, group_modes: Optional[GroupMode | Iterable[GroupMode]] = None
     ) -> List[GroupMode]:
