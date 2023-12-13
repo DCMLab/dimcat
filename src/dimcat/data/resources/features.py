@@ -52,8 +52,16 @@ class Metadata(Feature):
 
     def get_composition_years(
         self,
+        group_cols: Optional[
+            UnitOfAnalysis | str | Iterable[str]
+        ] = UnitOfAnalysis.GROUP,
     ):
-        return get_middle_composition_year(metadata=self.df)
+        group_cols = self._resolve_group_cols_arg(group_cols)
+        years = get_middle_composition_year(metadata=self.df)
+        if not group_cols:
+            return years
+        result = years.groupby(group_cols).mean()
+        return result
 
 
 # region Annotations
