@@ -50,15 +50,5 @@ def get_piece_groups(dataset):
 
 if __name__ == "__main__":
     D = load_distant_listening_corpus()
-    pipeline = [
-        dict(dtype="HasHarmonyLabelsFilter", keep_values=[True]),
-        "KeySlicer",
-        "ModeGrouper",
-        dict(
-            dtype="BigramAnalyzer", features="BassNotes", format="FULL_WITHOUT_CONTEXT"
-        ),
-    ]
-    analyzed_D = D.apply_step(*pipeline)
-    bigram_table = analyzed_D.get_result()
-    tr = bigram_table.get_transitions("bass_note")
-    tr.compute_information_gain()
+    filtered_D = D.apply_step("HasHarmonyLabelsFilter")
+    all_metadata = filtered_D.get_metadata()

@@ -4,7 +4,7 @@ from typing import Dict, Hashable, List, Sequence
 import pandas as pd
 from dimcat import Dataset
 from dimcat.data.resources import DimcatIndex
-from dimcat.data.resources.base import D, FeatureName
+from dimcat.data.resources.base import IX, D, FeatureName
 from dimcat.data.resources.dc import UnitOfAnalysis
 from dimcat.steps.groupers.base import CriterionGrouper, CustomPieceGrouper
 from typing_extensions import Self
@@ -93,7 +93,7 @@ class HasHarmonyLabelsGrouper(CustomPieceGrouper):
     def __init__(
         self,
         level_name: str = "has_harmony_labels",
-        grouped_units: DimcatIndex | pd.MultiIndex = None,
+        grouped_units: IX = None,
         **kwargs,
     ):
         super().__init__(level_name=level_name, grouped_units=grouped_units, **kwargs)

@@ -4,6 +4,7 @@ import logging
 import os
 import warnings
 from functools import cache
+from numbers import Number
 from typing import (
     TYPE_CHECKING,
     ClassVar,
@@ -81,6 +82,7 @@ if TYPE_CHECKING:
 # region DimcatResource
 
 resource_status_logger = logging.getLogger("dimcat.data.resources.ResourceStatus")
+levelvalue_: TypeAlias = Union[str, Number, bool]
 
 
 class UnitOfAnalysis(FriendlyEnum):
@@ -865,8 +867,8 @@ DimcatResource.__init__(
 
     def filter_index_level(
         self,
-        keep_values: Optional[Hashable | Iterable[Hashable]] = None,
-        drop_values: Optional[Hashable | Iterable[Hashable]] = None,
+        keep_values: levelvalue_ | Iterable[levelvalue_] = None,
+        drop_values: levelvalue_ | Iterable[levelvalue_] = None,
         level: int | str = 0,
         drop_level: Optional[bool] = None,
     ) -> Self:
@@ -893,7 +895,7 @@ DimcatResource.__init__(
         drop_this, keep_values = idx.get_level_values_to_drop(
             drop_values, keep_values, level
         )
-        do_level_drop = drop_level or (drop_level is None and len(keep_values) == 1)
+        do_level_drop = drop_level or (drop_level is None and len(keep_values) < 2)
         if not (drop_this or do_level_drop):
             self.logger.info(
                 f"Nothing to filter based on keep_values={keep_values} and drop_values={drop_values}."
@@ -1711,8 +1713,8 @@ class DimcatIndex(Generic[IX], Data):
 
     def filter(
         self,
-        keep_values: Optional[Hashable | Iterable[Hashable]] = None,
-        drop_values: Optional[Hashable | Iterable[Hashable]] = None,
+        keep_values: levelvalue_ | Iterable[levelvalue_] = None,
+        drop_values: levelvalue_ | Iterable[levelvalue_] = None,
         level: int | str = 0,
         drop_level: Optional[bool] = None,
     ) -> Self:
@@ -1744,7 +1746,10 @@ class DimcatIndex(Generic[IX], Data):
         return self.__class__(new_index)
 
     def get_level_values_to_drop(
-        self, drop_values, keep_values, level
+        self,
+        drop_values: levelvalue_ | Iterable[levelvalue_],
+        keep_values: levelvalue_ | Iterable[levelvalue_],
+        level: int | str,
     ) -> Tuple[Set[Hashable], Set[Hashable]]:
         level_ints = resolve_levels_argument(level, self.names)
         assert (
@@ -1754,7 +1759,9 @@ class DimcatIndex(Generic[IX], Data):
         level_values = set(self._index.levels[level_int])
         if drop_values is None:
             drop_this = set()
-        elif isinstance(drop_values, Hashable):
+        elif isinstance(
+            drop_values, (str, Number, bool)
+        ):  # types = levelvalue_ TypeAlias
             drop_this = {drop_values}
         else:
             drop_this = set(drop_values)
@@ -1765,7 +1772,7 @@ class DimcatIndex(Generic[IX], Data):
             )
             drop_this = drop_this.difference(not_valid)
         if keep_values:
-            if isinstance(keep_values, Hashable):
+            if isinstance(keep_values, (str, Number, bool)):
                 keep_values = {keep_values}
             else:
                 keep_values = set(keep_values)

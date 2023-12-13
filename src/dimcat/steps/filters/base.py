@@ -1,8 +1,9 @@
-from typing import Hashable, Iterable, Optional
+from typing import Iterable, Optional
 
 import marshmallow as mm
 from dimcat.data.resources import DimcatResource
 from dimcat.data.resources.base import DR
+from dimcat.data.resources.dc import levelvalue_
 from dimcat.steps.groupers import CorpusGrouper, PieceGrouper
 
 
@@ -15,8 +16,8 @@ class FilterSchema(mm.Schema):
 class _FilterMixin:
     def __init__(
         self,
-        keep_values: Optional[Hashable | Iterable[Hashable]] = None,
-        drop_values: Optional[Hashable | Iterable[Hashable]] = None,
+        keep_values: levelvalue_ | Iterable[levelvalue_] = None,
+        drop_values: levelvalue_ | Iterable[levelvalue_] = None,
         drop_level: Optional[bool] = None,
         *args,
         **kwargs
