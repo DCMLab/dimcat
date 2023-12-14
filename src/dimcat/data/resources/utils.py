@@ -5,6 +5,7 @@ import logging
 import os
 import warnings
 from collections import Counter
+from functools import cache
 from operator import itemgetter
 from pprint import pformat
 from typing import (
@@ -49,6 +50,52 @@ if TYPE_CHECKING:
 
 TRUTHY_VALUES = Boolean.truthy
 FALSY_VALUES = Boolean.falsy
+
+
+DCML_CORPUS_NAMES: Dict[str, str] = {
+    "ABC": "Beethoven String Quartets",
+    "bach_en_fr_suites": "Bach Suites",
+    "bach_solo": "Bach Solo",
+    "bartok_bagatelles": "Bartok Bagatelles",
+    "beethoven_piano_sonatas": "Beethoven Sonatas",
+    "c_schumann_lieder": "C Schumann Lieder",
+    "chopin_mazurkas": "Chopin Mazurkas",
+    "corelli": "Corelli Trio Sonatas",
+    "couperin_clavecin": "Couperin Clavecin",
+    "couperin_concerts": "Couperin Concerts Royaux",
+    "cpe_bach_keyboard": "CPE Bach Keyboard",
+    "debussy_suite_bergamasque": "Debussy Suite Bergamasque",
+    "dvorak_silhouettes": "Dvořák Silhouettes",
+    "frescobaldi_fiori_musicali": "Frescobaldi Fiori Musicali",
+    "gastoldi_baletti": "Gastoldi Baletti",
+    "grieg_lyric_pieces": "Grieg Lyric Pieces",
+    "handel_keyboard": "Handel Keyboard",
+    "jc_bach_sonatas": "JC Bach Sonatas",
+    "kleine_geistliche_konzerte": "Schütz Kleine Geistliche Konzerte",
+    "kozeluh_sonatas": "Kozeluh Sonatas",
+    "liszt_pelerinage": "Liszt Années",
+    "mahler_kindertotenlieder": "Mahler Kindertotenlieder",
+    "medtner_tales": "Medtner Tales",
+    "mendelssohn_quartets": "Mendelssohn Quartets",
+    "monteverdi_madrigals": "Monteverdi Madrigals",
+    "mozart_piano_sonatas": "Mozart Piano Sonatas",
+    "pergolesi_stabat_mater": "Pergolesi Stabat Mater",
+    "peri_euridice": "Peri Euridice",
+    "pleyel_quartets": "Pleyel Quartets",
+    "poulenc_mouvements_perpetuels": "Poulenc Mouvements Perpetuels",
+    "rachmaninoff_piano": "Rachmaninoff Piano",
+    "ravel_piano": "Ravel Piano",
+    "scarlatti_sonatas": "Scarlatti Sonatas",
+    "schubert_dances": "Schubert Dances",
+    "schubert_winterreise": "Schubert Winterreise",
+    "schulhoff_suite_dansante_en_jazz": "Schulhoff Suite Dansante En Jazz",
+    "schumann_kinderszenen": "R Schumann Kinderszenen",
+    "schumann_liederkreis": "R Schumann Liederkreis",
+    "sweelinck_keyboard": "Sweelinck Keyboard",
+    "tchaikovsky_seasons": "Tchaikovsky Seasons",
+    "wagner_overtures": "Wagner Overtures",
+    "wf_bach_sonatas": "WF Bach Sonatas",
+}
 
 
 def align_with_grouping(
@@ -318,6 +365,17 @@ def fl_fields2pandas_params(fields: List[fl.Field]) -> Tuple[dict, dict, list]:
         else:
             raise ValueError(f"Unknown frictionless field type {field.type!r}.")
     return dtype, converters, parse_dates
+
+
+@cache
+def get_corpus_display_name(repo_name: str) -> str:
+    """Looks up a repository name in the CORPUS_NAMES constant. If not present,
+    the repo name is returned as title case.
+    """
+    name = DCML_CORPUS_NAMES.get(repo_name, "")
+    if name == "":
+        name = " ".join(s.title() for s in repo_name.split("_"))
+    return name
 
 
 def get_existing_normpath(fl_resource) -> str:

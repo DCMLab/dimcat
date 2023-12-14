@@ -22,8 +22,7 @@ CADENCE_COLORS = dict(
 )
 """Fixed category colors for cadence labels."""
 
-PLOTLY_COLOR_SCALES = ColorscaleValidator().named_colorscales
-COLOR_SCALE_NAMES: List[str] = sorted(PLOTLY_COLOR_SCALES.keys())
+COLOR_SCALE_NAMES: List[str] = sorted(ColorscaleValidator().named_colorscales.keys())
 CS: TypeAlias = Literal[tuple(COLOR_SCALE_NAMES)]
 
 

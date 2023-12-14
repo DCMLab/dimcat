@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Iterable, List, Optional, Tuple
+from typing import Callable, Iterable, List, Optional, Tuple
 
 import frictionless as fl
 import marshmallow as mm
@@ -20,6 +20,7 @@ from dimcat.data.resources.results import tuple2str
 from dimcat.data.resources.utils import (
     boolean_is_minor_column_to_mode,
     condense_dataframe_by_groups,
+    get_corpus_display_name,
     join_df_on_index,
     make_adjacency_groups,
     merge_ties,
@@ -62,6 +63,20 @@ class Metadata(Feature):
             return years
         result = years.groupby(group_cols).mean()
         return result
+
+    def get_corpus_names(
+        self,
+        func: Callable[[str], str] = get_corpus_display_name,
+    ):
+        """Returns the corpus names in chronological order, based on their pieces' mean composition years.
+        If ``func`` is specify, the function will be applied to each corpus name. This is useful for prettifying
+        the names, e.g. by removing underscores.
+        """
+        mean_composition_years = self.get_composition_years(group_cols="corpus")
+        sorted_corpus_names = mean_composition_years.sort_values().index.to_list()
+        if func is None:
+            return sorted_corpus_names
+        return [func(corp) for corp in sorted_corpus_names]
 
 
 # region Annotations
@@ -876,7 +891,9 @@ class KeyAnnotations(DcmlAnnotations):
         group_keys, _ = make_adjacency_groups(
             feature_df.localkey, groupby=groupby_levels
         )
-        feature_df = condense_dataframe_by_groups(feature_df, group_keys)
+        feature_df = condense_dataframe_by_groups(
+            feature_df, group_keys, logger=self.logger
+        )
         return self._sort_columns(feature_df)
 
 
