@@ -30,7 +30,7 @@ import pandas as pd
 from dimcat.base import (
     DO,
     DimcatConfig,
-    FriendlyEnum,
+    LowercaseEnum,
     get_class,
     get_setting,
     resolve_object_specs,
@@ -85,10 +85,19 @@ resource_status_logger = logging.getLogger("dimcat.data.resources.ResourceStatus
 levelvalue_: TypeAlias = Union[str, Number, bool]
 
 
-class UnitOfAnalysis(FriendlyEnum):
+class UnitOfAnalysis(LowercaseEnum):
+    """Serves to specify a grouping of index levels that may depend on the object type and history.
+
+    SLICE: Stands for all levels down to the last slice level. If no Slicer has been applied it corresponds to PIECE.
+    PIECE: All levels down to the piece level.
+    GROUP: Current default_groupby based on previously applied Groupers.
+    CORPUS_GROUP: Like GROUP, except the first grouping level is guaranteed to be 'corpus'.
+    """
+
     SLICE = "SLICE"
     PIECE = "PIECE"
     GROUP = "GROUP"
+    CORPUS_GROUP = "CORPUS_GROUP"
 
 
 class DimcatResource(Resource, Generic[D]):
@@ -1030,6 +1039,12 @@ DimcatResource.__init__(
             return self.get_level_names()[:-1]
         if smallest_unit == UnitOfAnalysis.PIECE:
             return self.get_piece_index(max_levels=0).names
+        if smallest_unit == UnitOfAnalysis.CORPUS_GROUP:
+            group_names = self.get_grouping_levels(UnitOfAnalysis.GROUP)
+            if "corpus" in group_names and not group_names[0] == "corpus":
+                group_names.remove("corpus")
+                group_names = ["corpus"] + group_names
+            return group_names
         if smallest_unit == UnitOfAnalysis.GROUP:
             return self.default_groupby
 

@@ -466,10 +466,7 @@ class Result(DimcatResource):
         if smallest_unit == UnitOfAnalysis.SLICE:
             but_last = 2 if self.has_distinct_formatted_column else 1
             return self.get_level_names()[:-but_last]
-        if smallest_unit == UnitOfAnalysis.PIECE:
-            return self.get_piece_index(max_levels=0).names
-        if smallest_unit == UnitOfAnalysis.GROUP:
-            return self.default_groupby
+        return super().get_grouping_levels(smallest_unit)
 
     def make_bar_plot(
         self,
@@ -2287,10 +2284,7 @@ class Transitions(Result):
         smallest_unit = UnitOfAnalysis(smallest_unit)
         if smallest_unit == UnitOfAnalysis.SLICE:
             return self.get_level_names()[:-2]
-        if smallest_unit == UnitOfAnalysis.PIECE:
-            return self.get_piece_index(max_levels=0).names
-        if smallest_unit == UnitOfAnalysis.GROUP:
-            return self.default_groupby
+        return super().get_grouping_levels(smallest_unit=smallest_unit)
 
     def make_heatmap(
         self,

@@ -137,7 +137,9 @@ class MuseScoreHarmonies(MuseScoreFacet, AnnotationsFacet):
             group_keys, _ = make_adjacency_groups(
                 feature_df.localkey, groupby=groupby_levels
             )
-            feature_df = condense_dataframe_by_groups(feature_df, group_keys)
+            feature_df = condense_dataframe_by_groups(
+                feature_df, group_keys, logger=self.logger
+            )
         return feature_df
 
 
