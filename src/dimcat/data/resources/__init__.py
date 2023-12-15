@@ -13,4 +13,4 @@ from .results import (
     Transitions,
 )
 
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)

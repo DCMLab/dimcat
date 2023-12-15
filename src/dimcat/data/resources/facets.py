@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from typing import Optional  # , ClassVar, Tuple
 
@@ -11,6 +12,8 @@ from dimcat.data.resources.utils import (
     make_adjacency_groups,
 )
 from typing_extensions import Self
+
+module_logger = logging.getLogger(__name__)
 
 
 class MuseScoreFacetName(ObjectEnum):

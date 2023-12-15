@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Iterable, Type
 
 from dimcat.base import DimcatConfig
@@ -10,6 +11,8 @@ from dimcat.data.resources.dc import DimcatResource
 from dimcat.dc_exceptions import ResourceNotProcessableError
 from dimcat.steps.base import FeatureProcessingStep
 from marshmallow import fields, validate
+
+module_logger = logging.getLogger(__name__)
 
 
 class FeatureExtractor(FeatureProcessingStep):

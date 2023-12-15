@@ -16,7 +16,7 @@ from dimcat.base import (
 )
 from dimcat.dc_exceptions import BaseFilePathMismatchError
 
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)
 
 
 class AbsolutePathStr(str):
@@ -72,7 +72,7 @@ class Data(DimcatObject):
             # this would result in a normpath that does not exist
             raise BaseFilePathMismatchError(basepath_arg, filepath)
         if other_logger is None:
-            other_logger = logger
+            other_logger = module_logger
         other_logger.debug(f"The basepath been set to {basepath_arg!r}")
         return basepath_arg
 

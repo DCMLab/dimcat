@@ -59,7 +59,7 @@ from dimcat.dc_exceptions import (
 from dimcat.dc_warnings import OrderOfPipelineStepsWarning
 from marshmallow import fields, pre_load
 
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)
 
 D = TypeVar("D", bound=Data)
 

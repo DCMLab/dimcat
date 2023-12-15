@@ -48,7 +48,7 @@ from typing_extensions import Self
 from .base import D, S
 from .dc import DimcatResource, UnitOfAnalysis
 
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)
 
 str_or_sequence = TypeAlias = Union[str, Sequence[str]]
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import re
 from collections import defaultdict
@@ -67,6 +68,8 @@ from dimcat.utils import (
     treat_basepath_argument,
 )
 from typing_extensions import Self
+
+module_logger = logging.getLogger(__name__)
 
 
 class PackageMode(FriendlyEnum):

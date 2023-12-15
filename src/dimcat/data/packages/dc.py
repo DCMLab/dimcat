@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Iterable, Optional
 
 import frictionless as fl
@@ -8,6 +9,8 @@ from dimcat.base import get_setting
 from dimcat.data.packages.base import Package, PackageMode
 from dimcat.data.resources.base import D, Resource, SomeDataframe
 from dimcat.data.resources.dc import DimcatResource, PieceIndex
+
+module_logger = logging.getLogger(__name__)
 
 
 class DimcatPackage(Package):

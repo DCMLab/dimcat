@@ -11,7 +11,7 @@ from dimcat.utils import make_valid_frictionless_name
 
 from .conftest import CORPUS_PATH, get_mixed_score_paths
 
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)
 # region Resource
 
 
@@ -80,7 +80,7 @@ class TestBaseResource:
 
     def test_serialization_via_json(self, resource_obj, tmp_serialization_path):
         json_path = os.path.join(tmp_serialization_path, f"{resource_obj.name}.json")
-        logger.warning(f"json_path: {json_path}")
+        module_logger.warning(f"json_path: {json_path}")
         resource_obj.to_json_file(json_path)
         copy = deserialize_json_file(json_path)
         assert copy == resource_obj

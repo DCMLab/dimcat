@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Iterable, Iterator, List, Literal, Optional, Type, overload
 
 from dimcat import Dataset, DimcatConfig
@@ -8,6 +9,8 @@ from dimcat.data.resources.base import DR
 from dimcat.data.resources.dc import DimcatResource
 from dimcat.steps.base import PipelineStep, StepSpecs
 from marshmallow import fields
+
+module_logger = logging.getLogger(__name__)
 
 
 class Pipeline(PipelineStep):

@@ -24,7 +24,7 @@ from dimcat.steps.base import ResourceTransformation
 from dimcat.utils import check_name
 from typing_extensions import Self
 
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)
 
 
 class Grouper(ResourceTransformation):

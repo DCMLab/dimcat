@@ -18,7 +18,7 @@ from dimcat.data.utils import make_rel_path
 from dimcat.utils import scan_directory
 from git import Repo
 
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)
 
 
 def pytest_terminal_summary(terminalreporter: TerminalReporter, exitstatus, config):
@@ -32,9 +32,9 @@ def pytest_terminal_summary(terminalreporter: TerminalReporter, exitstatus, conf
 # ----------------------------- SETTINGS -----------------------------
 # Directory holding your clone of github.com/DCMLab/unittest_metacorpus
 TEST_DIR = os.path.dirname(os.path.abspath(__file__))
-logger.debug(f"TEST_DIR: {TEST_DIR!r}. Contents: {os.listdir(TEST_DIR)}")
+module_logger.debug(f"TEST_DIR: {TEST_DIR!r}. Contents: {os.listdir(TEST_DIR)}")
 CORPUS_DIR = os.path.abspath(os.path.join(TEST_DIR, ".."))
-logger.debug(f"CORPUS_DIR: {CORPUS_DIR!r}. Contents: {os.listdir(CORPUS_DIR)}")
+module_logger.debug(f"CORPUS_DIR: {CORPUS_DIR!r}. Contents: {os.listdir(CORPUS_DIR)}")
 
 # region test directories and files
 

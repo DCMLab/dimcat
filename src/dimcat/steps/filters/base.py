@@ -1,3 +1,4 @@
+import logging
 from typing import Iterable, Optional
 
 import marshmallow as mm
@@ -5,6 +6,8 @@ from dimcat.data.resources import DimcatResource
 from dimcat.data.resources.base import DR
 from dimcat.data.resources.dc import levelvalue_
 from dimcat.steps.groupers import CorpusGrouper, PieceGrouper
+
+module_logger = logging.getLogger(__name__)
 
 
 class FilterSchema(mm.Schema):

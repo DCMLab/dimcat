@@ -26,7 +26,7 @@ COLOR_SCALE_NAMES: List[str] = sorted(ColorscaleValidator().named_colorscales.ke
 CS: TypeAlias = Literal[tuple(COLOR_SCALE_NAMES)]
 
 
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)
 
 STD_LAYOUT = dict(
     paper_bgcolor="rgba(0,0,0,0)",

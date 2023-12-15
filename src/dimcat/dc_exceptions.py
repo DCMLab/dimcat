@@ -2,7 +2,7 @@ import logging
 from pprint import pformat
 from typing import Callable, ClassVar, Dict, Optional
 
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)
 
 
 class DimcatError(Exception):

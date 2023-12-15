@@ -1,4 +1,5 @@
 """Convenience module collecting DiMCAT's enum types for easy import."""
+import logging
 
 from dimcat.base import FriendlyEnum, ObjectEnum
 from dimcat.data.packages.base import PackageMode, PackageStatus
@@ -17,6 +18,8 @@ from dimcat.steps.analyzers.base import AnalyzerName
 from dimcat.steps.analyzers.counters import NgramTableFormat
 from dimcat.steps.loaders.base import FacetName
 from dimcat.utils import SortOrder
+
+module_logger = logging.getLogger(__name__)
 
 __all__ = [
     AnalyzerName,

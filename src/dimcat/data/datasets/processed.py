@@ -16,7 +16,7 @@ from .base import Dataset
 if TYPE_CHECKING:
     from dimcat.data.resources import Result
 
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)
 
 
 class _ProcessedMixin:

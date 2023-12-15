@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import logging
+
 from dimcat.data.packages import DimcatPackage
 from dimcat.data.packages.base import PathPackage
+
+module_logger = logging.getLogger(__name__)
 
 
 class ScorePathPackage(PathPackage):

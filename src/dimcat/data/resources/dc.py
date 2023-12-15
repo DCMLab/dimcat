@@ -81,6 +81,7 @@ if TYPE_CHECKING:
 
 # region DimcatResource
 
+module_logger = logging.getLogger(__name__)
 resource_status_logger = logging.getLogger("dimcat.data.resources.ResourceStatus")
 levelvalue_: TypeAlias = Union[str, Number, bool]
 

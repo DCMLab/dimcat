@@ -78,7 +78,7 @@ except ImportError:
 if TYPE_CHECKING:
     from .dc import DimcatResource, Feature, Result
 
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)
 resource_status_logger = logging.getLogger("dimcat.data.resources.ResourceStatus")
 
 D = TypeVar("D", bound=SomeDataframe)

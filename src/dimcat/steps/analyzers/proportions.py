@@ -7,7 +7,7 @@ from dimcat.data.resources.results import Durations
 from dimcat.dc_exceptions import FeatureWithUndefinedValueColumnError
 from dimcat.steps.analyzers.base import Analyzer
 
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)
 
 
 class Proportions(Analyzer):

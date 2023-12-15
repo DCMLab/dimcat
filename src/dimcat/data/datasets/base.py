@@ -51,7 +51,7 @@ if TYPE_CHECKING:
     from dimcat.steps.loaders.base import Loader
     from dimcat.steps.pipelines import Pipeline
 
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)
 
 
 # region DimcatPackage

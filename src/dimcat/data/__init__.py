@@ -2,4 +2,4 @@ import logging
 
 from .resources import features
 
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)

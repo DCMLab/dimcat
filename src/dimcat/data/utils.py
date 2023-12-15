@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import warnings
 from typing import Optional
@@ -10,6 +11,8 @@ import yaml
 from dimcat.base import get_setting
 from dimcat.dc_exceptions import BaseFilePathMismatchError
 from dimcat.dc_warnings import PotentiallyUnrelatedDescriptorUserWarning
+
+module_logger = logging.getLogger(__name__)
 
 
 def check_descriptor_filename_argument(

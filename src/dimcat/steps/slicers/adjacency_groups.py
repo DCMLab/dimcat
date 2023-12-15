@@ -1,3 +1,4 @@
+import logging
 from typing import ClassVar, Optional
 
 import marshmallow as mm
@@ -8,6 +9,8 @@ from dimcat.data.resources.base import DR
 from dimcat.data.resources.dc import SliceIntervals
 from dimcat.dc_exceptions import SlicerNotSetUpError
 from dimcat.steps.slicers.base import Slicer
+
+module_logger = logging.getLogger(__name__)
 
 
 class AdjacencyGroupSlicer(Slicer):

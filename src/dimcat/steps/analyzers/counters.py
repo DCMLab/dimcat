@@ -10,7 +10,7 @@ from dimcat.data.resources.dc import DimcatResource, FeatureSpecs, UnitOfAnalysi
 from dimcat.data.resources.results import CadenceCounts, Counts, NgramTable
 from dimcat.steps.analyzers.base import Analyzer, DispatchStrategy
 
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)
 
 
 class Counter(Analyzer):

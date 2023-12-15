@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import logging
+
 from dimcat.data.catalogs.base import DimcatCatalog
 from dimcat.data.resources.base import F
 from dimcat.data.resources.dc import FeatureSpecs
 from dimcat.data.resources.features import Metadata
 from dimcat.data.resources.utils import feature_specs2config
+
+module_logger = logging.getLogger(__name__)
 
 
 class InputsCatalog(DimcatCatalog):

@@ -30,7 +30,7 @@ from typing import (
 import marshmallow as mm
 from typing_extensions import Self
 
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)
 
 # ----------------------------- DEVELOPER SETTINGS -----------------------------
 
@@ -953,7 +953,7 @@ def make_settings_from_config_parser(config: ConfigParser) -> DimcatConfig:
                 try:
                     setting_field = setting_fields[key]
                 except KeyError:
-                    logger.warning(
+                    module_logger.warning(
                         f"Ignoring unrecognized setting '{key}'. In order to add it to the library, "
                         f"it needs to be added to the DimcatSettings dataclass and to its Schema."
                     )
@@ -974,7 +974,7 @@ def make_settings_from_config_file(
     except FileNotFoundError:
         if not fallback_to_default:
             raise
-        logger.error(
+        module_logger.error(
             f"Config file '{config_filepath}' not found. Falling back to default settings."
         )
         return make_default_settings()
@@ -983,7 +983,7 @@ def make_settings_from_config_file(
     except Exception as e:
         if not fallback_to_default:
             raise
-        logger.error(
+        module_logger.error(
             f"Error while parsing config file '{config_filepath}': {e}. Falling back to default settings."
         )
         return make_default_settings()
@@ -1002,10 +1002,10 @@ def load_settings(
             settings = make_settings_from_config_file(
                 config_filepath, fallback_to_default=fallback_to_default
             )
-            logger.info(f"Loaded default config file at '{config_filepath}'.")
+            module_logger.info(f"Loaded default config file at '{config_filepath}'.")
             return settings
         elif fallback_to_default:
-            logger.warning(
+            module_logger.warning(
                 f"No config file path was provided and the default config file was not found: "
                 f"{config_filepath}. Falling back to default."
             )
@@ -1018,7 +1018,7 @@ def load_settings(
     settings = make_settings_from_config_file(
         config_filepath, fallback_to_default=fallback_to_default
     )
-    logger.info(f"Loaded config file at '{config_filepath}'.")
+    module_logger.info(f"Loaded config file at '{config_filepath}'.")
     return settings
 
 
@@ -1031,7 +1031,7 @@ def get_setting(key: str) -> Any:
 
 def change_setting(key: str, value: Any) -> None:
     SETTINGS[key] = value
-    logger.info(f"Changed setting {key!r} to {value!r}.")
+    module_logger.info(f"Changed setting {key!r} to {value!r}.")
 
 
 def reset_settings(config_filepath: Optional[str] = None) -> None:

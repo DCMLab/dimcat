@@ -9,7 +9,7 @@ import logging
 #
 # from ms3.cli import check_and_create, check_dir
 #
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)
 #
 # __author__ = "Digital and Cognitive Musicology Lab"
 # __copyright__ = "École Polytechnique Fédérale de Lausanne"

@@ -1,8 +1,11 @@
 import inspect
+import logging
 import pkgutil
 
 import dimcat
 import pytest
+
+module_logger = logging.getLogger(__name__)
 
 
 def iter_dimcat_modules():
@@ -19,9 +22,9 @@ def dimcat_module(request):
 
 def test_module_loggers(dimcat_module):
     modname, mod = dimcat_module
-    assert hasattr(mod, "logger")
-    assert hasattr(mod.logger, "name")
-    assert mod.logger.name == modname
+    assert hasattr(mod, "module_logger")
+    assert hasattr(mod.module_logger, "name")
+    assert mod.module_logger.name == modname
 
 
 def test_class_loggers(dimcat_module):
