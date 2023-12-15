@@ -6,6 +6,7 @@ from typing import Callable, Iterable, List, Optional, Tuple
 import frictionless as fl
 import marshmallow as mm
 import ms3
+import numpy as np
 import pandas as pd
 from dimcat.base import FriendlyEnum, FriendlyEnumField
 from dimcat.data.resources.base import D, FeatureName
@@ -894,6 +895,64 @@ class KeyAnnotations(DcmlAnnotations):
         feature_df = condense_dataframe_by_groups(
             feature_df, group_keys, logger=self.logger
         )
+        return self._sort_columns(feature_df)
+
+
+def make_phrase_selection_masks(
+    phraseends,
+    start_symbol="{",
+    end_symbol=r"\\",
+    n_before: int = 1,
+    n_after: int = 1,
+):
+    present_symbols = phraseends.unique()
+    has_start = start_symbol in present_symbols
+    has_end = end_symbol in present_symbols
+    if has_start and has_end:
+        raise NotImplementedError(
+            f"Currently I can create phrases either based on end symbols or on start symbols, but this df has both, "
+            f"{start_symbol} and {end_symbol}"
+        )
+    if has_end:
+        mask = phraseends.str.contains(end_symbol).fillna(False).reset_index(drop=True)
+        groups = mask[::-1].cumsum()[::-1]
+    else:
+        mask = (
+            phraseends.str.contains(start_symbol).fillna(False).reset_index(drop=True)
+        )
+        groups = mask.cumsum()
+    N = len(groups)
+    masks = []
+    for _, ix in groups.groupby(groups, sort=False).indices.items():
+        from_i, to_i = ix.min(), ix.max() + 1
+        if n_before:
+            new_from = from_i - n_before
+            if new_from >= 0:
+                from_i = new_from
+            else:
+                from_i = 0
+        if n_after:
+            to_i += n_after  # may surpass N
+        phrase_mask = np.array([False] * N, dtype=bool)
+        phrase_mask[from_i:to_i] = True
+        masks.append(phrase_mask)
+    return masks
+
+
+class PhraseAnnotations(DcmlAnnotations):
+    _auxiliary_column_names = []
+    _convenience_column_names = []
+    _feature_column_names = []
+    _extractable_features = None
+    _default_value_column = "duration_qb"
+
+    def _format_dataframe(self, feature_df: D) -> D:
+        """Called by :meth:`_prepare_feature_df` to transform the resource dataframe into a feature dataframe.
+        Assumes that the dataframe can be mutated safely, i.e. that it is a copy.
+        """
+        feature_df = extend_keys_feature(feature_df)
+        # groupby_levels = feature_df.index.names[:-1]
+        # masks = make_phrase_selection_masks()
         return self._sort_columns(feature_df)
 
 

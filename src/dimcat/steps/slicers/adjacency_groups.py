@@ -122,3 +122,19 @@ class KeySlicer(AdjacencyGroupSlicer):
         super().__init__(
             level_name=level_name, slice_intervals=slice_intervals, **kwargs
         )
+
+
+class PhraseSlicer(AdjacencyGroupSlicer):
+    """Slices resources by phrase."""
+
+    _required_feature = "PhraseAnnotations"
+
+    def __init__(
+        self,
+        level_name: str = "phrase_slice",
+        slice_intervals: Optional[SliceIntervals] = None,
+        **kwargs,
+    ):
+        super().__init__(
+            level_name=level_name, slice_intervals=slice_intervals, **kwargs
+        )
