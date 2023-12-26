@@ -18,6 +18,7 @@ from typing import (
     Sequence,
     Set,
     Tuple,
+    Type,
     TypeAlias,
     Union,
     overload,
@@ -30,10 +31,12 @@ import pandas as pd
 from dimcat.base import (
     DO,
     DimcatConfig,
+    FriendlyEnum,
+    FriendlyEnumField,
     LowercaseEnum,
     get_class,
     get_setting,
-    resolve_object_specs,
+    make_object_from_specs,
 )
 from dimcat.data.base import Data
 from dimcat.data.resources.base import (
@@ -181,6 +184,7 @@ class DimcatResource(Resource, Generic[D]):
         basepath: Optional[str] = None,
         auto_validate: bool = False,
         default_groupby: Optional[str | list[str]] = None,
+        format=None,
         **kwargs,
     ) -> Self:
         """Create a DimcatResource by loading its frictionless descriptor from disk.
@@ -191,15 +195,16 @@ class DimcatResource(Resource, Generic[D]):
             descriptor: Descriptor corresponding to a frictionless resource descriptor.
             descriptor_filename:
                 Relative filepath for using a different JSON/YAML descriptor filename than the default
-                :func:`get_descriptor_filename`. Needs to on one of the file extensions defined in the
+                :func:`get_descriptor_filename`. Needs to end on one of the file extensions defined in the
                 setting ``package_descriptor_endings`` (by default 'resource.json' or 'resource.yaml').
-            basepath: Where the file would be serialized.
+            basepath: Where to store serialization data and its descriptor by default.
             auto_validate:
                 By default, the DimcatResource will not be validated upon instantiation or change (but always before
                 writing to disk). Set True to raise an exception during creation or modification of the resource,
                 e.g. replacing the :attr:`column_schema`.
             default_groupby:
                 Pass a list of column names or index levels to groupby something else than the default (by piece).
+            format: Defines the :attr:`format`.
         """
         return super().from_descriptor(
             descriptor=descriptor,
@@ -207,6 +212,7 @@ class DimcatResource(Resource, Generic[D]):
             basepath=basepath,
             auto_validate=auto_validate,
             default_groupby=default_groupby,
+            format=format,
             **kwargs,
         )
 
@@ -216,6 +222,7 @@ class DimcatResource(Resource, Generic[D]):
         descriptor_path: str,
         auto_validate: bool = False,
         default_groupby: Optional[str | list[str]] = None,
+        format=None,
         **kwargs,
     ) -> Self:
         """Create a Resource from a frictionless descriptor file on disk.
@@ -228,12 +235,14 @@ class DimcatResource(Resource, Generic[D]):
                 e.g. replacing the :attr:`column_schema`.
             default_groupby:
                 Pass a list of column names or index levels to groupby something else than the default (by piece).
+            format: Defines the :attr:`format`.
 
         """
         return super().from_descriptor_path(
             descriptor_path=descriptor_path,
             auto_validate=auto_validate,
             default_groupby=default_groupby,
+            format=format,
             **kwargs,
         )
 
@@ -246,6 +255,7 @@ class DimcatResource(Resource, Generic[D]):
         basepath: Optional[str] = None,
         auto_validate: bool = False,
         default_groupby: Optional[str | list[str]] = None,
+        format=None,
         **kwargs,
     ) -> Self:
         """Create a DimcatResource from a dataframe, specifying its name and, optionally, at what path it is to be
@@ -256,19 +266,23 @@ class DimcatResource(Resource, Generic[D]):
             resource_name:
                 Name of the resource used for retrieving it from a DimcatPackage and as filename when the resource
                 is stored to a ZIP file.
-            basepath: Where the file would be serialized. If ``resource`` is a filepath, its directory is used.
+            basepath:
+                Where to store serialization data and its descriptor by default. If ``resource`` is a filepath, its
+                 directory is used.
             auto_validate:
                 By default, the DimcatResource will not be validated upon instantiation or change (but always before
                 writing to disk). Set True to raise an exception during creation or modification of the resource,
                 e.g. replacing the :attr:`column_schema`.
             default_groupby:
                 Pass a list of column names or index levels to groupby something else than the default (by piece).
+            format: Defines the :attr:`format`.
         """
         new_object = cls(
             basepath=basepath,
             descriptor_filename=descriptor_filename,
             auto_validate=auto_validate,
             default_groupby=default_groupby,
+            format=format,
             **kwargs,
         )
         if resource_name is not None:
@@ -282,9 +296,10 @@ class DimcatResource(Resource, Generic[D]):
         filepath: str,
         resource_name: Optional[str] = None,
         descriptor_filename: Optional[str] = None,
+        basepath: Optional[str] = None,
         auto_validate: bool = False,
         default_groupby: Optional[str | list[str]] = None,
-        basepath: Optional[str] = None,
+        format=None,
         **kwargs: Optional[bool],
     ) -> Self:
         """Create a Resource from a file on disk, be it a JSON/YAML resource descriptor, or a simple path resource.
@@ -296,24 +311,26 @@ class DimcatResource(Resource, Generic[D]):
                 is stored to a ZIP file.
             descriptor_filename:
                 Relative filepath for using a different JSON/YAML descriptor filename than the default
-                :func:`get_descriptor_filename`. Needs to on one of the file extensions defined in the
+                :func:`get_descriptor_filename`. Needs to end on one of the file extensions defined in the
                 setting ``package_descriptor_endings`` (by default 'resource.json' or 'resource.yaml').
+            basepath:
+                Basepath to use for the resource. If None, the folder of the ``filepath`` is used.
             auto_validate:
                 By default, the Resource will not be validated upon instantiation or change (but always before
                 writing to disk). Set True to raise an exception during creation or modification of the resource,
                 e.g. replacing the :attr:`column_schema`.
             default_groupby:
                 Pass a list of column names or index levels to groupby something else than the default (by piece).
-            basepath:
-                Basepath to use for the resource. If None, the folder of the ``filepath`` is used.
+            format: Defines the :attr:`format`.
         """
         return super().from_filepath(
             filepath=filepath,
             resource_name=resource_name,
             descriptor_filename=descriptor_filename,
+            basepath=basepath,
             auto_validate=auto_validate,
             default_groupby=default_groupby,
-            basepath=basepath,
+            format=format,
             **kwargs,
         )
 
@@ -326,6 +343,7 @@ class DimcatResource(Resource, Generic[D]):
         descriptor_filename: Optional[str] = None,
         auto_validate: bool = False,
         default_groupby: Optional[str | list[str]] = None,
+        format=None,
     ) -> Self:
         if isinstance(index, DimcatIndex):
             index = index.index
@@ -337,6 +355,7 @@ class DimcatResource(Resource, Generic[D]):
             auto_validate=auto_validate,
             default_groupby=default_groupby,
             basepath=basepath,
+            format=format,
         )
 
     @classmethod
@@ -348,6 +367,7 @@ class DimcatResource(Resource, Generic[D]):
         basepath: Optional[str] = None,
         auto_validate: Optional[bool] = None,
         default_groupby: Optional[str | list[str]] = None,
+        format=None,
         **kwargs,
     ) -> Self:
         """Create a DimcatResource from an existing :obj:`Resource`, specifying its name and,
@@ -358,13 +378,16 @@ class DimcatResource(Resource, Generic[D]):
             resource_name:
                 Name of the resource used for retrieving it from a DimcatPackage and as filename when the resource
                 is stored to a ZIP file.
-            basepath: Where the file would be serialized. If ``resource`` is a filepath, its directory is used.
+            basepath:
+                Where to store serialization data and its descriptor by default. If ``resource`` is a filepath, its
+                directory is used.
             auto_validate:
                 By default, the DimcatResource will not be validated upon instantiation or change (but always before
                 writing to disk). Set True to raise an exception during creation or modification of the resource,
                 e.g. replacing the :attr:`column_schema`.
             default_groupby:
                 Pass a list of column names or index levels to groupby something else than the default (by piece).
+            format: Defines the :attr:`format`.
         """
         if not isinstance(resource, Resource):
             raise TypeError(f"Expected a Resource, got {type(resource)!r}.")
@@ -375,6 +398,7 @@ class DimcatResource(Resource, Generic[D]):
             basepath=basepath,
             auto_validate=auto_validate,
             default_groupby=default_groupby,
+            format=format,
             **kwargs,
         )
         # copy additional fields
@@ -396,6 +420,7 @@ class DimcatResource(Resource, Generic[D]):
         basepath: Optional[str] = None,
         auto_validate: Optional[bool] = None,
         default_groupby: Optional[str | list[str]] = None,
+        format=None,
         **kwargs,
     ) -> Self:
         """Create a DimcatResource from an existing :obj:`Resource`, specifying its name and,
@@ -406,13 +431,16 @@ class DimcatResource(Resource, Generic[D]):
             resource_name:
                 Name of the resource used for retrieving it from a DimcatPackage and as filename when the resource
                 is stored to a ZIP file.
-            basepath: Where the file would be serialized. If ``resource`` is a filepath, its directory is used.
+            basepath:
+                Where to store serialization data and its descriptor by default. If ``resource`` is a filepath, its
+                directory is used.
             auto_validate:
                 By default, the DimcatResource will not be validated upon instantiation or change (but always before
                 writing to disk). Set True to raise an exception during creation or modification of the resource,
                 e.g. replacing the :attr:`column_schema`.
             default_groupby:
                 Pass a list of column names or index levels to groupby something else than the default (by piece).
+            format: Defines the :attr:`format`.
         """
         if not isinstance(resource, Resource):
             raise TypeError(f"Expected a Resource, got {type(resource)!r}.")
@@ -423,6 +451,7 @@ class DimcatResource(Resource, Generic[D]):
             basepath=basepath,
             auto_validate=auto_validate,
             default_groupby=default_groupby,
+            format=format,
             **kwargs,
         )
         if not descriptor_filename and new_object.descriptor_exists:
@@ -464,6 +493,7 @@ class DimcatResource(Resource, Generic[D]):
         )
 
     @classmethod
+    @cache
     def get_default_column_names(
         cls, include_context_columns: bool = True
     ) -> List[str]:
@@ -477,6 +507,22 @@ class DimcatResource(Resource, Generic[D]):
             column_names.extend(cls._convenience_column_names)
         if cls._feature_column_names:
             column_names.extend(cls._feature_column_names)
+        if len(set(column_names)) < len(column_names):
+            if (
+                cls._auxiliary_column_names
+                and cls._convenience_column_names
+                and (
+                    duplicates := set(cls._auxiliary_column_names).intersection(
+                        cls._convenience_column_names
+                    )
+                )
+            ):
+                cls.logger.debug(
+                    f"{cls.name}._auxiliary_column_names and {cls.name}._convenience_column_names overlap: "
+                    f"{duplicates!r}"
+                )
+            # remove duplicates, keeping last occurrence because it typically is a feature column
+            column_names = list(reversed(dict.fromkeys(reversed(column_names))))
         return column_names
 
     class Schema(Resource.Schema):
@@ -493,8 +539,7 @@ class DimcatResource(Resource, Generic[D]):
             allow_none=True,
             metadata=dict(
                 expose=False,
-                description="Pass a list of column names or index levels to groupby something else than the default "
-                "(by piece).",
+                description="Name of the fields for grouping this resource (usually after a Grouper has been applied).",
             ),
         )
 
@@ -523,6 +568,7 @@ class DimcatResource(Resource, Generic[D]):
         basepath: Optional[str] = None,
         auto_validate: bool = False,
         default_groupby: Optional[str | list[str]] = None,
+        format=None,
     ) -> None:
         """
 
@@ -530,15 +576,16 @@ class DimcatResource(Resource, Generic[D]):
             resource: An existing :obj:`frictionless.Resource`.
             descriptor_filename:
                 Relative filepath for using a different JSON/YAML descriptor filename than the default
-                :func:`get_descriptor_filename`. Needs to on one of the file extensions defined in the
+                :func:`get_descriptor_filename`. Needs to end on one of the file extensions defined in the
                 setting ``package_descriptor_endings`` (by default 'resource.json' or 'resource.yaml').
-            basepath: Where the file would be serialized.
+            basepath: Where to store serialization data and its descriptor by default.
             auto_validate:
                 By default, the DimcatResource will not be validated upon instantiation or change (but always before
                 writing to disk). Set True to raise an exception during creation or modification of the resource,
                 e.g. replacing the :attr:`column_schema`.
             default_groupby:
                 Pass a list of column names or index levels to groupby something else than the default (by piece).
+            format: Defines the :attr:`format`.
         """
         self.logger.debug(
             f"""
@@ -553,6 +600,7 @@ DimcatResource.__init__(
         self._df: D = None
         self.auto_validate = True if auto_validate else False  # catches None
         self._default_groupby: List[str] = []
+        self._format = None
         self._value_column: Optional[str] = None
         self._formatted_column: Optional[str] = None
         super().__init__(
@@ -562,6 +610,9 @@ DimcatResource.__init__(
         )
         if default_groupby is not None:
             self.default_groupby = default_groupby
+
+        if format is not None:
+            self.format = format
 
         if self.auto_validate and self.status == ResourceStatus.DATAFRAME:
             _ = self.validate(raise_exception=True)
@@ -653,7 +704,8 @@ DimcatResource.__init__(
         self._default_groupby = default_groupby
 
     @property
-    def df(self) -> D:
+    def dataframe(self) -> D:
+        """Returns the dataframe underlying this resource, without applying any formatting."""
         if self._df is not None:
             resource_df = self._df
         elif self.is_serialized:
@@ -663,9 +715,21 @@ DimcatResource.__init__(
             RuntimeError(f"No dataframe accessible for this {self.name}:\n{self}")
         return resource_df
 
+    @dataframe.setter
+    def dataframe(self, df: D) -> None:
+        self.set_dataframe(df)
+
+    @property
+    def df(self) -> D:
+        """Returns the dataframe underlying this resource, applying the current format, if set."""
+        resource_df = self.dataframe
+        if self.format:
+            return self._format_dataframe(resource_df)
+        return resource_df
+
     @df.setter
     def df(self, df: D) -> None:
-        self.set_dataframe(df)
+        self.dataframe = df
 
     @property
     def extractable_features(self) -> Tuple[FeatureName, ...]:
@@ -677,6 +741,19 @@ DimcatResource.__init__(
     def field_names(self) -> List[str]:
         """The names of the fields in the resource's schema."""
         return self.column_schema.field_names
+
+    @property
+    def format(self) -> None:
+        return self._format
+
+    @format.setter
+    def format(self, value):
+        if value is not None:
+            warnings.warn(
+                f"{self.name} doesn't have its own setter, so the format value is not checked for validity.",
+                UserWarning,
+            )
+        self._format = value
 
     @property
     def formatted_column(self) -> Optional[str]:
@@ -737,6 +814,29 @@ DimcatResource.__init__(
             return self._feature_column_names[-1]
         return
 
+    def _adapt_newly_set_df(self, df: D) -> D:
+        """Format the dataframe before it is set for this resource. The method is called by :meth:`_set_dataframe`
+        and typically adds convenience columns. Assumes that the dataframe can be mutated safely, i.e. that it is a
+        copy.
+
+        Most features have a line such as
+
+        .. code-block:: python
+
+            df = df._drop_rows_with_missing_values(df, column_names=self._feature_column_names)
+
+        to keep only fully defined objects. The index is not reset to retain
+        traceability to the original facet. In some cases, the durations need to adjusted when dropping rows. For
+        example, 'adjacency groups', i.e., subsequent identical values, can be merged using the pattern
+
+        .. code-block:: python
+
+            group_keys, _ = make_adjacency_groups(<feature column(s)>, groupby=<groupby_levels>)
+            feature_df = condense_dataframe_by_groups(df, group_keys)
+
+        """
+        return df
+
     def align_with_grouping(
         self,
         grouping: DimcatIndex | pd.MultiIndex,
@@ -781,7 +881,7 @@ DimcatResource.__init__(
             single_step = step[0]
             if isinstance(single_step, (list, tuple)):
                 return self.apply_step(*single_step)
-            step_obj = resolve_object_specs(single_step, "PipelineStep")
+            step_obj = make_object_from_specs(single_step, "PipelineStep")
             return step_obj.process_resource(self)
         Constructor = get_class("Pipeline")
         pipeline = Constructor(steps=step)
@@ -856,18 +956,18 @@ DimcatResource.__init__(
         Constructor = get_class(feature_name)
         if new_name is None:
             new_name = f"{self.resource_name}.{feature_name.lower()}"
+            if fmt := feature_config.get("format"):
+                new_name += f"-{fmt.lower()}"
         feature_df = self._prepare_feature_df(feature_config)
         len_before = len(feature_df)
-        feature_df = self._transform_feature_df(feature_df, feature_config)
+        feature_df = self._transform_df_for_extraction(feature_df, feature_config)
         init_args = dict(
             resource_name=new_name,
-            descriptor_filename=None,
-            basepath=None,
-            auto_validate=self.auto_validate,
-            default_groupby=self.default_groupby,
         )
         init_args.update(feature_config.init_args)
-        feature = Constructor.from_dataframe(df=feature_df, **init_args)
+        feature = Constructor.from_resource_and_dataframe(
+            resource=self, df=feature_df, **init_args
+        )
         len_after = len(feature.df)
         self.logger.debug(
             f"Create {Constructor.name} with {len_after} rows from {self.name} {self.resource_name!r} of length "
@@ -924,28 +1024,22 @@ DimcatResource.__init__(
             new_resource._default_groupby.remove(level)
         return new_resource
 
-    def _format_dataframe(self, df: D) -> D:
-        """Format the dataframe before it is set for this resource. The method is called by :meth:`_set_dataframe`
-        and typically adds convenience columns. Assumes that the dataframe can be mutated safely, i.e. that it is a
-        copy.
-
-        Most features have a line such as
-
-        .. code-block:: python
-
-            df = df._drop_rows_with_missing_values(df, column_names=self._feature_column_names)
-
-        to keep only fully defined objects. The index is not reset to retain
-        traceability to the original facet. In some cases, the durations need to adjusted when dropping rows. For
-        example, 'adjacency groups', i.e., subsequent identical values, can be merged using the pattern
-
-        .. code-block:: python
-
-            group_keys, _ = make_adjacency_groups(<feature column(s)>, groupby=<groupby_levels>)
-            feature_df = condense_dataframe_by_groups(df, group_keys)
-
-        """
+    def _format_dataframe(
+        self,
+        df: D,
+        format=None,
+    ):
         return df
+
+    def format_dataframe(self, format=None):
+        """Format the resource dataframe or the one specified by the current format or the one specified. This method
+        is called by the :attr:`df` property, but not by the :attr:`dataframe` property.
+        """
+        df = self.dataframe
+        if format is None:
+            format = self.format
+        self.logger.debug(f"Formatting dataframe using {format}.")
+        return self._format_dataframe(df, format)
 
     def _get_current_status(self) -> ResourceStatus:
         if self.is_packaged:
@@ -1122,27 +1216,13 @@ DimcatResource.__init__(
 
         """
         df = self.df
-        if "quarterbeats_all_endings" in df.columns:
-            start_col = "quarterbeats_all_endings"
-            if "quarterbeats" in df.columns:
-                has_nan = df[start_col].isna().any()
-                has_empty_strings = df[start_col].eq("").any()
-                if has_nan or has_empty_strings:
-                    df = df.copy()
-                    if has_nan:
-                        df[start_col].fillna(df["quarterbeats"], inplace=True)
-                    if has_empty_strings:
-                        df[start_col].where(
-                            df[start_col].ne(""), df["quarterbeats"], inplace=True
-                        )
-        else:
-            start_col = "quarterbeats"
+        qstamp_col = "quarterbeats"
         self.logger.debug(
-            f"Using column {start_col!r} as for the left side of the computed time spans."
+            f"Using column {qstamp_col!r} as for the left side of the computed time spans."
         )
         return get_time_spans_from_resource_df(
             df=df,
-            start_column_name=start_col,
+            qstamp_column_name=qstamp_col,
             duration_column_name="duration_qb",
             round=round,
             to_float=to_float,
@@ -1292,8 +1372,8 @@ DimcatResource.__init__(
             _ = self.validate(raise_exception=True)
 
     def _set_dataframe(self, df: D):
-        """Sets the dataframe without prior checks and assuming that it can be mutated safely, i.e. it is a copy."""
-        df = self._format_dataframe(df)
+        """Sets the dataframe as is, without prior checks, adaptations, or copying."""
+        # see docstring of :meth:`_transform_freature_df`
         self._df = df
         if not self.column_schema.fields:
             try:
@@ -1311,6 +1391,11 @@ DimcatResource.__init__(
         self._update_status()
 
     def set_dataframe(self, df):
+        """Tries setting the dataframe of this feature. This method should be called exactly once after instantiating
+        the feature. The method checks for potential problems first, then calls :meth:`_adapt_newly_set_df`,
+        assuming that the dataframe can be mutated safely, i.e. it is a copy. If auto_validate is True, the newly
+        set dataframe will be validated.
+        """
         if self.descriptor_exists:
             # ToDo: Enable creating new, date-based descriptor name for new Resources
             raise PotentiallyUnrelatedDescriptorError(
@@ -1337,6 +1422,7 @@ DimcatResource.__init__(
             df = df.copy()
         else:
             raise TypeError(f"Expected pandas.DataFrame, got {type(df)!r}.")
+        df = self._adapt_newly_set_df(df)
         self._set_dataframe(df)
         if self.auto_validate:
             _ = self.validate(raise_exception=True)
@@ -1404,9 +1490,18 @@ DimcatResource.__init__(
                 f"{self.status!r}"
             )
 
-    def _transform_feature_df(self, feature_df: D, feature_config: DimcatConfig) -> D:
-        """Transform the dataframe after it has been prepared for feature extraction. This frequently involves
-        dropping rows."""
+    def _transform_df_for_extraction(
+        self, feature_df: D, feature_config: DimcatConfig
+    ) -> D:
+        """This method is called by :meth:`._extract_feature` after :meth:`_prepare_feature` in order to apply the
+        necessary transformations so that the dataframe can be passed to the Feature constructor. The most heavy use
+        for this method is for Facets, whose main purpose is to transform their (custom) data into the formats that the
+        respective Features expect. At least, this is how the mechanism is supposed to be; de facto, many features
+        currently expect the dataframe format as it comes from a MuseScoreFacet and all the transformation happens in
+        :meth:`_transform_df`. In principle, use of the latter should be reduced to the bare minimum which will make
+        for a cleaner architecture and get rid of some problems. E.g., right now, _adapt_newly_set_df() is called on
+        any new dataframe regardless of whether it has already been transformed before or not.
+        """
         return feature_df
 
     def _sort_columns(self, df: D) -> D:
@@ -1889,40 +1984,112 @@ HARMONY_FEATURE_NAMES = (
 )
 
 
+class Playthrough(FriendlyEnum):
+    """Different types of behaviour regarding repeat structures encoded in score-releated data.
+
+    SINGLE:
+        (default) Represent data for a "single playthrough". If first and second endings are present the first (third,
+        etc.) are being dropped to exclude incorrect transitions and adjacencies between the first- and second-ending
+        bars.
+    RAW: Leave data as-is.
+
+    """
+
+    SINGLE = "SINGLE"
+    RAW = "RAW"
+
+
 class Feature(DimcatResource):
+    """A feature is a :class:`DimcatResource` that represents a single feature of a piece of music, generally some
+    subset and/or transformation of a :class:`Facet`. A feature resource usually represents one object per row and
+    has a defined temporality ('quarterbeats', at the very least) relative to the scores in question.
+    """
+
     _enum_type = FeatureName
+
+    class Schema(DimcatResource.Schema):
+        playthrough = FriendlyEnumField(
+            Playthrough,
+            load_default=Playthrough.SINGLE,
+            metadata=dict(
+                expose=True,
+                description="Defaults to ``Playthrough.SINGLE``, meaning that first-ending (prima volta) bars are "
+                "dropped in order to exclude incorrect transitions and adjacencies between the first- and "
+                "second-ending bars.",
+            ),
+        )
 
     def __init__(
         self,
-        format=None,
         resource: Optional[fl.Resource | str] = None,
         descriptor_filename: Optional[str] = None,
         basepath: Optional[str] = None,
         auto_validate: bool = True,
         default_groupby: Optional[str | list[str]] = None,
+        format=None,
+        playthrough: Playthrough = Playthrough.SINGLE,
     ) -> None:
+        """
+
+        Args:
+            resource: Resource to create this feature from.
+            descriptor_filename: Name of the resource descriptor (JSON) file.
+            basepath: Where to store serialization data and its descriptor by default.
+            auto_validate:
+                By default, the DimcatResource will not be validated upon instantiation or change (but always before
+                writing to disk). Set True to raise an exception during creation or modification of the resource,
+                e.g. replacing the :attr:`column_schema`.
+            default_groupby: Name of the fields for grouping this resource (usually after a Grouper has been applied).
+            format: Defines the :attr:`format`.
+            playthrough:
+                Defaults to ``Playthrough.SINGLE``, meaning that first-ending (prima volta) bars are dropped in order
+                to exclude incorrect transitions and adjacencies between the first- and second-ending bars.
+        """
         super().__init__(
             resource=resource,
             descriptor_filename=descriptor_filename,
             basepath=basepath,
             auto_validate=auto_validate,
             default_groupby=default_groupby,
+            format=format,
         )
-        self._format = None
-        if format is not None:
-            self.format = format
+        self._playthrough = None
+        try:
+            playthrough = Playthrough(playthrough)
+        except ValueError:
+            raise ValueError(f"Expected Playthrough, got {playthrough!r}.")
+        self._playthrough = playthrough
 
     @property
-    def format(self) -> None:
-        return self._format
+    def playthrough(self) -> Playthrough:
+        return self._playthrough
 
-    @format.setter
-    def format(self, value):
-        if value is not None:
-            warnings.warn(
-                f"Setting format for {self.name} is inconsequential because no setter has been defined.",
-                RuntimeWarning,
+    def _apply_playthrough(self, feature_df: D) -> D:
+        """Transform a dataframe based on the resource's :attr:`playthrough` setting."""
+        if self.playthrough == Playthrough.RAW or "volta" not in feature_df.columns:
+            return feature_df
+        if not self.playthrough == Playthrough.SINGLE:
+            raise NotImplementedError(
+                f"Unknown Playthrough setting {self.playthrough!r}."
             )
+        volta_values = feature_df.volta.unique()
+        if 3 in volta_values:
+            self.logger.info(
+                f"The {self.name} {self.resource_name!r} has more than two alternative endings. The "
+                f"Playthrough.SINGLE setting drops all but the seconda volta."
+            )
+        keep_mask = feature_df.volta.isna() | feature_df.volta.eq(2)
+        if keep_mask.all():
+            self.logger.info("No alternative endings which would need to be dropped.")
+            return feature_df
+        drop_values = feature_df.loc[~keep_mask, "volta"].value_counts().to_dict()
+        self.logger.debug(
+            f"Values and occurrences of the dropped alternative endings:\n{drop_values}"
+        )
+        result = feature_df[keep_mask]
+        if "quarterbeats_all_endings" in result.columns:
+            return result.drop(columns="quarterbeats_all_endings")
+        return result.copy()
 
     def get_available_column_names(
         self,
@@ -1947,7 +2114,15 @@ class Feature(DimcatResource):
             available_columns = self.get_level_names() + available_columns
         return available_columns
 
+    def _adapt_newly_set_df(self, feature_df: D) -> D:
+        """Called by :meth:`_set_dataframe` to transform the dataframe before incorporating it.
+        Assumes that the dataframe can be mutated safely, i.e. that it is a copy.
+        """
+        return self._apply_playthrough(feature_df)
 
-FeatureSpecs: TypeAlias = Union[MutableMapping, Feature, FeatureName, str]
+
+FeatureSpecs: TypeAlias = Union[
+    Feature, Type[Feature], DimcatConfig, MutableMapping, FeatureName, str
+]
 
 # endregion Feature

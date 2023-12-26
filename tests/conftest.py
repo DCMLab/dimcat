@@ -1,5 +1,6 @@
 """
-Configuring the test suite.
+Configuring the test suite. In order to display log messages, say, at level 10 (DEBUG), add --log-cli-level=DEBUG to the
+pytest call.
 """
 import logging
 import os

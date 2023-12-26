@@ -603,6 +603,11 @@ class DimcatConfig(MutableMapping, DimcatObject):
         Also note that the returned value is different from DimcatConfig["options"]"""
         return dict(self._options)
 
+    def complete(self) -> Self:
+        """Returns a new Config with missing options filled in with the default values."""
+        obj = self.create()
+        return obj.to_config()
+
     def create(self) -> DimcatObject:
         return self.options_schema.load(self._options)
 
