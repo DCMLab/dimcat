@@ -271,7 +271,7 @@ class Resource(Data):
             descriptor: Descriptor corresponding to a frictionless resource descriptor.
             descriptor_filename:
                 Relative filepath for using a different JSON/YAML descriptor filename than the default
-                :func:`get_descriptor_filename`. Needs to on one of the file extensions defined in the
+                :func:`get_descriptor_filename`. Needs to end on one of the file extensions defined in the
                 setting ``package_descriptor_endings`` (by default 'resource.json' or 'resource.yaml').
             basepath:
                 Where the file would be serialized and, important for an existing resource, the path against which the
@@ -388,7 +388,7 @@ class Resource(Data):
                 is stored to a ZIP file.
             descriptor_filename:
                 Relative filepath for using a different JSON/YAML descriptor filename than the default
-                :func:`get_descriptor_filename`. Needs to on one of the file extensions defined in the
+                :func:`get_descriptor_filename`. Needs to end on one of the file extensions defined in the
                 setting ``package_descriptor_endings`` (by default 'resource.json' or 'resource.yaml').
             auto_validate:
                 By default, the Resource will not be validated upon instantiation or change (but always before
@@ -556,9 +556,9 @@ class Resource(Data):
             resource: An existing :obj:`frictionless.Resource`.
             descriptor_filename:
                 Relative filepath for using a different JSON/YAML descriptor filename than the default
-                :func:`get_descriptor_filename`. Needs to on one of the file extensions defined in the
+                :func:`get_descriptor_filename`. Needs to end on one of the file extensions defined in the
                 setting ``package_descriptor_endings`` (by default 'resource.json' or 'resource.yaml').
-            basepath: Where the file would be serialized.
+            basepath: Where to store serialization data and its descriptor by default.
         """
         self.logger.debug(
             f"""
@@ -578,7 +578,7 @@ Resource.__init__(
             basepath = resource.basepath
         super().__init__(basepath=basepath)
         if is_fl_resource:
-            if resource.path is None:
+            if not hasattr(resource, "path") or resource.path is None:
                 resource.path = ""
             self._resource = resource
         elif resource is None:
@@ -906,7 +906,7 @@ Resource(
         self._update_status()
 
     def _detach_from_filepath(self):
-        self._resource.path = None
+        self._resource.path = ""
         self.logger.debug(
             f"Detached {self.resource_name!r} from filepath by setting the property .filepath to None."
         )
@@ -1253,7 +1253,7 @@ class PathResource(Resource):
                 is stored to a ZIP file.
             descriptor_filename:
                 Relative filepath for using a different JSON/YAML descriptor filename than the default
-                :func:`get_descriptor_filename`. Needs to on one of the file extensions defined in the
+                :func:`get_descriptor_filename`. Needs to end on one of the file extensions defined in the
                 setting ``package_descriptor_endings`` (by default 'resource.json' or 'resource.yaml').
             auto_validate:
                 By default, the Resource will not be validated upon instantiation or change (but always before
@@ -1320,9 +1320,9 @@ class PathResource(Resource):
             resource: An existing :obj:`frictionless.Resource`.
             descriptor_filename:
                 Relative filepath for using a different JSON/YAML descriptor filename than the default
-                :func:`get_descriptor_filename`. Needs to on one of the file extensions defined in the
+                :func:`get_descriptor_filename`. Needs to end on one of the file extensions defined in the
                 setting ``package_descriptor_endings`` (by default 'resource.json' or 'resource.yaml').
-            basepath: Where the file would be serialized.
+            basepath: Where to store serialization data and its descriptor by default.
         """
         self.logger.debug(
             f"""
@@ -1400,6 +1400,9 @@ class FeatureName(ObjectEnum):
     Measures = "Measures"
     Metadata = "Metadata"
     Notes = "Notes"
+    PhraseAnnotations = "PhraseAnnotations"
+    PhraseComponents = "PhraseComponents"
+    PhraseLabels = "PhraseLabels"
 
     def get_class(self) -> Type[F]:
         return get_class(self.name)

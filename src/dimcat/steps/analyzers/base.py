@@ -27,12 +27,12 @@ class AnalyzerName(ObjectEnum):
     BigramAnalyzer = "BigramAnalyzer"
     Counter = "Counter"
     PitchClassVectors = "PitchClassVectors"
+    PhraseDataAnalyzer = "PhraseDataAnalyzer"
     Proportions = "Proportions"
 
 
 class DispatchStrategy(str, Enum):
     GROUPBY_APPLY = "GROUPBY_APPLY"
-    ITER_STACK = "ITER_STACK"
 
 
 class Analyzer(FeatureProcessingStep):
@@ -42,7 +42,9 @@ class Analyzer(FeatureProcessingStep):
 
     _default_dimension_column: ClassVar[Optional[str]] = None
     """Name of a column, contained in the Results produced by this analyzer, containing some dimension,
-    e.g. one to be interpreted as quantity (durations, counts, etc.) or as color."""
+    e.g. one to be interpreted as quantity (durations, counts, etc.) or as color. Most Result types will complain if
+    not defined.
+    """
     _enum_type: ClassVar[Type[Enum]] = AnalyzerName
     _new_dataset_type = AnalyzedDataset
     _new_resource_type = Result
@@ -153,6 +155,23 @@ class Analyzer(FeatureProcessingStep):
         smallest_unit: UnitOfAnalysis = UnitOfAnalysis.SLICE,
         dimension_column: str = None,
     ):
+        """
+
+        Args:
+            features:
+                The Feature objects you want this Analyzer to process. If not specified, it will try to process all
+                features present in a given Dataset's Outputs catalog.
+            strategy: Currently, only the default strategy GROUPBY_APPLY is implemented.
+            smallest_unit:
+                The smallest unit to consider for analysis. Defaults to SLICE, meaning that slice segments are analyzed
+                if a slicer has been previously applied, piece units otherwise. The results for larger units can always
+                be retrospectively retrieved by using :meth:`Result.combine_results()`, but not the other way around.
+                Use this setting to reduce compute time by setting it to PIECE, CORPUS_GROUP, or GROUP where the latter
+                uses the default groupby if a grouper has been previously applied, or the entire dataset, otherwise.
+            dimension_column:
+                Name of the column containing some dimension, e.g. to be interpreted as quantity (durations, counts,
+                etc.) or as color.
+        """
         super().__init__(features=features)
         self._strategy: DispatchStrategy = None
         self.strategy = strategy
@@ -200,8 +219,6 @@ class Analyzer(FeatureProcessingStep):
 
     def _make_new_resource(self, resource: Feature) -> Rs:
         """Dispatch the passed resource to the appropriate method."""
-        if self.strategy == DispatchStrategy.ITER_STACK:  # more cases to follow
-            raise NotImplementedError()
         if not self.strategy == DispatchStrategy.GROUPBY_APPLY:
             raise ValueError(f"Unknown dispatch strategy '{self.strategy!r}'")
         result_constructor: Type[Result] = self._get_new_resource_type(resource)
@@ -212,15 +229,18 @@ class Analyzer(FeatureProcessingStep):
             formatted_column = resource.formatted_column
         else:
             formatted_column = None
-        result = result_constructor.from_dataframe(
-            analyzed_resource=resource,
-            value_column=value_column,
-            dimension_column=self.dimension_column,
-            formatted_column=formatted_column,
-            df=results,
-            resource_name=result_name,
-            default_groupby=resource.default_groupby,
+        result_init_args = self.to_config().init_args
+        result_init_args.update(
+            dict(
+                analyzed_resource=resource,
+                value_column=value_column,
+                formatted_column=formatted_column,
+                df=results,
+                resource_name=result_name,
+                default_groupby=resource.default_groupby,
+            )
         )
+        result = result_constructor.from_dataframe(**result_init_args)
         return result
 
     def groupby_apply(self, feature: Feature, groupby: SomeSeries = None, **kwargs):

@@ -416,11 +416,6 @@ class DimcatResource(Resource, Generic[D]):
         resource: Resource,
         df: D,
         descriptor_filename: Optional[str] = None,
-        resource_name: Optional[str] = None,
-        basepath: Optional[str] = None,
-        auto_validate: Optional[bool] = None,
-        default_groupby: Optional[str | list[str]] = None,
-        format=None,
         **kwargs,
     ) -> Self:
         """Create a DimcatResource from an existing :obj:`Resource`, specifying its name and,
@@ -428,31 +423,16 @@ class DimcatResource(Resource, Generic[D]):
 
         Args:
             resource: An existing :obj:`frictionless.Resource` or a filepath.
-            resource_name:
-                Name of the resource used for retrieving it from a DimcatPackage and as filename when the resource
-                is stored to a ZIP file.
-            basepath:
-                Where to store serialization data and its descriptor by default. If ``resource`` is a filepath, its
-                directory is used.
-            auto_validate:
-                By default, the DimcatResource will not be validated upon instantiation or change (but always before
-                writing to disk). Set True to raise an exception during creation or modification of the resource,
-                e.g. replacing the :attr:`column_schema`.
-            default_groupby:
-                Pass a list of column names or index levels to groupby something else than the default (by piece).
-            format: Defines the :attr:`format`.
+            **kwargs: Init arguments to override.
         """
         if not isinstance(resource, Resource):
             raise TypeError(f"Expected a Resource, got {type(resource)!r}.")
+        init_args = resource.to_config().init_args
+        init_args.update(kwargs)
+        del init_args["resource"]
         new_object = super().from_resource(
             resource=resource,
-            descriptor_filename=descriptor_filename,
-            resource_name=resource_name,
-            basepath=basepath,
-            auto_validate=auto_validate,
-            default_groupby=default_groupby,
-            format=format,
-            **kwargs,
+            **init_args,
         )
         if not descriptor_filename and new_object.descriptor_exists:
             new_object.detach_from_descriptor()
@@ -1017,9 +997,7 @@ DimcatResource.__init__(
             new_df = self.df
         if do_level_drop:
             new_df = new_df.droplevel(level)
-        new_resource = self.__class__.from_resource_and_dataframe(
-            resource=self, df=new_df
-        )
+        new_resource = self.from_resource_and_dataframe(resource=self, df=new_df)
         if do_level_drop and level in new_resource.default_groupby:
             new_resource._default_groupby.remove(level)
         return new_resource
@@ -2109,7 +2087,13 @@ class Feature(DimcatResource):
             column_names.extend(self._convenience_column_names)
         if feature_columns and self._feature_column_names:
             column_names.extend(self._feature_column_names)
-        available_columns = [col for col in column_names if col in self.df.columns]
+        available_columns = []
+        already_included = set()
+        for col in reversed(column_names):
+            if col not in already_included and col in self.df.columns:
+                available_columns.append(col)
+                already_included.add(col)
+        available_columns = list(reversed(available_columns))
         if index_levels:
             available_columns = self.get_level_names() + available_columns
         return available_columns

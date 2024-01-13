@@ -13,20 +13,26 @@ from dimcat.data.resources import DimcatResource, FeatureName, Metadata, Resourc
 from dimcat.data.resources.base import D, S
 from dimcat.data.resources.dc import HARMONY_FEATURE_NAMES, Playthrough
 from dimcat.data.resources.features import (
+    CHORD_TONE_INTERVALS_COLUMNS,
+    CHORD_TONE_SCALE_DEGREES_COLUMNS,
+    HARMONY_FEATURE_COLUMNS,
     CadenceLabels,
     DcmlAnnotations,
-    HarmonyLabels,
     KeyAnnotations,
     PhraseAnnotations,
 )
-from dimcat.data.resources.results import tuple2str
 from dimcat.data.resources.utils import (
     apply_playthrough,
     boolean_is_minor_column_to_mode,
     condense_dataframe_by_groups,
+    condense_pedal_points,
     drop_rows_with_missing_values,
     make_adjacency_groups,
+    make_group_start_mask,
+    make_groups_lasts_mask,
     safe_row_tuple,
+    tuple2str,
+    update_duration_qb,
 )
 from dimcat.dc_exceptions import DataframeIsMissingExpectedColumnsError
 from numpy import typing as npt
@@ -41,11 +47,7 @@ def add_chord_tone_scale_degrees(
     feature_df,
 ):
     """Turns 'chord_tones' column into multiple scale-degree columns."""
-    columns_to_add = (
-        "scale_degrees",
-        "scale_degrees_and_mode" "scale_degrees_major",
-        "scale_degrees_minor",
-    )
+    columns_to_add = CHORD_TONE_SCALE_DEGREES_COLUMNS
     if all(col in feature_df.columns for col in columns_to_add):
         return feature_df
     expected_columns = ("chord_tones", "localkey_is_minor", "localkey_mode")
@@ -94,10 +96,7 @@ def add_chord_tone_intervals(
     present, where the chord_tones (which come as fifths) are represented as strings representing intervals over the
     bass_note and above the root, if present.
     """
-    columns_to_add = (
-        "intervals_over_bass",
-        "intervals_over_root",
-    )
+    columns_to_add = CHORD_TONE_INTERVALS_COLUMNS
     if all(col in feature_df.columns for col in columns_to_add):
         return feature_df
     expected_columns = ("chord_tones",)  # "root" is optional
@@ -178,7 +177,7 @@ def extend_keys_feature(
     columns_to_add = (
         "globalkey_mode",
         "localkey_mode",
-        "localkey_resolved",
+        "localkey_resolved",  # resolves relative keys such as V/V (to II)
         "localkey_and_mode",
     )
     if all(col in feature_df.columns for col in columns_to_add):
@@ -198,7 +197,7 @@ def extend_keys_feature(
             "localkey_mode"
         ),
         ms3.transform(
-            feature_df, ms3.resolve_relative_keys, ["localkey", "localkey_is_minor"]
+            feature_df, ms3.resolve_relative_keys, ["localkey", "globalkey_is_minor"]
         ).rename("localkey_resolved"),
     ]
     feature_df = pd.concat(concatenate_this, axis=1)
@@ -216,13 +215,7 @@ def extend_harmony_feature(
     feature_df,
 ):
     """Requires previous application of :func:`transform_keys_feature`."""
-    columns_to_add = (
-        "root_roman",
-        "pedal_resolved",
-        "chord_and_mode",
-        "chord_reduced",
-        "chord_reduced_and_mode",
-    )
+    columns_to_add = HARMONY_FEATURE_COLUMNS
     if all(col in feature_df.columns for col in columns_to_add):
         return feature_df
     expected_columns = (
@@ -232,8 +225,10 @@ def extend_harmony_feature(
         "pedal",
         "numeral",
         "relativeroot",
+        "globalkey_is_minor",
         "localkey_is_minor",
         "localkey_mode",
+        "localkey_resolved",
     )
     if not all(col in feature_df.columns for col in expected_columns):
         raise DataframeIsMissingExpectedColumnsError(
@@ -246,6 +241,41 @@ def extend_harmony_feature(
             (feature_df.numeral + ("/" + feature_df.relativeroot).fillna("")).rename(
                 "root_roman"
             )
+        )
+    if "relativeroot_resolved" not in feature_df.columns:
+        concatenate_this.append(
+            ms3.transform(
+                feature_df,
+                ms3.resolve_relative_keys,
+                ["relativeroot", "localkey_is_minor"],
+            ).rename("relativeroot_resolved")
+        )
+    if "effective_localkey" not in feature_df.columns:
+        concatenate_this.append(
+            (
+                effective_localkey := (
+                    (feature_df.relativeroot + "/").fillna("")
+                    + feature_df.localkey_resolved
+                ).rename("effective_localkey")
+            )
+        )
+        effective_localkey_and_mode = pd.concat(
+            [effective_localkey, feature_df.globalkey_is_minor], axis=1
+        )
+        concatenate_this.append(
+            (
+                effective_localkey_resolved := ms3.transform(
+                    effective_localkey_and_mode, ms3.resolve_relative_keys
+                ).rename("effective_localkey_resolved")
+            )
+        )
+    else:
+        effective_localkey_resolved = feature_df.effective_localkey_resolved
+    if "effective_localkey_is_minor" not in feature_df.columns:
+        concatenate_this.append(
+            effective_localkey_resolved.str.islower()
+            .fillna(feature_df.localkey_is_minor)
+            .rename("effective_localkey_is_minor")
         )
     if "chord_reduced" not in feature_df.columns:
         concatenate_this.append(
@@ -277,6 +307,19 @@ def extend_harmony_feature(
             .apply(safe_row_tuple, axis=1)
             .rename("chord_and_mode")
         )
+    if "applied_to_numeral" not in feature_df.columns:
+        applied_to_numeral = feature_df.relativeroot.str.split("/").map(
+            lambda lst: lst[-1], na_action="ignore"
+        )
+        concatenate_this.append(applied_to_numeral.rename("applied_to_numeral"))
+    else:
+        applied_to_numeral = feature_df.applied_to_numeral
+    if "numeral_or_applied_to_numeral" not in feature_df.columns:
+        concatenate_this.append(
+            applied_to_numeral.copy()
+            .fillna(feature_df.numeral)
+            .rename("numeral_or_applied_to_numeral")
+        )
     # if "root_roman_resolved" not in feature_df.columns:
     #     concatenate_this.append(
     #         ms3.transform(
@@ -290,7 +333,10 @@ def extend_harmony_feature(
 
 
 def _get_body_end_positions_from_raw_phrases(phrase_df: D) -> List[int]:
-    """Returns for each phrase body the index position of the last row."""
+    """Returns for each phrase body the index position of the last row. Typical input is a dataframe representing a
+    MultiIndex. Expects the columns 'phrase_id' and  'phrase_component'. If the latter is present, all components
+    except 'body' are disregarded. If not, phrase sequences are expected to be bodies only.
+    """
     body_end_positions = []
     if "phrase_component" in phrase_df.columns:
         for (phrase_id, phrase_component), idx in phrase_df.groupby(
@@ -559,9 +605,19 @@ def make_raw_phrase_df(
     phrase_df.index = pd.MultiIndex.from_frame(new_index)
     # here we correct durations for the fact that the end symbol is included both as last symbol of the body and the
     # first symbol of the codetta or subsequent phrase. At the end of the body, the duration is set to 0.
-    body_end_positions = _get_body_end_positions_from_raw_phrases(phrase_df)
+    body_end_positions = _get_body_end_positions_from_raw_phrases(new_index)
     duration_col_position = phrase_df.columns.get_loc("duration_qb")
     phrase_df.iloc[body_end_positions, duration_col_position] = 0.0
+    components_lasts = make_groups_lasts_mask(
+        new_index, ["phrase_id", "phrase_component"]
+    )
+    # ToDo: add to documentation the fact that the duration of terminal harmonies is not amended. This allows for
+    # inspecting the duration of the last harmony but leads to the fact that the summed duration of all phrases in a
+    # piece may be longer than the piece itself, namely when a long terminal harmony is 'interrupted' by the beginning
+    # of the next phrase: the following code duplicates the duration following the {
+    update_duration_qb(
+        phrase_df, ~components_lasts, logger
+    )  # ToDo: check 0-durations in codetta, e.g. for } labels; overhaul phrase duration update (condense_pedal_points)
     return phrase_df
 
 
@@ -711,6 +767,9 @@ class MuseScoreHarmonies(MuseScoreFacet, AnnotationsFacet):
     _extractable_features = (
         FeatureName.DcmlAnnotations,
         FeatureName.CadenceLabels,
+        FeatureName.PhraseAnnotations,
+        FeatureName.PhraseComponents,
+        FeatureName.PhraseLabels,
     ) + HARMONY_FEATURE_NAMES
 
     def _prepare_feature_df(self, feature_config: DimcatConfig) -> D:
@@ -748,16 +807,36 @@ class MuseScoreHarmonies(MuseScoreFacet, AnnotationsFacet):
                     feature_df, group_keys, logger=self.logger
                 )
             else:  # issubclass(cls, (HarmonyLabels, PhraseAnnotations))
-                if issubclass(cls, HarmonyLabels):
-                    feature_df = drop_rows_with_missing_values(
-                        feature_df, feature_column_names, logger=self.logger
-                    )
-                feature_df = extend_harmony_feature(feature_df)
-                feature_df = add_chord_tone_intervals(feature_df)
-                feature_df = add_chord_tone_scale_degrees(feature_df)
                 if issubclass(cls, PhraseAnnotations):
-                    feature_df.chord.ffill(inplace=True)
+                    missing_mask = feature_df.chord.isna()
                     groupby_levels = feature_df.index.names[:-1]
+                    group_start_mask = make_group_start_mask(feature_df, groupby_levels)
+                    feature_df.loc[missing_mask, ["chord_tones", "added_tones"]] = pd.NA
+                    ffill_mask = missing_mask | (
+                        missing_mask.shift(-1).fillna(False) & ~group_start_mask
+                    )
+                    harmony_fill_columns = [
+                        "pedal",
+                        "chord",
+                        "special",
+                        "numeral",
+                        "form",
+                        "figbass",
+                        "changes",
+                        "relativeroot",
+                        "chord_type",
+                        "chord_tones",
+                        "root",
+                        "bass_note",
+                        "alt_label",
+                        "pedalend",
+                    ]
+                    feature_df.loc[ffill_mask, harmony_fill_columns] = (
+                        feature_df.loc[ffill_mask, harmony_fill_columns]
+                        .groupby(groupby_levels)
+                        .ffill()
+                    )
+                if issubclass(cls, PhraseAnnotations):
                     group_intervals = get_index_intervals_for_phrases(
                         harmony_labels=feature_df,
                         group_cols=groupby_levels,
@@ -769,6 +848,14 @@ class MuseScoreHarmonies(MuseScoreFacet, AnnotationsFacet):
                     feature_df = make_raw_phrase_df(
                         feature_df, ix_intervals, self.logger
                     )
+                    feature_df = condense_pedal_points(feature_df)
+                else:
+                    feature_df = drop_rows_with_missing_values(
+                        feature_df, feature_column_names, logger=self.logger
+                    )
+                feature_df = extend_harmony_feature(feature_df)
+                feature_df = add_chord_tone_intervals(feature_df)
+                feature_df = add_chord_tone_scale_degrees(feature_df)
         return feature_df
 
 

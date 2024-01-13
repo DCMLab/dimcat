@@ -1,7 +1,7 @@
 import logging
 
 import marshmallow as mm
-from dimcat.data.resources.base import D, FeatureName, SomeSeries
+from dimcat.data.resources.base import DR, D, FeatureName, SomeSeries
 from dimcat.data.resources.dc import DimcatResource, Feature
 from dimcat.data.resources.results import Durations
 from dimcat.dc_exceptions import FeatureWithUndefinedValueColumnError
@@ -66,7 +66,7 @@ class Proportions(Analyzer):
         result = result.to_frame()
         return result
 
-    def resource_name_factory(self, resource: DimcatResource) -> str:
+    def resource_name_factory(self, resource: DR) -> str:
         """Returns a name for the resource based on its name and the name of the pipeline step."""
         return f"{resource.resource_name}.proportions"
 
@@ -74,6 +74,6 @@ class Proportions(Analyzer):
 class PitchClassVectors(Proportions):
     _allowed_features = (FeatureName.Notes,)
 
-    def resource_name_factory(self, resource: DimcatResource) -> str:
+    def resource_name_factory(self, resource: DR) -> str:
         """Returns a name for the resource based on its name and the name of the pipeline step."""
         return f"{resource.resource_name}.pitch_class_vectors"

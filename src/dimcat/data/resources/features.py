@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import itertools
 import logging
-from typing import Callable, Hashable, Iterable, List, Optional
+from typing import Callable, Hashable, Iterable, List, Literal, Optional
 
 import frictionless as fl
 import marshmallow as mm
@@ -25,7 +25,6 @@ from dimcat.data.resources.utils import (
     get_corpus_display_name,
     join_df_on_index,
     merge_ties,
-    phraseComponents,
     safe_row_tuple,
 )
 from dimcat.dc_exceptions import (
@@ -125,18 +124,39 @@ BASS_NOTE_CONVENIENCE_COLUMNS = [
     "bass_note_over_local_tonic",
 ]
 
+CHORD_TONE_INTERVALS_COLUMNS = [
+    "intervals_over_bass",
+    "intervals_over_root",
+]
 
-HARMONY_CONVENIENCE_COLUMNS = [
-    "chord_and_mode",
-    "chord_reduced",
-    "chord_reduced_and_mode",
+CHORD_TONE_SCALE_DEGREES_COLUMNS = [
     "scale_degrees",
     "scale_degrees_and_mode",
     "scale_degrees_major",
     "scale_degrees_minor",
-    "intervals_over_bass",
-    "intervals_over_root",
 ]
+
+HARMONY_FEATURE_COLUMNS = [
+    "root_roman",  # numeral/relativeroot
+    "relativeroot_resolved",
+    "effective_localkey",  # relativeroot/localkey (combined)
+    "effective_localkey_resolved",  # relativeroot_resolved resolved against localkey
+    "effective_localkey_is_minor",
+    "pedal_resolved",
+    "chord_and_mode",
+    "chord_reduced",  # without parentheses ('changes')
+    "chord_reduced_and_mode",
+    "applied_to_numeral",  # if relativeroot is recursive, only the component following the last slash / (i.e. the
+    # lowest level, which can be interpreted as the current localkey's numeral being elaborated)
+    "numeral_or_applied_to_numeral",  # like the previous but missing values filled with 'numeral'
+]
+
+
+HARMONY_CONVENIENCE_COLUMNS = (
+    HARMONY_FEATURE_COLUMNS
+    + CHORD_TONE_INTERVALS_COLUMNS
+    + CHORD_TONE_SCALE_DEGREES_COLUMNS
+)
 """These columns are included in all :class:`Annotations` features that grant full access to DCML harmony labels.
 First and foremost, this includes :class:`HarmonyLabels`, but also :class:`PhraseAnnotations` and derivatives.
 """
@@ -770,18 +790,8 @@ def tuple_contains(series_with_tuples: S, *values: Hashable):
     return series_with_tuples.map(values.intersection).astype(bool)
 
 
-class PhraseAnnotations(DcmlAnnotations):
-    _convenience_column_names = HarmonyLabels._convenience_column_names + [
-        "first_label",
-        "last_label",
-        "n_localkeys",
-        "localkeys",
-        "n_chords",
-        "chords",
-    ]
-    _feature_column_names = ["phraseend"]
+class PhraseAnnotations(HarmonyLabels):
     _extractable_features = [FeatureName.PhraseComponents, FeatureName.PhraseLabels]
-    _default_value_column = "duration_qb"
 
     class Schema(DcmlAnnotations.Schema):
         n_ante = mm.fields.Int(
@@ -858,12 +868,15 @@ class PhraseAnnotations(DcmlAnnotations):
     def get_phrase_data(
         self,
         columns: str | List[str] = "label",
-        components: phraseComponents | List[phraseComponents] = "body",
+        components: PhraseComponentName
+        | Literal["phrase"]
+        | Iterable[PhraseComponentName] = "body",
         query: Optional[str] = None,
         reverse: bool = False,
         level_name: str = "i",
         wide_format: bool = False,
         drop_levels: bool | int | str | Iterable[int | str] = False,
+        drop_duplicated_ultima_rows: Optional[bool] = None,
     ) -> PhraseData:
         """
 
@@ -872,6 +885,8 @@ class PhraseAnnotations(DcmlAnnotations):
                 Column(s) to include in the result.
             components:
                 Which of the four phrase components to include, ∈ {'ante', 'body', 'codetta', 'post'}.
+                For convenience, the string 'phrase' is also accepted, which is equivalent to ["body", "codetta"] and
+                ``drop_duplicated_ultima_rows=True``.
             query:
                 A convenient way to include only those phrases in the result that match the criteria
                 formulated in the string query. A query is a string and generally takes the form
@@ -900,6 +915,14 @@ class PhraseAnnotations(DcmlAnnotations):
                 integer) value(s) must be valid and cause one of the index levels to be dropped.
                 ``level_name`` cannot be dropped. Dropping 'phrase_id' will likely lead to an
                 exception if a :class:`PhraseData` object will be displayed in WIDE format.
+            drop_duplicated_ultima_rows:
+                The default behaviour (when None), depends on the value of ``components``: If you set
+                ``components='phrase'``, this setting defaults to True, otherwise to False; where
+                False corresponds to the default where  each phrase body ends on a duplicate of the
+                phrase's ultima label, with zero-duration, enabling the creation of PhraseData
+                containing only phrase bodies (i.e., ``components='body'``), without losing information
+                about the ultima label. When analyzing entire phrases, however, these duplicate
+                rows may be unwanted and can be dropped by setting this option to True.
 
         Returns:
             Dataframe representing partial information on the selected phrases in long or wide format.
@@ -914,6 +937,7 @@ class PhraseAnnotations(DcmlAnnotations):
             level_name=level_name,
             format=df_format,
             drop_levels=drop_levels,
+            drop_duplicated_ultima_rows=drop_duplicated_ultima_rows,
         )
         return self.apply_step(analyzer)
 
@@ -929,7 +953,26 @@ class PhraseAnnotations(DcmlAnnotations):
         return feature_df
 
 
+class PhraseComponentName(FriendlyEnum):
+    ANTE = "ante"
+    BODY = "body"
+    CODETTA = "codetta"
+    POST = "post"
+
+
 class PhraseComponents(PhraseAnnotations):
+    _convenience_column_names = HarmonyLabels._convenience_column_names + [
+        "localkeys",
+        "n_modulations",
+        "modulatory_sequence",
+        "n_labels",
+        "labels",
+        "n_chords",
+        "chords",
+    ]
+    _default_value_column = "chords"
+    _feature_column_names = ["chords"]
+
     @property
     def phrase_df(self) -> D:
         """Returns the df that corresponds to the :class:`PhraseAnnotations` feature from which the
@@ -944,6 +987,38 @@ class PhraseComponents(PhraseAnnotations):
 
 
 class PhraseLabels(PhraseAnnotations):
+    _convenience_column_names = HarmonyLabels._convenience_column_names + [
+        "phrase_localkeys",
+        "phrase_n_modulations",
+        "phrase_modulatory_sequence",
+        "phrase_n_labels",
+        "phrase_labels",
+        "phrase_n_chords",
+        "phrase_chords",
+        "body_localkeys",
+        "body_n_modulations",
+        "body_modulatory_sequence",
+        "body_n_labels",
+        "body_labels",
+        "body_n_chords",
+        "body_chords",
+        "body_duration_qb",
+        "codetta_localkeys",
+        "codetta_n_modulations",
+        "codetta_modulatory_sequence",
+        "codetta_n_labels",
+        "codetta_labels",
+        "codetta_n_chords",
+        "codetta_chords",
+        "codetta_duration_qb",
+        "interlocked_ante",
+        "interlocked_post",
+        "end_label",
+        "end_chord",
+    ]
+    _default_value_column = "phrase_chords"
+    _feature_column_names = ["phrase_chords"]
+
     @property
     def phrase_df(self) -> D:
         """Returns the df that corresponds to the :class:`PhraseAnnotations` feature from which the
@@ -1175,7 +1250,3 @@ class Measures(Feature):
 
 
 # endregion Structure
-# region helpers
-
-
-# endregion helpers

@@ -3,11 +3,17 @@ from typing import Iterable, Optional
 
 import marshmallow as mm
 import pandas as pd
-from dimcat.base import FriendlyEnum, FriendlyEnumField
+from dimcat.base import FriendlyEnumField
 from dimcat.data.resources import Feature
-from dimcat.data.resources.base import D, SomeDataframe, SomeSeries
+from dimcat.data.resources.base import DR, D, SomeDataframe, SomeSeries
 from dimcat.data.resources.dc import DimcatResource, FeatureSpecs, UnitOfAnalysis
-from dimcat.data.resources.results import CadenceCounts, Counts, NgramTable
+from dimcat.data.resources.results import (
+    CadenceCounts,
+    Counts,
+    NgramTable,
+    NgramTableFormat,
+    PhraseData,
+)
 from dimcat.steps.analyzers.base import Analyzer, DispatchStrategy
 
 module_logger = logging.getLogger(__name__)
@@ -56,7 +62,7 @@ class Counter(Analyzer):
 
         return result
 
-    def resource_name_factory(self, resource: DimcatResource) -> str:
+    def resource_name_factory(self, resource: DR) -> str:
         """Returns a name for the resource based on its name and the name of the pipeline step."""
         return f"{resource.resource_name}.counted"
 
@@ -65,23 +71,8 @@ class CadenceCounter(Counter):
     _new_resource_type = CadenceCounts
 
 
-class NgramTableFormat(FriendlyEnum):
-    """The format of the ngram table determining how many columns are copied for each of the n-1 shifts.
-    The original columns are always copied.
-    This setting my have a significant effect on the performance when creating the NgramTable.
-    """
-
-    FEATURES = "FEATURES"
-    FEATURES_CONTEXT = "FEATURES_CONTEXT"
-    CONVENIENCE = "CONVENIENCE"
-    CONVENIENCE_CONTEXT = "CONVENIENCE_CONTEXT"
-    AUXILIARY = "AUXILIARY"
-    AUXILIARY_CONTEXT = "AUXILIARY_CONTEXT"
-    FULL_WITHOUT_CONTEXT = "FULL_WITHOUT_CONTEXT"
-    FULL = "FULL"
-
-
 class NgramAnalyzer(Analyzer):
+    _allowed_features = (Feature, PhraseData)
     _new_resource_type = NgramTable
 
     @staticmethod
@@ -105,13 +96,36 @@ class NgramAnalyzer(Analyzer):
 
     def __init__(
         self,
+        features: Optional[FeatureSpecs | Iterable[FeatureSpecs]] = None,
         n: int = 2,
         format: NgramTableFormat = NgramTableFormat.CONVENIENCE,
-        features: Optional[FeatureSpecs | Iterable[FeatureSpecs]] = None,
         strategy: DispatchStrategy = DispatchStrategy.GROUPBY_APPLY,
         smallest_unit: UnitOfAnalysis = UnitOfAnalysis.SLICE,
         dimension_column: str = None,
     ):
+        """
+
+        Args:
+            features:
+                The Feature objects you want this Analyzer to process. If not specified, it will try to process all
+                features present in a given Dataset's Outputs catalog.
+            n:
+                Specify the n-1 number of subsequent elements you want the table to contain for each element.
+                n = 2 (the default) corresponds to bigrams, 3 to trigrams, etc.
+            format:
+                Controls the amount of columns you want to include for the n-1 consequents from the bare minimum
+                (FEATURES) to the full duplication including context columns (FULL).
+            strategy: Currently, only the default strategy GROUPBY_APPLY is implemented.
+            smallest_unit:
+                The smallest unit to consider for analysis. Defaults to SLICE, meaning that slice segments are analyzed
+                if a slicer has been previously applied, piece units otherwise. The results for larger units can always
+                be retrospectively retrieved by using :meth:`Result.combine_results()`, but not the other way around.
+                Use this setting to reduce compute time by setting it to PIECE, CORPUS_GROUP, or GROUP where the latter
+                uses the default groupby if a grouper has been previously applied, or the entire dataset, otherwise.
+            dimension_column:
+                Name of the column containing some dimension, e.g. to be interpreted as quantity (durations, counts,
+                etc.) or as color.
+        """
         super().__init__(
             features=features,
             strategy=strategy,
@@ -170,13 +184,16 @@ class NgramAnalyzer(Analyzer):
             NgramTableFormat.FULL_WITHOUT_CONTEXT,
             NgramTableFormat.FULL,
         )
-        columns_to_shift = feature.get_available_column_names(
-            context_columns=include_context_columns,
-            auxiliary_columns=include_auxiliary_columns,
-            convenience_columns=include_convenience_columns,
-            feature_columns=True,
-        )
-        df_to_shift = feature.df[columns_to_shift]
+        if hasattr(feature, "get_available_column_names"):
+            columns_to_shift = feature.get_available_column_names(
+                context_columns=include_context_columns,
+                auxiliary_columns=include_auxiliary_columns,
+                convenience_columns=include_convenience_columns,
+                feature_columns=True,
+            )
+            df_to_shift = feature.df[columns_to_shift]
+        else:
+            df_to_shift = feature.df
         concatenate_this = {"a": feature.df}
         for i in range(1, self.n):
             key = chr(ord("a") + i)
@@ -191,20 +208,35 @@ class NgramAnalyzer(Analyzer):
         result: NgramTable,
         original_resource: Feature,
     ) -> NgramTable:
-        result._auxiliary_columns = original_resource.get_available_column_names(
-            context_columns=True
-        )
-        result._convenience_columns = original_resource.get_available_column_names(
-            auxiliary_columns=True, convenience_columns=True
-        )
+        if hasattr(original_resource, "get_available_column_names"):
+            result._auxiliary_columns = original_resource.get_available_column_names(
+                context_columns=True
+            )
+            result._convenience_columns = original_resource.get_available_column_names(
+                auxiliary_columns=True, convenience_columns=True
+            )
         return result
 
-    def resource_name_factory(self, resource: DimcatResource) -> str:
+    def resource_name_factory(self, resource: DR) -> str:
         """Returns a name for the resource based on its name and the name of the pipeline step."""
         return f"{resource.resource_name}.ngram_table"
 
 
 class BigramAnalyzer(NgramAnalyzer):
-    def resource_name_factory(self, resource: DimcatResource) -> str:
+    def resource_name_factory(self, resource: DR) -> str:
         """Returns a name for the resource based on its name and the name of the pipeline step."""
         return f"{resource.resource_name}.bigram_table"
+
+    @property
+    def n(self) -> int:
+        return self._n
+
+    @n.setter
+    def n(self, n: int):
+        if not isinstance(n, int):
+            raise TypeError(f"n must be an integer, not {type(n)}")
+        if n < 2:
+            raise ValueError(f"n must be at least 2, not {n}")
+        if n > 2:
+            self.logger.debug(f"BigramAnalyzer with n=={n}? You do you.")
+        self._n = n
