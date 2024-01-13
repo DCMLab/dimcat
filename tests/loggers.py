@@ -1,3 +1,7 @@
+"""This module is not named test_loggers.py because this causes the registry mechanism to fail when running pytest
+on the entire test folder. The problem seems to be linked to importing pkgutil and/or dimcat. This is why the
+helper functions are duplicated between loggers.py and enums.py.
+"""
 import inspect
 import logging
 import pkgutil
