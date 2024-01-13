@@ -69,8 +69,10 @@ def clean_axis_labels(*labels: str) -> dict:
             continue
         if label in default_labels:
             cleaned_label = default_labels[label]
-        else:
+        elif isinstance(label, str):
             cleaned_label = label.replace("_", " ")
+        else:
+            cleaned_label = str(label)
         result[label] = cleaned_label
     return result
 
@@ -139,6 +141,7 @@ def make_pie_chart_settings(
     height: Optional[int] = None,
     width: Optional[int] = None,
 ):
+    """Like :func:`make_plot_settings` but pie-chart-specific keys such as 'values'."""
     if x_col is None:
         x_col = df.columns[-2]
     if y_col is None:
@@ -242,6 +245,75 @@ def make_bar_plot(
     if "text" not in kwargs and "proportion_%" in df.columns:
         kwargs["text"] = "proportion_%"
     fig = px.bar(
+        df,
+        **plot_settings,
+        **kwargs,
+    )
+    if "facet_col" or "facet_row" in plot_settings:
+        fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
+    update_figure_layout(
+        fig=fig,
+        x_col=x_col,
+        y_col=y_col,
+        layout=layout,
+        font_size=font_size,
+        x_axis=x_axis,
+        y_axis=y_axis,
+        color_axis=color_axis,
+        traces_settings=traces_settings,
+    )
+    if output is not None:
+        write_image(fig=fig, filename=output, width=width, height=height)
+    return fig
+
+
+def make_box_plot(
+    df: pd.DataFrame,
+    x_col: Optional[str] = None,
+    y_col: Optional[str] = None,
+    group_cols: Optional[str | Iterable[str]] = None,
+    group_modes: Iterable[GroupMode] = (
+        GroupMode.COLOR,
+        GroupMode.ROWS,
+        GroupMode.COLUMNS,
+    ),
+    title: Optional[str] = None,
+    labels: Optional[dict] = None,
+    hover_data: Optional[List[str]] = None,
+    height: Optional[int] = None,
+    width: Optional[int] = None,
+    layout: Optional[dict] = None,
+    font_size: Optional[int] = None,
+    x_axis: Optional[dict] = None,
+    y_axis: Optional[dict] = None,
+    color_axis: Optional[dict] = None,
+    traces_settings: Optional[dict] = None,
+    output: Optional[str] = None,
+    **kwargs,
+) -> go.Figure:
+    """
+
+    Args:
+        layout: Keyword arguments passed to fig.update_layout()
+        **kwargs: Keyword arguments passed to the Plotly plotting function.
+
+    Returns:
+        A Plotly Figure object.
+    """
+    df = df.reset_index()
+    plot_settings = make_plot_settings(
+        df=df,
+        x_col=x_col,
+        y_col=y_col,
+        group_cols=group_cols,
+        group_modes=group_modes,
+        title=title,
+        labels=labels,
+        hover_data=hover_data,
+        height=height,
+        width=width,
+    )
+    fig = px.box(
         df,
         **plot_settings,
         **kwargs,
