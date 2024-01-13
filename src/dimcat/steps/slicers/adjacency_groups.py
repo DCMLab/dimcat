@@ -14,7 +14,7 @@ module_logger = logging.getLogger(__name__)
 
 
 class AdjacencyGroupSlicer(Slicer):
-    """This slicer and its subclasses slices resources by adjacency groups, that is, segments where a particular
+    """This slicer and its subclasses slice resources by adjacency groups, that is, segments where a particular
     column (or combination thereof) has the same value over all rows."""
 
     _adjacency_group_column_name: ClassVar[Optional[str]] = None

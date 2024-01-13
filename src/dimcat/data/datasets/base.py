@@ -52,7 +52,7 @@ from dimcat.dc_exceptions import NoMatchingResourceFoundError, PackageNotFoundEr
 
 if TYPE_CHECKING:
     from dimcat.data.resources.results import Result
-    from dimcat.steps.base import StepSpecs
+    from dimcat.steps.base import PipelineStep, StepSpecs
     from dimcat.steps.loaders.base import Loader
     from dimcat.steps.pipelines import Pipeline
 
@@ -341,6 +341,49 @@ class Dataset(Data):
             return metadata
         else:
             return self.get_feature(DimcatConfig(dtype="Metadata"))
+
+    def get_last_step(
+        self,
+        step_specs: Optional[StepSpecs] = None,
+        allow_subclasses: bool = True,
+    ) -> PipelineStep:
+        """Returns the last step that matches the given specs.
+
+        Args:
+            step_specs:
+                Specification that can be converted to a :class:`DimcatConfig` describing a :class:`PipelineStep`.
+                If None, the last step is returned.
+            allow_subclasses:
+                By default, matches the last applied :class:`PipelineStep` of the type described by ``step_specs``
+                or one of its subclasses. Set to ``False`` to return the last step that matches exactly.
+
+        Returns:
+            PipelineStep object that matches the given specs.
+
+        Raises:
+            NoMatchingPipelineStepFoundError: If no matching step is found.
+        """
+        return self.pipeline.get_last_step(step_specs, allow_subclasses)
+
+    def get_steps(
+        self,
+        step_specs: Optional[StepSpecs] = None,
+        allow_subclasses: bool = True,
+    ) -> List[PipelineStep]:
+        """Returns all steps that match the given specs.
+
+        Args:
+            step_specs:
+                Specification that can be converted to a :class:`DimcatConfig` describing a :class:`PipelineStep`.
+                If None, all steps are returned (equivalent to :attr:`steps`).
+            allow_subclasses:
+                By default, matching subclasses of the :class:`PipelineStep` described by ``step_specs`` are also
+                included. Set to ``False`` to only return steps that match exactly.
+
+        Returns:
+            PipelineStep objects that matches the given specs.
+        """
+        return self.pipeline.get_steps(step_specs, allow_subclasses)
 
     def load(
         self,

@@ -269,6 +269,15 @@ class NoFeaturesActiveError(DimcatError):
     }
 
 
+class NoMatchingPipelineStepFoundError(DimcatError):
+    """optional args: (step_specs,). Pass no arguments if the pipeline is empty."""
+
+    nargs2message = {
+        0: "Pipeline does not include any steps.",
+        1: lambda step_specs: f"No matching pipeline step found for {step_specs!r}.",
+    }
+
+
 class NoMatchingResourceFoundError(DimcatError):
     """optional args: (config, package_name)"""
 
