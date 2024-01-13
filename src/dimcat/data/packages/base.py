@@ -860,7 +860,7 @@ class Package(Data):
         """Adds a resource to the package. Parameters are passed to :class:`DimcatResource`."""
         Constructor = self._accepted_resource_types[0]
         if isinstance(resource, self._accepted_resource_types):
-            new_resource = resource.__class__.from_resource(
+            new_resource = resource.from_resource(
                 resource=resource,
                 resource_name=resource_name,
                 basepath=basepath,

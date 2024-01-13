@@ -4,7 +4,12 @@ import logging
 from typing import Iterable, Iterator, List, Literal, Optional, Type, overload
 
 from dimcat import Dataset, DimcatConfig
-from dimcat.base import DimcatObject, DimcatObjectField, get_class, resolve_object_specs
+from dimcat.base import (
+    DimcatObject,
+    DimcatObjectField,
+    get_class,
+    make_object_from_specs,
+)
 from dimcat.data.resources.base import DR
 from dimcat.data.resources.dc import DimcatResource
 from dimcat.steps.base import PipelineStep, StepSpecs
@@ -62,7 +67,7 @@ class Pipeline(PipelineStep):
             self.add_step(step)
 
     def add_step(self, step: StepSpecs) -> None:
-        step = resolve_object_specs(step, PipelineStep)
+        step = make_object_from_specs(step, PipelineStep)
         self._steps.append(step)
 
     @overload

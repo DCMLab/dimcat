@@ -27,7 +27,6 @@ from dimcat.base import (
     DimcatConfig,
     DimcatObject,
     ObjectEnum,
-    get_class,
     get_schema,
     is_instance_of,
 )
@@ -38,26 +37,26 @@ from dimcat.data.packages.dc import DimcatPackage
 from dimcat.data.resources.base import (
     DR,
     F,
-    FeatureName,
     Resource,
     ResourceSpecs,
     resource_specs2resource,
 )
 from dimcat.data.resources.dc import DimcatResource, FeatureSpecs
 from dimcat.data.resources.utils import (
+    check_configs_against_allowed_configs,
     feature_specs2config,
     features_argument2config_list,
 )
 from dimcat.dc_exceptions import (
     EmptyDatasetError,
     EmptyResourceError,
+    FeatureNotProcessableError,
     FeatureUnavailableError,
     NoFeaturesActiveError,
     ResourceAlreadyTransformed,
     ResourceNotProcessableError,
 )
 from dimcat.dc_warnings import OrderOfPipelineStepsWarning
-from marshmallow import fields, pre_load
 
 module_logger = logging.getLogger(__name__)
 
@@ -271,7 +270,7 @@ class PipelineStep(DimcatObject):
         self.check_resource(resource)
         return self._process_resource(resource)
 
-    def resource_name_factory(self, resource: DimcatResource) -> str:
+    def resource_name_factory(self, resource: DR) -> str:
         """Creates a unique name for the new resource based on the input resource."""
         return resource.resource_name
 
@@ -283,7 +282,7 @@ class FeatureProcessingStep(PipelineStep):
 
     """
 
-    _allowed_features: ClassVar[Optional[Tuple[FeatureName, ...]]] = None
+    _allowed_features: ClassVar[Optional[Tuple[FeatureSpecs, ...]]] = None
     """If set, this FeatureProcessingStep can only be initialized with features that are in this tuple."""
 
     _output_package_name: ClassVar[Optional[str]] = None
@@ -295,8 +294,8 @@ class FeatureProcessingStep(PipelineStep):
     """If set to True, this PipelineStep cannot be initialized without specifying at least one feature."""
 
     class Schema(PipelineStep.Schema):
-        features = fields.List(
-            fields.Nested(DimcatConfig.Schema),
+        features = mm.fields.List(
+            mm.fields.Nested(DimcatConfig.Schema),
             allow_none=True,
             metadata=dict(
                 expose=True,
@@ -305,7 +304,7 @@ class FeatureProcessingStep(PipelineStep):
             ),
         )
 
-        @pre_load
+        @mm.pre_load
         def deal_with_single_item(self, data, **kwargs):
             if isinstance(data, MutableMapping) and "features" in data:
                 if isinstance(data["features"], list):
@@ -336,9 +335,14 @@ class FeatureProcessingStep(PipelineStep):
 
     @features.setter
     def features(self, features):
-        configs = features_argument2config_list(
-            features, allowed_features=self._allowed_features
-        )
+        try:
+            configs = features_argument2config_list(
+                features, allowed_configs=self._allowed_features
+            )
+        except ResourceNotProcessableError as e:
+            raise FeatureNotProcessableError(
+                features, self.name, self._allowed_features
+            ) from e
         if len(self._features) > 0:
             self.logger.info(
                 f"Previously selected features {self._features} overwritten by {configs}."
@@ -382,11 +386,17 @@ class FeatureProcessingStep(PipelineStep):
         """
         super().check_resource(resource)
         if self._allowed_features:
-            if not any(
-                issubclass(resource.__class__, get_class(f))
-                for f in self._allowed_features
-            ):
-                raise ResourceNotProcessableError(resource.name, self.name)
+            try:
+                check_configs_against_allowed_configs(
+                    resource.to_config(), self._allowed_features
+                )
+            except ResourceNotProcessableError as e:
+                raise ResourceNotProcessableError(
+                    resource.resource_name,
+                    self.name,
+                    resource.name,
+                    self._allowed_features,
+                ) from e
 
     def _iter_features(self, dataset: Dataset) -> Iterator[DimcatResource]:
         """Iterate over all features that are required for this PipelineStep.

@@ -130,7 +130,7 @@ class KeySlicer(AdjacencyGroupSlicer):
 class PhraseSlicer(AdjacencyGroupSlicer):
     """Slices resources by phrase."""
 
-    _required_feature = "PhraseAnnotations"
+    _required_feature = "PhraseLabels"
 
     def __init__(
         self,

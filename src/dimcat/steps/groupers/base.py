@@ -83,9 +83,7 @@ class Grouper(ResourceTransformation):
             level_names.remove(self.level_name)
             level_names = [self.level_name] + level_names
             new_df = resource.df.reorder_levels(level_names)
-            return resource.__class__.from_resource_and_dataframe(
-                resource=resource, df=new_df
-            )
+            return resource.from_resource_and_dataframe(resource=resource, df=new_df)
 
     def transform_resource(self, resource: DimcatResource) -> D:
         """Apply the grouper to a Feature."""
@@ -305,7 +303,7 @@ class CriterionGrouper(MappingGrouper):
         }
         grouped_df = pd.concat(grouped_units, names=[self.level_name])
         feature_name = self.resource_name_factory(feature)
-        grouped_feature = feature.__class__.from_resource_and_dataframe(
+        grouped_feature = feature.from_resource_and_dataframe(
             resource=feature, df=grouped_df, resource_name=feature_name
         )
         features_package = dataset.outputs.get_package_by_name("features")

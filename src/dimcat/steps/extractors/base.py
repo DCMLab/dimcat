@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Iterable, Type
 
+import marshmallow as mm
 from dimcat.base import DimcatConfig
 from dimcat.data.datasets.base import Dataset
 from dimcat.data.resources import Feature, FeatureName
@@ -10,7 +11,6 @@ from dimcat.data.resources.base import DR
 from dimcat.data.resources.dc import DimcatResource
 from dimcat.dc_exceptions import ResourceNotProcessableError
 from dimcat.steps.base import FeatureProcessingStep
-from marshmallow import fields, validate
 
 module_logger = logging.getLogger(__name__)
 
@@ -20,9 +20,9 @@ class FeatureExtractor(FeatureProcessingStep):
     _requires_at_least_one_feature = True
 
     class Schema(FeatureProcessingStep.Schema):
-        features = fields.List(
-            fields.Nested(DimcatConfig.Schema),
-            validate=validate.Length(min=1),
+        features = mm.fields.List(
+            mm.fields.Nested(DimcatConfig.Schema),
+            validate=mm.validate.Length(min=1),
         )
 
     def _get_new_resource_type(self, resource: DimcatResource) -> Type[Feature]:

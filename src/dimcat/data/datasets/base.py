@@ -29,7 +29,12 @@ from typing import (
 )
 
 import marshmallow as mm
-from dimcat.base import DimcatConfig, DimcatObjectField, get_class, resolve_object_specs
+from dimcat.base import (
+    DimcatConfig,
+    DimcatObjectField,
+    get_class,
+    make_object_from_specs,
+)
 from dimcat.data.base import Data
 from dimcat.data.catalogs.base import DimcatCatalog
 from dimcat.data.catalogs.inputs import InputsCatalog
@@ -226,7 +231,7 @@ class Dataset(Data):
             single_step = step[0]
             if isinstance(single_step, (list, tuple)):
                 return self.apply_step(*single_step)
-            step_obj = resolve_object_specs(single_step, "PipelineStep")
+            step_obj = make_object_from_specs(single_step, "PipelineStep")
             return step_obj.process_dataset(self)
         Constructor = get_class("Pipeline")
         pipeline = Constructor(steps=step)
