@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import typing
 from abc import ABC
 from configparser import ConfigParser
 from dataclasses import dataclass
@@ -22,6 +23,7 @@ from typing import (
     Optional,
     Tuple,
     Type,
+    TypeAlias,
     TypeVar,
     Union,
     overload,
@@ -96,6 +98,17 @@ class DimcatSchema(mm.Schema):
 
     @mm.pre_dump()
     def assert_type(self, obj, **kwargs):
+        """If this fails, typically, a property of a DimcatObject does not have the type expected by the relevant field.
+        To find out which one, you can use
+
+        .. code-block:: python
+
+           for attr_name, field_obj in schema.dump_fields.items():
+               value = field_obj.serialize(attr_name, obj)
+
+        (copied from marshmallow.schema._serialize()) where ``obj`` is the object to be serialized by ``schema``.
+
+        """
         if not isinstance(obj, DimcatObject):
             raise mm.ValidationError(
                 f"{self.name}: The object to be serialized needs to be a DimcatObject, not a {type(obj)!r}."
@@ -364,6 +377,11 @@ class DimcatObjectField(mm.fields.Field):
 
 
 class FriendlyEnumField(mm.fields.Enum):
+    """This fields is identical with the standard :class:`Marshmallow Enum field <marshmallow.fields.Enum>` except
+    for the fact that enum members are created based on enum values instead of enum names. This incorporates the
+    benefits of the :class:`FriendlyEnum`, i.e. case-insensitive creation from partial strings.
+    """
+
     def __init__(
         self,
         enum: type[Enum],
@@ -372,6 +390,16 @@ class FriendlyEnumField(mm.fields.Enum):
         **kwargs,
     ):
         super().__init__(enum=enum, by_value=by_value, **kwargs)
+
+
+class ListOfStringsField(mm.fields.List):
+    def __init__(self, cls_or_instance=mm.fields.Str(), **kwargs):
+        super().__init__(cls_or_instance=cls_or_instance, **kwargs)
+
+    def _deserialize(self, value, attr, data, **kwargs) -> list[typing.Any]:
+        if isinstance(value, str):
+            value = [value]
+        return super()._deserialize(value=value, attr=attr, data=data, **kwargs)
 
 
 # endregion DimcatObject
@@ -448,7 +476,7 @@ class DimcatConfig(MutableMapping, DimcatObject):
                     f"Dump of DimcatConfig(dtype={options_dtype}) created with a {self.name} could not be "
                     f"validated by {dtype_schema.name} :\n{report}"
                 )
-            return data
+            return dict(data)
 
     def __init__(
         self, options: Dict | DimcatConfig = (), dtype: Optional[str] = None, **kwargs
@@ -471,31 +499,29 @@ class DimcatConfig(MutableMapping, DimcatObject):
                     options = dict(dtype="DimcatConfig", options=options)
             elif "dtype" not in options:
                 options["dtype"] = dtype
+        error_msg = (
+            f"'dtype' key needs to be the name of a DimcatObject, not {dtype!r}. Registry:\n"
+            f"{DimcatObject._registry}"
+        )
         if dtype is None:
-            raise mm.ValidationError(
-                "'dtype' key cannot be None, it needs to be the name of a DimcatObject."
-            )
-        if not is_name_of_dimcat_class(dtype):
-            raise mm.ValidationError(
-                f"'dtype' key needs to be the name of a DimcatObject, not {dtype!r}. Registry:\n"
-                f"{DimcatObject._registry}"
-            )
-        self._options: dict = options
-        """The options dictionary wrapped and controlled by this DimcatConfig. Whenever a new value is set, it is
-        validated against the Schema of the DimcatObject specified under the key 'dtype'."""
+            raise mm.ValidationError(error_msg)
         if (
             isinstance(dtype, Enum)
             or isinstance(dtype, DimcatObject)
             or (isclass(dtype) and issubclass(dtype, DimcatObject))
         ):
             dtype_str = dtype.name
-            self._options["dtype"] = dtype_str
         elif isinstance(dtype, str):
-            pass
+            try:
+                dtype_str = get_class(dtype).name
+            except KeyError:
+                raise mm.ValidationError(error_msg)
         else:
-            raise ValueError(
-                f"{dtype!r} is not the name of a DimcatObject, needed to instantiate a Config."
-            )
+            raise mm.ValidationError(error_msg)
+        self._options: dict = options
+        """The options dictionary wrapped and controlled by this DimcatConfig. Whenever a new value is set, it is
+        validated against the Schema of the DimcatObject specified under the key 'dtype'."""
+        self._options["dtype"] = dtype_str
         report = self.validate(partial=True)
         if report:
             raise mm.ValidationError(
@@ -611,14 +637,44 @@ class DimcatConfig(MutableMapping, DimcatObject):
     def create(self) -> DimcatObject:
         return self.options_schema.load(self._options)
 
-    def matches(self, config: DimcatConfig) -> bool:
-        """Returns True if both configs have the same :attr:`options_dtype` and the overlapping options are equal."""
+    def matches(
+        self,
+        config: DimcatConfig,
+        covariant: bool = False,
+        contravariant: bool = False,
+    ) -> bool:
+        """Returns True if both configs have the same :attr:`options_dtype` (optionally allowing subclasses) and
+        the overlapping options are equal.
+
+        Args:
+            config: The other config to compare against.
+            covariant:
+                If True, the other config's dtype matches even if it is a superclass of this config's dtype. In other
+                words, I describe an object which is of type config.dtype or a subclass of it.
+            contravariant:
+                If True, the other config's dtype matches even if it is a subclass of this config's dtype. In other
+                words, I describe an object which is of type config.dtype or a superclass of it.
+
+        Returns:
+            Returns True if both configs have the same :attr:`options_dtype` (optionally allowing subclasses) and
+            the overlapping options are equal.
+        """
         if not isinstance(config, DimcatConfig):
             raise TypeError(
                 f"Can only compare against DimcatConfig, not {type(config)}."
             )
         if self.options_dtype != config.options_dtype:
-            return False
+            if not (covariant or contravariant):
+                return False
+            if covariant and contravariant:
+                return is_subclass_of(
+                    self.options_dtype, config.options_dtype
+                ) or is_subclass_of(config.options_dtype, self.options_dtype)
+            if covariant:
+                return is_subclass_of(self.options_dtype, config.options_dtype)
+            if contravariant:
+                return is_subclass_of(config.options_dtype, self.options_dtype)
+
         overlapping_keys = set(self.options.keys()) & set(config.options.keys())
         for key in overlapping_keys:
             if self[key] != config[key]:
@@ -640,7 +696,8 @@ class DimcatConfig(MutableMapping, DimcatObject):
 # endregion Data and PipelineStep
 # region querying DimcatObjects by name
 @cache
-def get_class(name) -> Type[DimcatObject]:
+def get_class(name: str) -> Type[DO]:
+    """Resolve the given name to the class of the corresponding DimcatObject."""
     if isinstance(name, Enum):
         name = name.name
     if name.lower() == "dimcatobject":
@@ -661,8 +718,8 @@ def get_class(name) -> Type[DimcatObject]:
 
 
 @cache
-def is_name_of_dimcat_class(name) -> bool:
-    """"""
+def is_name_of_dimcat_class(name: str) -> bool:
+    """Returns True if the given name can be resolved to the name of a DimcatObject."""
     try:
         get_class(name)
         return True
@@ -738,10 +795,48 @@ def deserialize_json_file(json_file: Path | str) -> DimcatObject:
 
 
 DO = TypeVar("DO", bound=DimcatObject)
-DimcatObjectSpecs = Union[DO | Type[DO] | DimcatConfig | dict | ObjectEnum | str]
+DimcatObjectSpecs: TypeAlias = Union[
+    DO, Type[DO], DimcatConfig, MutableMapping, ObjectEnum, str
+]
 
 
-def resolve_object_specs(
+def make_config_from_specs(
+    specs: DO,
+    instance_of: Optional[Type[DO] | str] = None,
+) -> DimcatConfig:
+    """Returns a DimcatConfig corresponding to the given specs. If a DimcatConfig with dtype 'DimcatConfig' is received,
+    the described (inner) DimcatConfig is returned.
+
+    Raises:
+        TypeError: If the feature cannot be converted to a dimcat configuration.
+    """
+    if isinstance(specs, DimcatConfig):
+        config = specs
+    elif isinstance(specs, DimcatObject):
+        config = specs.to_config()
+    elif isinstance(specs, type) and issubclass(specs, DimcatObject):
+        config = DimcatConfig(specs.name)
+    elif isinstance(specs, MutableMapping):
+        config = DimcatConfig(specs)
+    elif isinstance(specs, str):
+        config = DimcatConfig(specs)
+    else:
+        raise TypeError(
+            f"Cannot create a DimcatConfig from the {type(specs).__name__} {specs!r}."
+        )
+    if config.options_dtype == "DimcatConfig":
+        config = DimcatConfig(config["options"])
+    config_dtype = config.options_dtype
+    if instance_of is None:
+        return config
+    if is_subclass_of(config_dtype, instance_of):
+        return config
+    raise TypeError(
+        f"DimcatConfig describes a {config_dtype}, not a Feature: " f"{config.options}"
+    )
+
+
+def make_object_from_specs(
     specs: DimcatObjectSpecs,
     instance_of: Optional[Type[DO] | str] = None,
 ) -> DO:
@@ -752,7 +847,7 @@ def resolve_object_specs(
         obj = specs
     elif isinstance(specs, type) and issubclass(specs, DimcatObject):
         obj = specs()
-    elif isinstance(specs, dict):
+    elif isinstance(specs, MutableMapping):
         obj = deserialize_dict(specs)
     elif isinstance(specs, str):
         if isinstance(specs, ObjectEnum):
@@ -761,7 +856,9 @@ def resolve_object_specs(
             Constructor = get_class(specs)
         obj = Constructor()
     else:
-        obj = specs
+        raise TypeError(
+            f"Cannot create a DimcatObject from the {type(specs).__name__} {specs!r}."
+        )
     if instance_of is None:
         return obj
     if isinstance(instance_of, str):
