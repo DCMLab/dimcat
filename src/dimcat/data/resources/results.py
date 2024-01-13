@@ -4,6 +4,7 @@ import logging
 import math
 from functools import cache, cached_property, partial
 from itertools import product, repeat
+from pprint import pformat
 from typing import (
     Any,
     Callable,
@@ -13,6 +14,7 @@ from typing import (
     Iterable,
     List,
     Literal,
+    MutableMapping,
     Optional,
     Sequence,
     Tuple,
@@ -22,10 +24,18 @@ from typing import (
 
 import frictionless as fl
 import marshmallow as mm
-import ms3
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
-from dimcat.base import LowercaseEnum, ObjectEnum, get_setting
+from dimcat.base import (
+    DimcatObjectField,
+    FriendlyEnum,
+    LowercaseEnum,
+    ObjectEnum,
+    deserialize_dict,
+    get_setting,
+)
+from dimcat.dc_exceptions import UnknownFormat
 from dimcat.plotting import (
     CADENCE_COLORS,
     GroupMode,
@@ -47,8 +57,9 @@ from typing_extensions import Self
 
 from .base import D, S
 from .dc import DimcatResource, UnitOfAnalysis
+from .utils import make_phrase_start_mask, merge_columns_into_one, regroup_phrase_stages
 
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)
 
 str_or_sequence = TypeAlias = Union[str, Sequence[str]]
 
@@ -95,7 +106,7 @@ def compute_entropy_of_occurrences(
 
 
 def _entropy(
-    pk: np.typing.ArrayLike, base: float | None = None, axis: int = 0
+    pk: npt.ArrayLike, base: float | None = None, axis: int = 0
 ) -> np.number | np.ndarray:
     """This is a copy of scipy.stats.entropy @ v1.11.4 leaving out the `np.asarray` call causing the problem
     reported under https://github.com/pandas-dev/pandas/issues/56472 Tested for unidimensional input only (had to
@@ -128,9 +139,6 @@ def compute_entropy_of_probabilities(
 
     Args:
         probabilities:
-        normalize:
-            If True (default), the entropy is normalized to the range [0, 1] based on the maximum entropy for the
-            given number of propabilities.
         base: Logarithmic base for computing the entropy.
         skip_check:
             If False (default) the probabilities are asserted to sum to 1. Pass True when you have normalized the
@@ -172,49 +180,6 @@ def turn_proportions_into_percentage_strings(
         return result.rename(column_name)
 
 
-def tuple2str(
-    tup: tuple,
-    join_str: Optional[str] = ", ",
-    recursive: bool = True,
-    keep_parentheses: bool = False,
-) -> str:
-    """Used for turning n-gram components into strings, e.g. for display on plot axes.
-
-    Args:
-        tup: Tuple to be returned as string.
-        join_str:
-            String to be interspersed between tuple elements. If None, result is ``str(tup)`` and ``recursive`` is
-            ignored.
-        recursive:
-            If True (default) tuple elements that are tuples themselves will be joined together recursively, using the
-            same ``join_str`` (except when it's None). Inner tuples always keep their parentheses.
-        keep_parentheses: If False (default), the outer parentheses are removed. Pass True to keep them in the string.
-
-    Returns:
-        A string representing the tuple.
-    """
-    try:
-        if join_str is None:
-            result = str(tup)
-            if keep_parentheses:
-                return result
-            return result[1:-1]
-        if recursive:
-            result = join_str.join(
-                tuple2str(e, join_str=join_str, keep_parentheses=True)
-                if isinstance(e, tuple)
-                else str(e)
-                for e in tup
-            )
-        else:
-            result = join_str.join(str(e) for e in tup)
-    except TypeError:
-        return str(tup)
-    if keep_parentheses:
-        return f"({result})"
-    return result
-
-
 class ResultName(ObjectEnum):
     """Identifies the available analyzers."""
 
@@ -223,6 +188,7 @@ class ResultName(ObjectEnum):
     Durations = "Durations"
     NgramTable = "NgramTable"
     NgramTuples = "NgramTuples"
+    PhraseData = "PhraseData"
     Result = "Result"
     Transitions = "Transitions"
 
@@ -238,10 +204,26 @@ class Result(DimcatResource):
     columns to determine how the data will be grouped for the plot."""
 
     class Schema(DimcatResource.Schema):
-        analyzed_resource = mm.fields.Nested(DimcatResource.Schema, required=True)
-        value_column = mm.fields.Str(required=True)
-        dimension_column = mm.fields.Str(required=True)
-        formatted_column = mm.fields.Str(allow_none=True)
+        analyzed_resource = DimcatObjectField()
+        value_column = mm.fields.Str(
+            required=True,
+            metadata=dict(
+                description="Name of the column containing the values, relevant, e.g., for tallies."
+            ),
+        )
+        dimension_column = mm.fields.Str(
+            allow_none=True,
+            metadata=dict(
+                description="Name of the column containing some dimension, e.g. to be interpreted as quantity "
+                "(durations, counts, etc.). Not all results have one, e.g. NgramTable."
+            ),
+        )
+        formatted_column = mm.fields.Str(
+            allow_none=True,
+            metadata=dict(
+                description="Name of the column containing the formatted values, typically for display on the x_axis."
+            ),
+        )
 
     def __init__(
         self,
@@ -254,16 +236,41 @@ class Result(DimcatResource):
         basepath: Optional[str] = None,
         auto_validate: bool = False,
         default_groupby: Optional[str | list[str]] = None,
+        format=None,
+        **kwargs,
     ) -> None:
+        """
+
+        Args:
+            analyzed_resource:
+            value_column:
+            dimension_column:
+            formatted_column:
+            resource:
+            descriptor_filename:
+            basepath:
+            auto_validate:
+            default_groupby:
+            format:
+            **kwargs:
+                Since :class:`Analyzers <Analyzer>` pass on all init arguments to the Results they create, they need
+                to be caught in case the Result does not use them.They are put in a debug-level log message.
+        """
+        if len(kwargs) > 0:
+            self.logger.debug(
+                f"{self.name} was initialized with unused init arguments \n{pformat(kwargs, sort_dicts=False)}"
+            )
         super().__init__(
             resource=resource,
             descriptor_filename=descriptor_filename,
             basepath=basepath,
             auto_validate=auto_validate,
             default_groupby=default_groupby,
+            format=format,
         )
         # self._formatted_column and self._value_column are already set by super().__init__()
-        self.analyzed_resource: DimcatResource = analyzed_resource
+        self._analyzed_resource: DimcatResource = None
+        self.analyzed_resource = analyzed_resource
         self.value_column = value_column
         self.dimension_column: Optional[str] = dimension_column
         """Name of the column containing some dimension, e.g. to be interpreted as quantity (durations, counts,
@@ -272,6 +279,20 @@ class Result(DimcatResource):
         self.is_combination = False
         """Is True if this Result has been created by Result.combine_results(), in which case the method will return
         :attr:`df` as is (without combining anything)."""
+
+    @property
+    def analyzed_resource(self) -> DimcatResource:
+        return self._analyzed_resource
+
+    @analyzed_resource.setter
+    def analyzed_resource(self, analyzed_resource: DimcatResource | MutableMapping):
+        if isinstance(analyzed_resource, MutableMapping):
+            analyzed_resource = deserialize_dict(analyzed_resource)
+        elif not isinstance(analyzed_resource, DimcatResource):
+            raise TypeError(
+                f"analyzed_resource must be a DimcatResource, not {type(analyzed_resource)}"
+            )
+        self._analyzed_resource = analyzed_resource
 
     @property
     def feature_columns(self) -> List[str]:
@@ -404,7 +425,7 @@ class Result(DimcatResource):
         combined_results = self._combine_results(
             group_cols=group_cols, sort_order=sort_order
         )
-        new_result = self.__class__.from_resource_and_dataframe(
+        new_result = self.from_resource_and_dataframe(
             self,
             combined_results,
             default_groupby=group_cols,
@@ -928,22 +949,25 @@ class Result(DimcatResource):
         combined_result: D,
         group_cols: List[str],
         sort_order: Optional[SortOrder] = SortOrder.DESCENDING,
+        sort_column: Optional[str] = None,
     ):
         if sort_order is None or sort_order == SortOrder.NONE:
             return combined_result
+        if sort_column is None:
+            sort_column = self.y_column
         if not group_cols:
             # no grouping required
             if sort_order == SortOrder.ASCENDING:
-                return combined_result.sort_values(self.y_column)
+                return combined_result.sort_values(sort_column)
             else:
-                return combined_result.sort_values(self.y_column, ascending=False)
+                return combined_result.sort_values(sort_column, ascending=False)
         if sort_order == SortOrder.ASCENDING:
             return combined_result.groupby(group_cols, group_keys=False).apply(
-                lambda df: df.sort_values(self.y_column)
+                lambda df: df.sort_values(sort_column)
             )
         else:
             return combined_result.groupby(group_cols, group_keys=False).apply(
-                lambda df: df.sort_values(self.y_column, ascending=False)
+                lambda df: df.sort_values(sort_column, ascending=False)
             )
 
 
@@ -1035,15 +1059,45 @@ class Durations(Result):
     pass
 
 
+class NgramTableFormat(FriendlyEnum):
+    """The format of the ngram table determining how many columns are copied for each of the n-1 shifts.
+    The original columns are always copied.
+    This setting my have a significant effect on the performance when creating the NgramTable.
+    """
+
+    FEATURES = "FEATURES"
+    FEATURES_CONTEXT = "FEATURES_CONTEXT"
+    CONVENIENCE = "CONVENIENCE"
+    CONVENIENCE_CONTEXT = "CONVENIENCE_CONTEXT"
+    AUXILIARY = "AUXILIARY"
+    AUXILIARY_CONTEXT = "AUXILIARY_CONTEXT"
+    FULL_WITHOUT_CONTEXT = "FULL_WITHOUT_CONTEXT"
+    FULL = "FULL"
+
+
 class NgramTable(Result):
     """A side-by-side concatenation of a feature with one or several shifted version of itself, so that each row
     contains both the original values and those of the n-1 following rows, concatenated on the right.
     This table keeps full flexibility in terms of how you want to create :class:`NgramTuples` from it.
     """
 
-    @cached_property
+    @property
     def ngram_levels(self) -> List[str]:
-        return list(self.df.columns.levels[0])
+        try:
+            return list(self.df.columns.levels[0])
+        except AttributeError as e:
+            self.logger.warning(
+                f"Calling the property {self.name}.ngram_levels resulted in the AttributeError {e}."
+            )
+            return []
+
+    @property
+    def format(self) -> NgramTableFormat:
+        return self._format
+
+    @format.setter
+    def format(self, format: NgramTableFormat):
+        self._format = NgramTableFormat(format)
 
     def _add_context_columns(
         self,
@@ -1620,23 +1674,8 @@ class NgramTable(Result):
         """
         selection = self._subselect_component_columns(level, columns)
         return_tuples = not isinstance(selection, pd.Series)
-        if fillna is not None:
-            selection = selection.fillna(fillna)
         if return_tuples:
-            selection = pd.Series(
-                selection.itertuples(index=False, name=None), index=selection.index
-            )
-            if join_str is not None:
-                if not isinstance(join_str, str):
-                    if join_str is True:
-                        join_str = ", "
-                    elif join_str is False:
-                        join_str = ""
-                    else:
-                        raise TypeError(
-                            f"join_str must be a string or a boolean, got {join_str!r} ({type(join_str)})"
-                        )
-                selection = ms3.transform(selection, tuple2str, join_str=join_str)
+            selection = merge_columns_into_one(selection, join_str, fillna)
         elif join_str is not None:
             selection = selection.astype("string")
         result = selection.rename(level)
@@ -1736,7 +1775,7 @@ class NgramTable(Result):
             selected_levels = self.ngram_levels
         n = len(selected_levels)
         if len(ngram_component_columns) == 0:
-            component_columns = [self.feature_columns] * n
+            component_columns = [None] * n
         elif len(ngram_component_columns) == 1:
             component_columns = [ngram_component_columns[0]] * n
         else:
@@ -1826,7 +1865,7 @@ class NgramTable(Result):
             terminal_symbols=terminal_symbols,
             context_columns=context_columns,
         )
-        return self.__class__.from_resource_and_dataframe(resource=self, df=df)
+        return self.from_resource_and_dataframe(resource=self, df=df)
 
     def make_ngram_tuples(
         self,
@@ -1977,24 +2016,31 @@ class NgramTable(Result):
     ) -> D | S:
         """Retrieve the specified columns for the specified n-gram level ('a, 'b', etc.) from the NgramTable."""
         return_series = False
-        if columns is None:
-            columns = self.feature_columns
-            if len(columns) == 1:
-                return_series = True
-        elif isinstance(columns, str):
-            return_series = True
-            columns = [columns]
+        if columns is None and not any(
+            col in self.df.columns.levels[1] for col in self.feature_columns
+        ):
+            # default to all available columns
+            column_names = [col for col in self.df.columns if col[0] == level]
         else:
-            columns = list(columns)
-        column_names = list(product([level], columns))
-        missing = [col for col in column_names if col not in self.df.columns]
-        n_missing = len(missing)
-        if n_missing:
-            if n_missing == len(column_names):
-                msg = f"None of the requested columns {columns} are present in the NgramTable."
+            if columns is None:
+                columns = self.feature_columns
+                if len(columns) == 1:
+                    return_series = True
+            elif isinstance(columns, str):
+                return_series = True
+                columns = [columns]
             else:
-                msg = f"The following columns are not present in the NgramTable: {missing}"
-            raise ValueError(msg)
+                columns = list(columns)
+            column_names = list(product([level], columns))
+            missing = [col for col in column_names if col not in self.df.columns]
+            n_missing = len(missing)
+            if n_missing:
+                if n_missing == len(column_names):
+                    msg = f"None of the requested columns {column_names} are present in the NgramTable."
+                else:
+                    msg = f"The following columns are not present in the NgramTable: {missing}"
+                msg += f"\nAvailable columns: {self.df.columns.to_list()!r}"
+                raise ValueError(msg)
         if return_series:
             selection = self.df.loc[:, column_names[0]]
         else:
@@ -2083,6 +2129,31 @@ class NgramTuples(Result):
 
     _default_analyzer = "Counter"
 
+    def _combine_results(
+        self,
+        group_cols: Optional[
+            UnitOfAnalysis | str | Iterable[str]
+        ] = UnitOfAnalysis.GROUP,
+        sort_order: Optional[SortOrder] = SortOrder.DESCENDING,
+    ) -> D:
+        raise NotImplementedError(
+            "NgramTuples does not support this action. Try .get_default_analysis()." ""
+        )
+
+    def combine_results(
+        self,
+        group_cols: Optional[
+            UnitOfAnalysis | str | Iterable[str]
+        ] = UnitOfAnalysis.GROUP,
+        sort_order: Optional[SortOrder] = SortOrder.DESCENDING,
+    ) -> Self:
+        """Convenience method for calling .get_default_analysis().combine_results()."""
+        default_analysis = self.get_default_analysis()
+        return default_analysis.combine_results(
+            group_cols=group_cols,
+            sort_order=sort_order,
+        )
+
     def make_ranking_table(
         self,
         /,
@@ -2112,6 +2183,311 @@ class NgramTuples(Result):
         raise NotImplementedError
 
 
+class PhraseDataFormat(FriendlyEnum):
+    LONG = "LONG"
+    WIDE = "WIDE"
+
+
+class PhraseData(Result):
+    class Schema(Result.Schema):
+        pass
+
+    def __init__(
+        self,
+        analyzed_resource: DimcatResource,
+        value_column: Optional[str],
+        dimension_column: Optional[str],
+        formatted_column: Optional[str] = None,
+        resource: fl.Resource = None,
+        descriptor_filename: Optional[str] = None,
+        basepath: Optional[str] = None,
+        auto_validate: bool = False,
+        default_groupby: Optional[str | list[str]] = None,
+        format: PhraseDataFormat = PhraseDataFormat.LONG,
+        **kwargs,
+    ):
+        super().__init__(
+            analyzed_resource=analyzed_resource,
+            value_column=value_column,
+            dimension_column=dimension_column,
+            formatted_column=formatted_column,
+            resource=resource,
+            descriptor_filename=descriptor_filename,
+            basepath=basepath,
+            auto_validate=auto_validate,
+            default_groupby=default_groupby,
+            format=format,
+            **kwargs,
+        )
+
+    @property
+    def format(self) -> PhraseDataFormat:
+        return self._format
+
+    @format.setter
+    def format(self, format: PhraseDataFormat):
+        self._format = PhraseDataFormat(format)
+
+    def _regroup_phrase_index(
+        self,
+        group_start_mask: npt.NDArray[bool],
+    ):
+        pass
+
+    def _regroup_phrases(
+        self,
+        grouping: S,
+        level_names: Tuple[str, str] = ("stage", "substage"),
+    ) -> D:
+        """Insert a grouping column and replace the last index level with a new primary and secondary index accordingly.
+        The primary level increments at the beginning of each group, the secondary level increments at every row,
+        restarting at the beginning of each group. For example, a grouping ["a", "a", "a", "b", "c", "c"] results
+        in the index [(0, 0), (0, 1), (0, 2), (1, 0), (2, 0), (2, 1)].
+
+
+        Args:
+            grouping:
+                A Series with the same index as the (raw) phrase_df, containing the grouping criterion. Adjacent equal
+                values are grouped together.
+            level_names: Names of the two index levels.
+
+        Returns:
+            A reindexed copy of the phrase data.
+        """
+        df = self.dataframe
+        return regroup_phrase_stages(df, grouping, level_names)
+
+    def regroup_phrases(
+        self,
+        grouping: S,
+        level_names: Tuple[str, str] = ("stage", "substage"),
+    ) -> Self:
+        """Insert a grouping column and replace the last index level with a new primary and secondary index accordingly.
+        The primary level increments at the beginning of each group, the secondary level increments at every row,
+        restarting at the beginning of each group. For example, a grouping ["a", "a", "a", "b", "c", "c"] results
+        in the index [(0, 0), (0, 1), (0, 2), (1, 0), (2, 0), (2, 1)].
+
+
+        Args:
+            grouping:
+                A Series with the same index as the (raw) phrase_df, containing the grouping criterion. Adjacent equal
+                values are grouped together.
+            level_names: Names of the two index levels.
+
+        Returns:
+            A reindexed copy of the phrase data.
+        """
+        phrase_data = self._regroup_phrases(grouping=grouping, level_names=level_names)
+        return self.from_resource_and_dataframe(
+            resource=self,
+            df=phrase_data,
+        )
+
+    def _get_phrase_start_mask(self) -> npt.NDArray[bool]:
+        """Returns a boolean array that is True for each row in which a new phrase starts."""
+        df = self.dataframe
+        return make_phrase_start_mask(df)
+
+    def _combine_results(
+        self,
+        group_cols: Optional[
+            UnitOfAnalysis | str | Iterable[str]
+        ] = UnitOfAnalysis.GROUP,
+        sort_order: Optional[SortOrder] = SortOrder.DESCENDING,
+    ) -> D:
+        """Aggregate results for each group, typically by summing up and normalizing the values. By default,
+        the groups correspond to those that had been applied to the analyzed resource. If no Groupers had been
+        applied, the entire dataset is treated as a single group.
+        """
+        raise NotImplementedError
+
+    def _format_dataframe(
+        self,
+        df: D,
+        format: PhraseDataFormat = None,
+    ):
+        if format is None:
+            format = self.format
+        if format == PhraseDataFormat.LONG:
+            return df
+        if format == PhraseDataFormat.WIDE:
+            formatted = df.unstack()
+            if formatted.columns.nlevels == 2:
+                formatted.columns.rename("column", level=0, inplace=True)
+                formatted = formatted.stack("column")
+            return formatted.sort_index(axis=1)
+        raise UnknownFormat(format, PhraseDataFormat, self.name, self.resource_name)
+
+    def make_bar_plot(
+        self,
+        df: Optional[D] = None,
+        x_col: Optional[str] = None,
+        y_col: Optional[str] = None,
+        group_cols: Optional[str | Iterable[str]] = None,
+        group_modes: Optional[GroupMode | Iterable[GroupMode]] = None,
+        title: Optional[str] = None,
+        labels: Optional[dict] = None,
+        hover_data: Optional[List[str]] = None,
+        height: Optional[int] = None,
+        width: Optional[int] = None,
+        layout: Optional[dict] = None,
+        font_size: Optional[int] = None,
+        x_axis: Optional[dict] = None,
+        y_axis: Optional[dict] = None,
+        color_axis: Optional[dict] = None,
+        traces_settings: Optional[dict] = None,
+        output: Optional[str] = None,
+        **kwargs,
+    ) -> go.Figure:
+        """
+
+        Args:
+            layout: Keyword arguments passed to fig.update_layout()
+            **kwargs: Keyword arguments passed to the Plotly plotting function.
+
+        Returns:
+            A Plotly Figure object.
+        """
+        raise NotImplementedError
+
+    def make_bubble_plot(
+        self,
+        df: Optional[D] = None,
+        x_col: Optional[str] = None,
+        y_col: Optional[str] = None,
+        group_cols: Optional[str | Iterable[str]] = None,
+        group_modes: Optional[GroupMode | Iterable[GroupMode]] = (
+            GroupMode.ROWS,
+            GroupMode.COLUMNS,
+        ),
+        normalize: bool = True,
+        dimension_column: Optional[str] = None,
+        title: Optional[str] = None,
+        labels: Optional[dict] = None,
+        hover_data: Optional[List[str]] = None,
+        width: Optional[int] = None,
+        height: Optional[int] = None,
+        layout: Optional[dict] = None,
+        font_size: Optional[int] = None,
+        x_axis: Optional[dict] = None,
+        y_axis: Optional[dict] = None,
+        color_axis: Optional[dict] = None,
+        traces_settings: Optional[dict] = None,
+        output: Optional[str] = None,
+        **kwargs,
+    ) -> go.Figure:
+        """
+
+        Args:
+            layout: Keyword arguments passed to fig.update_layout()
+            **kwargs: Keyword arguments passed to the Plotly plotting function.
+
+        Returns:
+            A Plotly Figure object.
+        """
+        raise NotImplementedError
+
+    def make_pie_chart(
+        self,
+        df: Optional[D] = None,
+        x_col: Optional[str] = None,
+        y_col: Optional[str] = None,
+        group_cols: Optional[str | Iterable[str]] = None,
+        group_modes: Optional[GroupMode | Iterable[GroupMode]] = None,
+        title: Optional[str] = None,
+        labels: Optional[dict] = None,
+        hover_data: Optional[List[str]] = None,
+        height: Optional[int] = None,
+        width: Optional[int] = None,
+        layout: Optional[dict] = None,
+        font_size: Optional[int] = None,
+        x_axis: Optional[dict] = None,
+        y_axis: Optional[dict] = None,
+        color_axis: Optional[dict] = None,
+        traces_settings: Optional[dict] = None,
+        output: Optional[str] = None,
+        **kwargs,
+    ) -> go.Figure:
+        """
+
+        Args:
+            layout: Keyword arguments passed to fig.update_layout()
+            **kwargs: Keyword arguments passed to the Plotly plotting function.
+
+        Returns:
+            A Plotly Figure object.
+        """
+        raise NotImplementedError
+
+    def make_ranking_table(
+        self,
+        /,
+        group_cols: Optional[
+            UnitOfAnalysis | str | Iterable[str]
+        ] = UnitOfAnalysis.GROUP,
+        sort_column: Optional[str | Tuple[str, ...]] = None,
+        sort_order: Literal[
+            SortOrder.DESCENDING, SortOrder.ASCENDING
+        ] = SortOrder.DESCENDING,
+        top_k: Optional[int] = None,
+        drop_cols: Optional[str | Iterable[str]] = None,
+    ) -> D:
+        """Sorts the values
+
+        Args:
+            group_cols:
+                Ranking tables for groups will be concatenated side-by-side. Defaults to the default groupby.
+                To fully prevent grouping, pass False or a falsy value except None.
+            sort_column: By which column to rank. Defaults to the :attr:`dimension_column`.
+            sort_order: Defaults to "descending", i.e., the highest values will be ranked first.
+            top_k: The number of top ranks to retain. Defaults to 50. Pass None to retain all.
+
+        Returns:
+
+        """
+        raise NotImplementedError
+
+    def plot(
+        self,
+        title: Optional[str] = None,
+        labels: Optional[dict] = None,
+        hover_data: Optional[List[str]] = None,
+        height: Optional[int] = None,
+        width: Optional[int] = None,
+        layout: Optional[dict] = None,
+        font_size: Optional[int] = None,
+        x_axis: Optional[dict] = None,
+        y_axis: Optional[dict] = None,
+        color_axis: Optional[dict] = None,
+        traces_settings: Optional[dict] = None,
+        output: Optional[str] = None,
+        **kwargs,
+    ) -> go.Figure:
+        raise NotImplementedError
+
+    def plot_grouped(
+        self,
+        group_cols: Optional[
+            UnitOfAnalysis | str | Iterable[str]
+        ] = UnitOfAnalysis.GROUP,
+        group_modes: Optional[GroupMode | Iterable[GroupMode]] = None,
+        title: Optional[str] = None,
+        labels: Optional[dict] = None,
+        hover_data: Optional[List[str]] = None,
+        height: Optional[int] = None,
+        width: Optional[int] = None,
+        layout: Optional[dict] = None,
+        font_size: Optional[int] = None,
+        x_axis: Optional[dict] = None,
+        y_axis: Optional[dict] = None,
+        color_axis: Optional[dict] = None,
+        traces_settings: Optional[dict] = None,
+        output: Optional[str] = None,
+        **kwargs,
+    ) -> go.Figure:
+        raise NotImplementedError
+
+
 class Transitions(Result):
     class Schema(Result.Schema):
         feature_columns = mm.fields.List(
@@ -2130,6 +2506,7 @@ class Transitions(Result):
         basepath: Optional[str] = None,
         auto_validate: bool = False,
         default_groupby: Optional[str | list[str]] = None,
+        format=None,
     ) -> None:
         super().__init__(
             analyzed_resource=analyzed_resource,
@@ -2141,6 +2518,7 @@ class Transitions(Result):
             basepath=basepath,
             auto_validate=auto_validate,
             default_groupby=default_groupby,
+            format=format,
         )
         self._feature_columns = feature_columns
 
@@ -2686,3 +3064,304 @@ def make_heatmaps_from_transitions(
     if output:
         write_image(fig=fig, filename=output, width=width, height=height)
     return fig
+
+
+# SKELETON FOR MAKING NEW RESULT
+
+# class ResultSubClass(Result):
+#     class Schema(Result.Schema):
+#         pass
+#
+#     @property
+#     def x_column(self) -> str:
+#         """Name of the result column from which to create one marker per distinct value to show over the x-axis."""
+#         if self.uses_line_of_fifths_colors or not self.formatted_column:
+#             return self.value_column
+#         else:
+#             return self.formatted_column
+#
+#     @property
+#     def y_column(self) -> str:
+#         """Name of the numerical result column used for determining each marker's dimension along the y-axis."""
+#         return self.dimension_column
+#
+#     def _add_proportion_columns(self, combined_result: D, normalize_by: S | float) -> D:
+#         """Normalize the combined results and concatenate them as two new column, 'proportion' and 'proportion_%'."""
+#         return super()._add_proportion_columns(combined_result, normalize_by)
+#
+#     def _combine_results(
+#         self,
+#         group_cols: Optional[
+#             UnitOfAnalysis | str | Iterable[str]
+#         ] = UnitOfAnalysis.GROUP,
+#         sort_order: Optional[SortOrder] = SortOrder.DESCENDING,
+#     ) -> D:
+#         """Aggregate results for each group, typically by summing up and normalizing the values. By default,
+#         the groups correspond to those that had been applied to the analyzed resource. If no Groupers had been
+#         applied, the entire dataset is treated as a single group.
+#         """
+#         return super()._combine_results(group_cols, sort_order)
+#
+#     def make_bar_plot(
+#         self,
+#         df: Optional[D] = None,
+#         x_col: Optional[str] = None,
+#         y_col: Optional[str] = None,
+#         group_cols: Optional[str | Iterable[str]] = None,
+#         group_modes: Optional[GroupMode | Iterable[GroupMode]] = None,
+#         title: Optional[str] = None,
+#         labels: Optional[dict] = None,
+#         hover_data: Optional[List[str]] = None,
+#         height: Optional[int] = None,
+#         width: Optional[int] = None,
+#         layout: Optional[dict] = None,
+#         font_size: Optional[int] = None,
+#         x_axis: Optional[dict] = None,
+#         y_axis: Optional[dict] = None,
+#         color_axis: Optional[dict] = None,
+#         traces_settings: Optional[dict] = None,
+#         output: Optional[str] = None,
+#         **kwargs,
+#     ) -> go.Figure:
+#         """
+#
+#         Args:
+#             layout: Keyword arguments passed to fig.update_layout()
+#             **kwargs: Keyword arguments passed to the Plotly plotting function.
+#
+#         Returns:
+#             A Plotly Figure object.
+#         """
+#         return super().make_bar_plot(
+#             df=df,
+#             x_col=x_col,
+#             y_col=y_col,
+#             group_cols=group_cols,
+#             group_modes=group_modes,
+#             title=title,
+#             labels=labels,
+#             hover_data=hover_data,
+#             height=height,
+#             width=width,
+#             layout=layout,
+#             font_size=font_size,
+#             x_axis=x_axis,
+#             y_axis=y_axis,
+#             color_axis=color_axis,
+#             traces_settings=traces_settings,
+#             output=output,
+#             **kwargs,
+#         )
+#
+#     def make_bubble_plot(
+#         self,
+#         df: Optional[D] = None,
+#         x_col: Optional[str] = None,
+#         y_col: Optional[str] = None,
+#         group_cols: Optional[str | Iterable[str]] = None,
+#         group_modes: Optional[GroupMode | Iterable[GroupMode]] = (
+#             GroupMode.ROWS,
+#             GroupMode.COLUMNS,
+#         ),
+#         normalize: bool = True,
+#         dimension_column: Optional[str] = None,
+#         title: Optional[str] = None,
+#         labels: Optional[dict] = None,
+#         hover_data: Optional[List[str]] = None,
+#         width: Optional[int] = None,
+#         height: Optional[int] = None,
+#         layout: Optional[dict] = None,
+#         font_size: Optional[int] = None,
+#         x_axis: Optional[dict] = None,
+#         y_axis: Optional[dict] = None,
+#         color_axis: Optional[dict] = None,
+#         traces_settings: Optional[dict] = None,
+#         output: Optional[str] = None,
+#         **kwargs,
+#     ) -> go.Figure:
+#         """
+#
+#         Args:
+#             layout: Keyword arguments passed to fig.update_layout()
+#             **kwargs: Keyword arguments passed to the Plotly plotting function.
+#
+#         Returns:
+#             A Plotly Figure object.
+#         """
+#         return super().make_bubble_plot(
+#             df=df,
+#             x_col=x_col,
+#             y_col=y_col,
+#             group_cols=group_cols,
+#             group_modes=group_modes,
+#             normalize=normalize,
+#             dimension_column=dimension_column,
+#             title=title,
+#             labels=labels,
+#             hover_data=hover_data,
+#             width=width,
+#             height=height,
+#             layout=layout,
+#             font_size=font_size,
+#             x_axis=x_axis,
+#             y_axis=y_axis,
+#             color_axis=color_axis,
+#             traces_settings=traces_settings,
+#             output=output,
+#             **kwargs,
+#         )
+#
+#     def make_pie_chart(
+#         self,
+#         df: Optional[D] = None,
+#         x_col: Optional[str] = None,
+#         y_col: Optional[str] = None,
+#         group_cols: Optional[str | Iterable[str]] = None,
+#         group_modes: Optional[GroupMode | Iterable[GroupMode]] = None,
+#         title: Optional[str] = None,
+#         labels: Optional[dict] = None,
+#         hover_data: Optional[List[str]] = None,
+#         height: Optional[int] = None,
+#         width: Optional[int] = None,
+#         layout: Optional[dict] = None,
+#         font_size: Optional[int] = None,
+#         x_axis: Optional[dict] = None,
+#         y_axis: Optional[dict] = None,
+#         color_axis: Optional[dict] = None,
+#         traces_settings: Optional[dict] = None,
+#         output: Optional[str] = None,
+#         **kwargs,
+#     ) -> go.Figure:
+#         """
+#
+#         Args:
+#             layout: Keyword arguments passed to fig.update_layout()
+#             **kwargs: Keyword arguments passed to the Plotly plotting function.
+#
+#         Returns:
+#             A Plotly Figure object.
+#         """
+#         return super().make_pie_chart(
+#             df=df,
+#             x_col=x_col,
+#             y_col=y_col,
+#             group_cols=group_cols,
+#             group_modes=group_modes,
+#             title=title,
+#             labels=labels,
+#             hover_data=hover_data,
+#             height=height,
+#             width=width,
+#             layout=layout,
+#             font_size=font_size,
+#             x_axis=x_axis,
+#             y_axis=y_axis,
+#             color_axis=color_axis,
+#             traces_settings=traces_settings,
+#             output=output,
+#             **kwargs,
+#         )
+#
+#     def make_ranking_table(
+#         self,
+#         /,
+#         group_cols: Optional[
+#             UnitOfAnalysis | str | Iterable[str]
+#         ] = UnitOfAnalysis.GROUP,
+#         sort_column: Optional[str | Tuple[str, ...]] = None,
+#         sort_order: Literal[
+#             SortOrder.DESCENDING, SortOrder.ASCENDING
+#         ] = SortOrder.DESCENDING,
+#         top_k: Optional[int] = None,
+#         drop_cols: Optional[str | Iterable[str]] = None,
+#     ) -> D:
+#         """Sorts the values
+#
+#         Args:
+#             group_cols:
+#                 Ranking tables for groups will be concatenated side-by-side. Defaults to the default groupby.
+#                 To fully prevent grouping, pass False or a falsy value except None.
+#             sort_column: By which column to rank. Defaults to the :attr:`dimension_column`.
+#             sort_order: Defaults to "descending", i.e., the highest values will be ranked first.
+#             top_k: The number of top ranks to retain. Defaults to 50. Pass None to retain all.
+#
+#         Returns:
+#
+#         """
+#         return super().make_ranking_table(
+#             group_cols=group_cols,
+#             sort_column=sort_column,
+#             sort_order=sort_order,
+#             top_k=top_k,
+#             drop_cols=drop_cols,
+#         )
+#
+#     def plot(
+#         self,
+#         title: Optional[str] = None,
+#         labels: Optional[dict] = None,
+#         hover_data: Optional[List[str]] = None,
+#         height: Optional[int] = None,
+#         width: Optional[int] = None,
+#         layout: Optional[dict] = None,
+#         font_size: Optional[int] = None,
+#         x_axis: Optional[dict] = None,
+#         y_axis: Optional[dict] = None,
+#         color_axis: Optional[dict] = None,
+#         traces_settings: Optional[dict] = None,
+#         output: Optional[str] = None,
+#         **kwargs,
+#     ) -> go.Figure:
+#         return super.plot(
+#             title=title,
+#             labels=labels,
+#             hover_data=hover_data,
+#             height=height,
+#             width=width,
+#             layout=layout,
+#             font_size=font_size,
+#             x_axis=x_axis,
+#             y_axis=y_axis,
+#             color_axis=color_axis,
+#             traces_settings=traces_settings,
+#             output=output,
+#             **kwargs,
+#         )
+#
+#     def plot_grouped(
+#         self,
+#         group_cols: Optional[
+#             UnitOfAnalysis | str | Iterable[str]
+#         ] = UnitOfAnalysis.GROUP,
+#         group_modes: Optional[GroupMode | Iterable[GroupMode]] = None,
+#         title: Optional[str] = None,
+#         labels: Optional[dict] = None,
+#         hover_data: Optional[List[str]] = None,
+#         height: Optional[int] = None,
+#         width: Optional[int] = None,
+#         layout: Optional[dict] = None,
+#         font_size: Optional[int] = None,
+#         x_axis: Optional[dict] = None,
+#         y_axis: Optional[dict] = None,
+#         color_axis: Optional[dict] = None,
+#         traces_settings: Optional[dict] = None,
+#         output: Optional[str] = None,
+#         **kwargs,
+#     ) -> go.Figure:
+#         return super().plot_grouped(
+#             group_cols=group_cols,
+#             group_modes=group_modes,
+#             title=title,
+#             labels=labels,
+#             hover_data=hover_data,
+#             height=height,
+#             width=width,
+#             layout=layout,
+#             font_size=font_size,
+#             x_axis=x_axis,
+#             y_axis=y_axis,
+#             color_axis=color_axis,
+#             traces_settings=traces_settings,
+#             output=output,
+#             **kwargs,
+#         )

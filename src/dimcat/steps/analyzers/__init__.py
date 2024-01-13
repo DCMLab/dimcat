@@ -1,6 +1,7 @@
 import logging
 
 from .counters import BigramAnalyzer, Counter, NgramAnalyzer
+from .phrases import PhraseDataAnalyzer
 from .proportions import PitchClassVectors, Proportions
 
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)

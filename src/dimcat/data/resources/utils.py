@@ -12,6 +12,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Dict,
+    Hashable,
     Iterable,
     List,
     Literal,
@@ -19,6 +20,7 @@ from typing import (
     Optional,
     Set,
     Tuple,
+    TypeAlias,
     TypeVar,
     overload,
 )
@@ -28,7 +30,12 @@ import frictionless as fl
 import ms3
 import numpy as np
 import pandas as pd
-from dimcat.base import DimcatConfig, get_setting, is_instance_of, is_subclass_of
+from dimcat.base import (
+    DimcatConfig,
+    get_setting,
+    is_instance_of,
+    make_config_from_specs,
+)
 from dimcat.data.utils import make_fl_resource
 from dimcat.dc_exceptions import (
     ResourceIsMissingPieceIndexError,
@@ -37,16 +44,18 @@ from dimcat.dc_exceptions import (
 from dimcat.dc_warnings import ResourceWithRangeIndexUserWarning
 from marshmallow.fields import Boolean
 from ms3 import reduce_dataframe_duration_to_first_row
+from ms3.expand_dcml import expand_labels
+from numpy import typing as npt
 from numpy._typing import NDArray
 
-from .base import D, FeatureName
+from .base import IX, D, FeatureName, S
 
 module_logger = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
     from .base import SomeDataframe, SomeIndex
-    from .dc import DimcatIndex, FeatureSpecs
+    from .dc import DimcatIndex, FeatureSpecs, Playthrough
 
 TRUTHY_VALUES = Boolean.truthy
 FALSY_VALUES = Boolean.falsy
@@ -131,15 +140,53 @@ def align_with_grouping(
     return result
 
 
+def apply_playthrough(
+    feature_df: D,
+    playthrough: Playthrough,
+    logger: Optional[logging.Logger] = None,
+) -> D:
+    """Transform a dataframe based on the resource's :attr:`playthrough` setting."""
+    if logger is None:
+        logger = module_logger
+    if playthrough == "RAW" or "volta" not in feature_df.columns:
+        return feature_df
+    if not playthrough == "SINGLE":
+        raise NotImplementedError(f"Unknown Playthrough setting {playthrough!r}.")
+    volta_values = feature_df.volta.unique()
+    if 3 in volta_values:
+        logger.info(
+            "The dataframe has more than two alternative endings. The "
+            "Playthrough.SINGLE setting drops all but the seconda volta."
+        )
+    keep_mask = feature_df.volta.isna() | feature_df.volta.eq(2)
+    if keep_mask.all():
+        logger.info("No alternative endings which would need to be dropped.")
+        return feature_df
+    drop_values = feature_df.loc[~keep_mask, "volta"].value_counts().to_dict()
+    logger.debug(
+        f"Values and occurrences of the dropped alternative endings:\n{drop_values}"
+    )
+    result = feature_df[keep_mask]
+    if "quarterbeats_all_endings" in result.columns:
+        return result.drop(columns="quarterbeats_all_endings")
+    return result.copy()
+
+
 def apply_slice_intervals_to_resource_df(
     df: pd.DataFrame,
     slice_intervals: pd.MultiIndex,
-    start_column_name: str = "quarterbeats",
+    qstamp_column_name: str = "quarterbeats",
     duration_column_name: str = "duration_qb",
     logger: Optional[logging.Logger] = None,
 ) -> pd.DataFrame:
     if logger is None:
         logger = module_logger
+    check_qstamp_columns(
+        df=df,
+        qstamp_column_name=qstamp_column_name,
+        duration_column_name=duration_column_name,
+        logger=logger,
+    )
     *grouping_levels, slice_name = list(slice_intervals.names)
     interval_index_level = slice_intervals.get_level_values(-1)
     group2intervals: Dict[tuple, pd.IntervalIndex] = interval_index_level.groupby(
@@ -156,7 +203,7 @@ def apply_slice_intervals_to_resource_df(
             continue
         time_spans, clean_group_df = get_time_spans_from_resource_df(
             df=group_df,
-            start_column_name=start_column_name,
+            qstamp_column_name=qstamp_column_name,
             duration_column_name=duration_column_name,
             dropna=True,
             return_df=True,
@@ -167,7 +214,7 @@ def apply_slice_intervals_to_resource_df(
             lefts=time_spans.start.values,
             rights=time_spans.end.values,
             intervals=ivls,
-            start_column_name=start_column_name,
+            qstamp_column_name=qstamp_column_name,
             duration_column_name=duration_column_name,
             logger=logger,
         )
@@ -176,6 +223,29 @@ def apply_slice_intervals_to_resource_df(
 
 def boolean_is_minor_column_to_mode(S: pd.Series) -> pd.Series:
     return S.map({True: "minor", False: "major"})
+
+
+def check_qstamp_columns(
+    df: D,
+    qstamp_column_name: str,
+    duration_column_name: str,
+    logger: Optional[logging.Logger] = None,
+) -> None:
+    if logger is None:
+        logger = module_logger
+    if not all(c in df.columns for c in (qstamp_column_name, duration_column_name)):
+        missing = [
+            c for c in (qstamp_column_name, duration_column_name) if c not in df.columns
+        ]
+        plural = "s" if len(missing) > 1 else ""
+        raise RuntimeError(
+            f"Column{plural} not present in DataFrame: {', '.join(missing)}"
+        )
+    for col in (qstamp_column_name, duration_column_name):
+        if df[col].isna().any():
+            logger.warning(
+                f"Column {col!r} has missing values which may lead to unintended results."
+            )
 
 
 def condense_dataframe_by_groups(
@@ -227,6 +297,37 @@ def condense_dataframe_by_groups(
     return condensed
 
 
+def condense_pedal_points(df):
+    """Condenses pedal points into single rows. The duration of the pedal point is summed up and the chord is
+    replaced by the pedal
+    """
+    group_start_mask = make_group_start_mask(df, df.index.names[:-1])
+    pedal_point_mask = df.pedal.notna()
+    shifted_pedals = df.pedal.shift().fillna("SENTINEL")
+    shifted_pedals.loc[
+        group_start_mask
+    ] = "SENTINEL"  # make sure to separate a terminal pedal point (ending a piece)
+    # from an initial one (beginning of next piece) on the same harmony (an extremely unlikely scenario)
+    pedal_point_start_mask = (df.pedal != shifted_pedals).fillna(False)
+    pedal_drop_mask = pedal_point_mask & ~pedal_point_start_mask
+    expanded_pedal_harmonies = expand_labels(
+        df.loc[pedal_point_start_mask, :"pedal"],
+        column="pedal",
+        propagate=False,
+        skip_checks=True,
+    )
+    overwrite_with = expanded_pedal_harmonies.loc(axis=1)["chord":]
+    overwrite_columns = overwrite_with.columns
+    df.loc[pedal_point_start_mask, overwrite_columns] = overwrite_with
+    df = df[~pedal_drop_mask]
+    update_mask = df.pedal.notna() & ~make_groups_lasts_mask(
+        df.index.to_frame(index=False), ["phrase_id", "phrase_component"]
+    )  # this is not a clean solution; re-computation of duration for phrases needs an overhaul in conjunction with
+    # solving the ToDo in facets.make_raw_phrase_df()
+    update_duration_qb(df, update_mask)
+    return df
+
+
 def ensure_level_named_piece(
     index: pd.MultiIndex, recognized_piece_columns: Optional[Iterable[str]] = None
 ) -> Tuple[pd.MultiIndex, int]:
@@ -260,37 +361,18 @@ def ensure_level_named_piece(
 
 
 def feature_specs2config(feature: FeatureSpecs) -> DimcatConfig:
-    """Converts a feature specification into a dimcat configuration.
+    """Converts a feature specification to a DimcatConfig.
 
     Raises:
-        TypeError: If the feature cannot be converted to a dimcat configuration.
+        TypeError:
+            If the specs cannot be resolved to a :class:`DimcatConfig` that describes a Feature.
     """
-    if isinstance(feature, DimcatConfig):
-        feature_config = feature
-    elif is_instance_of(feature, "Feature"):
-        feature_config = feature.to_config()
-    elif isinstance(feature, MutableMapping):
-        feature_config = DimcatConfig(feature)
-    elif isinstance(feature, str):
-        feature_name = FeatureName(feature)
-        feature_config = DimcatConfig(dtype=feature_name)
-    else:
-        raise TypeError(
-            f"Cannot convert the {type(feature).__name__} {feature!r} to DimcatConfig."
-        )
-    if feature_config.options_dtype == "DimcatConfig":
-        feature_config = DimcatConfig(feature_config["options"])
-    if not is_subclass_of(feature_config.options_dtype, "Feature"):
-        raise TypeError(
-            f"DimcatConfig describes a {feature_config.options_dtype}, not a Feature: "
-            f"{feature_config.options}"
-        )
-    return feature_config
+    return make_config_from_specs(feature, "Feature")
 
 
 def features_argument2config_list(
     features: Optional[FeatureSpecs | Iterable[FeatureSpecs]] = None,
-    allowed_features: Optional[Iterable[str | FeatureName]] = None,
+    allowed_configs: Optional[FeatureSpecs | Iterable[FeatureSpecs]] = None,
 ) -> List[DimcatConfig]:
     if features is None:
         return []
@@ -298,13 +380,72 @@ def features_argument2config_list(
         features = [features]
     configs = []
     for specs in features:
-        configs.append(feature_specs2config(specs))
-    if allowed_features:
-        allowed_features = [FeatureName(f) for f in allowed_features]
-        for config in configs:
-            if config.options_dtype not in allowed_features:
-                raise ResourceNotProcessableError(config.options_dtype)
+        configs.append(make_config_from_specs(specs))
+    if allowed_configs is not None:
+        check_configs_against_allowed_configs(configs, allowed_configs)
     return configs
+
+
+def check_configs_against_allowed_configs(
+    configs: DimcatConfig | Iterable[DimcatConfig],
+    allowed_configs: Optional[FeatureSpecs | Iterable[FeatureSpecs]],
+    allow_subclasses: bool = True,
+) -> None:
+    """Matches configs against allowed configs and raises as soon as any pair does not match. Two
+    configs match if they have the same dtype and any overlapping key has the same value.
+
+    Args:
+        configs: Config(s) to be checked.
+        allowed_configs: The function raises if any of the ``configs`` does not match with any of these.
+        allow_subclasses:
+            If True (default), ``configs`` dtypes are allowed to be subclasses of the ``allowed_configs`` dtypes.
+
+    Raises:
+        ResourceNotProcessableError when any of the configs doesn't match with any of the allowed configs.
+    """
+    if isinstance(configs, DimcatConfig):
+        configs = [configs]
+    allowed_configs = features_argument2config_list(allowed_configs)
+    covariant = allow_subclasses
+    for configs in configs:
+        if not any(
+            configs.matches(allowed, covariant=covariant) for allowed in allowed_configs
+        ):
+            raise ResourceNotProcessableError(configs.options_dtype)
+
+
+def drop_rows_with_missing_values(
+    df: D,
+    column_names: List[str],
+    how: Literal["any", "all"] = "any",
+    logger: Optional[logging.Logger] = None,
+) -> D:
+    """Drop rows with missing values in the specified columns. If nothing is to be dropped, the identical
+    dataframe is returned, not a copy.
+    """
+    if logger is None:
+        logger = module_logger
+    if how == "any":
+        drop_mask = df[column_names].isna().any(axis=1)
+    elif how == "all":
+        drop_mask = df[column_names].isna().all(axis=1)
+    else:
+        raise ValueError(
+            f"Invalid value for how: {how!r}. Expected either 'how' or 'all'."
+        )
+    if drop_mask.all():
+        raise RuntimeError(
+            f"The dataframe contains no fully defined objects based on the "
+            f"columns {column_names}."
+        )
+    n_dropped = drop_mask.sum()
+    if n_dropped:
+        df = df[~drop_mask].copy()
+        logger.info(
+            f"Dropped {n_dropped} rows from the dataframe that pertain to segments following the last "
+            f"cadence label in the piece."
+        )
+    return df
 
 
 T = TypeVar("T")
@@ -351,7 +492,7 @@ def fl_fields2pandas_params(fields: List[fl.Field]) -> Tuple[dict, dict, list]:
         elif field.type == "date":
             parse_dates.append(field.name)
         elif field.type == "array":
-            converters[field.name] = str2tuple
+            converters[field.name] = str2inttuple
         # missing (see https://specs.frictionlessdata.io/table-schema)
         # - object (i.e. JSON/ a dict)
         # - date (i.e. date without time)
@@ -394,7 +535,7 @@ def get_existing_normpath(fl_resource) -> str:
         ValueError: If the resource has no path or no column_schema.
     """
     if fl_resource.normpath is None:
-        if fl_resource.path is None:
+        if not fl_resource.path:
             raise ValueError(f"Resource {fl_resource.name!r} has no path.")
         normpath = os.path.abspath(fl_resource.path)
     else:
@@ -411,7 +552,7 @@ def get_existing_normpath(fl_resource) -> str:
 @overload
 def get_time_spans_from_resource_df(
     df: pd.DataFrame,
-    start_column_name: str,
+    qstamp_column_name: str,
     duration_column_name: str,
     round: Optional[int],
     to_float: bool,
@@ -425,7 +566,7 @@ def get_time_spans_from_resource_df(
 @overload
 def get_time_spans_from_resource_df(
     df: pd.DataFrame,
-    start_column_name: str,
+    qstamp_column_name: str,
     duration_column_name: str,
     round: Optional[int],
     to_float: bool,
@@ -438,7 +579,7 @@ def get_time_spans_from_resource_df(
 
 def get_time_spans_from_resource_df(
     df,
-    start_column_name: str = "quarterbeats",
+    qstamp_column_name: str = "quarterbeats",
     duration_column_name: str = "duration_qb",
     round: Optional[int] = None,
     to_float: bool = True,
@@ -460,17 +601,10 @@ def get_time_spans_from_resource_df(
     """
     if logger is None:
         logger = module_logger
-    if not all(c in df.columns for c in (start_column_name, duration_column_name)):
-        missing = [
-            c for c in (start_column_name, duration_column_name) if c not in df.columns
-        ]
-        plural = "s" if len(missing) > 1 else ""
-        raise RuntimeError(
-            f"Column{plural} not present in DataFrame: {', '.join(missing)}"
-        )
+    check_qstamp_columns(df, qstamp_column_name, duration_column_name, logger=logger)
     available_mask = (
-        df[start_column_name].notna()
-        & (df[start_column_name] != "")
+        df[qstamp_column_name].notna()
+        & (df[qstamp_column_name] != "")
         & df[duration_column_name].notna()
         & (df[duration_column_name] != "")
     )
@@ -487,7 +621,7 @@ def get_time_spans_from_resource_df(
         if not dropna:
             original_index = df.index
         df = df[available_mask].copy()
-    start = df[start_column_name]
+    start = df[qstamp_column_name]
     duration_col = df[duration_column_name]
     end = start + duration_col
     if to_float or round is not None:
@@ -529,7 +663,10 @@ def infer_piece_col_position(
 
 
 def infer_schema_from_df(
-    df: SomeDataframe, include_index_levels: bool = True, **kwargs
+    df: SomeDataframe,
+    include_index_levels: bool = True,
+    allow_integer_names: bool = True,
+    **kwargs,
 ) -> fl.Schema:
     """Infer a frictionless.Schema from a dataframe.
 
@@ -556,6 +693,8 @@ def infer_schema_from_df(
         column_names = index_levels + column_names
     else:
         index_levels = None
+    if allow_integer_names:
+        column_names = list(map(str, column_names))
     n_columns = len(column_names)
     n_unique = len(set(column_names))
     if n_unique < n_columns:
@@ -747,12 +886,16 @@ def make_adjacency_groups(
     logger: Optional[logging.Logger] = None,
 ) -> Tuple[pd.Series, Dict[int, Any]]:
     """Turns a Series into a Series of ascending integers starting from 1 that reflect groups of successive
-    equal values. There are several options of how to deal with NA values.
+    equal values.
 
     This is a simplified variant of ms3.adjacency_groups()
 
     Args:
       S: Series in which to group identical adjacent values with each other.
+      groupby:
+        If not None, the resulting grouper will start new adjacency groups according to this groupby.
+        This is a way, for example, to ensure no group overlaps piece boundaries even if there are
+        adjacent identical values.
 
     Returns:
       A series with increasing integers that can be used for grouping.
@@ -778,11 +921,7 @@ def make_adjacency_mask(
     S: pd.Series,
 ) -> pd.Series:
     """Turns a Series into a Boolean Series that is True for the first value of each group of successive equal
-    values. There are several options of how to deal with NA values.
-
-    Args:
-      S: Series in which to group identical adjacent values with each other.
-
+    values.
     """
     assert not S.isna().any(), "Series must not contain NA values."
     beginnings = (S != S.shift()).fillna(True)
@@ -803,7 +942,7 @@ def make_boolean_mask_from_set_of_tuples(
         levels:
 
             * If None, the first n levels of the index are used, where n is the length of the selection tuples.
-            * If an iterable of integers, they are interpreted as level positions and used to create for each row a
+            * If an iterable of level name strings or level position integers, they are used to create for each row a
               tuple to compare against the selected tuples.
 
     Returns:
@@ -902,6 +1041,28 @@ def make_frictionless_schema_descriptor(
     return descriptor
 
 
+def make_group_start_mask(df: D, groupby) -> npt.NDArray[bool]:
+    """Returns a boolean mask where the beginning of each group is marked with True. This is useful only when the
+    groups already came in groups within the dataframe in the first place.
+    """
+    group_start_idx = np.array([idx[0] for idx in df.groupby(groupby).indices.values()])
+    group_start_mask = np.zeros(len(df), bool)
+    group_start_mask[group_start_idx] = True
+    return group_start_mask
+
+
+def make_groups_lasts_mask(feature_df: D, groupby) -> npt.NDArray[bool]:
+    """Returns a boolean mask where each row that comes last in one of the groups is marked as True. This is
+    useful only when the groups already came in groups within the dataframe in the first place.
+    """
+    groups_last_idx = np.array(
+        [idx[-1] for idx in feature_df.groupby(groupby).indices.values()]
+    )
+    result = np.zeros(feature_df.shape[0], bool)
+    result[groups_last_idx] = True
+    return result
+
+
 def make_index_from_grouping_dict(
     grouping: Dict[str, Iterable[tuple]],
     level_names=("group_name", "corpus", "piece"),
@@ -938,6 +1099,13 @@ def make_index_from_grouping_dict(
     return pd.MultiIndex.from_tuples(index_tuples, names=level_names)
 
 
+def make_phrase_start_mask(df) -> npt.NDArray[bool]:
+    """Based on the "phrase_id" index level, make a mask that is True for the first row of each mask."""
+    phrase_ids = df.index.get_level_values("phrase_id").to_numpy()
+    phrase_start_mask = phrase_ids != np.roll(phrase_ids, 1)
+    return phrase_start_mask
+
+
 def make_tsv_resource(name: Optional[str] = None) -> fl.Resource:
     """Returns a frictionless.Resource with the default properties of a TSV file stored to disk."""
     tsv_dialect = fl.Dialect.from_options(
@@ -957,6 +1125,39 @@ def make_tsv_resource(name: Optional[str] = None) -> fl.Resource:
     resource = make_fl_resource(name, **options)
     resource.type = "table"
     return resource
+
+
+def merge_columns_into_one(
+    df: D,
+    join_str: Optional[str | bool] = None,
+    fillna: Optional[Hashable] = None,
+) -> S:
+    """Merge all columns of a dataframe into a single column.
+
+    Args:
+        df: Dataframe to reduce.
+        join_str:
+            By default (None), the resulting columns contain tuples. If you want them to contain strings,
+            you may pass
+
+            - True to concatenate the tuple values for a given n-gram component separated by ", " --
+              yielding strings that look like tuples without parentheses
+            - False to concatenate without any string in-between the values
+            - a string to be used as the separator between the tuple values.
+
+        fillna:
+            Pass a value to replace all missing values with it.
+
+    Returns:
+        A series containing tuples or strings.
+    """
+    if fillna is not None:
+        df = df.fillna(fillna)
+    result = pd.Series(df.itertuples(index=False, name=None), index=df.index)
+    if join_str is not None:
+        join_str = resolve_join_str_argument(join_str)
+        result = ms3.transform(result, tuple2str, join_str=join_str)
+    return result
 
 
 def merge_ties(
@@ -1040,16 +1241,20 @@ def overlapping_chunk_per_interval_cutoff_direct(
     lefts: NDArray,
     rights: NDArray,
     intervals: pd.IntervalIndex,
-    start_column_name: str = "quarterbeats",
+    qstamp_column_name: str = "quarterbeats",
     duration_column_name: str = "duration_qb",
     logger: Optional[logging.Logger] = None,
 ) -> pd.DataFrame:
-    """
+    """The heart of a slicing operation, which returns a dataframe that corresponds to the input dataframe sliced
+    by the intervals present in the ``intervals`` :obj:`pandas.IntervalIndex`, which will be included as the first
+    index level of the result dataframe.
 
     Args:
         df: DataFrame to be sliced.
         lefts: Same-length array expressing the start point of every row.
         rights: Same-length array expressing the end point (exclusive) of every row.
+        qstamp_column_name:
+            Name of the column in which qstamp (offset from the timeline's origin) is to be found.
         duration_column_name:
             Name of the column in the chunk dfs where the new event durations will be stored as floats. Defaults to
             "duration_qb", resulting in the existing values being updated.
@@ -1059,13 +1264,17 @@ def overlapping_chunk_per_interval_cutoff_direct(
             increasing, which allows us to speed up this expensive operation.
 
     Returns:
-        For each interval, the corresponding chunk of the DataFrame. Each chunk comes with a
-        :obj`pandas.IntervalIndex` reflecting the new lefts and rights including those that reflect the slicing of
-        events which overlapped the embracing interval. The only values that are changed, compared to the original
-        DataFrame, are those in the column
+        Concatenation of the dataframe chunks corresponding to each of the given interval. The first index level of the
+        resulting dataframe is a :obj`pandas.IntervalIndex` which corresponds to the ``intervals``.
     """
     if logger is None:
         logger = module_logger
+    check_qstamp_columns(
+        df=df,
+        qstamp_column_name=qstamp_column_name,
+        duration_column_name=duration_column_name,
+        logger=logger,
+    )
     if not intervals.is_non_overlapping_monotonic:
         logger.warning(
             f"Intervals are not non-overlapping and/or not monotonically increasing:\n{intervals}"
@@ -1091,7 +1300,7 @@ def overlapping_chunk_per_interval_cutoff_direct(
         if starting_before_l.sum() > 0 or ending_after_r.sum() > 0:
             new_lefts[starting_before_l] = l
             new_rights[ending_after_r] = r
-            chunk[start_column_name] = new_lefts
+            chunk[qstamp_column_name] = new_lefts
             chunk[duration_column_name] = (new_rights - new_lefts).round(5)
         chunks[interval] = chunk
     level_names = [intervals.name] + df.index.names
@@ -1177,6 +1386,34 @@ def resolve_recognized_piece_columns_argument(
         return list(recognized_piece_columns)
 
 
+def resolve_join_str_argument(
+    join_str: Optional[bool | str | Tuple[bool | str, ...]]
+) -> Optional[str]:
+    """Helper function that resolves a join_str argument to a string or None by replacing boolean values with the
+    defaults ", " for True and "" for False.
+    """
+    if join_str is None:
+        return
+    if not isinstance(join_str, str):
+        if join_str is True:
+            join_str = ", "
+        elif join_str is False:
+            join_str = ""
+        else:
+            raise TypeError(
+                f"join_str must be a string or a boolean, got {join_str!r} ({type(join_str)})"
+            )
+    return join_str
+
+
+def safe_row_tuple(row: Iterable[str]) -> str | Literal[pd.NA]:
+    """Join the given strings together separated by ', ' but catch TypeErrors by returning pd.NA instead."""
+    try:
+        return ", ".join(row)
+    except TypeError:
+        return pd.NA
+
+
 def store_json(
     data: dict, filepath: str, indent: int = 2, make_dirs: bool = True, **kwargs
 ):
@@ -1197,8 +1434,109 @@ def store_json(
         json.dump(data, f, **kwargs)
 
 
-def str2tuple(s):
+def str2inttuple(s):
+    """Non-strict version of :func:`ms3.str2inttuple` which does not fail on non-integer values."""
     return ms3.str2inttuple(s, strict=False)
+
+
+def subselect_multiindex_from_df(
+    df: D,
+    tuples: DimcatIndex | Iterable[tuple],
+    levels: Optional[int | str | List[int | str]] = None,
+) -> pd.DataFrame:
+    """Returns a copy of a subselection of the dataframe based on the union of its index tuples (or subtuples)
+    and the given tuples.
+
+    Args:
+        df: Dataframe of which to return a subset of rows.
+        tuples: Tuples to match against df's MultiIndex. Can be a MultiIndex because set(tuples) works on that, too.
+        levels:
+
+            * If None, the first n levels of the index are used, where n is the length of the selection tuples.
+            * If an iterable of level name strings or level position integers, they are used to create for each row a
+              tuple to compare against the selected tuples.
+
+    Returns:
+
+    """
+    tuple_set = set(tuples)
+    if not len(tuple_set):
+        raise ValueError("Received 0 tuples")
+    random_tuple = next(iter(tuple_set))
+    if not isinstance(random_tuple, tuple):
+        raise TypeError(
+            f"Pass an iterable of tuples. A randomly selected element had type {type(random_tuple)!r}."
+        )
+    mask = make_boolean_mask_from_set_of_tuples(df.index, tuple_set, levels)
+    return df[mask].copy()
+
+
+def tuple2str(
+    tup: tuple,
+    join_str: Optional[str] = ", ",
+    recursive: bool = True,
+    keep_parentheses: bool = False,
+) -> str:
+    """Used for turning n-gram components into strings, e.g. for display on plot axes.
+
+    Args:
+        tup: Tuple to be returned as string.
+        join_str:
+            String to be interspersed between tuple elements. If None, result is ``str(tup)`` and ``recursive`` is
+            ignored.
+        recursive:
+            If True (default) tuple elements that are tuples themselves will be joined together recursively, using the
+            same ``join_str`` (except when it's None). Inner tuples always keep their parentheses.
+        keep_parentheses: If False (default), the outer parentheses are removed. Pass True to keep them in the string.
+
+    Returns:
+        A string representing the tuple.
+    """
+    try:
+        if join_str is None:
+            result = str(tup)
+            if keep_parentheses:
+                return result
+            return result[1:-1]
+        if recursive:
+            result = join_str.join(
+                tuple2str(e, join_str=join_str, keep_parentheses=True)
+                if isinstance(e, tuple)
+                else str(e)
+                for e in tup
+            )
+        else:
+            result = join_str.join(str(e) for e in tup)
+    except TypeError:
+        return str(tup)
+    if keep_parentheses:
+        return f"({result})"
+    return result
+
+
+def update_duration_qb(
+    df: D,
+    update_mask: Optional[npt.NDArray[bool]] = None,
+    logger: Optional[logging.Logger] = None,
+) -> None:
+    """Replaces the 'duration_qb' column in the given DataFrame with a new one that updates the values by subtracting
+    subsequent 'quarterbeats' values. If ``update_mask`` is specified, only values for which the mask is True are
+    updated. Otherwise, all values are updated.
+    """
+    if logger is None:
+        logger = module_logger
+    updated_durations = (df.quarterbeats.shift(-1) - df.quarterbeats).astype(float)
+    if update_mask is None:
+        updated_duration_qb_column = updated_durations
+    else:
+        updated_duration_qb_column = updated_durations.where(
+            update_mask, df.duration_qb
+        )
+    updated_mask = updated_duration_qb_column != df.duration_qb
+    logger.debug(
+        f"{updated_mask.sum()} values have been updated in the 'duration_qb' for phrase annotations."
+    )
+    df.loc[:, "duration_qb"] = updated_duration_qb_column
 
 
 def value2bool(value: str | float | int | bool) -> bool | str | float | int:
@@ -1217,3 +1555,216 @@ def value2bool(value: str | float | int | bool) -> bool | str | float | int:
         if converted in FALSY_VALUES:
             return False
     return value
+
+
+# region PhraseData helpers
+
+
+def append_index_levels(
+    old_index: IX,
+    *new_level: S | D,
+    drop_levels: Optional[Literal[False], str | int | Iterable[str | int]] = None,
+) -> IX:
+    """
+    Replace index levels by optionally dropping an arbitrary number and concatenating the new level(s) to the right.
+    """
+    if drop_levels:
+        old_index = old_index.droplevel(drop_levels)
+    new_index_df = pd.concat(
+        [old_index.to_frame(index=False)] + list(new_level), axis=1
+    )
+    new_index = pd.MultiIndex.from_frame(new_index_df)
+    return new_index
+
+
+def make_groupwise_range_index_from_groups(idx: pd.Index) -> npt.NDArray[int]:
+    """Turns adjacency groups into integer ranges starting from 0."""
+    arr = idx.to_numpy()
+    start_mask = arr != np.roll(
+        arr, 1
+    )  # position 0 correct only when last != first (because of how roll works)
+    return make_range_index_from_boolean_mask(start_mask)
+
+
+def make_range_index_from_boolean_mask(
+    inner_start_mask: npt.NDArray[bool],
+    outer_start_mask: Optional[npt.NDArray[bool]] = None,
+) -> npt.NDArray[int]:
+    """Creates an index with the same length as the given boolean mask, that restarts counting from every True entry.
+    The behaviour changes depending on whether outer_start_mask is given or not. That's how the function is used
+    by :meth:`PhraseData._regroup_phrases` to create both the inner and the outer index level. The function is
+    indifferent to the value of the first entry in the mask(s).
+
+    The algorithm builds on Warren Weckesser's approach via https://stackoverflow.com/a/20033438
+
+
+    Args:
+        inner_start_mask:
+        outer_start_mask:
+
+    Returns:
+
+    """
+    if outer_start_mask is None:
+        increments = np.asarray(
+            ~inner_start_mask, int
+        )  # increment for every False (non-start)
+        (reset_index,) = np.where(inner_start_mask)
+    else:
+        increments = np.asarray(
+            inner_start_mask, int
+        )  # increment only for every True (start)
+        (reset_index,) = np.where(outer_start_mask)
+
+    # ensure the same behaviour regardless of the value of the first element
+    increments[0] = 0  # always start counting at 0
+    if len(reset_index) == 0 or reset_index[0] != 0:
+        np.insert(reset_index, 0, 0)
+
+    if outer_start_mask is None:
+        reset_starts_by = (
+            reset_index[1:] - reset_index[:-1]
+        )  # last range value + 1 = distance between starts
+    else:
+        outer_mask_increment_counts = increments.cumsum()[outer_start_mask]
+        reset_starts_by = (
+            outer_mask_increment_counts[1:] - outer_mask_increment_counts[:-1]
+        )  # last range value + 1 = number of inner increments between outer starts
+
+    increments[reset_index[1:]] = 1 - reset_starts_by
+    increments.cumsum(out=increments)
+    return increments
+
+
+def make_regrouped_stage_index(
+    df: D,
+    grouping: S,
+    level_names: Tuple[str, str] = ("stage", "substage"),
+) -> D:
+    """Returns a dataframe that corresponds to the two new (stage) index levels that :func:`regroup_phrase_stages`
+    incorporates.
+    """
+    assert len(grouping.shape) == 1, "Expecting a Series."
+    phrase_start_mask = make_phrase_start_mask(df)
+    substage_start_mask = (
+        (grouping != grouping.shift()).fillna(True).to_numpy(dtype=bool)
+    ) | phrase_start_mask
+    substage_level = make_range_index_from_boolean_mask(substage_start_mask)
+    # make new stage level that restarts at phrase starts and increments at substage starts
+    stage_level = make_range_index_from_boolean_mask(
+        substage_start_mask, phrase_start_mask
+    )
+    # create index levels as dataframe in order to concatenate them to existing levels
+    primary, secondary = level_names
+    new_index = pd.DataFrame({primary: stage_level, secondary: substage_level})
+    return new_index
+
+
+def make_multiindex_for_unstack(idx: pd.Index, level_name: str = "i") -> pd.MultiIndex:
+    """Turns an index that contains adjacency groups (adjacent entries having the same value) into
+    a 2-level MultiIndex where the new level represents an individual integer range for each group,
+    starting at 0.
+    """
+    old_level_name = idx.name
+    groupwise_ranges = make_groupwise_range_index_from_groups(idx)
+    result = pd.MultiIndex.from_arrays(
+        [idx, groupwise_ranges], names=[old_level_name, level_name]
+    )
+    return result
+
+
+def regroup_phrase_stages(
+    df: D,
+    grouping: S,
+    level_names: Tuple[str, str] = ("stage", "substage"),
+):
+    """Insert a grouping column and replace the last index level with a new primary and secondary index accordingly.
+    The primary level increments at the beginning of each group, the secondary level increments at every row,
+    restarting at the beginning of each group. For example, a grouping ["a", "a", "a", "b", "c", "c"] results
+    in the index [(0, 0), (0, 1), (0, 2), (1, 0), (2, 0), (2, 1)].
+
+
+    Args:
+        grouping:
+            A Series with the same index as the (raw) phrase_df, containing the grouping criterion. Adjacent equal
+            values are grouped together.
+        level_names: Names of the two index levels.
+
+    Returns:
+        A reindexed copy of the phrase data.
+    """
+    new_index = make_regrouped_stage_index(df, grouping, level_names)
+    result_df = pd.concat([grouping, df], axis=1)
+    result_df.index = append_index_levels(result_df.index, new_index, drop_levels=-1)
+    return result_df
+
+
+def drop_duplicated_ultima_rows(phrase_annotations_df: D) -> D:
+    """Used by the :class:`PhraseDataAnalyzer` to drop the last row of each phrase's body component when
+    ``drop_duplicated_ultima_rows`` is True.
+    """
+    groups_last_mask = make_groups_lasts_mask(
+        phrase_annotations_df, ["phrase_id", "phrase_component"]
+    )
+    body_mask = (
+        phrase_annotations_df.index.get_level_values("phrase_component").to_numpy()
+        == "body"
+    )
+    body_last_row_mask = body_mask & groups_last_mask
+    return phrase_annotations_df[~body_last_row_mask].copy()
+
+
+phraseComponents: TypeAlias = Literal["ante", "body", "codetta", "post"]
+
+
+def transform_phrase_data(
+    phrase_df,
+    columns: str | List[str] = "chord",
+    components: phraseComponents | List[phraseComponents] = "body",
+    drop_levels: bool | int | str | Iterable[int | str] = False,
+    reverse: bool = False,
+    level_name: str = "i",
+):
+    """Returns a dataframe containing the requested phrase components and harmony columns.
+
+    Args:
+        phrase_df: PhraseAnnotations dataframe.
+        columns:
+            Column(s) to include in the result.
+        components:
+            Which of the four phrase components to include, ∈ {'ante', 'body', 'codetta', 'post'}.
+        drop_levels:
+            Can be a boolean or any level specifier accepted by :meth:`pandas.MultiIndex.droplevel()`.
+            If False (default), all levels are retained. If True, only the phrase_id level and
+            the ``level_name`` are retained. In all other cases, the indicated (string or
+            integer) value(s) must be valid and cause one of the index levels to be dropped.
+            ``level_name`` cannot be dropped. Dropping 'phrase_id' will likely lead to an
+            exception if a :class:`PhraseData` object will be displayed in WIDE format.
+        reverse:
+            Pass True to reverse the order of harmonies so that each phrase's last label comes
+            first.
+        level_name:
+            Defaults to 'i', which is the name of the original level that will be replaced
+            by this new one. The new one represents the individual integer range for each
+            phrase, starting at 0.
+
+    Returns:
+        Dataframe representing partial information on the selected phrases.
+    """
+    result = phrase_df.loc[pd.IndexSlice[:, :, :, components], columns].copy()
+    if reverse:
+        result = result[::-1]
+    phrase_ids = result.index.get_level_values("phrase_id")
+    if drop_levels is True:
+        new_index = make_multiindex_for_unstack(phrase_ids, level_name=level_name)
+    else:
+        new_level = pd.Series(
+            make_groupwise_range_index_from_groups(phrase_ids), name=level_name
+        )
+        old_index = result.index.droplevel(-1)
+        new_index = append_index_levels(old_index, new_level, drop_levels=drop_levels)
+    result.index = new_index
+    return result
+
+
+# endregion PhraseData helpers

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import re
 from collections import defaultdict
@@ -67,6 +68,8 @@ from dimcat.utils import (
     treat_basepath_argument,
 )
 from typing_extensions import Self
+
+module_logger = logging.getLogger(__name__)
 
 
 class PackageMode(FriendlyEnum):
@@ -857,7 +860,7 @@ class Package(Data):
         """Adds a resource to the package. Parameters are passed to :class:`DimcatResource`."""
         Constructor = self._accepted_resource_types[0]
         if isinstance(resource, self._accepted_resource_types):
-            new_resource = resource.__class__.from_resource(
+            new_resource = resource.from_resource(
                 resource=resource,
                 resource_name=resource_name,
                 basepath=basepath,

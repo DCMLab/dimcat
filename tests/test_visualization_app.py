@@ -17,6 +17,9 @@ EXCLUDED_FEATURES = [  # to be synchronized with AnalyzerConstants.feature_to_hi
     "CadenceLabels",
     "KeyAnnotations",
     "Measures",
+    "PhraseAnnotations",
+    "PhraseComponents",
+    "PhraseLabels",
 ]
 
 # region Interface

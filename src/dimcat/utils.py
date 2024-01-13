@@ -26,7 +26,7 @@ from tqdm.auto import tqdm
 
 # region constants
 
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)
 
 FRICTIONLESS_NAME_PATTERN = (
     r"^([-a-z0-9._/])+$"  # from frictionless.settings import NAME_PATTERN
@@ -461,7 +461,7 @@ def treat_basepath_argument(
             f"basepath {basepath_arg!r} is not an existing directory."
         )
     if other_logger is None:
-        other_logger = logger
+        other_logger = module_logger
     other_logger.debug(f"The basepath been set to {basepath_arg!r}")
     return basepath_arg
 
@@ -540,7 +540,7 @@ def scan_directory(
             try:
                 passing = re.search(reg, s) is not None and re.search(excl, s) is None
             except Exception:
-                logger.error(reg)
+                module_logger.error(reg)
                 raise
             return passing
 

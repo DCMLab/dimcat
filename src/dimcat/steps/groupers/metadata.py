@@ -1,3 +1,4 @@
+import logging
 from numbers import Number
 from typing import Dict, List, Sequence
 
@@ -7,6 +8,8 @@ from dimcat.data.resources import DimcatIndex
 from dimcat.steps.groupers import CustomPieceGrouper
 from dimcat.utils import get_middle_composition_year
 from typing_extensions import Self
+
+module_logger = logging.getLogger(__name__)
 
 
 class YearGrouper(CustomPieceGrouper):

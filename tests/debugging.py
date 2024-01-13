@@ -50,5 +50,4 @@ def get_piece_groups(dataset):
 
 if __name__ == "__main__":
     D = load_distant_listening_corpus()
-    filtered_D = D.apply_step("HasHarmonyLabelsFilter")
-    all_metadata = filtered_D.get_metadata()
+    phrase_annotations = D.get_feature("PhraseAnnotations")

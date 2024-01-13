@@ -5,9 +5,11 @@ helper functions are duplicated between loggers.py and enums.py.
 import inspect
 import logging
 import pkgutil
+from enum import Enum
 
 import dimcat
 import pytest
+from dimcat import enums as dimcat_enums
 
 module_logger = logging.getLogger(__name__)
 
@@ -24,19 +26,15 @@ def dimcat_module(request):
     return request.param
 
 
-def test_module_loggers(dimcat_module):
-    modname, mod = dimcat_module
-    assert hasattr(mod, "module_logger")
-    assert hasattr(mod.module_logger, "name")
-    assert mod.module_logger.name == modname
-
-
-def test_class_loggers(dimcat_module):
+def test_enums_module(dimcat_module):
+    """Make sure all enums in dimcat are importable from dimcat.enums"""
     modname, mod = dimcat_module
     for name, cls in inspect.getmembers(mod, inspect.isclass):
-        if hasattr(cls, "logger"):
-            if cls.__module__ != modname:
+        if issubclass(cls, Enum):
+            cls_name = cls.__name__
+            if cls_name in ("Enum", "IntEnum"):
                 continue
-            assert hasattr(cls.logger, "name")
-            assert cls.logger.name == f"{modname}.{name}"
-            print(f"The logger of {cls.name} is {cls.logger.name}")
+            test_passes = hasattr(dimcat_enums, cls_name)
+            if not test_passes:
+                print(f"\nADD {cls_name} TO dimcat.enums")
+            assert test_passes

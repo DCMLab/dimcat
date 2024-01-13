@@ -11,7 +11,7 @@ from dimcat.dc_exceptions import ResourceAlreadyTransformed
 from dimcat.steps.base import ResourceTransformation
 from dimcat.utils import check_name
 
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)
 
 
 class Slicer(ResourceTransformation):

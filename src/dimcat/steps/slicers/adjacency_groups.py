@@ -1,3 +1,4 @@
+import logging
 from typing import ClassVar, Optional
 
 import marshmallow as mm
@@ -8,6 +9,8 @@ from dimcat.data.resources.base import DR
 from dimcat.data.resources.dc import SliceIntervals
 from dimcat.dc_exceptions import SlicerNotSetUpError
 from dimcat.steps.slicers.base import Slicer
+
+module_logger = logging.getLogger(__name__)
 
 
 class AdjacencyGroupSlicer(Slicer):
@@ -116,6 +119,22 @@ class KeySlicer(AdjacencyGroupSlicer):
     def __init__(
         self,
         level_name: str = "localkey_slice",
+        slice_intervals: Optional[SliceIntervals] = None,
+        **kwargs,
+    ):
+        super().__init__(
+            level_name=level_name, slice_intervals=slice_intervals, **kwargs
+        )
+
+
+class PhraseSlicer(AdjacencyGroupSlicer):
+    """Slices resources by phrase."""
+
+    _required_feature = "PhraseLabels"
+
+    def __init__(
+        self,
+        level_name: str = "phrase_slice",
         slice_intervals: Optional[SliceIntervals] = None,
         **kwargs,
     ):

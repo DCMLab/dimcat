@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Iterable, Iterator, List, Literal, Optional, Type
 
 import frictionless as fl
@@ -20,6 +21,8 @@ from dimcat.dc_exceptions import (
 from dimcat.utils import treat_basepath_argument
 from frictionless import FrictionlessException
 from typing_extensions import Self
+
+module_logger = logging.getLogger(__name__)
 
 
 class DimcatCatalog(Data):

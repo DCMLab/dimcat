@@ -1,5 +1,6 @@
 """
-Configuring the test suite.
+Configuring the test suite. In order to display log messages, say, at level 10 (DEBUG), add --log-cli-level=DEBUG to the
+pytest call.
 """
 import logging
 import os
@@ -18,7 +19,7 @@ from dimcat.data.utils import make_rel_path
 from dimcat.utils import scan_directory
 from git import Repo
 
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)
 
 
 def pytest_terminal_summary(terminalreporter: TerminalReporter, exitstatus, config):
@@ -32,9 +33,9 @@ def pytest_terminal_summary(terminalreporter: TerminalReporter, exitstatus, conf
 # ----------------------------- SETTINGS -----------------------------
 # Directory holding your clone of github.com/DCMLab/unittest_metacorpus
 TEST_DIR = os.path.dirname(os.path.abspath(__file__))
-logger.debug(f"TEST_DIR: {TEST_DIR!r}. Contents: {os.listdir(TEST_DIR)}")
+module_logger.debug(f"TEST_DIR: {TEST_DIR!r}. Contents: {os.listdir(TEST_DIR)}")
 CORPUS_DIR = os.path.abspath(os.path.join(TEST_DIR, ".."))
-logger.debug(f"CORPUS_DIR: {CORPUS_DIR!r}. Contents: {os.listdir(CORPUS_DIR)}")
+module_logger.debug(f"CORPUS_DIR: {CORPUS_DIR!r}. Contents: {os.listdir(CORPUS_DIR)}")
 
 # region test directories and files
 
@@ -68,14 +69,48 @@ PACKAGE_DESCRIPTOR_PATHS = {
 TEST_N_SCORES = 3
 
 
-@pytest.fixture(scope="session")
-def corpus_path() -> str:
-    return CORPUS_PATH
+def datapackage_json_path() -> str:
+    """Returns the path to a single resource."""
+    return list(PACKAGE_DESCRIPTOR_PATHS.values())[0]
 
 
-@pytest.fixture(scope="session")
-def mixed_files_path(corpus_path) -> str:
-    return os.path.join(corpus_path, "mixed_files")
+def get_music21_corpus_path():
+    m21_path = m21.__path__[0]
+    music21_corpus_path = os.path.join(m21_path, "corpus")
+    return music21_corpus_path
+
+
+def get_score_paths(
+    directory, extensions: Optional[str] = None, n: int | float = TEST_N_SCORES
+) -> List[str]:
+    paths = []
+    for i, path in enumerate(
+        scan_directory(
+            directory,
+            extensions=extensions,
+        )
+    ):
+        if i >= n:
+            break
+        paths.append(path)
+    return paths
+
+
+def get_m21_score_paths(
+    extensions=(".xml", ".musicxml", ".mxl"), n: int | float = TEST_N_SCORES
+) -> List[str]:
+    music21_corpus_path = get_music21_corpus_path()
+    return get_score_paths(music21_corpus_path, extensions=extensions, n=n)
+
+
+def get_musescore_score_paths(
+    extensions=(".mscz", ".mscx"), n: int | float = TEST_N_SCORES
+) -> List[str]:
+    return get_score_paths(CORPUS_PATH, extensions=extensions, n=n)
+
+
+def get_mixed_score_paths(n=TEST_N_SCORES) -> List[str]:
+    return get_m21_score_paths(n=n / 2) + get_musescore_score_paths(n=n / 2)
 
 
 def single_resource_descriptor_path() -> str:
@@ -83,9 +118,34 @@ def single_resource_descriptor_path() -> str:
     return RESOURCE_DESCRIPTOR_PATHS["unittest_metacorpus.notes.resource.json"]
 
 
-def datapackage_json_path() -> str:
-    """Returns the path to a single resource."""
-    return list(PACKAGE_DESCRIPTOR_PATHS.values())[0]
+@pytest.fixture(scope="session")
+def corpus_path() -> str:
+    return CORPUS_PATH
+
+
+@pytest.fixture(scope="session")
+def list_of_musescore_score_paths() -> List[str]:
+    return get_musescore_score_paths()
+
+
+@pytest.fixture(scope="session")
+def list_of_m21_score_paths() -> List[str]:
+    return get_m21_score_paths()
+
+
+@pytest.fixture(scope="session")
+def list_of_mixed_score_paths() -> List[str]:
+    return get_mixed_score_paths()
+
+
+@pytest.fixture(scope="session")
+def mixed_files_path(corpus_path) -> str:
+    return os.path.join(corpus_path, "mixed_files")
+
+
+@pytest.fixture()
+def music21_corpus_path():
+    return get_music21_corpus_path()
 
 
 @pytest.fixture(scope="session")
@@ -129,6 +189,26 @@ def tmp_serialization_path(request, tmp_path_factory):
 
 
 # endregion test directories and files
+# region DiMCAT modules and classes
+@pytest.fixture()
+def tmp_package_path(request, tmp_path_factory):
+    """Returns the path to the directory where serialized resources are stored."""
+    name = request.node.name
+    return str(tmp_path_factory.mktemp(name))
+
+
+# endregion DiMCAT modules and classes
+# region Dataset objects
+
+
+@pytest.fixture()
+def dataset_from_single_package(package_descriptor_path):
+    dataset = Dataset()
+    dataset.load_package(package_descriptor_path)
+    return dataset
+
+
+# endregion Dataset objects
 # region DimcatResource objects
 
 
@@ -294,6 +374,7 @@ def resource_object(
 
 
 # endregion DimcatResource objects
+# region Package objects
 
 
 @pytest.fixture()
@@ -313,70 +394,7 @@ def package_from_fl_package(fl_package, package_descriptor_path) -> DimcatPackag
     )
 
 
-@pytest.fixture()
-def dataset_from_single_package(package_descriptor_path):
-    dataset = Dataset()
-    dataset.load_package(package_descriptor_path)
-    return dataset
-
-
-def get_music21_corpus_path():
-    m21_path = m21.__path__[0]
-    music21_corpus_path = os.path.join(m21_path, "corpus")
-    return music21_corpus_path
-
-
-@pytest.fixture()
-def music21_corpus_path():
-    return get_music21_corpus_path()
-
-
-def get_score_paths(
-    directory, extensions: Optional[str] = None, n: int | float = TEST_N_SCORES
-) -> List[str]:
-    paths = []
-    for i, path in enumerate(
-        scan_directory(
-            directory,
-            extensions=extensions,
-        )
-    ):
-        if i >= n:
-            break
-        paths.append(path)
-    return paths
-
-
-def get_m21_score_paths(
-    extensions=(".xml", ".musicxml", ".mxl"), n: int | float = TEST_N_SCORES
-) -> List[str]:
-    music21_corpus_path = get_music21_corpus_path()
-    return get_score_paths(music21_corpus_path, extensions=extensions, n=n)
-
-
-@pytest.fixture(scope="session")
-def list_of_m21_score_paths() -> List[str]:
-    return get_m21_score_paths()
-
-
-def get_musescore_score_paths(
-    extensions=(".mscz", ".mscx"), n: int | float = TEST_N_SCORES
-) -> List[str]:
-    return get_score_paths(CORPUS_PATH, extensions=extensions, n=n)
-
-
-@pytest.fixture(scope="session")
-def list_of_musescore_score_paths() -> List[str]:
-    return get_musescore_score_paths()
-
-
-def get_mixed_score_paths(n=TEST_N_SCORES) -> List[str]:
-    return get_m21_score_paths(n=n / 2) + get_musescore_score_paths(n=n / 2)
-
-
-@pytest.fixture(scope="session")
-def list_of_mixed_score_paths() -> List[str]:
-    return get_mixed_score_paths()
+# endregion Package objects
 
 
 # region deprecated
@@ -603,8 +621,3 @@ def list_of_mixed_score_paths() -> List[str]:
 
 
 # endregion deprecated
-@pytest.fixture()
-def tmp_package_path(request, tmp_path_factory):
-    """Returns the path to the directory where serialized resources are stored."""
-    name = request.node.name
-    return str(tmp_path_factory.mktemp(name))

@@ -9,7 +9,7 @@ from dimcat.data.resources.dc import UnitOfAnalysis
 from dimcat.steps.groupers.base import CriterionGrouper, CustomPieceGrouper
 from typing_extensions import Self
 
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)
 
 
 class HasCadenceAnnotationsGrouper(CriterionGrouper):

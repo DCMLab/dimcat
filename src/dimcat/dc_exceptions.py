@@ -2,7 +2,7 @@ import logging
 from pprint import pformat
 from typing import Callable, ClassVar, Dict, Optional
 
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)
 
 
 class DimcatError(Exception):
@@ -180,6 +180,17 @@ class FeatureIsMissingFormatColumnError(DimcatError):
         f"corresponding to {format!r}.",
         4: lambda name, missing_columns, format, feature_type: f"Feature {name!r} of type {feature_type!r} is missing "
         f"the column(s) {missing_columns!r} corresponding to {format!r}.",
+    }
+
+
+class FeatureNotProcessableError(DimcatError):
+    """optional args: (resource_name, pipeline_step, allowed)"""
+
+    nargs2message = {
+        0: "Cannot process this Feature.",
+        1: lambda name: f"Cannot process {name!r}.",
+        2: lambda name, step: f"{step!r} cannot process {name!r}.",
+        3: lambda name, step, allowed: f"{step!r} cannot process {name!r}. Allowed feature specs are:\n{allowed!r}.",
     }
 
 
@@ -471,8 +482,10 @@ class ResourceNotProcessableError(DimcatError):
     nargs2message = {
         0: "Cannot process this Resource.",
         1: lambda name: f"Cannot process {name!r}.",
-        2: lambda name, step: f"{step!r} cannot process Resource {name!r}.",
-        3: lambda name, step, resource_type: f"{step!r} cannot process Resource {name!r} of type {resource_type!r}.",
+        2: lambda name, step: f"{step!r} cannot process {name!r}.",
+        3: lambda name, step, resource_type: f"{step!r} cannot process {name!r} of type {resource_type!r}.",
+        4: lambda name, step, resource_type, allowed: f"{step!r} cannot process {name!r} of type {resource_type!r}. "
+        f"Expected one of {allowed!r}.",
     }
 
 
@@ -484,4 +497,16 @@ class SlicerNotSetUpError(DimcatError):
         "'slice_intervals'.",
         1: lambda name: f"The {name!r} has not been setup. Applying it would result in empty features. "
         f"Set the attribute 'slice_intervals'.",
+    }
+
+
+class UnknownFormat(DimcatError):
+    """optional args: (format_value, format_enum, resource_type, resource_name)"""
+
+    nargs2message = {
+        0: "Unknown format.",
+        1: lambda value: f"Unknown format: {value}.",
+        2: lambda value, format: f"Unknown value {value} for {format}.",
+        3: lambda value, format, resource: f"{resource} expects {format} but got unknown value {value}.",
+        4: lambda value, format, resource, name: f"{resource} {name!r} expects {format} but got unknown value {value}.",
     }

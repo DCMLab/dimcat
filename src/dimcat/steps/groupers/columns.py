@@ -1,3 +1,4 @@
+import logging
 from typing import Optional
 
 import marshmallow as mm
@@ -5,6 +6,8 @@ import pandas as pd
 from dimcat.data.resources import DimcatResource, FeatureName
 from dimcat.dc_exceptions import ResourceIsMissingFeatureColumnError
 from dimcat.steps.groupers.base import Grouper
+
+module_logger = logging.getLogger(__name__)
 
 
 class ColumnGrouper(Grouper):

@@ -11,7 +11,7 @@ from dimcat.base import (
 )
 from marshmallow import ValidationError
 
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)
 
 
 @pytest.fixture()

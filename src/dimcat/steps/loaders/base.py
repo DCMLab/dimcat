@@ -42,7 +42,7 @@ from dimcat.utils import make_valid_frictionless_name, resolve_path, scan_direct
 from tqdm.auto import tqdm
 from typing_extensions import Self
 
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)
 
 
 class FacetName(FriendlyEnum):

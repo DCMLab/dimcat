@@ -12,7 +12,7 @@ from dimcat.data.resources.base import Resource
 from .base import ScoreLoader
 from .utils import get_m21_input_extensions
 
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)
 
 
 def default_list_dict():
@@ -415,7 +415,7 @@ class Music21Score:
 
     def _parse_Spanner(self, spanner, **kwargs):
         """ToDo"""
-        logger.debug(f"Spanner not yet supported: {spanner}")
+        module_logger.debug(f"Spanner not yet supported: {spanner}")
 
     def _parse_TextBox(self, text_box: m21.text.TextBox):
         self.elements.prelims.append(text_box.content)
@@ -449,10 +449,10 @@ def make_dataframe(records: List[dict], drop_empty_columns: bool = True):
     if column_is_empty.any():
         if drop_empty_columns:
             removed = df.columns[column_is_empty].tolist()
-            logger.debug(f"Removing empty columns: {removed}")
+            module_logger.debug(f"Removing empty columns: {removed}")
             df = df.dropna(axis=1, how="all")
         else:
-            logger.debug(f"Keeping empty columns:\n{column_is_empty}")
+            module_logger.debug(f"Keeping empty columns:\n{column_is_empty}")
 
     return df
 

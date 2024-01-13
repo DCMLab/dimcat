@@ -1,29 +1,31 @@
 from __future__ import annotations
 
+import itertools
 import logging
-from typing import Callable, Iterable, List, Optional, Tuple
+from typing import Callable, Hashable, Iterable, List, Literal, Optional
 
 import frictionless as fl
 import marshmallow as mm
 import ms3
+import numpy as np
 import pandas as pd
+from dimcat import DimcatConfig
 from dimcat.base import FriendlyEnum, FriendlyEnumField
-from dimcat.data.resources.base import D, FeatureName
+from dimcat.data.resources.base import D, FeatureName, S
 from dimcat.data.resources.dc import (
     HARMONY_FEATURE_NAMES,
     DimcatIndex,
     Feature,
+    Playthrough,
     SliceIntervals,
     UnitOfAnalysis,
 )
-from dimcat.data.resources.results import tuple2str
+from dimcat.data.resources.results import PhraseData, PhraseDataFormat
 from dimcat.data.resources.utils import (
-    boolean_is_minor_column_to_mode,
-    condense_dataframe_by_groups,
     get_corpus_display_name,
     join_df_on_index,
-    make_adjacency_groups,
     merge_ties,
+    safe_row_tuple,
 )
 from dimcat.dc_exceptions import (
     DataframeIsMissingExpectedColumnsError,
@@ -32,7 +34,7 @@ from dimcat.dc_exceptions import (
 )
 from dimcat.utils import get_middle_composition_year
 
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)
 
 
 class Metadata(Feature):
@@ -80,20 +82,84 @@ class Metadata(Feature):
 
 
 # region Annotations
-AUXILIARY_HARMONYLABEL_COLUMNS = [
-    "cadence",
+
+AUXILIARY_DCML_ANNOTATIONS_COLUMNS = [
     "label",
-    "phraseend",
-    "chord_tones",
-    "chord_type",
-    "figbass",
-    "form",
-    "numeral",
+    "globalkey",
+    "localkey",
+    "pedal",
     "chord",
+    "special",
+    "numeral",
+    "form",
+    "figbass",
+    "changes",
+    "relativeroot",
+    "cadence",
+    "phraseend",
+    "chord_type",
+    "globalkey_is_minor",
+    "localkey_is_minor",
+    "chord_tones",
+    "added_tones",
     "root",
+    "bass_note",
+    "alt_label",
+    "pedalend",
+    "placement",
+    "color",
+    "color_a",
+    "color_b",
+    "color_g",
+    "color_r",
 ]
 """These columns are included in sub-features of HarmonyLabels to enable more means of investigation,
 such as groupers."""
+
+BASS_NOTE_CONVENIENCE_COLUMNS = [
+    "bass_degree",
+    "bass_degree_and_mode",
+    "bass_degree_major",
+    "bass_degree_minor",
+    "bass_note_over_local_tonic",
+]
+
+CHORD_TONE_INTERVALS_COLUMNS = [
+    "intervals_over_bass",
+    "intervals_over_root",
+]
+
+CHORD_TONE_SCALE_DEGREES_COLUMNS = [
+    "scale_degrees",
+    "scale_degrees_and_mode",
+    "scale_degrees_major",
+    "scale_degrees_minor",
+]
+
+HARMONY_FEATURE_COLUMNS = [
+    "root_roman",  # numeral/relativeroot
+    "relativeroot_resolved",
+    "effective_localkey",  # relativeroot/localkey (combined)
+    "effective_localkey_resolved",  # relativeroot_resolved resolved against localkey
+    "effective_localkey_is_minor",
+    "pedal_resolved",
+    "chord_and_mode",
+    "chord_reduced",  # without parentheses ('changes')
+    "chord_reduced_and_mode",
+    "applied_to_numeral",  # if relativeroot is recursive, only the component following the last slash / (i.e. the
+    # lowest level, which can be interpreted as the current localkey's numeral being elaborated)
+    "numeral_or_applied_to_numeral",  # like the previous but missing values filled with 'numeral'
+]
+
+
+HARMONY_CONVENIENCE_COLUMNS = (
+    HARMONY_FEATURE_COLUMNS
+    + CHORD_TONE_INTERVALS_COLUMNS
+    + CHORD_TONE_SCALE_DEGREES_COLUMNS
+)
+"""These columns are included in all :class:`Annotations` features that grant full access to DCML harmony labels.
+First and foremost, this includes :class:`HarmonyLabels`, but also :class:`PhraseAnnotations` and derivatives.
+"""
 
 KEY_CONVENIENCE_COLUMNS = [
     "globalkey_is_minor",
@@ -107,304 +173,25 @@ KEY_CONVENIENCE_COLUMNS = [
 names, and local keys are given as Roman numerals. In both cases, lowercase strings are interpreted as minor keys."""
 
 
-def extend_keys_feature(
-    feature_df,
-):
-    columns_to_add = (
-        "globalkey_mode",
-        "localkey_mode",
-        "localkey_resolved",
-        "localkey_and_mode",
-    )
-    if all(col in feature_df.columns for col in columns_to_add):
-        return feature_df
-    expected_columns = ("localkey", "localkey_is_minor", "globalkey_is_minor")
-    if not all(col in feature_df.columns for col in expected_columns):
-        raise DataframeIsMissingExpectedColumnsError(
-            [col for col in expected_columns if col not in feature_df.columns],
-            feature_df.columns.to_list(),
-        )
-    concatenate_this = [
-        feature_df,
-        boolean_is_minor_column_to_mode(feature_df.globalkey_is_minor).rename(
-            "globalkey_mode"
-        ),
-        boolean_is_minor_column_to_mode(feature_df.localkey_is_minor).rename(
-            "localkey_mode"
-        ),
-        ms3.transform(
-            feature_df, ms3.resolve_relative_keys, ["localkey", "localkey_is_minor"]
-        ).rename("localkey_resolved"),
-    ]
-    feature_df = pd.concat(concatenate_this, axis=1)
-    concatenate_this = [
-        feature_df,
-        feature_df[["localkey", "globalkey_mode"]]
-        .apply(safe_row_tuple, axis=1)
-        .rename("localkey_and_mode"),
-    ]
-    feature_df = pd.concat(concatenate_this, axis=1)
-    return feature_df
-
-
 class Annotations(Feature):
     pass
 
 
 class DcmlAnnotations(Annotations):
-    _auxiliary_column_names = [
-        "color",
-        "color_a",
-        "color_b",
-        "color_g",
-        "color_r",
-    ]
-    _convenience_column_names = (
-        [
-            "added_tones",
-            "bass_note",
-            "cadence",
-            "changes",
-            "chord",
-            "chord_tones",
-            "chord_type",
-            "figbass",
-            "form",
-            "globalkey",
-            "localkey",
-        ]
-        + KEY_CONVENIENCE_COLUMNS
-        + [
-            "numeral",
-            "pedal",
-            "pedalend",
-            "phraseend",
-            "relativeroot",
-            "root",
-            "special",
-        ]
-    )
+    _auxiliary_column_names = AUXILIARY_DCML_ANNOTATIONS_COLUMNS
+    _convenience_column_names = None
     _feature_column_names = ["label"]
     _default_value_column = "label"
-    _extractable_features = HARMONY_FEATURE_NAMES + (FeatureName.CadenceLabels,)
+    _extractable_features = HARMONY_FEATURE_NAMES + (
+        FeatureName.CadenceLabels,
+        FeatureName.PhraseLabels,
+    )
 
-    def _format_dataframe(self, feature_df: D) -> D:
-        """Called by :meth:`_prepare_feature_df` to transform the resource dataframe into a feature dataframe.
+    def _adapt_newly_set_df(self, feature_df: D) -> D:
+        """Called by :meth:`_set_dataframe` to transform the dataframe before incorporating it.
         Assumes that the dataframe can be mutated safely, i.e. that it is a copy.
         """
-        feature_df = extend_keys_feature(feature_df)
         return self._sort_columns(feature_df)
-
-
-def make_chord_col(df: D, cols: Optional[List[str]] = None, name: str = "chord"):
-    """The 'chord' column contains the chord part of a DCML label, i.e. without indications of key, pedal, cadence, or
-    phrase. This function can re-create this column, e.g. if the feature columns were changed. To that aim, the function
-    takes a DataFrame and the column names that it adds together, creating new strings.
-    """
-    if cols is None:
-        cols = ["numeral", "form", "figbass", "changes", "relativeroot"]
-    cols = [c for c in cols if c in df.columns]
-    summing_cols = [c for c in cols if c not in ("changes", "relativeroot")]
-    if len(summing_cols) == 1:
-        chord_col = df[summing_cols[0]].fillna("").astype("string")
-    else:
-        chord_col = df[summing_cols].fillna("").astype("string").sum(axis=1)
-    if "changes" in cols:
-        chord_col += ("(" + df.changes.astype("string") + ")").fillna("")
-    if "relativeroot" in cols:
-        chord_col += ("/" + df.relativeroot.astype("string")).fillna("")
-    return chord_col.rename(name)
-
-
-def extend_harmony_feature(
-    feature_df,
-):
-    """Requires previous application of :func:`transform_keys_feature`."""
-    columns_to_add = (
-        "root_roman",
-        "pedal_resolved",
-        "chord_and_mode",
-        "chord_reduced",
-        "chord_reduced_and_mode",
-    )
-    if all(col in feature_df.columns for col in columns_to_add):
-        return feature_df
-    expected_columns = (
-        "chord",
-        "form",
-        "figbass",
-        "pedal",
-        "numeral",
-        "relativeroot",
-        "localkey_is_minor",
-        "localkey_mode",
-    )
-    if not all(col in feature_df.columns for col in expected_columns):
-        raise DataframeIsMissingExpectedColumnsError(
-            [col for col in expected_columns if col not in feature_df.columns],
-            feature_df.columns.to_list(),
-        )
-    concatenate_this = [feature_df]
-    if "root_roman" not in feature_df.columns:
-        concatenate_this.append(
-            (feature_df.numeral + ("/" + feature_df.relativeroot).fillna("")).rename(
-                "root_roman"
-            )
-        )
-    if "chord_reduced" not in feature_df.columns:
-        concatenate_this.append(
-            (
-                reduced_col := make_chord_col(
-                    feature_df,
-                    cols=["numeral", "form", "figbass", "relativeroot"],
-                    name="chord_reduced",
-                )
-            )
-        )
-    else:
-        reduced_col = feature_df.chord_reduced
-    if "chord_reduced_and_mode" not in feature_df.columns:
-        concatenate_this.append(
-            (reduced_col + ", " + feature_df.localkey_mode).rename(
-                "chord_reduced_and_mode"
-            )
-        )
-    if "pedal_resolved" not in feature_df.columns:
-        concatenate_this.append(
-            ms3.transform(
-                feature_df, ms3.resolve_relative_keys, ["pedal", "localkey_is_minor"]
-            ).rename("pedal_resolved")
-        )
-    if "chord_and_mode" not in feature_df.columns:
-        concatenate_this.append(
-            feature_df[["chord", "localkey_mode"]]
-            .apply(safe_row_tuple, axis=1)
-            .rename("chord_and_mode")
-        )
-    # if "root_roman_resolved" not in feature_df.columns:
-    #     concatenate_this.append(
-    #         ms3.transform(
-    #             feature_df,
-    #             ms3.rel2abs_key,
-    #             ["numeral", "localkey_resolved", "localkey_resolved_is_minor"],
-    #         ).rename("root_roman_resolved")
-    #     )
-    feature_df = pd.concat(concatenate_this, axis=1)
-    return feature_df
-
-
-def chord_tones2interval_structure(
-    fifths: Iterable[int], reference: Optional[int] = None
-) -> Tuple[str]:
-    """The fifth are interpreted as intervals expressing distances from the local tonic ("neutral degrees").
-    The result will be a tuple of strings that express the same intervals but expressed with respect to the given
-    reference (neutral degree), removing unisons.
-    If no reference is specified, the first degree (usually, the bass note) is used as such.
-    """
-    try:
-        fifths = tuple(fifths)
-        if len(fifths) == 0:
-            return ()
-    except Exception:
-        return ()
-    if reference is None:
-        reference = fifths[0]
-    elif reference in fifths:
-        position = fifths.index(reference)
-        if position > 0:
-            fifths = fifths[position:] + fifths[:position]
-    adapted_intervals = [
-        ms3.fifths2iv(adapted)
-        for interval in fifths
-        if (adapted := interval - reference) != 0
-    ]
-    return tuple(adapted_intervals)
-
-
-def add_chord_tone_scale_degrees(
-    feature_df,
-):
-    """Turns 'chord_tones' column into multiple scale-degree columns."""
-    columns_to_add = (
-        "scale_degrees",
-        "scale_degrees_and_mode" "scale_degrees_major",
-        "scale_degrees_minor",
-    )
-    if all(col in feature_df.columns for col in columns_to_add):
-        return feature_df
-    expected_columns = ("chord_tones", "localkey_is_minor", "localkey_mode")
-    if not all(col in feature_df.columns for col in expected_columns):
-        raise DataframeIsMissingExpectedColumnsError(
-            [col for col in expected_columns if col not in feature_df.columns],
-            feature_df.columns.to_list(),
-        )
-    concatenate_this = [feature_df]
-    if "scale_degrees" not in feature_df.columns:
-        concatenate_this.append(
-            ms3.transform(
-                feature_df, ms3.fifths2sd, ["chord_tones", "localkey_is_minor"]
-            ).rename("scale_degrees")
-        )
-    if "scale_degrees_major" not in feature_df.columns:
-        concatenate_this.append(
-            ms3.transform(feature_df.chord_tones, ms3.fifths2sd, minor=False).rename(
-                "scale_degrees_major"
-            )
-        )
-    if "scale_degrees_minor" not in feature_df.columns:
-        concatenate_this.append(
-            ms3.transform(feature_df.chord_tones, ms3.fifths2sd, minor=True).rename(
-                "scale_degrees_minor"
-            )
-        )
-    feature_df = pd.concat(concatenate_this, axis=1)
-    if "scale_degrees_and_mode" not in feature_df.columns:
-        sd_and_mode = pd.Series(
-            feature_df[["scale_degrees", "localkey_mode"]].itertuples(
-                index=False, name=None
-            ),
-            index=feature_df.index,
-            name="scale_degrees_and_mode",
-        )
-        concatenate_this = [feature_df, sd_and_mode.apply(tuple2str)]
-        feature_df = pd.concat(concatenate_this, axis=1)
-    return feature_df
-
-
-def add_chord_tone_intervals(
-    feature_df,
-):
-    """Turns 'chord_tones' column into one or two additional columns, depending on whether a 'root' column is
-    present, where the chord_tones (which come as fifths) are represented as strings representing intervals over the
-    bass_note and above the root, if present.
-    """
-    columns_to_add = (
-        "intervals_over_bass",
-        "intervals_over_root",
-    )
-    if all(col in feature_df.columns for col in columns_to_add):
-        return feature_df
-    expected_columns = ("chord_tones",)  # "root" is optional
-    if not all(col in feature_df.columns for col in expected_columns):
-        raise DataframeIsMissingExpectedColumnsError(
-            [col for col in expected_columns if col not in feature_df.columns],
-            feature_df.columns.to_list(),
-        )
-    concatenate_this = [feature_df]
-    if "intervals_over_bass" not in feature_df.columns:
-        concatenate_this.append(
-            ms3.transform(
-                feature_df.chord_tones, chord_tones2interval_structure
-            ).rename("intervals_over_bass")
-        )
-    if "intervals_over_root" not in feature_df.columns and "root" in feature_df.columns:
-        concatenate_this.append(
-            ms3.transform(
-                feature_df, chord_tones2interval_structure, ["chord_tones", "root"]
-            ).rename("intervals_over_root")
-        )
-    feature_df = pd.concat(concatenate_this, axis=1)
-    return feature_df
 
 
 class HarmonyLabelsFormat(FriendlyEnum):
@@ -419,35 +206,9 @@ class HarmonyLabelsFormat(FriendlyEnum):
 
 
 class HarmonyLabels(DcmlAnnotations):
-    _auxiliary_column_names = DcmlAnnotations._auxiliary_column_names + [
-        "cadence",
-        "label",
-        "phraseend",
-    ]
-    _convenience_column_names = KEY_CONVENIENCE_COLUMNS + [
-        "added_tones",
-        "bass_note",
-        "changes",
-        "chord_and_mode",
-        "chord_reduced",
-        "chord_reduced_and_mode",
-        "chord_tones",
-        "scale_degrees",
-        "scale_degrees_and_mode",
-        "scale_degrees_major",
-        "scale_degrees_minor",
-        "intervals_over_bass",
-        "intervals_over_root",
-        "chord_type",
-        "figbass",
-        "form",
-        "numeral",
-        "pedal",
-        "pedalend",
-        "relativeroot",
-        "root",
-        "special",
-    ]
+    """A sub-feature of DcmlAnnotations which does not include any non-chord rows."""
+
+    _convenience_column_names = KEY_CONVENIENCE_COLUMNS + HARMONY_CONVENIENCE_COLUMNS
     _feature_column_names = [
         "globalkey",
         "localkey",
@@ -468,12 +229,13 @@ class HarmonyLabels(DcmlAnnotations):
 
     def __init__(
         self,
-        format: HarmonyLabelsFormat = HarmonyLabelsFormat.ROMAN,
         resource: fl.Resource = None,
         descriptor_filename: Optional[str] = None,
         basepath: Optional[str] = None,
         auto_validate: bool = False,
         default_groupby: Optional[str | list[str]] = None,
+        format: HarmonyLabelsFormat = HarmonyLabelsFormat.ROMAN,
+        playthrough: Playthrough = Playthrough.SINGLE,
     ) -> None:
         """
 
@@ -481,15 +243,21 @@ class HarmonyLabels(DcmlAnnotations):
             resource: An existing :obj:`frictionless.Resource`.
             descriptor_filename:
                 Relative filepath for using a different JSON/YAML descriptor filename than the default
-                :func:`get_descriptor_filename`. Needs to on one of the file extensions defined in the
+                :func:`get_descriptor_filename`. Needs to end on one of the file extensions defined in the
                 setting ``package_descriptor_endings`` (by default 'resource.json' or 'resource.yaml').
-            basepath: Where the file would be serialized.
+            basepath: Where to store serialization data and its descriptor by default.
             auto_validate:
                 By default, the DimcatResource will not be validated upon instantiation or change (but always before
                 writing to disk). Set True to raise an exception during creation or modification of the resource,
                 e.g. replacing the :attr:`column_schema`.
-            default_groupby:
-                Pass a list of column names or index levels to groupby something else than the default (by piece).
+            default_groupby: Name of the fields for grouping this resource (usually after a Grouper has been applied).
+            format:
+                Format to display the chord labels in. ROMAN stands for Roman numerals,
+                ROMAN_REDUCED for the same numerals without any suspensions, alterations, additions,
+                etc.
+            playthrough:
+                Defaults to ``Playthrough.SINGLE``, meaning that first-ending (prima volta) bars are dropped in order
+                to exclude incorrect transitions and adjacencies between the first- and second-ending bars.
         """
         super().__init__(
             format=format,
@@ -498,6 +266,7 @@ class HarmonyLabels(DcmlAnnotations):
             basepath=basepath,
             auto_validate=auto_validate,
             default_groupby=default_groupby,
+            playthrough=playthrough,
         )
 
     @property
@@ -550,26 +319,6 @@ class HarmonyLabels(DcmlAnnotations):
         if self._default_formatted_column is not None:
             return self._default_formatted_column
         return
-
-    def _format_dataframe(self, feature_df: D) -> D:
-        """Called by :meth:`_prepare_feature_df` to transform the resource dataframe into a feature dataframe.
-        Assumes that the dataframe can be mutated safely, i.e. that it is a copy.
-        """
-        feature_df = self._drop_rows_with_missing_values(
-            feature_df, column_names=self._feature_column_names
-        )
-        feature_df = extend_keys_feature(feature_df)
-        feature_df = extend_harmony_feature(feature_df)
-        feature_df = add_chord_tone_intervals(feature_df)
-        feature_df = add_chord_tone_scale_degrees(feature_df)
-        return self._sort_columns(feature_df)
-
-
-def safe_row_tuple(row):
-    try:
-        return ", ".join(row)
-    except TypeError:
-        return pd.NA
 
 
 def extend_bass_notes_feature(
@@ -645,22 +394,9 @@ class BassNotesFormat(FriendlyEnum):
 class BassNotes(HarmonyLabels):
     _default_formatted_column = "bass_note_over_local_tonic"
     _default_value_column = "bass_note"
-    _auxiliary_column_names = (
-        DcmlAnnotations._auxiliary_column_names + AUXILIARY_HARMONYLABEL_COLUMNS
+    _convenience_column_names = (
+        HarmonyLabels._convenience_column_names + BASS_NOTE_CONVENIENCE_COLUMNS
     )
-    _convenience_column_names = KEY_CONVENIENCE_COLUMNS + [
-        "bass_degree",
-        "bass_degree_and_mode",
-        "bass_degree_major",
-        "bass_degree_minor",
-        "bass_note_over_local_tonic",
-        "intervals_over_bass",
-        "intervals_over_root",
-        "scale_degrees",
-        "scale_degrees_and_mode",
-        "scale_degrees_major",
-        "scale_degrees_minor",
-    ]
     _feature_column_names = [
         "globalkey",
         "localkey",
@@ -685,20 +421,22 @@ class BassNotes(HarmonyLabels):
 
     def __init__(
         self,
-        format: NotesFormat = BassNotesFormat.INTERVAL,
         resource: Optional[fl.Resource | str] = None,
         descriptor_filename: Optional[str] = None,
         basepath: Optional[str] = None,
         auto_validate: bool = True,
         default_groupby: Optional[str | list[str]] = None,
+        format: NotesFormat = BassNotesFormat.INTERVAL,
+        playthrough: Playthrough = Playthrough.SINGLE,
     ) -> None:
         super().__init__(
-            format=format,
             resource=resource,
             descriptor_filename=descriptor_filename,
             basepath=basepath,
             auto_validate=auto_validate,
             default_groupby=default_groupby,
+            format=format,
+            playthrough=playthrough,
         )
 
     @property
@@ -742,43 +480,12 @@ class BassNotes(HarmonyLabels):
             return self._default_formatted_column
         return
 
-    def _modify_name(self):
-        """Modify the :attr:`resource_name` to reflect the feature."""
-        self.resource_name = f"{self.resource_name}.bass_notes"
-
-    def _format_dataframe(self, feature_df: D) -> D:
-        """Called by :meth:`_prepare_feature_df` to transform the resource dataframe into a feature dataframe.
+    def _adapt_newly_set_df(self, feature_df: D) -> D:
+        """Called by :meth:`_set_dataframe` to transform the dataframe before incorporating it.
         Assumes that the dataframe can be mutated safely, i.e. that it is a copy.
         """
-        feature_df = self._drop_rows_with_missing_values(
-            feature_df, column_names=self._feature_column_names
-        )
-        feature_df = extend_keys_feature(feature_df)
         feature_df = extend_bass_notes_feature(feature_df)
-        feature_df = add_chord_tone_intervals(feature_df)
-        feature_df = add_chord_tone_scale_degrees(feature_df)
         return self._sort_columns(feature_df)
-
-
-def extend_cadence_feature(
-    feature_df,
-):
-    columns_to_add = (
-        "cadence_type",
-        "cadence_subtype",
-    )
-    if all(col in feature_df.columns for col in columns_to_add):
-        return feature_df
-    if "cadence" not in feature_df.columns:
-        raise DataframeIsMissingExpectedColumnsError(
-            "cadence",
-            feature_df.columns.to_list(),
-        )
-    split_labels = feature_df.cadence.str.split(".", expand=True).rename(
-        columns={0: "cadence_type", 1: "cadence_subtype"}
-    )
-    feature_df = pd.concat([feature_df, split_labels], axis=1)
-    return feature_df
 
 
 class CadenceLabelFormat(FriendlyEnum):
@@ -792,15 +499,11 @@ class CadenceLabelFormat(FriendlyEnum):
 
 
 class CadenceLabels(DcmlAnnotations):
-    _auxiliary_column_names = ["label", "chord"]
-    _convenience_column_names = (
-        ["globalkey", "localkey"]
-        + KEY_CONVENIENCE_COLUMNS
-        + [
-            "cadence_type",
-            "cadence_subtype",
-        ]
-    )
+    _auxiliary_column_names = ["label", "chord", "globalkey", "localkey"]
+    _convenience_column_names = KEY_CONVENIENCE_COLUMNS + [
+        "cadence_type",
+        "cadence_subtype",
+    ]
     _feature_column_names = ["cadence"]
     _default_value_column = "cadence"
     _default_analyzer = "CadenceCounter"
@@ -820,13 +523,36 @@ class CadenceLabels(DcmlAnnotations):
 
     def __init__(
         self,
-        format: NotesFormat = CadenceLabelFormat.RAW,
         resource: Optional[fl.Resource | str] = None,
         descriptor_filename: Optional[str] = None,
         basepath: Optional[str] = None,
         auto_validate: bool = True,
         default_groupby: Optional[str | list[str]] = None,
+        format: NotesFormat = CadenceLabelFormat.RAW,
+        playthrough: Playthrough = Playthrough.SINGLE,
     ) -> None:
+        """
+
+        Args:
+            resource: An existing :obj:`frictionless.Resource`.
+            descriptor_filename:
+                Relative filepath for using a different JSON/YAML descriptor filename than the default
+                :func:`get_descriptor_filename`. Needs to end on one of the file extensions defined in the
+                setting ``package_descriptor_endings`` (by default 'resource.json' or 'resource.yaml').
+            basepath: Where to store serialization data and its descriptor by default.
+            auto_validate:
+                By default, the DimcatResource will not be validated upon instantiation or change (but always before
+                writing to disk). Set True to raise an exception during creation or modification of the resource,
+                e.g. replacing the :attr:`column_schema`.
+            default_groupby: Name of the fields for grouping this resource (usually after a Grouper has been applied).
+            format:
+                Format to display the cadence labels in. RAW stands for 'as-is'. TYPE omits the
+                subtype, reducing more specific labels, whereas SUBTYPE displays subtypes only,
+                omitting all labels that do not specify one.
+            playthrough:
+                Defaults to ``Playthrough.SINGLE``, meaning that first-ending (prima volta) bars are dropped in order
+                to exclude incorrect transitions and adjacencies between the first- and second-ending bars.
+        """
         super().__init__(
             format=format,
             resource=resource,
@@ -834,6 +560,7 @@ class CadenceLabels(DcmlAnnotations):
             basepath=basepath,
             auto_validate=auto_validate,
             default_groupby=default_groupby,
+            playthrough=playthrough,
         )
 
     @property
@@ -860,20 +587,6 @@ class CadenceLabels(DcmlAnnotations):
         self._format = format
         self._formatted_column = new_formatted_column
 
-    def _format_dataframe(self, feature_df: D) -> D:
-        """Called by :meth:`_prepare_feature_df` to transform the resource dataframe into a feature dataframe.
-        Assumes that the dataframe can be mutated safely, i.e. that it is a copy.
-        """
-        try:
-            feature_df = extend_keys_feature(feature_df)
-        except DataframeIsMissingExpectedColumnsError:
-            pass
-        feature_df = self._drop_rows_with_missing_values(
-            feature_df, column_names=self._feature_column_names
-        )
-        feature_df = extend_cadence_feature(feature_df)
-        return self._sort_columns(feature_df)
-
 
 class KeyAnnotations(DcmlAnnotations):
     _auxiliary_column_names = ["label"]
@@ -882,19 +595,441 @@ class KeyAnnotations(DcmlAnnotations):
     _extractable_features = None
     _default_value_column = "localkey_and_mode"
 
-    def _format_dataframe(self, feature_df: D) -> D:
-        """Called by :meth:`_prepare_feature_df` to transform the resource dataframe into a feature dataframe.
+
+def make_sequence_non_repeating(
+    sequence: S,
+) -> tuple:
+    """Returns values in the given sequence without immediate repetitions. Fails if the sequence contains NA."""
+    return tuple(val for val, _ in itertools.groupby(sequence))
+
+
+def _condense_component(
+    component_df: D,
+    qstamp_col_position: int,
+    duration_col_position: int,
+    localkey_col_position: int,
+    label_col_position: int,
+    chord_col_position: int,
+) -> S:
+    """Returns a series which condenses the phrase components into a row."""
+    first_row = component_df.iloc[0]
+    component_info = _compile_component_info(
+        component_df,
+        qstamp_col_position,
+        duration_col_position,
+        localkey_col_position,
+        label_col_position,
+        chord_col_position,
+    )
+    row_values = first_row.to_dict()
+    row_values.update(component_info)
+    return pd.Series(row_values, name=first_row.name)
+
+
+def _compile_component_info(
+    component_df: D,
+    qstamp_col_position,
+    duration_col_position,
+    localkey_col_position,
+    label_col_position,
+    chord_col_position,
+    key_prefix: Optional[str] = "",
+):
+    start_qstamp = component_df.iat[0, qstamp_col_position]
+    end_qstamp = (
+        component_df.iat[-1, qstamp_col_position]
+        + component_df.iat[-1, duration_col_position]
+    )
+    new_duration = float(end_qstamp - start_qstamp)
+    columns = component_df.iloc(axis=1)
+    localkeys = tuple(columns[localkey_col_position])
+    modulations = make_sequence_non_repeating(localkeys)
+    labels = tuple(columns[label_col_position])
+    chords = tuple(columns[chord_col_position])
+    component_info = dict(
+        localkeys=localkeys,
+        n_modulations=len(modulations) - 1,
+        modulatory_sequence=modulations,
+        n_labels=len(labels),
+        labels=labels,
+        n_chords=len(chords),
+        chords=chords,
+    )
+    duration_key = "duration_qb"
+    if key_prefix:
+        component_info = {
+            f"{key_prefix}{key}": val for key, val in component_info.items()
+        }
+        if key_prefix != "phrase_":
+            # phrase duration is used as the main 'duration_qb' column
+            duration_key = f"{key_prefix}duration_qb"
+    component_info[duration_key] = new_duration
+    return component_info
+
+
+def condense_components(raw_phrase_df: D) -> D:
+    qstamp_col_position = raw_phrase_df.columns.get_loc("quarterbeats")
+    duration_col_position = raw_phrase_df.columns.get_loc("duration_qb")
+    localkey_col_position = raw_phrase_df.columns.get_loc("localkey")
+    label_col_position = raw_phrase_df.columns.get_loc("label")
+    chord_col_position = raw_phrase_df.columns.get_loc("chord")
+    groupby_levels = raw_phrase_df.index.names[:-1]
+    return raw_phrase_df.groupby(groupby_levels).apply(
+        _condense_component,
+        qstamp_col_position,
+        duration_col_position,
+        localkey_col_position,
+        label_col_position,
+        chord_col_position,
+    )
+
+
+def _condense_phrase(
+    phrase_df: D,
+    qstamp_col_position: int,
+    duration_col_position: int,
+    localkey_col_position: int,
+    label_col_position: int,
+    chord_col_position: int,
+) -> dict:
+    """Returns a series which condenses the phrase into a row."""
+    component_indices = phrase_df.groupby("phrase_component").indices
+    body_idx = component_indices.get("body")
+    codetta_idx = component_indices.get("codetta")
+    first_phrase_i = body_idx[0]
+    last_body_i = body_idx[-1]
+    end_label = phrase_df.iat[last_body_i, label_col_position]
+    end_chord = phrase_df.iat[last_body_i, chord_col_position]
+    if "}" in end_label:
+        interlocked_ante = "}" in phrase_df.iat[first_phrase_i, label_col_position]
+        interlocked_post = codetta_idx is None
+    else:
+        # old-style phrase endings didn't provide the means to encode phrase interlocking
+        interlocked_ante, interlocked_post = pd.NA, pd.NA
+    if codetta_idx is None:
+        # if no codetta is defined, the phrase info will simply be copied from the body component
+        component_index_iterable = component_indices.items()
+    else:
+        phrase_idx = np.concatenate([body_idx[:-1], codetta_idx])
+        component_index_iterable = [("phrase", phrase_idx), *component_indices.items()]
+    first_body_row = phrase_df.iloc[first_phrase_i]
+    row_values = first_body_row.to_dict()
+    for group, component_df in (
+        (group, phrase_df.take(idx)) for group, idx in component_index_iterable
+    ):
+        component_info = _compile_component_info(
+            component_df,
+            qstamp_col_position,
+            duration_col_position,
+            localkey_col_position,
+            label_col_position,
+            chord_col_position,
+            key_prefix=f"{group}_",
+        )
+        row_values.update(component_info)
+    if codetta_idx is None:
+        phrase_info = {}
+        for key, value in component_info.items():
+            if key.startswith("body_"):
+                if key == "body_duration_qb":
+                    phrase_key = "duration_qb"
+                else:
+                    phrase_key = key.replace("body_", "phrase_")
+                phrase_info[phrase_key] = value
+        row_values.update(phrase_info)
+    row_values["interlocked_ante"] = interlocked_ante
+    row_values["interlocked_post"] = interlocked_post
+    row_values["end_label"] = end_label
+    row_values["end_chord"] = end_chord
+    return row_values
+
+
+def condense_phrases(raw_phrase_df: D) -> D:
+    qstamp_col_position = raw_phrase_df.columns.get_loc("quarterbeats")
+    duration_col_position = raw_phrase_df.columns.get_loc("duration_qb")
+    localkey_col_position = raw_phrase_df.columns.get_loc("localkey")
+    label_col_position = raw_phrase_df.columns.get_loc("label")
+    chord_col_position = raw_phrase_df.columns.get_loc("chord")
+    # we're not using :meth:`pandas.DataFrameGroupBy.apply` because the series returned by _condense_phrases may have
+    # varying lengths, which would result in a series, not a dataframe. Instead, we're collecting groupwise row dicts
+    # and then creating a dataframe from them.
+    groupby_levels = raw_phrase_df.index.names[:-2]
+    group2dict = {
+        group: _condense_phrase(
+            phrase_df,
+            qstamp_col_position,
+            duration_col_position,
+            localkey_col_position,
+            label_col_position,
+            chord_col_position,
+        )
+        for group, phrase_df in raw_phrase_df.groupby(groupby_levels)
+    }
+    result = pd.DataFrame.from_dict(group2dict, orient="index")
+    result.index.names = groupby_levels
+    nullable_int_cols = {
+        col_name: "Int64"
+        for comp, col in itertools.product(
+            ("phrase_", "ante_", "body_", "codetta_", "post_"),
+            ("n_modulations", "n_labels", "n_chords"),
+        )
+        if (col_name := comp + col) in result.columns
+    }
+    result = result.astype(nullable_int_cols)
+    return result
+
+
+def tuple_contains(series_with_tuples: S, *values: Hashable):
+    """Function that can be used in queries passed to :meth:`PhraseLabels.filter_phrase_data` to select rows in which
+    the column's tuples contain any of the given values.
+
+    Example
+
+    """
+    values = set(values)
+    return series_with_tuples.map(values.intersection).astype(bool)
+
+
+class PhraseAnnotations(HarmonyLabels):
+    _extractable_features = [FeatureName.PhraseComponents, FeatureName.PhraseLabels]
+
+    class Schema(DcmlAnnotations.Schema):
+        n_ante = mm.fields.Int(
+            metadata=dict(
+                expose=True,
+                description="Specify an integer > 0 in order to include additional information on the n labels "
+                "preceding the phrase. These are generally part of a previous phrase.",
+            )
+        )
+        n_post = mm.fields.Int(
+            metadata=dict(
+                expose=True,
+                description="Specify an integer > 0 in order to include additional information on the n labels "
+                "following the phrase. These are generally part of a subsequent phrase.",
+            )
+        )
+
+    def __init__(
+        self,
+        n_ante: int = 0,
+        n_post: int = 0,
+        resource: Optional[fl.Resource | str] = None,
+        descriptor_filename: Optional[str] = None,
+        basepath: Optional[str] = None,
+        auto_validate: bool = True,
+        default_groupby: Optional[str | list[str]] = None,
+        format=None,
+        playthrough: Playthrough = Playthrough.SINGLE,
+    ) -> None:
+        """
+
+        Args:
+            n_ante:
+                By default, each phrase includes information about the included labels from beginning to end. Specify an
+                integer > 0 in order to include additional information on the n labels preceding the phrase. These
+                are generally part of a previous phrase.
+            n_post:
+                By default, each phrase includes information about the included labels from beginning to end. Specify an
+                integer > 0 in order to include additional information on the n labels following the phrase. These
+                are generally part of a subsequent phrase.
+            format: Not in use.
+            resource: An existing :obj:`frictionless.Resource`.
+            descriptor_filename:
+                Relative filepath for using a different JSON/YAML descriptor filename than the default
+                :func:`get_descriptor_filename`. Needs to end on one of the file extensions defined in the
+                setting ``package_descriptor_endings`` (by default 'resource.json' or 'resource.yaml').
+            basepath: Where to store serialization data and its descriptor by default.
+            auto_validate:
+                By default, the DimcatResource will not be validated upon instantiation or change (but always before
+                writing to disk). Set True to raise an exception during creation or modification of the resource,
+                e.g. replacing the :attr:`column_schema`.
+            default_groupby: Name of the fields for grouping this resource (usually after a Grouper has been applied).
+            playthrough:
+                Defaults to ``Playthrough.SINGLE``, meaning that first-ending (prima volta) bars are dropped in order
+                to exclude incorrect transitions and adjacencies between the first- and second-ending bars.
+        """
+        super().__init__(
+            resource=resource,
+            descriptor_filename=descriptor_filename,
+            basepath=basepath,
+            auto_validate=auto_validate,
+            default_groupby=default_groupby,
+            format=format,
+            playthrough=playthrough,
+        )
+        self.n_ante = n_ante
+        self.n_post = n_post
+
+    @property
+    def phrase_df(self) -> D:
+        """Alias for :meth:`df`."""
+        return self.df
+
+    def get_phrase_data(
+        self,
+        columns: str | List[str] = "label",
+        components: PhraseComponentName
+        | Literal["phrase"]
+        | Iterable[PhraseComponentName] = "body",
+        query: Optional[str] = None,
+        reverse: bool = False,
+        level_name: str = "i",
+        wide_format: bool = False,
+        drop_levels: bool | int | str | Iterable[int | str] = False,
+        drop_duplicated_ultima_rows: Optional[bool] = None,
+    ) -> PhraseData:
+        """
+
+        Args:
+            columns:
+                Column(s) to include in the result.
+            components:
+                Which of the four phrase components to include, ∈ {'ante', 'body', 'codetta', 'post'}.
+                For convenience, the string 'phrase' is also accepted, which is equivalent to ["body", "codetta"] and
+                ``drop_duplicated_ultima_rows=True``.
+            query:
+                A convenient way to include only those phrases in the result that match the criteria
+                formulated in the string query. A query is a string and generally takes the form
+                "<column_name> <operator> <value>". Several criteria can be combined using boolean
+                operators, e.g. "localkey_mode == 'major' & label.str.contains('/')". This option
+                is particularly interesting when used on :class:`PhraseLabels` because it enables
+                queries based on the properties of phrases such as
+                "body_n_modulations == 0 & end_label.str.contains('IAC')".  For the columns
+                containing tuples, you can used a special function to filter those rows that
+                contain any of the specified values:
+                "@tuple_contains(body_chords, 'V(94)', 'V(9)', 'V(4)')".
+            reverse:
+                Pass True to reverse the order of harmonies so that each phrase's last label comes
+                first.
+            level_name:
+                Defaults to 'i', which is the name of the original level that will be replaced
+                by this new one. The new one represents the individual integer range for each
+                phrase, starting at 0.
+            wide_format:
+                Pass True to unstack the result so that the columns for each phrase are concatenated
+                side by side.
+            drop_levels:
+                Can be a boolean or any level specifier accepted by :meth:`pandas.MultiIndex.droplevel()`.
+                If False (default), all levels are retained. If True, only the phrase_id level and
+                the ``level_name`` are retained. In all other cases, the indicated (string or
+                integer) value(s) must be valid and cause one of the index levels to be dropped.
+                ``level_name`` cannot be dropped. Dropping 'phrase_id' will likely lead to an
+                exception if a :class:`PhraseData` object will be displayed in WIDE format.
+            drop_duplicated_ultima_rows:
+                The default behaviour (when None), depends on the value of ``components``: If you set
+                ``components='phrase'``, this setting defaults to True, otherwise to False; where
+                False corresponds to the default where  each phrase body ends on a duplicate of the
+                phrase's ultima label, with zero-duration, enabling the creation of PhraseData
+                containing only phrase bodies (i.e., ``components='body'``), without losing information
+                about the ultima label. When analyzing entire phrases, however, these duplicate
+                rows may be unwanted and can be dropped by setting this option to True.
+
+        Returns:
+            Dataframe representing partial information on the selected phrases in long or wide format.
+        """
+        df_format = PhraseDataFormat.WIDE if wide_format else PhraseDataFormat.LONG
+        analyzer = dict(
+            dtype="PhraseDataAnalyzer",
+            columns=columns,
+            components=components,
+            query=query,
+            reverse=reverse,
+            level_name=level_name,
+            format=df_format,
+            drop_levels=drop_levels,
+            drop_duplicated_ultima_rows=drop_duplicated_ultima_rows,
+        )
+        return self.apply_step(analyzer)
+
+    def _prepare_feature_df(self, feature_config: DimcatConfig) -> D:
+        """Called by :meth:`_extract_feature`, returns the raw PhraseAnnotations dataframe."""
+        return self.phrase_df
+
+    def _adapt_newly_set_df(self, feature_df: D) -> D:
+        """Called by :meth:`_set_dataframe` to transform the dataframe before incorporating it.
         Assumes that the dataframe can be mutated safely, i.e. that it is a copy.
         """
-        feature_df = extend_keys_feature(feature_df)
-        groupby_levels = feature_df.index.names[:-1]
-        group_keys, _ = make_adjacency_groups(
-            feature_df.localkey, groupby=groupby_levels
-        )
-        feature_df = condense_dataframe_by_groups(
-            feature_df, group_keys, logger=self.logger
-        )
-        return self._sort_columns(feature_df)
+        self._phrase_df = feature_df
+        return feature_df
+
+
+class PhraseComponentName(FriendlyEnum):
+    ANTE = "ante"
+    BODY = "body"
+    CODETTA = "codetta"
+    POST = "post"
+
+
+class PhraseComponents(PhraseAnnotations):
+    _convenience_column_names = HarmonyLabels._convenience_column_names + [
+        "localkeys",
+        "n_modulations",
+        "modulatory_sequence",
+        "n_labels",
+        "labels",
+        "n_chords",
+        "chords",
+    ]
+    _default_value_column = "chords"
+    _feature_column_names = ["chords"]
+
+    @property
+    def phrase_df(self) -> D:
+        """Returns the df that corresponds to the :class:`PhraseAnnotations` feature from which the
+        PhraseComponents were derived.
+        """
+        return self._phrase_df
+
+    def _adapt_newly_set_df(self, feature_df: D) -> D:
+        """Condense the raw PhraseAnnotations dataframe into a dataframe with one row per phrase component."""
+        feature_df = super()._adapt_newly_set_df(feature_df)
+        return condense_components(feature_df)
+
+
+class PhraseLabels(PhraseAnnotations):
+    _convenience_column_names = HarmonyLabels._convenience_column_names + [
+        "phrase_localkeys",
+        "phrase_n_modulations",
+        "phrase_modulatory_sequence",
+        "phrase_n_labels",
+        "phrase_labels",
+        "phrase_n_chords",
+        "phrase_chords",
+        "body_localkeys",
+        "body_n_modulations",
+        "body_modulatory_sequence",
+        "body_n_labels",
+        "body_labels",
+        "body_n_chords",
+        "body_chords",
+        "body_duration_qb",
+        "codetta_localkeys",
+        "codetta_n_modulations",
+        "codetta_modulatory_sequence",
+        "codetta_n_labels",
+        "codetta_labels",
+        "codetta_n_chords",
+        "codetta_chords",
+        "codetta_duration_qb",
+        "interlocked_ante",
+        "interlocked_post",
+        "end_label",
+        "end_chord",
+    ]
+    _default_value_column = "phrase_chords"
+    _feature_column_names = ["phrase_chords"]
+
+    @property
+    def phrase_df(self) -> D:
+        """Returns the df that corresponds to the :class:`PhraseAnnotations` feature from which the
+        PhraseLabels were derived.
+        """
+        return self._phrase_df
+
+    def _adapt_newly_set_df(self, feature_df: D) -> D:
+        """Condense the raw PhraseAnnotations dataframe into a dataframe with one row per phrase."""
+        feature_df = super()._adapt_newly_set_df(feature_df)
+        return condense_phrases(feature_df)
 
 
 # endregion Annotations
@@ -980,8 +1115,11 @@ class Notes(Feature):
             metadata=dict(
                 title="Merge tied notes",
                 expose=True,
-                description="If set, notes that are tied together in the score are merged together, counting them "
-                "as a single event of the corresponding length. Otherwise, every note head is counted.",
+                description="If False (default), each row corresponds to a note head, even if it does not the full "
+                "duration of the represented sounding event or even an onset. Setting to True results in "
+                "notes being tied over to from a previous note to be merged into a single note with the "
+                "summed duration. After the transformation, only note heads that actually represent a note "
+                "onset remain.",
             ),
         )
         weight_grace_notes = mm.fields.Float(
@@ -997,7 +1135,6 @@ class Notes(Feature):
 
     def __init__(
         self,
-        format: NotesFormat = NotesFormat.NAME,
         merge_ties: bool = False,
         weight_grace_notes: float = 0.0,
         resource: Optional[fl.Resource | str] = None,
@@ -1005,7 +1142,38 @@ class Notes(Feature):
         basepath: Optional[str] = None,
         auto_validate: bool = True,
         default_groupby: Optional[str | list[str]] = None,
+        format: NotesFormat = NotesFormat.NAME,
+        playthrough: Playthrough = Playthrough.SINGLE,
     ) -> None:
+        """
+
+        Args:
+            merge_ties:
+                If False (default), each row corresponds to a note head, even if it does not the full duration of the
+                represented sounding event or even an onset. Setting to True results in notes being tied over to from a
+                previous note to be merged into a single note with the summed duration. After the transformation,
+                only note heads that actually represent a note onset remain.
+            weight_grace_notes:
+                Set a factor > 0.0 to multiply the nominal duration of grace notes which, otherwise, have duration 0
+                and are therefore excluded from many statistics.
+            resource: An existing :obj:`frictionless.Resource`.
+            descriptor_filename:
+                Relative filepath for using a different JSON/YAML descriptor filename than the default
+                :func:`get_descriptor_filename`. Needs to end on one of the file extensions defined in the
+                setting ``package_descriptor_endings`` (by default 'resource.json' or 'resource.yaml').
+            basepath: Where to store serialization data and its descriptor by default.
+            auto_validate:
+                By default, the DimcatResource will not be validated upon instantiation or change (but always before
+                writing to disk). Set True to raise an exception during creation or modification of the resource,
+                e.g. replacing the :attr:`column_schema`.
+            default_groupby: Name of the fields for grouping this resource (usually after a Grouper has been applied).
+            format:
+                :attr:`format`. Format to display the notes in. The default NAME stands for note names, FIFTHS for
+                the number of fifths from C, and MIDI for MIDI numbers.
+            playthrough:
+                Defaults to ``Playthrough.SINGLE``, meaning that first-ending (prima volta) bars are dropped in order
+                to exclude incorrect transitions and adjacencies between the first- and second-ending bars.
+        """
         super().__init__(
             format=format,
             resource=resource,
@@ -1013,6 +1181,7 @@ class Notes(Feature):
             basepath=basepath,
             auto_validate=auto_validate,
             default_groupby=default_groupby,
+            playthrough=playthrough,
         )
         self._merge_ties = bool(merge_ties)
         self._weight_grace_notes = float(weight_grace_notes)
@@ -1049,10 +1218,11 @@ class Notes(Feature):
     def weight_grace_notes(self) -> float:
         return self._weight_grace_notes
 
-    def _format_dataframe(self, feature_df: D) -> D:
-        """Called by :meth:`_prepare_feature_df` to transform the resource dataframe into a feature dataframe.
+    def _adapt_newly_set_df(self, feature_df: D) -> D:
+        """Called by :meth:`_set_dataframe` to transform the dataframe before incorporating it.
         Assumes that the dataframe can be mutated safely, i.e. that it is a copy.
         """
+
         feature_df = self._drop_rows_with_missing_values(
             feature_df, column_names=self._feature_column_names
         )
@@ -1080,7 +1250,3 @@ class Measures(Feature):
 
 
 # endregion Structure
-# region helpers
-
-
-# endregion helpers

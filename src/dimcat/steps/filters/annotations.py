@@ -1,9 +1,12 @@
+import logging
 from typing import Iterable, Optional
 
 from dimcat.data.resources.base import IX
 from dimcat.data.resources.dc import levelvalue_
 from dimcat.steps.filters.base import FilterSchema, _FilterMixin
 from dimcat.steps.groupers import HasCadenceAnnotationsGrouper, HasHarmonyLabelsGrouper
+
+module_logger = logging.getLogger(__name__)
 
 
 class HasCadenceAnnotationsFilter(_FilterMixin, HasCadenceAnnotationsGrouper):

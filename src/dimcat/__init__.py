@@ -31,7 +31,7 @@ from .data.resources import PieceIndex
 from .steps import analyzers, extractors, filters, groupers, loaders, pipelines, slicers
 from .steps.pipelines.base import Pipeline
 
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)
 logging.basicConfig(
     level=logging.WARNING,
     format="%(levelname)-8s %(name)s -- %(pathname)s (line %(lineno)s) in %(funcName)s():\n\t%(message)s",

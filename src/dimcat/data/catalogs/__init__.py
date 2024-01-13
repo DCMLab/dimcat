@@ -4,4 +4,4 @@ from .base import DimcatCatalog
 from .inputs import InputsCatalog
 from .outputs import OutputsCatalog
 
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)

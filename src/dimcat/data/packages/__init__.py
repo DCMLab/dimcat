@@ -4,4 +4,4 @@ from .base import Package, PackageMode, PackageStatus, PathPackage
 from .dc import DimcatPackage
 from .score import ScorePathPackage
 
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)

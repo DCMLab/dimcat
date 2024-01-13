@@ -11,7 +11,7 @@ from dimcat.utils import make_valid_frictionless_name, resolve_path
 
 from .base import Loader, ScoreLoader
 
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)
 
 
 class MuseScoreLoader(ScoreLoader):

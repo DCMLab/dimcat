@@ -8,7 +8,7 @@ import music21 as m21
 import pandas as pd
 from dimcat.utils import scan_directory
 
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)
 
 
 def store_facets_as_zip(
