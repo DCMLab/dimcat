@@ -1471,6 +1471,49 @@ def subselect_multiindex_from_df(
     return df[mask].copy()
 
 
+def transpose_notes_to_c(notes: D) -> D:
+    """Transpose the columns 'tpc' and 'midi' in a way that they reflect the local key as if it was C major/minor. This
+    operation is typically required for creating pitch class profiles.
+    Uses: :py:func:`ms3.transform`, :py:func:`ms3.name2fifths`, :py:func:`ms3.roman_numeral2fifths`
+
+    Args:
+        notes: DataFrame that has at least the columns ['globalkey', 'localkey', 'tpc', 'midi'].
+
+    Returns:
+         A new dataframe with the columns 'local_tonic_name', 'fifths_over_local_tonic', and 'midi_in_c'
+         where the latter two correspond to the original columns 'tpc' and 'midi' but transposed in such a way that
+         ``fifths_over_local_tonic == 0`` and ``midi_in_c % 12 == 0`` for all pitches that match the local tonic.
+         E.g. for the local key A major/minor, each pitch A will have tpc=0 and midi % 12 = 0).
+    """
+    transpose_by = ms3.transform(notes.globalkey, ms3.name2fifths) + ms3.transform(
+        notes, ms3.roman_numeral2fifths, ["localkey", "globalkey_is_minor"]
+    )
+    fifths_over_local_tonic = notes.tpc - transpose_by
+    midi_transposition = ms3.transform(transpose_by, ms3.fifths2pc)
+    # For transpositions up to a diminished fifth, move pitches up,
+    # for larger intervals, move pitches down.
+    midi_transposition.where(
+        midi_transposition <= 6, midi_transposition % -12, inplace=True
+    )
+    midi_in_c = notes.midi - midi_transposition
+    local_tonic = pd.concat(
+        [transpose_by.rename("local_tonic"), notes.localkey_is_minor], axis=1
+    )
+    local_tonic = ms3.transform(
+        local_tonic,
+        ms3.fifths2name,
+        dict(fifths="local_tonic", minor="localkey_is_minor"),
+    )
+    return pd.concat(
+        [
+            local_tonic.rename("local_tonic_name"),
+            fifths_over_local_tonic.rename("fifths_over_local_tonic"),
+            midi_in_c.rename("midi_in_c"),
+        ],
+        axis=1,
+    )
+
+
 def tuple2str(
     tup: tuple,
     join_str: Optional[str] = ", ",
