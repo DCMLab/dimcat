@@ -250,12 +250,20 @@ class Dataset(Data):
         """Returns a copy of this Dataset."""
         return Dataset.from_dataset(self)
 
-    def _extract_feature(self, feature_config: DimcatConfig) -> F:
+    def _extract_feature(
+        self,
+        feature_config: DimcatConfig,
+        ignore_exceptions: bool = False,
+    ) -> F:
         """Extracts a feature from the Dataset's input catalog, sends it through its pipeline and returns the result,
         without storing it.
 
         Args:
             feature: FeatureSpecs to be extracted.
+            ignore_exceptions:
+                By default (False), features that do not make it through the Pipeline without accident raise an
+                exception and are not added to the outputs catalog. Set to True to ignore exceptions and return the
+                extracted feature, ignoring the fact that not all PipelineSteps may have been applied to it.
         """
         extracted = self.inputs.extract_feature(feature_config)
         if len(self._pipeline) == 0:
@@ -266,21 +274,31 @@ class Dataset(Data):
         )
         return self._pipeline._process_resource(
             extracted,
-            ignore_exceptions=True,
+            ignore_exceptions=ignore_exceptions,
             skip_step_types=["FeatureExtractor"],
         )
 
-    def extract_feature(self, feature: FeatureSpecs) -> F:
+    def extract_feature(
+        self,
+        feature: FeatureSpecs,
+        ignore_exceptions: bool = False,
+    ) -> F:
         """Extracts a feature from this Dataset's input catalog, sends it through its pipeline, adds the result to the
         OutputsCatalog, and adds the corresponding FeatureExtractor to the dataset's pipeline.
 
         Args:
             feature: FeatureSpecs to be extracted.
+            ignore_exceptions:
+                By default (False), features that do not make it through the Pipeline without accident raise an
+                exception and are not added to the outputs catalog. Set to True to ignore exceptions and return the
+                extracted feature, ignoring the fact that not all PipelineSteps may have been applied to it.
         """
         feature_config = feature_specs2config(feature)
         Constructor = get_class("FeatureExtractor")
         feature_extractor = Constructor(feature_config)
-        extracted = self._extract_feature(feature_config)
+        extracted = self._extract_feature(
+            feature_config, ignore_exceptions=ignore_exceptions
+        )
         self.add_output(resource=extracted, package_name="features")
         self._pipeline.add_step(feature_extractor)
         return extracted
