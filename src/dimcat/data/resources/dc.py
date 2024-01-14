@@ -65,6 +65,7 @@ from dimcat.data.resources.utils import (
     make_tsv_resource,
     resolve_levels_argument,
 )
+from dimcat.data.utils import store_as_json_or_yaml
 from dimcat.dc_exceptions import (
     BasePathNotDefinedError,
     DataframeIncompatibleWithColumnSchemaError,
@@ -74,7 +75,7 @@ from dimcat.dc_exceptions import (
     ResourceIsFrozenError,
 )
 from dimcat.dc_warnings import PotentiallyUnrelatedDescriptorUserWarning
-from dimcat.utils import check_name
+from dimcat.utils import check_name, resolve_path
 from frictionless import FrictionlessException
 from plotly import graph_objs as go
 from typing_extensions import Literal, Self
@@ -693,7 +694,7 @@ DimcatResource.__init__(
             resource_df = self.get_dataframe()
             self._set_dataframe(resource_df)
         else:
-            RuntimeError(f"No dataframe accessible for this {self.name}:\n{self}")
+            raise RuntimeError(f"No dataframe accessible for this {self.name}:\n{self}")
         return resource_df
 
     @dataframe.setter
@@ -1480,7 +1481,7 @@ DimcatResource.__init__(
             raise RuntimeError(f"This {self.name} does not contain a dataframe.")
         ms3.write_tsv(self.df.reset_index(), full_path)
         self.logger.info(f"{self.name} serialized to {full_path}.")
-        self.store_descriptor()
+        self.store_descriptor(overwrite=overwrite)
         if validate:
             report = self.validate(raise_exception=False)
             if report.valid:
@@ -1504,6 +1505,57 @@ DimcatResource.__init__(
                 f"After writing {self.resource_name} to disk, the status has been changed from {status_before!r} to "
                 f"{self.status!r}"
             )
+
+    def store_resource(
+        self, basepath: Optional[str] = None, name: Optional[str] = None, overwrite=True
+    ) -> Optional[str]:
+        """Stores the resource as a frictionless resource consisting of a TSV file containing the
+        data and an accompanying descriptor file (default: JSON).
+
+        Args:
+            basepath:
+                The basepath to write the resource to. Defaults to the resource's basepath.
+            name:
+                The name of the resource. Defaults to the resource's name.
+            overwrite:
+                Whether to overwrite existing files. Defaults to True.
+
+        Returns:
+            The filepath of the stored descriptor.
+        """
+        if basepath is None:
+            basepath = self.get_basepath()
+        else:
+            basepath = resolve_path(basepath)
+        if name is None:
+            name = self.get_resource_name()
+        endings = get_setting("resource_descriptor_endings")
+        first_ending = endings[0].lstrip(".")
+        descriptor_filename = f"{name}.{first_ending}"
+        descriptor_filepath = os.path.join(basepath, descriptor_filename)
+        if not overwrite and os.path.isfile(descriptor_filepath):
+            self.logger.info(
+                f"Descriptor exists already and will not where (over)written: {descriptor_filepath}"
+            )
+            return
+        tsv_filename = f"{name}.tsv"
+        tsv_filepath = os.path.join(basepath, tsv_filename)
+        if not overwrite and os.path.isfile(tsv_filepath):
+            self.logger.info(
+                f"Resource exists already and no files were (over)written: {tsv_filepath}"
+            )
+            return
+        if self.status < ResourceStatus.DATAFRAME:
+            raise RuntimeError(f"This {self.name} does not contain a dataframe.")
+        ms3.write_tsv(self.df.reset_index(), tsv_filepath)
+        descriptor_dict = self.make_descriptor()
+        descriptor_dict["basepath"] = basepath
+        descriptor_dict["name"] = name
+        descriptor_dict["path"] = tsv_filename
+        descriptor_dict["innerpath"] = tsv_filepath
+        store_as_json_or_yaml(descriptor_dict, descriptor_filepath)
+        self.logger.info(f"{self.name} descriptor written to {descriptor_filepath}")
+        return descriptor_filepath
 
     def _transform_df_for_extraction(
         self, feature_df: D, feature_config: DimcatConfig
