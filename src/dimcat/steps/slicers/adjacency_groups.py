@@ -111,6 +111,22 @@ class AdjacencyGroupSlicer(Slicer):
         return super().transform_resource(resource)
 
 
+class HarmonyLabelSlicer(AdjacencyGroupSlicer):
+    """Slices resources using intervals from the HarmonyLabels feature."""
+
+    _required_feature = FeatureName.HarmonyLabels
+
+    def __init__(
+        self,
+        level_name: str = "harmony_label_slice",
+        slice_intervals: Optional[SliceIntervals] = None,
+        **kwargs,
+    ):
+        super().__init__(
+            level_name=level_name, slice_intervals=slice_intervals, **kwargs
+        )
+
+
 class KeySlicer(AdjacencyGroupSlicer):
     """Slices resources by key."""
 

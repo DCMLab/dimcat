@@ -4,7 +4,7 @@ from pathlib import Path
 from dimcat import Dataset
 from dimcat.data import resources
 from dimcat.data.resources import DimcatIndex
-from dimcat.steps import groupers
+from dimcat.steps import groupers, slicers
 from dimcat.utils import resolve_path
 
 
@@ -50,4 +50,4 @@ def get_piece_groups(dataset):
 
 if __name__ == "__main__":
     D = load_distant_listening_corpus()
-    phrase_annotations = D.get_feature("PhraseAnnotations")
+    sliced_D = slicers.HarmonyLabelSlicer().process(D)
