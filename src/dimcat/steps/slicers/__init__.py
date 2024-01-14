@@ -1,5 +1,5 @@
 import logging
 
-from .adjacency_groups import AdjacencyGroupSlicer, HarmonyLabelSlicer, KeySlicer
+from .feature_dimensions import FeatureDimensionsSlicer, HarmonyLabelSlicer, KeySlicer
 
 module_logger = logging.getLogger(__name__)
