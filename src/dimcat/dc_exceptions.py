@@ -504,7 +504,7 @@ class SlicerNotSetUpError(DimcatError):
     nargs2message = {
         0: "The slicer has not been setup. Applying it would result in empty features. Set the attribute "
         "'slice_intervals'.",
-        1: lambda name: f"The {name!r} has not been setup. Applying it would result in empty features. "
+        1: lambda name: f"The {name} has not been setup. Applying it would result in empty features. "
         f"Set the attribute 'slice_intervals'.",
     }
 

@@ -1562,7 +1562,7 @@ def value2bool(value: str | float | int | bool) -> bool | str | float | int:
 
 def append_index_levels(
     old_index: IX,
-    *new_level: S | D,
+    *new_level: IX | S | D,
     drop_levels: Optional[Literal[False], str | int | Iterable[str | int]] = None,
 ) -> IX:
     """
@@ -1570,8 +1570,34 @@ def append_index_levels(
     """
     if drop_levels:
         old_index = old_index.droplevel(drop_levels)
+    new_levels = [
+        level.reset_index(drop=True)
+        if isinstance(level, (pd.Series, pd.DataFrame))
+        else level.to_frame(index=False)
+        for level in new_level
+    ]
+    new_index_df = pd.concat([old_index.to_frame(index=False)] + new_levels, axis=1)
+    new_index = pd.MultiIndex.from_frame(new_index_df)
+    return new_index
+
+
+def insert_index_level(old_index: IX, new_level: IX | S | D, position: int) -> IX:
+    """
+    Replace index levels by optionally dropping an arbitrary number and concatenating the new level(s) to the right.
+    """
+    if isinstance(new_level, (pd.Series, pd.DataFrame)):
+        new_level = new_level.reset_index(drop=True)
+    else:
+        # should be a DimcatIndex or pd.Index (or pd.MultiIndex)
+        new_level = new_level.to_frame(index=False)
+    new_index_df = old_index.to_frame(index=False)
     new_index_df = pd.concat(
-        [old_index.to_frame(index=False)] + list(new_level), axis=1
+        [
+            new_index_df.iloc(axis=1)[:position],
+            new_level,
+            new_index_df.iloc(axis=1)[position:],
+        ],
+        axis=1,
     )
     new_index = pd.MultiIndex.from_frame(new_index_df)
     return new_index
