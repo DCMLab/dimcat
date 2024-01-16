@@ -13,9 +13,12 @@ from dimcat.steps.slicers.base import Slicer
 module_logger = logging.getLogger(__name__)
 
 
-class AdjacencyGroupSlicer(Slicer):
-    """This slicer and its subclasses slices resources by adjacency groups, that is, segments where a particular
-    column (or combination thereof) has the same value over all rows."""
+class FeatureDimensionsSlicer(Slicer):
+    """This slicer and its subclasses slice resources according to the dimensions of a particular :class:`Feature`.
+    This requires either processing a Dataset providing the relevant Feature (resulting in a call to
+    :meth:`fit_to_dataset`), or calling :meth:`process` on the relevant before any others,
+    or setting the :attr:`slice_intervals` manually, including upon initialization.
+    """
 
     _adjacency_group_column_name: ClassVar[Optional[str]] = None
     """Optional class variable that specifies the name of the column that contains the adjacency group.
@@ -111,7 +114,23 @@ class AdjacencyGroupSlicer(Slicer):
         return super().transform_resource(resource)
 
 
-class KeySlicer(AdjacencyGroupSlicer):
+class HarmonyLabelSlicer(FeatureDimensionsSlicer):
+    """Slices resources using intervals from the HarmonyLabels feature."""
+
+    _required_feature = FeatureName.HarmonyLabels
+
+    def __init__(
+        self,
+        level_name: str = "harmony_label_slice",
+        slice_intervals: Optional[SliceIntervals] = None,
+        **kwargs,
+    ):
+        super().__init__(
+            level_name=level_name, slice_intervals=slice_intervals, **kwargs
+        )
+
+
+class KeySlicer(FeatureDimensionsSlicer):
     """Slices resources by key."""
 
     _required_feature = "KeyAnnotations"
@@ -127,7 +146,7 @@ class KeySlicer(AdjacencyGroupSlicer):
         )
 
 
-class PhraseSlicer(AdjacencyGroupSlicer):
+class PhraseSlicer(FeatureDimensionsSlicer):
     """Slices resources by phrase."""
 
     _required_feature = "PhraseLabels"

@@ -269,6 +269,15 @@ class NoFeaturesActiveError(DimcatError):
     }
 
 
+class NoMatchingPipelineStepFoundError(DimcatError):
+    """optional args: (step_specs,). Pass no arguments if the pipeline is empty."""
+
+    nargs2message = {
+        0: "Pipeline does not include any steps.",
+        1: lambda step_specs: f"No matching pipeline step found for {step_specs!r}.",
+    }
+
+
 class NoMatchingResourceFoundError(DimcatError):
     """optional args: (config, package_name)"""
 
@@ -495,7 +504,7 @@ class SlicerNotSetUpError(DimcatError):
     nargs2message = {
         0: "The slicer has not been setup. Applying it would result in empty features. Set the attribute "
         "'slice_intervals'.",
-        1: lambda name: f"The {name!r} has not been setup. Applying it would result in empty features. "
+        1: lambda name: f"The {name} has not been setup. Applying it would result in empty features. "
         f"Set the attribute 'slice_intervals'.",
     }
 

@@ -996,16 +996,13 @@ Resource(
         self,
         set_default_if_missing: bool = False,
     ) -> Optional[str]:
-        """Returns the path to the descriptor file."""
+        """Returns the path to the resource file within a ZIP file."""
         if self.innerpath:
             return self.innerpath
         if not self.is_zipped and self.filepath:
             innerpath = self.filepath
         else:
-            if self.resource_name:
-                resource_name = self.resource_name
-            else:
-                resource_name = get_setting("default_resource_name")
+            resource_name = self.get_resource_name()
             format = self.resource.format
             if format and not resource_name.endswith(format):
                 innerpath = f"{resource_name}.{format}"
@@ -1029,6 +1026,18 @@ Resource(
         except (BasePathNotDefinedError, FilePathNotDefinedError):
             path_dict["normpath"] = None
         return path_dict
+
+    def get_resource_name(
+        self,
+        set_default_if_missing=False,
+    ) -> str:
+        if self.resource_name:
+            resource_name = self.resource_name
+        else:
+            resource_name = get_setting("default_resource_name")
+            if set_default_if_missing:
+                self.resource_name = resource_name
+        return resource_name
 
     def make_descriptor(self) -> dict:
         """Returns a frictionless descriptor for the resource."""
@@ -1140,11 +1149,14 @@ Resource(
             The path to the descriptor file on disk. If None, the default is used.
 
         Raises:
+            ResourceIsPackagedError:
+                If the resource is packaged, this method refuses to store a resource descriptor
+                because that would potentially update path information managed by the package.
             InvalidResourcePathError: If the resource's path does not point to an existing file on disk.
         """
         if self.is_packaged:
             raise ResourceIsPackagedError(
-                self.resource_name, self.get_descriptor_path()
+                self.resource_name, self.get_descriptor_path(), "descriptor_path"
             )
         if descriptor_path is None:
             descriptor_path = self.get_descriptor_path(set_default_if_missing=True)

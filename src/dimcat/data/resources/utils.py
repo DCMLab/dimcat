@@ -208,7 +208,7 @@ def apply_slice_intervals_to_resource_df(
             dropna=True,
             return_df=True,
             logger=logger,
-        )
+        )  # clean_group_df has no missing values in the columns used for computing time spans
         sliced_dfs[group] = overlapping_chunk_per_interval_cutoff_direct(
             df=clean_group_df.droplevel(grouping_levels),
             lefts=time_spans.start.values,
@@ -587,17 +587,30 @@ def get_time_spans_from_resource_df(
     return_df: bool = False,
     logger: Optional[logging.Logger] = None,
 ) -> pd.DataFrame | Tuple[pd.DataFrame, pd.DataFrame]:
-    """Returns a dataframe with start ('left') and end ('end') positions of the events represented by this
+    """Returns a dataframe with start ('left') and end ('right') positions of the events represented by this
     resource's rows.
 
     Args:
+        df:
+        qstamp_column_name: Column from which to retrieve start positions.
+        duration_column_name: Column from which to retrieve durations to be added to the start positions.
         round:
             To how many decimal places to round the intervals' boundary values. Setting a value automatically sets
             ``to_float=True``.
-        to_float: Set to True to turn the time span values into floats.
+        to_float:
+            By default (True), the returned time span values are floats. Set False to leave values as they are
+            after adding the columns, e.g. as fractions. If ``round`` is specified, however, this has no effect since
+            the values are rounded to floats anyway.
+        dropna:
+            By default (False), rows with missing values are ignored and the result will include missing values for
+            them. Pass True to drop rows with missing values. In this case you may also want to set ``return_df=True``.
+        return_df:
+            Pass True if you want to return the original dataframe as well, especially when ``dropna=True``.
+        logger:
 
     Returns:
-
+        A dataframe with columns ``start`` and ``end``.
+        If ``return_df=True``, the input dataframe is returned as used for computing the time spans.
     """
     if logger is None:
         logger = module_logger
@@ -713,20 +726,27 @@ def infer_schema_from_df(
 
 
 def join_df_on_index(
-    df: pd.DataFrame, index: DimcatIndex | pd.MultiIndex
+    df: pd.DataFrame,
+    index: DimcatIndex | pd.MultiIndex,
+    how: Literal["left", "right", "inner", "outer", "cross"] = "inner",
 ) -> pd.DataFrame:
     if is_instance_of(index, "DimcatIndex"):
         index = index.index
+    # change left <-> right because this function uses the .join() method of the empty dataframe
+    if how == "left":
+        how = "right"
+    if how == "right":
+        how = "left"
     if df.columns.nlevels > 1:
         # workaround because pandas enforces column indices to have same number of levels for merging
         column_index = pd.MultiIndex.from_tuples(df.columns, names=df.columns.names)
         grouping_df = pd.DataFrame(index=index, columns=column_index)
-        df_aligned = grouping_df.join(df, how="inner", lsuffix="_")
+        df_aligned = grouping_df.join(df, how=how, lsuffix="_")
     else:
         grouping_df = pd.DataFrame(index=index)
         df_aligned = grouping_df.join(
             df,
-            how="inner",
+            how=how,
         )
     index_level_order = list(grouping_df.index.names)
     index_level_order += [
@@ -1051,13 +1071,19 @@ def make_group_start_mask(df: D, groupby) -> npt.NDArray[bool]:
     return group_start_mask
 
 
-def make_groups_lasts_mask(feature_df: D, groupby) -> npt.NDArray[bool]:
+def make_groups_lasts_mask(feature_df: D | S, groupby=None) -> npt.NDArray[bool]:
     """Returns a boolean mask where each row that comes last in one of the groups is marked as True. This is
     useful only when the groups already came in groups within the dataframe in the first place.
+    Instead of a dataframe with groupby columns you may also pass a Series with None.
     """
-    groups_last_idx = np.array(
-        [idx[-1] for idx in feature_df.groupby(groupby).indices.values()]
-    )
+    if isinstance(feature_df, pd.Series):
+        groups_last_idx = np.array(
+            [idx[-1] for idx in feature_df.groupby(feature_df).indices.values()]
+        )
+    else:
+        groups_last_idx = np.array(
+            [idx[-1] for idx in feature_df.groupby(groupby).indices.values()]
+        )
     result = np.zeros(feature_df.shape[0], bool)
     result[groups_last_idx] = True
     return result
@@ -1471,6 +1497,49 @@ def subselect_multiindex_from_df(
     return df[mask].copy()
 
 
+def transpose_notes_to_c(notes: D) -> D:
+    """Transpose the columns 'tpc' and 'midi' in a way that they reflect the local key as if it was C major/minor. This
+    operation is typically required for creating pitch class profiles.
+    Uses: :py:func:`ms3.transform`, :py:func:`ms3.name2fifths`, :py:func:`ms3.roman_numeral2fifths`
+
+    Args:
+        notes: DataFrame that has at least the columns ['globalkey', 'localkey', 'tpc', 'midi'].
+
+    Returns:
+         A new dataframe with the columns 'local_tonic_name', 'fifths_over_local_tonic', and 'midi_in_c'
+         where the latter two correspond to the original columns 'tpc' and 'midi' but transposed in such a way that
+         ``fifths_over_local_tonic == 0`` and ``midi_in_c % 12 == 0`` for all pitches that match the local tonic.
+         E.g. for the local key A major/minor, each pitch A will have tpc=0 and midi % 12 = 0).
+    """
+    transpose_by = ms3.transform(notes.globalkey, ms3.name2fifths) + ms3.transform(
+        notes, ms3.roman_numeral2fifths, ["localkey", "globalkey_is_minor"]
+    )
+    fifths_over_local_tonic = notes.tpc - transpose_by
+    midi_transposition = ms3.transform(transpose_by, ms3.fifths2pc)
+    # For transpositions up to a diminished fifth, move pitches up,
+    # for larger intervals, move pitches down.
+    midi_transposition.where(
+        midi_transposition <= 6, midi_transposition % -12, inplace=True
+    )
+    midi_in_c = notes.midi - midi_transposition
+    local_tonic = pd.concat(
+        [transpose_by.rename("local_tonic"), notes.localkey_is_minor], axis=1
+    )
+    local_tonic = ms3.transform(
+        local_tonic,
+        ms3.fifths2name,
+        dict(fifths="local_tonic", minor="localkey_is_minor"),
+    )
+    return pd.concat(
+        [
+            local_tonic.rename("local_tonic_name"),
+            fifths_over_local_tonic.rename("fifths_over_local_tonic"),
+            midi_in_c.rename("midi_in_c"),
+        ],
+        axis=1,
+    )
+
+
 def tuple2str(
     tup: tuple,
     join_str: Optional[str] = ", ",
@@ -1562,7 +1631,7 @@ def value2bool(value: str | float | int | bool) -> bool | str | float | int:
 
 def append_index_levels(
     old_index: IX,
-    *new_level: S | D,
+    *new_level: IX | S | D,
     drop_levels: Optional[Literal[False], str | int | Iterable[str | int]] = None,
 ) -> IX:
     """
@@ -1570,8 +1639,34 @@ def append_index_levels(
     """
     if drop_levels:
         old_index = old_index.droplevel(drop_levels)
+    new_levels = [
+        level.reset_index(drop=True)
+        if isinstance(level, (pd.Series, pd.DataFrame))
+        else level.to_frame(index=False)
+        for level in new_level
+    ]
+    new_index_df = pd.concat([old_index.to_frame(index=False)] + new_levels, axis=1)
+    new_index = pd.MultiIndex.from_frame(new_index_df)
+    return new_index
+
+
+def insert_index_level(old_index: IX, new_level: IX | S | D, position: int) -> IX:
+    """
+    Replace index levels by optionally dropping an arbitrary number and concatenating the new level(s) to the right.
+    """
+    if isinstance(new_level, (pd.Series, pd.DataFrame)):
+        new_level = new_level.reset_index(drop=True)
+    else:
+        # should be a DimcatIndex or pd.Index (or pd.MultiIndex)
+        new_level = new_level.to_frame(index=False)
+    new_index_df = old_index.to_frame(index=False)
     new_index_df = pd.concat(
-        [old_index.to_frame(index=False)] + list(new_level), axis=1
+        [
+            new_index_df.iloc(axis=1)[:position],
+            new_level,
+            new_index_df.iloc(axis=1)[position:],
+        ],
+        axis=1,
     )
     new_index = pd.MultiIndex.from_frame(new_index_df)
     return new_index

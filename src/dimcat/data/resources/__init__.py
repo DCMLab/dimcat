@@ -4,6 +4,7 @@ from .base import FeatureName, PathResource, Resource, ResourceStatus
 from .dc import DimcatIndex, DimcatResource, Feature, PieceIndex
 from .features import (
     Annotations,
+    HarmonyLabels,
     KeyAnnotations,
     Metadata,
     Notes,
