@@ -208,7 +208,7 @@ def apply_slice_intervals_to_resource_df(
             dropna=True,
             return_df=True,
             logger=logger,
-        )
+        )  # clean_group_df has no missing values in the columns used for computing time spans
         sliced_dfs[group] = overlapping_chunk_per_interval_cutoff_direct(
             df=clean_group_df.droplevel(grouping_levels),
             lefts=time_spans.start.values,
@@ -587,17 +587,30 @@ def get_time_spans_from_resource_df(
     return_df: bool = False,
     logger: Optional[logging.Logger] = None,
 ) -> pd.DataFrame | Tuple[pd.DataFrame, pd.DataFrame]:
-    """Returns a dataframe with start ('left') and end ('end') positions of the events represented by this
+    """Returns a dataframe with start ('left') and end ('right') positions of the events represented by this
     resource's rows.
 
     Args:
+        df:
+        qstamp_column_name: Column from which to retrieve start positions.
+        duration_column_name: Column from which to retrieve durations to be added to the start positions.
         round:
             To how many decimal places to round the intervals' boundary values. Setting a value automatically sets
             ``to_float=True``.
-        to_float: Set to True to turn the time span values into floats.
+        to_float:
+            By default (True), the returned time span values are floats. Set False to leave values as they are
+            after adding the columns, e.g. as fractions. If ``round`` is specified, however, this has no effect since
+            the values are rounded to floats anyway.
+        dropna:
+            By default (False), rows with missing values are ignored and the result will include missing values for
+            them. Pass True to drop rows with missing values. In this case you may also want to set ``return_df=True``.
+        return_df:
+            Pass True if you want to return the original dataframe as well, especially when ``dropna=True``.
+        logger:
 
     Returns:
-
+        A dataframe with columns ``start`` and ``end``.
+        If ``return_df=True``, the input dataframe is returned as used for computing the time spans.
     """
     if logger is None:
         logger = module_logger
@@ -713,20 +726,27 @@ def infer_schema_from_df(
 
 
 def join_df_on_index(
-    df: pd.DataFrame, index: DimcatIndex | pd.MultiIndex
+    df: pd.DataFrame,
+    index: DimcatIndex | pd.MultiIndex,
+    how: Literal["left", "right", "inner", "outer", "cross"] = "inner",
 ) -> pd.DataFrame:
     if is_instance_of(index, "DimcatIndex"):
         index = index.index
+    # change left <-> right because this function uses the .join() method of the empty dataframe
+    if how == "left":
+        how = "right"
+    if how == "right":
+        how = "left"
     if df.columns.nlevels > 1:
         # workaround because pandas enforces column indices to have same number of levels for merging
         column_index = pd.MultiIndex.from_tuples(df.columns, names=df.columns.names)
         grouping_df = pd.DataFrame(index=index, columns=column_index)
-        df_aligned = grouping_df.join(df, how="inner", lsuffix="_")
+        df_aligned = grouping_df.join(df, how=how, lsuffix="_")
     else:
         grouping_df = pd.DataFrame(index=index)
         df_aligned = grouping_df.join(
             df,
-            how="inner",
+            how=how,
         )
     index_level_order = list(grouping_df.index.names)
     index_level_order += [
@@ -1051,13 +1071,19 @@ def make_group_start_mask(df: D, groupby) -> npt.NDArray[bool]:
     return group_start_mask
 
 
-def make_groups_lasts_mask(feature_df: D, groupby) -> npt.NDArray[bool]:
+def make_groups_lasts_mask(feature_df: D | S, groupby=None) -> npt.NDArray[bool]:
     """Returns a boolean mask where each row that comes last in one of the groups is marked as True. This is
     useful only when the groups already came in groups within the dataframe in the first place.
+    Instead of a dataframe with groupby columns you may also pass a Series with None.
     """
-    groups_last_idx = np.array(
-        [idx[-1] for idx in feature_df.groupby(groupby).indices.values()]
-    )
+    if isinstance(feature_df, pd.Series):
+        groups_last_idx = np.array(
+            [idx[-1] for idx in feature_df.groupby(feature_df).indices.values()]
+        )
+    else:
+        groups_last_idx = np.array(
+            [idx[-1] for idx in feature_df.groupby(groupby).indices.values()]
+        )
     result = np.zeros(feature_df.shape[0], bool)
     result[groups_last_idx] = True
     return result
