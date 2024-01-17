@@ -28,6 +28,7 @@ class AnalyzerName(ObjectEnum):
     Counter = "Counter"
     PitchClassVectors = "PitchClassVectors"
     PhraseDataAnalyzer = "PhraseDataAnalyzer"
+    PrevalenceAnalyzer = "PrevalenceAnalyzer"
     Proportions = "Proportions"
 
 

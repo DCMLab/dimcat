@@ -189,6 +189,7 @@ class ResultName(ObjectEnum):
     NgramTable = "NgramTable"
     NgramTuples = "NgramTuples"
     PhraseData = "PhraseData"
+    PrevalenceMatrix = "PrevalenceMatrix"
     Result = "Result"
     Transitions = "Transitions"
 
@@ -3066,41 +3067,354 @@ def make_heatmaps_from_transitions(
     return fig
 
 
+class PrevalenceMatrix(Result):
+    """The equivalent to NLP's "frequency matrix" except that in the case of music,
+    the coefficients are not restricted to represent count frequencies (when created from a
+    :class:`~.data.resources.results.Counts` object) but can also represent durations (when created
+    from a :class:`~.data.resources.results.Durations` object)."""
+
+    # class Schema(Result.Schema):
+    #     pass
+
+    # @property
+    # def x_column(self) -> str:
+    #     """Name of the result column from which to create one marker per distinct value to show over the x-axis."""
+    #     if self.uses_line_of_fifths_colors or not self.formatted_column:
+    #         return self.value_column
+    #     else:
+    #         return self.formatted_column
+
+    # @property
+    # def y_column(self) -> str:
+    #     """Name of the numerical result column used for determining each marker's dimension along the y-axis."""
+    #     return self.dimension_column
+
+    # def _add_proportion_columns(self, combined_result: D, normalize_by: S | float) -> D:
+    #     """Normalize the combined results and concatenate them as two new column, 'proportion' and 'proportion_%'."""
+    #     return super()._add_proportion_columns(combined_result, normalize_by)
+
+    # def _combine_results(
+    #     self,
+    #     group_cols: Optional[
+    #         UnitOfAnalysis | str | Iterable[str]
+    #     ] = UnitOfAnalysis.GROUP,
+    #     sort_order: Optional[SortOrder] = SortOrder.DESCENDING,
+    # ) -> D:
+    #     """Aggregate results for each group, typically by summing up and normalizing the values. By default,
+    #     the groups correspond to those that had been applied to the analyzed resource. If no Groupers had been
+    #     applied, the entire dataset is treated as a single group.
+    #     """
+    #     return super()._combine_results(group_cols, sort_order)
+
+    def make_bar_plot(
+        self,
+        df: Optional[D] = None,
+        x_col: Optional[str] = None,
+        y_col: Optional[str] = None,
+        group_cols: Optional[str | Iterable[str]] = None,
+        group_modes: Optional[GroupMode | Iterable[GroupMode]] = None,
+        title: Optional[str] = None,
+        labels: Optional[dict] = None,
+        hover_data: Optional[List[str]] = None,
+        height: Optional[int] = None,
+        width: Optional[int] = None,
+        layout: Optional[dict] = None,
+        font_size: Optional[int] = None,
+        x_axis: Optional[dict] = None,
+        y_axis: Optional[dict] = None,
+        color_axis: Optional[dict] = None,
+        traces_settings: Optional[dict] = None,
+        output: Optional[str] = None,
+        **kwargs,
+    ) -> go.Figure:
+        """
+
+        Args:
+            layout: Keyword arguments passed to fig.update_layout()
+            **kwargs: Keyword arguments passed to the Plotly plotting function.
+
+        Returns:
+            A Plotly Figure object.
+        """
+        raise NotImplementedError
+        # return super().make_bar_plot(
+        #     df=df,
+        #     x_col=x_col,
+        #     y_col=y_col,
+        #     group_cols=group_cols,
+        #     group_modes=group_modes,
+        #     title=title,
+        #     labels=labels,
+        #     hover_data=hover_data,
+        #     height=height,
+        #     width=width,
+        #     layout=layout,
+        #     font_size=font_size,
+        #     x_axis=x_axis,
+        #     y_axis=y_axis,
+        #     color_axis=color_axis,
+        #     traces_settings=traces_settings,
+        #     output=output,
+        #     **kwargs,
+        # )
+
+    def make_bubble_plot(
+        self,
+        df: Optional[D] = None,
+        x_col: Optional[str] = None,
+        y_col: Optional[str] = None,
+        group_cols: Optional[str | Iterable[str]] = None,
+        group_modes: Optional[GroupMode | Iterable[GroupMode]] = (
+            GroupMode.ROWS,
+            GroupMode.COLUMNS,
+        ),
+        normalize: bool = True,
+        dimension_column: Optional[str] = None,
+        title: Optional[str] = None,
+        labels: Optional[dict] = None,
+        hover_data: Optional[List[str]] = None,
+        width: Optional[int] = None,
+        height: Optional[int] = None,
+        layout: Optional[dict] = None,
+        font_size: Optional[int] = None,
+        x_axis: Optional[dict] = None,
+        y_axis: Optional[dict] = None,
+        color_axis: Optional[dict] = None,
+        traces_settings: Optional[dict] = None,
+        output: Optional[str] = None,
+        **kwargs,
+    ) -> go.Figure:
+        """
+
+        Args:
+            layout: Keyword arguments passed to fig.update_layout()
+            **kwargs: Keyword arguments passed to the Plotly plotting function.
+
+        Returns:
+            A Plotly Figure object.
+        """
+        raise NotImplementedError
+        # return super().make_bubble_plot(
+        #     df=df,
+        #     x_col=x_col,
+        #     y_col=y_col,
+        #     group_cols=group_cols,
+        #     group_modes=group_modes,
+        #     normalize=normalize,
+        #     dimension_column=dimension_column,
+        #     title=title,
+        #     labels=labels,
+        #     hover_data=hover_data,
+        #     width=width,
+        #     height=height,
+        #     layout=layout,
+        #     font_size=font_size,
+        #     x_axis=x_axis,
+        #     y_axis=y_axis,
+        #     color_axis=color_axis,
+        #     traces_settings=traces_settings,
+        #     output=output,
+        #     **kwargs,
+        # )
+
+    def make_pie_chart(
+        self,
+        df: Optional[D] = None,
+        x_col: Optional[str] = None,
+        y_col: Optional[str] = None,
+        group_cols: Optional[str | Iterable[str]] = None,
+        group_modes: Optional[GroupMode | Iterable[GroupMode]] = None,
+        title: Optional[str] = None,
+        labels: Optional[dict] = None,
+        hover_data: Optional[List[str]] = None,
+        height: Optional[int] = None,
+        width: Optional[int] = None,
+        layout: Optional[dict] = None,
+        font_size: Optional[int] = None,
+        x_axis: Optional[dict] = None,
+        y_axis: Optional[dict] = None,
+        color_axis: Optional[dict] = None,
+        traces_settings: Optional[dict] = None,
+        output: Optional[str] = None,
+        **kwargs,
+    ) -> go.Figure:
+        """
+
+        Args:
+            layout: Keyword arguments passed to fig.update_layout()
+            **kwargs: Keyword arguments passed to the Plotly plotting function.
+
+        Returns:
+            A Plotly Figure object.
+        """
+        raise NotImplementedError
+        # return super().make_pie_chart(
+        #     df=df,
+        #     x_col=x_col,
+        #     y_col=y_col,
+        #     group_cols=group_cols,
+        #     group_modes=group_modes,
+        #     title=title,
+        #     labels=labels,
+        #     hover_data=hover_data,
+        #     height=height,
+        #     width=width,
+        #     layout=layout,
+        #     font_size=font_size,
+        #     x_axis=x_axis,
+        #     y_axis=y_axis,
+        #     color_axis=color_axis,
+        #     traces_settings=traces_settings,
+        #     output=output,
+        #     **kwargs,
+        # )
+
+    def make_ranking_table(
+        self,
+        /,
+        group_cols: Optional[
+            UnitOfAnalysis | str | Iterable[str]
+        ] = UnitOfAnalysis.GROUP,
+        sort_column: Optional[str | Tuple[str, ...]] = None,
+        sort_order: Literal[
+            SortOrder.DESCENDING, SortOrder.ASCENDING
+        ] = SortOrder.DESCENDING,
+        top_k: Optional[int] = None,
+        drop_cols: Optional[str | Iterable[str]] = None,
+    ) -> D:
+        """Sorts the values
+
+        Args:
+            group_cols:
+                Ranking tables for groups will be concatenated side-by-side. Defaults to the default groupby.
+                To fully prevent grouping, pass False or a falsy value except None.
+            sort_column: By which column to rank. Defaults to the :attr:`dimension_column`.
+            sort_order: Defaults to "descending", i.e., the highest values will be ranked first.
+            top_k: The number of top ranks to retain. Defaults to 50. Pass None to retain all.
+
+        Returns:
+
+        """
+        raise NotImplementedError
+        # return super().make_ranking_table(
+        #     group_cols=group_cols,
+        #     sort_column=sort_column,
+        #     sort_order=sort_order,
+        #     top_k=top_k,
+        #     drop_cols=drop_cols,
+        # )
+
+    def plot(
+        self,
+        title: Optional[str] = None,
+        labels: Optional[dict] = None,
+        hover_data: Optional[List[str]] = None,
+        height: Optional[int] = None,
+        width: Optional[int] = None,
+        layout: Optional[dict] = None,
+        font_size: Optional[int] = None,
+        x_axis: Optional[dict] = None,
+        y_axis: Optional[dict] = None,
+        color_axis: Optional[dict] = None,
+        traces_settings: Optional[dict] = None,
+        output: Optional[str] = None,
+        **kwargs,
+    ) -> go.Figure:
+        raise NotImplementedError
+        # return super.plot(
+        #     title=title,
+        #     labels=labels,
+        #     hover_data=hover_data,
+        #     height=height,
+        #     width=width,
+        #     layout=layout,
+        #     font_size=font_size,
+        #     x_axis=x_axis,
+        #     y_axis=y_axis,
+        #     color_axis=color_axis,
+        #     traces_settings=traces_settings,
+        #     output=output,
+        #     **kwargs,
+        # )
+
+    def plot_grouped(
+        self,
+        group_cols: Optional[
+            UnitOfAnalysis | str | Iterable[str]
+        ] = UnitOfAnalysis.GROUP,
+        group_modes: Optional[GroupMode | Iterable[GroupMode]] = None,
+        title: Optional[str] = None,
+        labels: Optional[dict] = None,
+        hover_data: Optional[List[str]] = None,
+        height: Optional[int] = None,
+        width: Optional[int] = None,
+        layout: Optional[dict] = None,
+        font_size: Optional[int] = None,
+        x_axis: Optional[dict] = None,
+        y_axis: Optional[dict] = None,
+        color_axis: Optional[dict] = None,
+        traces_settings: Optional[dict] = None,
+        output: Optional[str] = None,
+        **kwargs,
+    ) -> go.Figure:
+        raise NotImplementedError
+        # return super().plot_grouped(
+        #     group_cols=group_cols,
+        #     group_modes=group_modes,
+        #     title=title,
+        #     labels=labels,
+        #     hover_data=hover_data,
+        #     height=height,
+        #     width=width,
+        #     layout=layout,
+        #     font_size=font_size,
+        #     x_axis=x_axis,
+        #     y_axis=y_axis,
+        #     color_axis=color_axis,
+        #     traces_settings=traces_settings,
+        #     output=output,
+        #     **kwargs,
+        # )
+
+
 # SKELETON FOR MAKING NEW RESULT
 
 # class ResultSubClass(Result):
-#     class Schema(Result.Schema):
-#         pass
 #
-#     @property
-#     def x_column(self) -> str:
-#         """Name of the result column from which to create one marker per distinct value to show over the x-axis."""
-#         if self.uses_line_of_fifths_colors or not self.formatted_column:
-#             return self.value_column
-#         else:
-#             return self.formatted_column
+#     # class Schema(Result.Schema):
+#     #     pass
 #
-#     @property
-#     def y_column(self) -> str:
-#         """Name of the numerical result column used for determining each marker's dimension along the y-axis."""
-#         return self.dimension_column
+#     # @property
+#     # def x_column(self) -> str:
+#     #     """Name of the result column from which to create one marker per distinct value to show over the x-axis."""
+#     #     if self.uses_line_of_fifths_colors or not self.formatted_column:
+#     #         return self.value_column
+#     #     else:
+#     #         return self.formatted_column
 #
-#     def _add_proportion_columns(self, combined_result: D, normalize_by: S | float) -> D:
-#         """Normalize the combined results and concatenate them as two new column, 'proportion' and 'proportion_%'."""
-#         return super()._add_proportion_columns(combined_result, normalize_by)
+#     # @property
+#     # def y_column(self) -> str:
+#     #     """Name of the numerical result column used for determining each marker's dimension along the y-axis."""
+#     #     return self.dimension_column
 #
-#     def _combine_results(
-#         self,
-#         group_cols: Optional[
-#             UnitOfAnalysis | str | Iterable[str]
-#         ] = UnitOfAnalysis.GROUP,
-#         sort_order: Optional[SortOrder] = SortOrder.DESCENDING,
-#     ) -> D:
-#         """Aggregate results for each group, typically by summing up and normalizing the values. By default,
-#         the groups correspond to those that had been applied to the analyzed resource. If no Groupers had been
-#         applied, the entire dataset is treated as a single group.
-#         """
-#         return super()._combine_results(group_cols, sort_order)
+#     # def _add_proportion_columns(self, combined_result: D, normalize_by: S | float) -> D:
+#     #     """Normalize the combined results and concatenate them as two new column, 'proportion' and
+#     #     'proportion_%'.
+#     #     """
+#     #     return super()._add_proportion_columns(combined_result, normalize_by)
+#
+#     # def _combine_results(
+#     #     self,
+#     #     group_cols: Optional[
+#     #         UnitOfAnalysis | str | Iterable[str]
+#     #     ] = UnitOfAnalysis.GROUP,
+#     #     sort_order: Optional[SortOrder] = SortOrder.DESCENDING,
+#     # ) -> D:
+#     #     """Aggregate results for each group, typically by summing up and normalizing the values. By default,
+#     #     the groups correspond to those that had been applied to the analyzed resource. If no Groupers had been
+#     #     applied, the entire dataset is treated as a single group.
+#     #     """
+#     #     return super()._combine_results(group_cols, sort_order)
 #
 #     def make_bar_plot(
 #         self,
@@ -3132,26 +3446,27 @@ def make_heatmaps_from_transitions(
 #         Returns:
 #             A Plotly Figure object.
 #         """
-#         return super().make_bar_plot(
-#             df=df,
-#             x_col=x_col,
-#             y_col=y_col,
-#             group_cols=group_cols,
-#             group_modes=group_modes,
-#             title=title,
-#             labels=labels,
-#             hover_data=hover_data,
-#             height=height,
-#             width=width,
-#             layout=layout,
-#             font_size=font_size,
-#             x_axis=x_axis,
-#             y_axis=y_axis,
-#             color_axis=color_axis,
-#             traces_settings=traces_settings,
-#             output=output,
-#             **kwargs,
-#         )
+#         raise NotImplementedError
+#         # return super().make_bar_plot(
+#         #     df=df,
+#         #     x_col=x_col,
+#         #     y_col=y_col,
+#         #     group_cols=group_cols,
+#         #     group_modes=group_modes,
+#         #     title=title,
+#         #     labels=labels,
+#         #     hover_data=hover_data,
+#         #     height=height,
+#         #     width=width,
+#         #     layout=layout,
+#         #     font_size=font_size,
+#         #     x_axis=x_axis,
+#         #     y_axis=y_axis,
+#         #     color_axis=color_axis,
+#         #     traces_settings=traces_settings,
+#         #     output=output,
+#         #     **kwargs,
+#         # )
 #
 #     def make_bubble_plot(
 #         self,
@@ -3188,28 +3503,29 @@ def make_heatmaps_from_transitions(
 #         Returns:
 #             A Plotly Figure object.
 #         """
-#         return super().make_bubble_plot(
-#             df=df,
-#             x_col=x_col,
-#             y_col=y_col,
-#             group_cols=group_cols,
-#             group_modes=group_modes,
-#             normalize=normalize,
-#             dimension_column=dimension_column,
-#             title=title,
-#             labels=labels,
-#             hover_data=hover_data,
-#             width=width,
-#             height=height,
-#             layout=layout,
-#             font_size=font_size,
-#             x_axis=x_axis,
-#             y_axis=y_axis,
-#             color_axis=color_axis,
-#             traces_settings=traces_settings,
-#             output=output,
-#             **kwargs,
-#         )
+#         raise NotImplementedError
+#         # return super().make_bubble_plot(
+#         #     df=df,
+#         #     x_col=x_col,
+#         #     y_col=y_col,
+#         #     group_cols=group_cols,
+#         #     group_modes=group_modes,
+#         #     normalize=normalize,
+#         #     dimension_column=dimension_column,
+#         #     title=title,
+#         #     labels=labels,
+#         #     hover_data=hover_data,
+#         #     width=width,
+#         #     height=height,
+#         #     layout=layout,
+#         #     font_size=font_size,
+#         #     x_axis=x_axis,
+#         #     y_axis=y_axis,
+#         #     color_axis=color_axis,
+#         #     traces_settings=traces_settings,
+#         #     output=output,
+#         #     **kwargs,
+#         # )
 #
 #     def make_pie_chart(
 #         self,
@@ -3241,26 +3557,27 @@ def make_heatmaps_from_transitions(
 #         Returns:
 #             A Plotly Figure object.
 #         """
-#         return super().make_pie_chart(
-#             df=df,
-#             x_col=x_col,
-#             y_col=y_col,
-#             group_cols=group_cols,
-#             group_modes=group_modes,
-#             title=title,
-#             labels=labels,
-#             hover_data=hover_data,
-#             height=height,
-#             width=width,
-#             layout=layout,
-#             font_size=font_size,
-#             x_axis=x_axis,
-#             y_axis=y_axis,
-#             color_axis=color_axis,
-#             traces_settings=traces_settings,
-#             output=output,
-#             **kwargs,
-#         )
+#         raise NotImplementedError
+#         # return super().make_pie_chart(
+#         #     df=df,
+#         #     x_col=x_col,
+#         #     y_col=y_col,
+#         #     group_cols=group_cols,
+#         #     group_modes=group_modes,
+#         #     title=title,
+#         #     labels=labels,
+#         #     hover_data=hover_data,
+#         #     height=height,
+#         #     width=width,
+#         #     layout=layout,
+#         #     font_size=font_size,
+#         #     x_axis=x_axis,
+#         #     y_axis=y_axis,
+#         #     color_axis=color_axis,
+#         #     traces_settings=traces_settings,
+#         #     output=output,
+#         #     **kwargs,
+#         # )
 #
 #     def make_ranking_table(
 #         self,
@@ -3288,13 +3605,14 @@ def make_heatmaps_from_transitions(
 #         Returns:
 #
 #         """
-#         return super().make_ranking_table(
-#             group_cols=group_cols,
-#             sort_column=sort_column,
-#             sort_order=sort_order,
-#             top_k=top_k,
-#             drop_cols=drop_cols,
-#         )
+#         raise NotImplementedError
+#         # return super().make_ranking_table(
+#         #     group_cols=group_cols,
+#         #     sort_column=sort_column,
+#         #     sort_order=sort_order,
+#         #     top_k=top_k,
+#         #     drop_cols=drop_cols,
+#         # )
 #
 #     def plot(
 #         self,
@@ -3312,21 +3630,22 @@ def make_heatmaps_from_transitions(
 #         output: Optional[str] = None,
 #         **kwargs,
 #     ) -> go.Figure:
-#         return super.plot(
-#             title=title,
-#             labels=labels,
-#             hover_data=hover_data,
-#             height=height,
-#             width=width,
-#             layout=layout,
-#             font_size=font_size,
-#             x_axis=x_axis,
-#             y_axis=y_axis,
-#             color_axis=color_axis,
-#             traces_settings=traces_settings,
-#             output=output,
-#             **kwargs,
-#         )
+#         raise NotImplementedError
+#         # return super.plot(
+#         #     title=title,
+#         #     labels=labels,
+#         #     hover_data=hover_data,
+#         #     height=height,
+#         #     width=width,
+#         #     layout=layout,
+#         #     font_size=font_size,
+#         #     x_axis=x_axis,
+#         #     y_axis=y_axis,
+#         #     color_axis=color_axis,
+#         #     traces_settings=traces_settings,
+#         #     output=output,
+#         #     **kwargs,
+#         # )
 #
 #     def plot_grouped(
 #         self,
@@ -3348,20 +3667,21 @@ def make_heatmaps_from_transitions(
 #         output: Optional[str] = None,
 #         **kwargs,
 #     ) -> go.Figure:
-#         return super().plot_grouped(
-#             group_cols=group_cols,
-#             group_modes=group_modes,
-#             title=title,
-#             labels=labels,
-#             hover_data=hover_data,
-#             height=height,
-#             width=width,
-#             layout=layout,
-#             font_size=font_size,
-#             x_axis=x_axis,
-#             y_axis=y_axis,
-#             color_axis=color_axis,
-#             traces_settings=traces_settings,
-#             output=output,
-#             **kwargs,
-#         )
+#         raise NotImplementedError
+#         # return super().plot_grouped(
+#         #     group_cols=group_cols,
+#         #     group_modes=group_modes,
+#         #     title=title,
+#         #     labels=labels,
+#         #     hover_data=hover_data,
+#         #     height=height,
+#         #     width=width,
+#         #     layout=layout,
+#         #     font_size=font_size,
+#         #     x_axis=x_axis,
+#         #     y_axis=y_axis,
+#         #     color_axis=color_axis,
+#         #     traces_settings=traces_settings,
+#         #     output=output,
+#         #     **kwargs,
+#         # )
