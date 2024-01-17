@@ -6,7 +6,8 @@ from dimcat.data.resources import DimcatIndex, FeatureName
 from dimcat.steps.analyzers.base import AnalyzerName
 
 EXCLUDED_ANALYZERS = [  # to be synchronized with AnalyzerConstants.analyzer_to_hide
-    "Analyzer"
+    "Analyzer",
+    "PrevalenceAnalyzer",
 ]  # to be synchronized with AnalyzerConstants.analyzer_to_hide
 EXCLUDED_FEATURES = [  # to be synchronized with AnalyzerConstants.feature_to_hide
     # abstract features
