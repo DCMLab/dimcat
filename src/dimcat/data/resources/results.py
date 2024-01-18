@@ -3103,18 +3103,38 @@ class PrevalenceMatrix(Result):
     #     """Normalize the combined results and concatenate them as two new column, 'proportion' and 'proportion_%'."""
     #     return super()._add_proportion_columns(combined_result, normalize_by)
 
-    # def _combine_results(
-    #     self,
-    #     group_cols: Optional[
-    #         UnitOfAnalysis | str | Iterable[str]
-    #     ] = UnitOfAnalysis.GROUP,
-    #     sort_order: Optional[SortOrder] = SortOrder.DESCENDING,
-    # ) -> D:
-    #     """Aggregate results for each group, typically by summing up and normalizing the values. By default,
-    #     the groups correspond to those that had been applied to the analyzed resource. If no Groupers had been
-    #     applied, the entire dataset is treated as a single group.
-    #     """
-    #     return super()._combine_results(group_cols, sort_order)
+    def _combine_results(
+        self,
+        group_cols: Optional[
+            UnitOfAnalysis | str | Iterable[str]
+        ] = UnitOfAnalysis.GROUP,
+        sort_order: Optional[SortOrder] = SortOrder.DESCENDING,
+    ) -> D:
+        """Aggregate results for each group by summing up the values. By default,
+        the groups correspond to those that had been applied to the analyzed resource. If no Groupers had been
+        applied, the entire dataset is treated as a single group.
+        """
+        group_cols = self._resolve_group_cols_arg(group_cols)
+        available_columns = set(self.df.index.names)
+        if not set(group_cols).issubset(available_columns):
+            if self.is_combination:
+                raise ValueError(
+                    f"Cannot group the results that are already combined by {group_cols}. "
+                    f"Available columns are {available_columns}"
+                )
+            else:
+                raise ValueError(
+                    f"{self.name} currently allows for groupby by index levels. Available levels: {available_columns}"
+                )
+        df = self.df.fillna(0.0)
+
+        if not group_cols:
+            index = self.analyzed_resource.resource_name
+            return df.sum().rename(index).to_frame().T
+
+        combined_result = df.groupby(group_cols).sum().replace(0.0, pd.NA)
+        # return self._sort_combined_result(combined_result, group_cols, sort_order)
+        return combined_result
 
     def make_bar_plot(
         self,
