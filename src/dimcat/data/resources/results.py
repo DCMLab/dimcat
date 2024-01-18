@@ -6,6 +6,7 @@ from functools import cache, cached_property, partial
 from itertools import product, repeat
 from pprint import pformat
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     ClassVar,
@@ -35,6 +36,7 @@ from dimcat.base import (
     deserialize_dict,
     get_setting,
 )
+from dimcat.data.resources.features import Metadata
 from dimcat.dc_exceptions import UnknownFormat
 from dimcat.plotting import (
     CADENCE_COLORS,
@@ -58,6 +60,9 @@ from typing_extensions import Self
 from .base import D, S
 from .dc import DimcatResource, UnitOfAnalysis
 from .utils import make_phrase_start_mask, merge_columns_into_one, regroup_phrase_stages
+
+if TYPE_CHECKING:
+    from dimcat.data.resources.features import Metadata
 
 module_logger = logging.getLogger(__name__)
 
@@ -311,6 +316,11 @@ class Result(DimcatResource):
     @formatted_column.setter
     def formatted_column(self, formatted_column: str):
         self._formatted_column = formatted_column
+
+    @property
+    def metadata(self) -> Metadata:
+        """The metadata of the analyzed resource."""
+        return self.analyzed_resource.metadata
 
     @cached_property
     def uses_line_of_fifths_colors(self) -> bool:

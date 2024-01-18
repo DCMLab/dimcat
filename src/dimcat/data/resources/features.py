@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import itertools
 import logging
-from typing import Callable, Hashable, Iterable, List, Literal, Optional
+from typing import Callable, Hashable, Iterable, List, Literal, Optional, Self
 
 import frictionless as fl
 import marshmallow as mm
@@ -40,6 +40,14 @@ module_logger = logging.getLogger(__name__)
 class Metadata(Feature):
     _default_analyzer = dict(dtype="Proportions", dimension_column="length_qb")
     _default_value_column = "piece"
+
+    @property
+    def metadata(self) -> Self:
+        return self
+
+    @metadata.setter
+    def metadata(self, _):
+        raise RuntimeError("Cannot set the property Metadata.metadata.")
 
     def apply_slice_intervals(
         self,

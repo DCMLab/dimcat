@@ -36,6 +36,7 @@ from dimcat.base import (
     LowercaseEnum,
     get_class,
     get_setting,
+    is_instance_of,
     make_object_from_specs,
 )
 from dimcat.data.base import Data
@@ -82,6 +83,7 @@ from plotly import graph_objs as go
 from typing_extensions import Literal, Self
 
 if TYPE_CHECKING:
+    from dimcat.data.resources.features import Metadata
     from dimcat.data.resources.results import Result
     from dimcat.steps.base import StepSpecs
 
@@ -405,7 +407,7 @@ class DimcatResource(Resource, Generic[D]):
             **kwargs,
         )
         # copy additional fields
-        for attr in ("_df", "_status", "_corpus_name", "_default_groupby"):
+        for attr in ("_df", "_status", "_corpus_name", "_default_groupby", "_metadata"):
             if (
                 hasattr(resource, attr)
                 and (value := getattr(resource, attr)) is not None
@@ -580,6 +582,7 @@ DimcatResource.__init__(
     default_groupby={default_groupby!r},
 )"""
         )
+        self._metadata = None
         self._df: D = None
         self.auto_validate = True if auto_validate else False  # catches None
         self._default_groupby: List[str] = []
@@ -783,6 +786,27 @@ DimcatResource.__init__(
         if self.is_serialized:
             return True
         return super().is_valid
+
+    @property
+    def metadata(self) -> Metadata:
+        if self._metadata is None:
+            Klass = get_class("Metadata")
+            self._metadata = Klass.from_index(self.get_piece_index())
+        return self._metadata
+
+    @metadata.setter
+    def metadata(self, metadata: Metadata):
+        if not is_instance_of(metadata, "Metadata"):
+            raise TypeError(f"Expected a Metadata object, got {type(metadata)!r}.")
+        resource_name = f"{self.resource_name}.metadata"
+        pieces = self.get_piece_index()
+        if pieces != metadata.index:
+            metadata = metadata.align_with_grouping(pieces)
+            Klass = get_class("Metadata")
+            metadata = Klass.from_dataframe(metadata, resource_name=resource_name)
+        else:
+            metadata.resource_name = resource_name
+        self._metadata = metadata
 
     @property
     def value_column(self) -> Optional[str]:
