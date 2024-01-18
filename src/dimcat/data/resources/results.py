@@ -190,11 +190,14 @@ class ResultName(ObjectEnum):
 
     CadenceCounts = "CadenceCounts"
     Counts = "Counts"
+    CulledPrevalenceMatrix = "CulledPrevalenceMatrix"
+    CulledRelativePrevalenceMatrix = "CulledRelativePrevalenceMatrix"
     Durations = "Durations"
     NgramTable = "NgramTable"
     NgramTuples = "NgramTuples"
     PhraseData = "PhraseData"
     PrevalenceMatrix = "PrevalenceMatrix"
+    RelativePrevalenceMatrix = "RelativePrevalenceMatrix"
     Result = "Result"
     Transitions = "Transitions"
 
@@ -3081,7 +3084,12 @@ class PrevalenceMatrix(Result):
     """The equivalent to NLP's "frequency matrix" except that in the case of music,
     the coefficients are not restricted to represent count frequencies (when created from a
     :class:`~.data.resources.results.Counts` object) but can also represent durations (when created
-    from a :class:`~.data.resources.results.Durations` object)."""
+    from a :class:`~.data.resources.results.Durations` object).
+
+    For naming consistency with the NLP terminology, method names and documentation will refer to
+    rows as documents (which could be segments, pieces, or groups of either), and to the columns
+    as tokens (which could be any feature values such as chords, chord features, pitch classes, etc.).
+    """
 
     # class Schema(Result.Schema):
     #     pass
@@ -3102,6 +3110,26 @@ class PrevalenceMatrix(Result):
     # def _add_proportion_columns(self, combined_result: D, normalize_by: S | float) -> D:
     #     """Normalize the combined results and concatenate them as two new column, 'proportion' and 'proportion_%'."""
     #     return super()._add_proportion_columns(combined_result, normalize_by)
+
+    @property
+    def is_absolute(self) -> bool:
+        """Whether matrix represents absolute prevalences in contrast to a :class:`RelativePrevalenceMatrix`,
+        in which each row sums up to 1. An absolute matrix can be converted into a relative matrix but
+        not the other way around.
+        """
+        return True
+
+    @property
+    def is_complete(self) -> bool:
+        """Whether the matrix still contains columns for all tokens, i.e., it has not been culled
+        and can be used for computing relative frequencies.
+        """
+        return True
+
+    @cached_property
+    def n_documents(self) -> int:
+        """The number of rows."""
+        return self.df["count"].sum()
 
     def _combine_results(
         self,
@@ -3135,6 +3163,59 @@ class PrevalenceMatrix(Result):
         combined_result = df.groupby(group_cols).sum().replace(0.0, pd.NA)
         # return self._sort_combined_result(combined_result, group_cols, sort_order)
         return combined_result
+
+    def _cull(
+        self,
+        ratio: Optional[float] = None,
+        threshold: Optional[int] = None,
+    ) -> D:
+        """
+        Removes all features that do not appear in a minimum number of
+        documents.
+
+        Args:
+            ratio:
+                Minimum ratio of documents a token must occur in to be retained. The number of
+                documents ratio * D is always rounded up. Ratios > 1 are rounded and interpreted
+                as threshold.
+            threshold:
+                Minimum number of documents a token must occur in to be retained.
+        """
+        if ratio is not None:
+            if ratio > 1:
+                threshold = round(ratio)
+            else:
+                threshold = math.ceil(ratio * self.index.size)
+        assert not (
+            threshold is None or threshold < 1
+        ), f"Threshold must be ≥ 1, got {threshold}"
+        culled = self.df.dropna(thresh=threshold, axis=1)
+        return culled
+
+    def get_culled_matrix(
+        self,
+        ratio: Optional[float] = None,
+        threshold: Optional[int] = None,
+    ) -> CulledPrevalenceMatrix:
+        """
+        Removes all features that do not appear in a minimum number of
+        documents.
+
+        Args:
+            ratio:
+                Minimum ratio of documents a token must occur in to be retained. The number of
+                documents ratio * D is always rounded up. Ratios > 1 are rounded and interpreted
+                as threshold.
+            threshold:
+                Minimum number of documents a token must occur in to be retained.
+        """
+        culled = self._cull(ratio, threshold)
+        return CulledPrevalenceMatrix.from_resource_and_dataframe(self, culled)
+
+    def get_relative_matrix(self) -> RelativePrevalenceMatrix:
+        """Returns a new PrevalenceMatrix in which each row sums up to 1."""
+        normalized_df = self.df.div(self.df.sum(axis=1), axis=0)
+        return RelativePrevalenceMatrix.from_resource_and_dataframe(self, normalized_df)
 
     def make_bar_plot(
         self,
@@ -3405,6 +3486,69 @@ class PrevalenceMatrix(Result):
         #     output=output,
         #     **kwargs,
         # )
+
+
+class RelativePrevalenceMatrix(PrevalenceMatrix):
+    @property
+    def is_absolute(self) -> bool:
+        """Whether matrix represents absolute prevalences in contrast to a :class:`RelativePrevalenceMatrix`,
+        in which each row sums up to 1. An absolute matrix can be converted into a relative matrix but
+        not the other way around.
+        """
+        return False
+
+    def get_culled_matrix(
+        self,
+        ratio: Optional[float] = None,
+        threshold: Optional[int] = None,
+    ) -> CulledRelativePrevalenceMatrix:
+        """
+        Removes all features that do not appear in a minimum number of
+        documents.
+
+        Args:
+            ratio:
+                Minimum ratio of documents a token must occur in to be retained. The number of
+                documents ratio * D is always rounded up. Ratios > 1 are rounded and interpreted
+                as threshold.
+            threshold:
+                Minimum number of documents a token must occur in to be retained.
+        """
+        culled = self._cull(ratio, threshold)
+        return CulledRelativePrevalenceMatrix.from_resource_and_dataframe(self, culled)
+
+    def get_relative_matrix(self) -> RelativePrevalenceMatrix:
+        """Returns a new PrevalenceMatrix in which each row sums up to 1."""
+        return self
+
+
+class _CulledMatrixMixin:
+    """Mixin for subclasses of PrevalenceMatrix that are the result of a culling (feature
+    selection by removal of underpopulated rows) operations, The common characteristic of culled
+    matrices is that they do not represent the full vocabulary (are incomplete) and therefore
+    cannot be used for computing relative prevalence over documents.
+    """
+
+    @property
+    def is_complete(self):
+        """Whether the matrix still contains columns for all tokens, i.e., it has not been culled
+        and can be used for computing relative frequencies.
+        """
+        return False
+
+    def get_relative_matrix(self) -> RelativePrevalenceMatrix:
+        """Raises a TypeErrror for culled matrices."""
+        raise TypeError(
+            f"Cannot create relative prevalence values from a {self.name!r}."
+        )
+
+
+class CulledPrevalenceMatrix(_CulledMatrixMixin, PrevalenceMatrix):
+    pass
+
+
+class CulledRelativePrevalenceMatrix(_CulledMatrixMixin, RelativePrevalenceMatrix):
+    pass
 
 
 # SKELETON FOR MAKING NEW RESULT
