@@ -129,15 +129,12 @@ def align_with_grouping(
         df = df.copy()
         df.index.rename("piece", level=piece_level_position, inplace=True)
         df_levels[piece_level_position] = "piece"
-    shared_levels = set(df_levels).intersection(set(gr_levels))
-    if len(shared_levels) == 0:
+    if not set(df_levels).intersection(set(gr_levels)):
         raise ValueError(f"No shared levels between {df_levels!r} and {gr_levels!r}")
     df_aligned = join_df_on_index(df, grouping)
-    level_order = gr_levels + [level for level in df_levels if level not in gr_levels]
-    result = df_aligned.reorder_levels(level_order)
     if sort_index:
-        return result.sort_index()
-    return result
+        return df_aligned.sort_index()
+    return df_aligned
 
 
 def apply_playthrough(
@@ -748,6 +745,7 @@ def join_df_on_index(
             df,
             how=how,
         )
+    # makes sure that the joined-on index levels are the leftmost ones
     index_level_order = list(grouping_df.index.names)
     index_level_order += [
         level for level in df.index.names if level not in index_level_order

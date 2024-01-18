@@ -58,6 +58,7 @@ from dimcat.data.resources.utils import (
     feature_specs2config,
     get_time_spans_from_resource_df,
     infer_schema_from_df,
+    join_df_on_index,
     load_fl_resource,
     load_index_from_fl_resource,
     make_boolean_mask_from_set_of_tuples,
@@ -823,10 +824,12 @@ DimcatResource.__init__(
         self,
         grouping: DimcatIndex | pd.MultiIndex,
         sort_index=True,
-    ) -> pd.DataFrame:
+    ) -> D:
         """Aligns the resource with a grouping index. In the typical case, the grouping index will come with the levels
         ["<grouping_name>", "corpus", "piece"] and the result will be aligned such that every group contains the
-        resource's sub-dataframes for the included pieces.
+        resource's sub-dataframes for the included pieces. This is like :meth:`join_on_index` with the difference that
+        align_with_grouping() expects is sensitive to the presence of "piece" index levels and returns a dataframe,
+        whereas join_on_index() returns a new Resource and makes no assumptions on particular levels.
         """
         if self.is_empty:
             self.logger.warning(f"Resource {self.name} is empty.")
@@ -1245,6 +1248,26 @@ DimcatResource.__init__(
             dropna=dropna,
             logger=self.logger,
         )
+
+    def join_on_index(
+        self,
+        index: DimcatIndex | IX,
+        how: Literal["left", "right", "inner", "outer", "cross"] = "inner",
+    ) -> Self:
+        """A convenient way to align a resource with the index of another one through a join operation.
+
+        Args:
+            index: The index that this resource will be aligned with.
+            how: The type of join to perform.
+
+                - 'inner' (default): index of the new resource will contain only keys present in ``index``,
+                  and each will be repeated as many times as it appears in ``index``.
+
+        Returns:
+            A new resource.
+        """
+        new_df = join_df_on_index(self.df, index, how=how)
+        return self.from_resource_and_dataframe(resource=self, df=new_df)
 
     def load(self, force_reload: bool = False) -> None:
         """Tries to load the data from disk into RAM. If successful, the .is_loaded property will be True.
