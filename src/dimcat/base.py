@@ -357,6 +357,20 @@ class FriendlyEnum(LowercaseEnum):
             )
         raise ValueError(f"ValueError: {value!r} is not a valid {cls.__name__}.")
 
+    def __eq__(self, other) -> bool:
+        if self.name == other:
+            return True
+        if isinstance(other, str):
+            try:
+                other = self.__class__(other)
+            except ValueError:
+                return False
+            return self.name == other.name
+        return False
+
+    def __hash__(self):
+        return hash(self.value)
+
 
 class ObjectEnum(FriendlyEnum):
     @cache
