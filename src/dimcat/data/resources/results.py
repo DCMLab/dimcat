@@ -214,17 +214,17 @@ class Result(DimcatResource):
 
     class Schema(DimcatResource.Schema):
         analyzed_resource = DimcatObjectField()
-        value_column = mm.fields.Str(
-            required=True,
-            metadata=dict(
-                description="Name of the column containing the values, relevant, e.g., for tallies."
-            ),
-        )
         dimension_column = mm.fields.Str(
             allow_none=True,
             metadata=dict(
                 description="Name of the column containing some dimension, e.g. to be interpreted as quantity "
                 "(durations, counts, etc.). Not all results have one, e.g. NgramTable."
+            ),
+        )
+        value_column = mm.fields.Str(
+            allow_none=True,
+            metadata=dict(
+                description="Name of the column containing the values, relevant, e.g., for tallies."
             ),
         )
         formatted_column = mm.fields.Str(
@@ -237,8 +237,8 @@ class Result(DimcatResource):
     def __init__(
         self,
         analyzed_resource: DimcatResource,
-        value_column: Optional[str],
         dimension_column: Optional[str],
+        value_column: Optional[str] = None,
         formatted_column: Optional[str] = None,
         resource: fl.Resource = None,
         descriptor_filename: Optional[str] = None,
@@ -3129,7 +3129,7 @@ class PrevalenceMatrix(Result):
     @cached_property
     def n_documents(self) -> int:
         """The number of rows."""
-        return self.df["count"].sum()
+        return self.df.shape[0]
 
     def _combine_results(
         self,
