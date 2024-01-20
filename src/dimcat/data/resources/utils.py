@@ -695,9 +695,20 @@ def infer_schema_from_df(
     Returns:
 
     """
-    column_names = list(df.columns)
+    column_names = df.columns.to_list()
     if isinstance(column_names[0], tuple):
-        column_names = [", ".join(col) for col in column_names]
+        if allow_integer_names:
+            column_names = [
+                ", ".join(str(name) for name in col) for col in column_names
+            ]
+        else:
+            try:
+                column_names = [", ".join(col) for col in column_names]
+            except TypeError:
+                raise TypeError(
+                    f"Column names are tuples but not all elements are strings: {column_names}. Set "
+                    f"allow_integer_names=True to convert all values to strings"
+                )
     if include_index_levels:
         index_levels = list(df.index.names)
         column_names = index_levels + column_names
