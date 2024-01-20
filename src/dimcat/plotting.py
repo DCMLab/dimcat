@@ -99,7 +99,7 @@ def make_plot_settings(
     ),
     title: Optional[str] = None,
     labels: Optional[dict] = None,
-    hover_data: Optional[List[str]] = None,
+    hover_data: Optional[str, List[str]] = None,
     height: Optional[int] = None,
     width: Optional[int] = None,
 ):
@@ -107,6 +107,8 @@ def make_plot_settings(
         x_col = df.columns[-2]
     if y_col is None:
         y_col = df.columns[-1]
+    if hover_data and isinstance(hover_data, str):
+        hover_data = [hover_data]
     plot_settings = dict(
         title=title,
         y=y_col,
@@ -137,7 +139,7 @@ def make_pie_chart_settings(
     ),
     title: Optional[str] = None,
     labels: Optional[dict] = None,
-    hover_data: Optional[List[str]] = None,
+    hover_data: Optional[str, List[str]] = None,
     height: Optional[int] = None,
     width: Optional[int] = None,
 ):
@@ -204,7 +206,7 @@ def make_bar_plot(
     ),
     title: Optional[str] = None,
     labels: Optional[dict] = None,
-    hover_data: Optional[List[str]] = None,
+    hover_data: Optional[str, List[str]] = None,
     height: Optional[int] = None,
     width: Optional[int] = None,
     layout: Optional[dict] = None,
@@ -279,7 +281,7 @@ def make_box_plot(
     ),
     title: Optional[str] = None,
     labels: Optional[dict] = None,
-    hover_data: Optional[List[str]] = None,
+    hover_data: Optional[str, List[str]] = None,
     height: Optional[int] = None,
     width: Optional[int] = None,
     layout: Optional[dict] = None,
@@ -349,7 +351,7 @@ def make_bubble_plot(
     ),
     title: Optional[str] = None,
     labels: Optional[dict] = None,
-    hover_data: Optional[List[str]] = None,
+    hover_data: Optional[str, List[str]] = None,
     width: Optional[int] = 1200,
     height: Optional[int] = 1500,
     layout: Optional[dict] = None,
@@ -450,7 +452,7 @@ def make_lof_bar_plot(
     x_names_col: Optional[str] = None,
     title=None,
     labels=None,
-    hover_data: Optional[List[str]] = None,
+    hover_data: Optional[str, List[str]] = None,
     shift_color_midpoint: int = 0,
     height: Optional[int] = None,
     width: Optional[int] = None,
@@ -528,7 +530,7 @@ def make_lof_bubble_plot(
     x_names_col: Optional[str] = None,
     title: Optional[str] = None,
     labels: Optional[dict] = None,
-    hover_data: Optional[List[str]] = None,
+    hover_data: Optional[str, List[str]] = None,
     shift_color_midpoint: int = 0,
     width: Optional[int] = 1200,
     height: Optional[int] = 1500,
@@ -605,7 +607,7 @@ def make_pie_chart(
     ),
     title: Optional[str] = None,
     labels: Optional[dict] = None,
-    hover_data: Optional[List[str]] = None,
+    hover_data: Optional[str, List[str]] = None,
     height: Optional[int] = None,
     width: Optional[int] = None,
     layout: Optional[dict] = None,
@@ -676,7 +678,7 @@ def make_scatter_plot(
     ),
     title: Optional[str] = None,
     labels: Optional[dict] = None,
-    hover_data: Optional[List[str]] = None,
+    hover_data: Optional[str, List[str]] = None,
     height: Optional[int] = None,
     width: Optional[int] = None,
     layout: Optional[dict] = None,
