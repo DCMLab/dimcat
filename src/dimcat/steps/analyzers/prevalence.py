@@ -89,12 +89,7 @@ class PrevalenceAnalyzer(Analyzer):
             sort=False,
         )
         # sort columns by their overall prevalence
-        type_prevalence = result.sum(axis=0)
-        result.sort_index(
-            axis=1, key=lambda _: type_prevalence, ascending=False, inplace=True
-        )
-        if (zero_column_mask := type_prevalence.eq(0)).any():
-            result.drop(columns=type_prevalence.index[zero_column_mask], inplace=True)
+        result = PrevalenceMatrix._sort_combined_result(result, sort_order="descending")
         return result
 
     class Schema(Analyzer.Schema):
