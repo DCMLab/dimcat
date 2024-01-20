@@ -1599,7 +1599,7 @@ DimcatResource.__init__(
         descriptor_dict["basepath"] = basepath
         descriptor_dict["name"] = name
         descriptor_dict["path"] = tsv_filename
-        descriptor_dict["innerpath"] = tsv_filepath
+        descriptor_dict["innerpath"] = tsv_filename
         store_as_json_or_yaml(descriptor_dict, descriptor_filepath)
         self.logger.info(f"{self.name} descriptor written to {descriptor_filepath}")
         return descriptor_filepath
