@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import itertools
 import logging
-from typing import Callable, Hashable, Iterable, List, Literal, Optional, Self
+from typing import Callable, Hashable, Iterable, List, Literal, Optional
 
 import frictionless as fl
 import marshmallow as mm
@@ -33,6 +33,7 @@ from dimcat.dc_exceptions import (
     ResourceIsMissingPieceIndexError,
 )
 from dimcat.utils import get_middle_composition_year
+from typing_extensions import Self
 
 module_logger = logging.getLogger(__name__)
 
