@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import warnings
 from collections import Counter
 from functools import cache
@@ -470,6 +471,9 @@ def fl_fields2pandas_params(fields: List[fl.Field]) -> Tuple[dict, dict, list]:
                     converters[field.name] = ms3.str2keysig_dict
                 elif pattern_constraint == ms3.TIMESIG_DICT_REGEX:
                     converters[field.name] = ms3.str2timesig_dict
+                # ToDo: achieve this by creating a pd.IntervalIndex.from_arrays() or a MultiIndex.set_levels()
+                # elif pattern_constraint == ms3.SLICE_INTERVAL_REGEX:
+                #     converters[field.name] = str2pd_interval
                 else:
                     raise NotImplementedError(
                         f"What is the dtype for a string with a pattern constraint of "
@@ -1472,6 +1476,12 @@ def store_json(
 def str2inttuple(s):
     """Non-strict version of :func:`ms3.str2inttuple` which does not fail on non-integer values."""
     return ms3.str2inttuple(s, strict=False)
+
+
+def str2pd_interval(s: str) -> pd.Interval:
+    """Function produces only left-closed, right-open intervals."""
+    left, right = re.match(ms3.SLICE_INTERVAL_REGEX, s).groups()
+    return pd.Interval(left=float(left), right=float(right), closed="left")
 
 
 def subselect_multiindex_from_df(

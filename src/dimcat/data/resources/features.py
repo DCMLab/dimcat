@@ -66,9 +66,10 @@ class Metadata(Feature):
         group_cols: Optional[
             UnitOfAnalysis | str | Iterable[str]
         ] = UnitOfAnalysis.GROUP,
+        name: str = "mean_composition_year",
     ):
         group_cols = self._resolve_group_cols_arg(group_cols)
-        years = get_middle_composition_year(metadata=self.df)
+        years = get_middle_composition_year(metadata=self.df).rename(name)
         if not group_cols:
             return years
         result = years.groupby(group_cols).mean()
