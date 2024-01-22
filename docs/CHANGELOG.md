@@ -1,5 +1,34 @@
 # Changelog
 
+## [3.1.0](https://github.com/DCMLab/dimcat/compare/v3.0.0...v3.1.0) (2024-01-16)
+
+
+### Features
+
+* adds analyzers.PhraseDataAnalyzer() which takes features.PhraseAnnotations and produces results.PhraseData ([a4a7dd5](https://github.com/DCMLab/dimcat/commit/a4a7dd5daa27c3c9763fb4e9e33b898299065582))
+* adds basic HarmonyLabelSlicer ([a9b48a8](https://github.com/DCMLab/dimcat/commit/a9b48a885009773ec67f851bde3d7d815df85171))
+* adds convenience module `dimcat.enums` for easily importing any enum from DiMCAT. ([f626f90](https://github.com/DCMLab/dimcat/commit/f626f90a4a9a0ff9694122bc59827f6b4e0b9a8e))
+* adds DimcatResource.store_resource() ([57a12f5](https://github.com/DCMLab/dimcat/commit/57a12f5cca7439b597109c3be955d887a5fb7b06))
+* adds helper functions to resources.utils ([b6f5cd2](https://github.com/DCMLab/dimcat/commit/b6f5cd279d72ccef21bf5b596c973e8f8affc3d9))
+* adds Metadata.get_corpus_names() to retrieve the names in chronological order ([a5c3988](https://github.com/DCMLab/dimcat/commit/a5c398861761cf3fe44784dd2958fcd1626da03f))
+* adds methods .get_steps() and .get_last_step() to Pipeline and to Dataset ([61af067](https://github.com/DCMLab/dimcat/commit/61af067a6fe3ba83cac195196f1094c28faf8f61))
+* adds plotting.make_box_plot() ([313fe12](https://github.com/DCMLab/dimcat/commit/313fe12316405868f5fe39b25519385edb311a0a))
+* adds resources.utils.transpose_notes_to_c() ([7f37551](https://github.com/DCMLab/dimcat/commit/7f3755190b5b0d86e8e61b17ef2832076df4c500))
+* adds SmallestUnit.CORPUS_GROUP member for completeness and streamlines .get_grouping_levels() methods ([2de9524](https://github.com/DCMLab/dimcat/commit/2de95249b0a929dcfc4110df4d6abbd74ea1fffe))
+* enhances DimcatConfig.meatches() with 'variant' and 'covariant' arguments; adds base.make_config_from_specs() to mirror base.make_object_from_specs() ([f097ed5](https://github.com/DCMLab/dimcat/commit/f097ed5523da2ec53d0bdd89f0a80e1f2fe7dc68))
+* enhances utility functions and adds Resources.get_resource_name() ([9c59c6b](https://github.com/DCMLab/dimcat/commit/9c59c6b9e43dddd3ff61141595da58979953fd23))
+* first version of make_phrase_selection_masks() ([72f03fd](https://github.com/DCMLab/dimcat/commit/72f03fd5d9f079a4305404410c2a2da77f739fc7))
+
+
+### Bug Fixes
+
+* adds 'ignore_exceptions' argument to Dataset.extract_feature() which defaults to True (remedy for prviously unprocessed features added to the Dataset in the case of exceptions) ([28e91fd](https://github.com/DCMLab/dimcat/commit/28e91fda43bdf6c838cd5331d5dada6960a7a142))
+
+
+### Documentation
+
+* updates notebooks submodule ([12b4818](https://github.com/DCMLab/dimcat/commit/12b4818175e9a7a6d5d319ed51de749f07f943c9))
+
 ## [3.0.0](https://github.com/DCMLab/dimcat/compare/v2.3.0...v3.0.0) (2023-12-13)
 
 
