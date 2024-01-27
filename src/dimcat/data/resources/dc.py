@@ -461,6 +461,9 @@ class DimcatResource(Resource, Generic[D]):
         descriptor_filename: Optional[str] = None,
         **kwargs,
     ) -> Self:
+        """Create a DimcatResource from path to a (tabular) resource file. Currently, only TSV files are supported
+        and they are expected to contain at least the columns "corpus" and "piece", which are used as index.
+        """
         if not resource_path.endswith(".tsv"):
             fname, fext = os.path.splitext(os.path.basename(resource_path))
             raise NotImplementedError(
@@ -469,7 +472,7 @@ class DimcatResource(Resource, Generic[D]):
                 f"want to get a simple path resource, use Resource.from_resource_path() (not "
                 f"DimcatResource)."
             )
-        df = ms3.load_tsv(resource_path)
+        df = ms3.load_tsv(resource_path, index_col=["corpus", "piece"])
         return cls.from_dataframe(
             df=df,
             resource_name=resource_name,
