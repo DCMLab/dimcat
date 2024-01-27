@@ -801,6 +801,71 @@ def make_scatter_plot(
     )
 
 
+def make_scatter_3d_plot(
+    df: pd.DataFrame,
+    x_col: Optional[str] = None,
+    y_col: Optional[str] = None,
+    z_col: Optional[str] = None,
+    group_cols: Optional[str | Iterable[str]] = None,
+    group_modes: Iterable[GroupMode] = (
+        GroupMode.COLOR,
+        GroupMode.ROWS,
+        GroupMode.COLUMNS,
+    ),
+    title: Optional[str] = None,
+    labels: Optional[dict] = None,
+    hover_data: Optional[str, List[str]] = None,
+    height: Optional[int] = None,
+    width: Optional[int] = None,
+    layout: Optional[dict] = None,
+    font_size: Optional[int] = None,
+    x_axis: Optional[dict] = None,
+    y_axis: Optional[dict] = None,
+    color_axis: Optional[dict] = None,
+    traces_settings: Optional[dict] = None,
+    output: Optional[str] = None,
+    **kwargs,
+) -> go.Figure:
+    """
+
+    Args:
+        layout: Keyword arguments passed to fig.update_layout()
+        **kwargs: Keyword arguments passed to the Plotly plotting function.
+
+    Returns:
+        A Plotly Figure object.
+    """
+    traces_settings = traces_settings if traces_settings else {}
+    marker_settings = traces_settings.get("marker", {})
+    if "opcacity" not in marker_settings:
+        marker_settings["opacity"] = 0.5
+    layout_options = layout if layout else {}
+    if "scene_dragmode" not in layout_options:
+        layout_options["scene_dragmode"] = "orbit"
+    return _make_plotly(
+        plotly_func=px.scatter_3d,
+        df=df,
+        x_col=x_col,
+        y_col=y_col,
+        z=z_col,
+        group_cols=group_cols,
+        group_modes=group_modes,
+        title=title,
+        labels=labels,
+        hover_data=hover_data,
+        height=height,
+        width=width,
+        layout=layout_options,
+        font_size=font_size,
+        x_axis=x_axis,
+        y_axis=y_axis,
+        color_axis=color_axis,
+        traces_settings=traces_settings,
+        output=output,
+        **kwargs,
+    )
+
+
 def plot_pitch_class_distribution(
     df: pd.DataFrame,
     pitch_column="tpc",
