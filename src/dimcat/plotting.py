@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import warnings
 from typing import Any, Callable, Iterable, List, Literal, Optional, Tuple, TypeAlias
 
 import colorlover
@@ -722,11 +723,14 @@ def _make_plotly(
         height=height,
         width=width,
     )
-    fig = plotly_func(
-        df,
-        **plot_settings,
-        **kwargs,
-    )
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        fig = plotly_func(
+            df,
+            **plot_settings,
+            **kwargs,
+        )
     if "facet_col" or "facet_row" in plot_settings:
         fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
     update_figure_layout(
