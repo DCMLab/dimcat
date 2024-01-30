@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import warnings
 from typing import Any, Callable, Iterable, List, Literal, Optional, Tuple, TypeAlias
 
 import colorlover
@@ -99,7 +100,7 @@ def make_plot_settings(
     ),
     title: Optional[str] = None,
     labels: Optional[dict] = None,
-    hover_data: Optional[List[str]] = None,
+    hover_data: Optional[str, List[str]] = None,
     height: Optional[int] = None,
     width: Optional[int] = None,
 ):
@@ -107,6 +108,8 @@ def make_plot_settings(
         x_col = df.columns[-2]
     if y_col is None:
         y_col = df.columns[-1]
+    if hover_data and isinstance(hover_data, str):
+        hover_data = [hover_data]
     plot_settings = dict(
         title=title,
         y=y_col,
@@ -137,7 +140,7 @@ def make_pie_chart_settings(
     ),
     title: Optional[str] = None,
     labels: Optional[dict] = None,
-    hover_data: Optional[List[str]] = None,
+    hover_data: Optional[str, List[str]] = None,
     height: Optional[int] = None,
     width: Optional[int] = None,
 ):
@@ -204,7 +207,7 @@ def make_bar_plot(
     ),
     title: Optional[str] = None,
     labels: Optional[dict] = None,
-    hover_data: Optional[List[str]] = None,
+    hover_data: Optional[str, List[str]] = None,
     height: Optional[int] = None,
     width: Optional[int] = None,
     layout: Optional[dict] = None,
@@ -226,7 +229,14 @@ def make_bar_plot(
         A Plotly Figure object.
     """
     df = df.reset_index()
-    plot_settings = make_plot_settings(
+    if "barmode" not in kwargs:
+        kwargs[
+            "barmode"
+        ] = "group"  # Plotly's default: "relative" (meaning stacked); other option: "overlay"]
+    if "text" not in kwargs and "proportion_%" in df.columns:
+        kwargs["text"] = "proportion_%"
+    return _make_plotly(
+        plotly_func=px.bar,
         df=df,
         x_col=x_col,
         y_col=y_col,
@@ -237,34 +247,15 @@ def make_bar_plot(
         hover_data=hover_data,
         height=height,
         width=width,
-    )
-    if "barmode" not in kwargs:
-        kwargs[
-            "barmode"
-        ] = "group"  # Plotly's default: "relative" (meaning stacked); other option: "overlay"]
-    if "text" not in kwargs and "proportion_%" in df.columns:
-        kwargs["text"] = "proportion_%"
-    fig = px.bar(
-        df,
-        **plot_settings,
-        **kwargs,
-    )
-    if "facet_col" or "facet_row" in plot_settings:
-        fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
-    update_figure_layout(
-        fig=fig,
-        x_col=x_col,
-        y_col=y_col,
         layout=layout,
         font_size=font_size,
         x_axis=x_axis,
         y_axis=y_axis,
         color_axis=color_axis,
         traces_settings=traces_settings,
+        output=output,
+        **kwargs,
     )
-    if output is not None:
-        write_image(fig=fig, filename=output, width=width, height=height)
-    return fig
 
 
 def make_box_plot(
@@ -279,7 +270,7 @@ def make_box_plot(
     ),
     title: Optional[str] = None,
     labels: Optional[dict] = None,
-    hover_data: Optional[List[str]] = None,
+    hover_data: Optional[str, List[str]] = None,
     height: Optional[int] = None,
     width: Optional[int] = None,
     layout: Optional[dict] = None,
@@ -300,8 +291,8 @@ def make_box_plot(
     Returns:
         A Plotly Figure object.
     """
-    df = df.reset_index()
-    plot_settings = make_plot_settings(
+    return _make_plotly(
+        plotly_func=px.box,
         df=df,
         x_col=x_col,
         y_col=y_col,
@@ -312,28 +303,15 @@ def make_box_plot(
         hover_data=hover_data,
         height=height,
         width=width,
-    )
-    fig = px.box(
-        df,
-        **plot_settings,
-        **kwargs,
-    )
-    if "facet_col" or "facet_row" in plot_settings:
-        fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
-    update_figure_layout(
-        fig=fig,
-        x_col=x_col,
-        y_col=y_col,
         layout=layout,
         font_size=font_size,
         x_axis=x_axis,
         y_axis=y_axis,
         color_axis=color_axis,
         traces_settings=traces_settings,
+        output=output,
+        **kwargs,
     )
-    if output is not None:
-        write_image(fig=fig, filename=output, width=width, height=height)
-    return fig
 
 
 def make_bubble_plot(
@@ -349,7 +327,7 @@ def make_bubble_plot(
     ),
     title: Optional[str] = None,
     labels: Optional[dict] = None,
-    hover_data: Optional[List[str]] = None,
+    hover_data: Optional[str, List[str]] = None,
     width: Optional[int] = 1200,
     height: Optional[int] = 1500,
     layout: Optional[dict] = None,
@@ -442,6 +420,62 @@ def make_heatmap(
     return heatmap
 
 
+def make_line_plot(
+    df: pd.DataFrame,
+    x_col: Optional[str] = None,
+    y_col: Optional[str] = None,
+    group_cols: Optional[str | Iterable[str]] = None,
+    group_modes: Iterable[GroupMode] = (
+        GroupMode.COLOR,
+        GroupMode.ROWS,
+        GroupMode.COLUMNS,
+    ),
+    title: Optional[str] = None,
+    labels: Optional[dict] = None,
+    hover_data: Optional[str, List[str]] = None,
+    height: Optional[int] = None,
+    width: Optional[int] = None,
+    layout: Optional[dict] = None,
+    font_size: Optional[int] = None,
+    x_axis: Optional[dict] = None,
+    y_axis: Optional[dict] = None,
+    color_axis: Optional[dict] = None,
+    traces_settings: Optional[dict] = None,
+    output: Optional[str] = None,
+    **kwargs,
+) -> go.Figure:
+    """
+
+    Args:
+        layout: Keyword arguments passed to fig.update_layout()
+        **kwargs: Keyword arguments passed to the Plotly plotting function.
+
+    Returns:
+        A Plotly Figure object.
+    """
+    return _make_plotly(
+        plotly_func=px.line,
+        df=df,
+        x_col=x_col,
+        y_col=y_col,
+        group_cols=group_cols,
+        group_modes=group_modes,
+        title=title,
+        labels=labels,
+        hover_data=hover_data,
+        height=height,
+        width=width,
+        layout=layout,
+        font_size=font_size,
+        x_axis=x_axis,
+        y_axis=y_axis,
+        color_axis=color_axis,
+        traces_settings=traces_settings,
+        output=output,
+        **kwargs,
+    )
+
+
 def make_lof_bar_plot(
     df: pd.DataFrame,
     x_col="tpc",
@@ -450,7 +484,7 @@ def make_lof_bar_plot(
     x_names_col: Optional[str] = None,
     title=None,
     labels=None,
-    hover_data: Optional[List[str]] = None,
+    hover_data: Optional[str, List[str]] = None,
     shift_color_midpoint: int = 0,
     height: Optional[int] = None,
     width: Optional[int] = None,
@@ -528,7 +562,7 @@ def make_lof_bubble_plot(
     x_names_col: Optional[str] = None,
     title: Optional[str] = None,
     labels: Optional[dict] = None,
-    hover_data: Optional[List[str]] = None,
+    hover_data: Optional[str, List[str]] = None,
     shift_color_midpoint: int = 0,
     width: Optional[int] = 1200,
     height: Optional[int] = 1500,
@@ -605,7 +639,7 @@ def make_pie_chart(
     ),
     title: Optional[str] = None,
     labels: Optional[dict] = None,
-    hover_data: Optional[List[str]] = None,
+    hover_data: Optional[str, List[str]] = None,
     height: Optional[int] = None,
     width: Optional[int] = None,
     layout: Optional[dict] = None,
@@ -627,8 +661,57 @@ def make_pie_chart(
     Returns:
         A Plotly Figure object.
     """
+    return _make_plotly(
+        plotly_func=px.line,
+        df=df,
+        x_col=x_col,
+        y_col=y_col,
+        group_cols=group_cols,
+        group_modes=group_modes,
+        title=title,
+        labels=labels,
+        hover_data=hover_data,
+        height=height,
+        width=width,
+        layout=layout,
+        font_size=font_size,
+        x_axis=x_axis,
+        y_axis=y_axis,
+        color_axis=color_axis,
+        traces_settings=traces_settings,
+        output=output,
+        **kwargs,
+    )
+
+
+def _make_plotly(
+    plotly_func: Callable,
+    df: pd.DataFrame,
+    x_col: Optional[str] = None,
+    y_col: Optional[str] = None,
+    group_cols: Optional[str | Iterable[str]] = None,
+    group_modes: Iterable[GroupMode] = (
+        GroupMode.COLOR,
+        GroupMode.ROWS,
+        GroupMode.COLUMNS,
+    ),
+    title: Optional[str] = None,
+    labels: Optional[dict] = None,
+    hover_data: Optional[str, List[str]] = None,
+    height: Optional[int] = None,
+    width: Optional[int] = None,
+    layout: Optional[dict] = None,
+    font_size: Optional[int] = None,
+    x_axis: Optional[dict] = None,
+    y_axis: Optional[dict] = None,
+    color_axis: Optional[dict] = None,
+    traces_settings: Optional[dict] = None,
+    output: Optional[str] = None,
+    **kwargs,
+) -> go.Figure:
+    """Boilerplate for Plotly plotting functions."""
     df = df.reset_index()
-    plot_settings = make_pie_chart_settings(
+    plot_settings = make_plot_settings(
         df=df,
         x_col=x_col,
         y_col=y_col,
@@ -640,11 +723,14 @@ def make_pie_chart(
         height=height,
         width=width,
     )
-    fig = px.pie(
-        df,
-        **plot_settings,
-        **kwargs,
-    )
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        fig = plotly_func(
+            df,
+            **plot_settings,
+            **kwargs,
+        )
     if "facet_col" or "facet_row" in plot_settings:
         fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
     update_figure_layout(
@@ -653,7 +739,6 @@ def make_pie_chart(
         y_col=y_col,
         layout=layout,
         font_size=font_size,
-        textfont_size=textfont_size,
         x_axis=x_axis,
         y_axis=y_axis,
         color_axis=color_axis,
@@ -676,7 +761,7 @@ def make_scatter_plot(
     ),
     title: Optional[str] = None,
     labels: Optional[dict] = None,
-    hover_data: Optional[List[str]] = None,
+    hover_data: Optional[str, List[str]] = None,
     height: Optional[int] = None,
     width: Optional[int] = None,
     layout: Optional[dict] = None,
@@ -697,8 +782,8 @@ def make_scatter_plot(
     Returns:
         A Plotly Figure object.
     """
-    df = df.reset_index()
-    plot_settings = make_plot_settings(
+    return _make_plotly(
+        plotly_func=px.scatter,
         df=df,
         x_col=x_col,
         y_col=y_col,
@@ -709,28 +794,80 @@ def make_scatter_plot(
         hover_data=hover_data,
         height=height,
         width=width,
-    )
-    fig = px.scatter(
-        df,
-        **plot_settings,
-        **kwargs,
-    )
-    if "facet_col" or "facet_row" in plot_settings:
-        fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
-    update_figure_layout(
-        fig=fig,
-        x_col=x_col,
-        y_col=y_col,
         layout=layout,
         font_size=font_size,
         x_axis=x_axis,
         y_axis=y_axis,
         color_axis=color_axis,
         traces_settings=traces_settings,
+        output=output,
+        **kwargs,
     )
-    if output is not None:
-        write_image(fig=fig, filename=output, width=width, height=height)
-    return fig
+
+
+def make_scatter_3d_plot(
+    df: pd.DataFrame,
+    x_col: Optional[str] = None,
+    y_col: Optional[str] = None,
+    z_col: Optional[str] = None,
+    group_cols: Optional[str | Iterable[str]] = None,
+    group_modes: Iterable[GroupMode] = (
+        GroupMode.COLOR,
+        GroupMode.ROWS,
+        GroupMode.COLUMNS,
+    ),
+    title: Optional[str] = None,
+    labels: Optional[dict] = None,
+    hover_data: Optional[str, List[str]] = None,
+    height: Optional[int] = None,
+    width: Optional[int] = None,
+    layout: Optional[dict] = None,
+    font_size: Optional[int] = None,
+    x_axis: Optional[dict] = None,
+    y_axis: Optional[dict] = None,
+    color_axis: Optional[dict] = None,
+    traces_settings: Optional[dict] = None,
+    output: Optional[str] = None,
+    **kwargs,
+) -> go.Figure:
+    """
+
+    Args:
+        layout: Keyword arguments passed to fig.update_layout()
+        **kwargs: Keyword arguments passed to the Plotly plotting function.
+
+    Returns:
+        A Plotly Figure object.
+    """
+    traces_settings = traces_settings if traces_settings else {}
+    marker_settings = traces_settings.get("marker", {})
+    if "opcacity" not in marker_settings:
+        marker_settings["opacity"] = 0.5
+    layout_options = layout if layout else {}
+    if "scene_dragmode" not in layout_options:
+        layout_options["scene_dragmode"] = "orbit"
+    return _make_plotly(
+        plotly_func=px.scatter_3d,
+        df=df,
+        x_col=x_col,
+        y_col=y_col,
+        z=z_col,
+        group_cols=group_cols,
+        group_modes=group_modes,
+        title=title,
+        labels=labels,
+        hover_data=hover_data,
+        height=height,
+        width=width,
+        layout=layout_options,
+        font_size=font_size,
+        x_axis=x_axis,
+        y_axis=y_axis,
+        color_axis=color_axis,
+        traces_settings=traces_settings,
+        output=output,
+        **kwargs,
+    )
 
 
 def plot_pitch_class_distribution(

@@ -33,6 +33,7 @@ from dimcat.dc_exceptions import (
     ResourceIsMissingPieceIndexError,
 )
 from dimcat.utils import get_middle_composition_year
+from typing_extensions import Self
 
 module_logger = logging.getLogger(__name__)
 
@@ -40,6 +41,14 @@ module_logger = logging.getLogger(__name__)
 class Metadata(Feature):
     _default_analyzer = dict(dtype="Proportions", dimension_column="length_qb")
     _default_value_column = "piece"
+
+    @property
+    def metadata(self) -> Self:
+        return self
+
+    @metadata.setter
+    def metadata(self, _):
+        raise RuntimeError("Cannot set the property Metadata.metadata.")
 
     def apply_slice_intervals(
         self,
@@ -58,9 +67,10 @@ class Metadata(Feature):
         group_cols: Optional[
             UnitOfAnalysis | str | Iterable[str]
         ] = UnitOfAnalysis.GROUP,
+        name: str = "mean_composition_year",
     ):
         group_cols = self._resolve_group_cols_arg(group_cols)
-        years = get_middle_composition_year(metadata=self.df)
+        years = get_middle_composition_year(metadata=self.df).rename(name)
         if not group_cols:
             return years
         result = years.groupby(group_cols).mean()

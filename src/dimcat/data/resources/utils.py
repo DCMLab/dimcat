@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import warnings
 from collections import Counter
 from functools import cache
@@ -129,15 +130,12 @@ def align_with_grouping(
         df = df.copy()
         df.index.rename("piece", level=piece_level_position, inplace=True)
         df_levels[piece_level_position] = "piece"
-    shared_levels = set(df_levels).intersection(set(gr_levels))
-    if len(shared_levels) == 0:
+    if not set(df_levels).intersection(set(gr_levels)):
         raise ValueError(f"No shared levels between {df_levels!r} and {gr_levels!r}")
     df_aligned = join_df_on_index(df, grouping)
-    level_order = gr_levels + [level for level in df_levels if level not in gr_levels]
-    result = df_aligned.reorder_levels(level_order)
     if sort_index:
-        return result.sort_index()
-    return result
+        return df_aligned.sort_index()
+    return df_aligned
 
 
 def apply_playthrough(
@@ -473,6 +471,9 @@ def fl_fields2pandas_params(fields: List[fl.Field]) -> Tuple[dict, dict, list]:
                     converters[field.name] = ms3.str2keysig_dict
                 elif pattern_constraint == ms3.TIMESIG_DICT_REGEX:
                     converters[field.name] = ms3.str2timesig_dict
+                # ToDo: achieve this by creating a pd.IntervalIndex.from_arrays() or a MultiIndex.set_levels()
+                # elif pattern_constraint == ms3.SLICE_INTERVAL_REGEX:
+                #     converters[field.name] = str2pd_interval
                 else:
                     raise NotImplementedError(
                         f"What is the dtype for a string with a pattern constraint of "
@@ -698,9 +699,20 @@ def infer_schema_from_df(
     Returns:
 
     """
-    column_names = list(df.columns)
+    column_names = df.columns.to_list()
     if isinstance(column_names[0], tuple):
-        column_names = [", ".join(col) for col in column_names]
+        if allow_integer_names:
+            column_names = [
+                ", ".join(str(name) for name in col) for col in column_names
+            ]
+        else:
+            try:
+                column_names = [", ".join(col) for col in column_names]
+            except TypeError:
+                raise TypeError(
+                    f"Column names are tuples but not all elements are strings: {column_names}. Set "
+                    f"allow_integer_names=True to convert all values to strings"
+                )
     if include_index_levels:
         index_levels = list(df.index.names)
         column_names = index_levels + column_names
@@ -748,6 +760,7 @@ def join_df_on_index(
             df,
             how=how,
         )
+    # makes sure that the joined-on index levels are the leftmost ones
     index_level_order = list(grouping_df.index.names)
     index_level_order += [
         level for level in df.index.names if level not in index_level_order
@@ -1463,6 +1476,12 @@ def store_json(
 def str2inttuple(s):
     """Non-strict version of :func:`ms3.str2inttuple` which does not fail on non-integer values."""
     return ms3.str2inttuple(s, strict=False)
+
+
+def str2pd_interval(s: str) -> pd.Interval:
+    """Function produces only left-closed, right-open intervals."""
+    left, right = re.match(ms3.SLICE_INTERVAL_REGEX, s).groups()
+    return pd.Interval(left=float(left), right=float(right), closed="left")
 
 
 def subselect_multiindex_from_df(

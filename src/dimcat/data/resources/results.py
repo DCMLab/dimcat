@@ -4,8 +4,10 @@ import logging
 import math
 from functools import cache, cached_property, partial
 from itertools import product, repeat
+from numbers import Number
 from pprint import pformat
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     ClassVar,
@@ -57,38 +59,60 @@ from typing_extensions import Self
 
 from .base import D, S
 from .dc import DimcatResource, UnitOfAnalysis
-from .utils import make_phrase_start_mask, merge_columns_into_one, regroup_phrase_stages
+from .utils import (
+    make_phrase_start_mask,
+    merge_columns_into_one,
+    regroup_phrase_stages,
+    resolve_levels_argument,
+)
+
+if TYPE_CHECKING:
+    from dimcat.data.resources.features import Metadata
 
 module_logger = logging.getLogger(__name__)
 
 str_or_sequence = TypeAlias = Union[str, Sequence[str]]
 
 
+class InverseDocumentFrequencyFlavor(FriendlyEnum):
+    """
+    Selectors for the formulas listed under https://en.wikipedia.org/wiki/Tf%E2%80%93idf#Inverse_document_frequency.
+    """
+
+    VANILLA = "vanilla"
+    SMOOTH = "smooth"
+    MAX = "max"
+    PROBABILISTIC = "probabilistic"
+
+
+log_base_: TypeAlias = Literal[10, 2, math.e, "e"]
+
+
 @cache
 def logarithm_function(
-    base: Literal[10, 2, math.e] = 2,
+    base: log_base_ = 2,
     numpy=False,
 ) -> Callable:
-    if numpy:
+    if not numpy:
         if base == 2:
             return math.log2
         if base == 10:
             return math.log10
-        if base == math.e:
+        if base in (math.e, "e"):
             return math.log
         raise NotImplementedError(f"base {base} not implemented")
     if base == 2:
         return np.log2
     if base == 10:
         return np.log10
-    if base == math.e:
+    if base in (math.e, "e"):
         return np.log
     raise NotImplementedError(f"base {base} not implemented")
 
 
 def compute_entropy_of_observations(
     observations: Iterable[Any],
-    base: Literal[10, 2, math.e] = 2,
+    base: log_base_ = 2,
 ) -> float:
     """Compute the Shannon entropy of an array of observations by counting the values."""
     return compute_entropy_of_probabilities(
@@ -98,7 +122,7 @@ def compute_entropy_of_observations(
 
 def compute_entropy_of_occurrences(
     occurrences: Iterable[int],
-    base: Literal[10, 2, math.e] = 2,
+    base: log_base_ = 2,
 ) -> float:
     """Compute the Shannon entropy of the given absolute frequencies where each integer represents the number of
     observed occurrences of a category."""
@@ -132,7 +156,7 @@ def _entropy(
 
 def compute_entropy_of_probabilities(
     probabilities: Iterable[float] | Iterable[int],
-    base: Literal[10, 2, math.e] = 2,
+    base: log_base_ = 2,
     skip_check: bool = False,
 ) -> float:
     """Compute the Shannon entropy of the given probability distribution, which is expected to be normalized.
@@ -185,10 +209,15 @@ class ResultName(ObjectEnum):
 
     CadenceCounts = "CadenceCounts"
     Counts = "Counts"
+    CulledPrevalenceMatrix = "CulledPrevalenceMatrix"
+    CulledRelativePrevalenceMatrix = "CulledRelativePrevalenceMatrix"
     Durations = "Durations"
+    GroupwisePrevalenceMatrix = "GroupwisePrevalenceMatrix"
     NgramTable = "NgramTable"
     NgramTuples = "NgramTuples"
     PhraseData = "PhraseData"
+    PrevalenceMatrix = "PrevalenceMatrix"
+    RelativePrevalenceMatrix = "RelativePrevalenceMatrix"
     Result = "Result"
     Transitions = "Transitions"
 
@@ -203,19 +232,43 @@ class Result(DimcatResource):
     """If the no other sequence of group_modes is specified when plotting, this default is zipped to the groupby
     columns to determine how the data will be grouped for the plot."""
 
+    @staticmethod
+    def _sort_combined_result(
+        combined_result: D,
+        sort_column: str,
+        group_cols: Optional[List[str]] = None,
+        sort_order: Optional[SortOrder] = SortOrder.DESCENDING,
+    ):
+        if sort_order is None or sort_order == SortOrder.NONE:
+            return combined_result
+        if not group_cols:
+            # no grouping required
+            if sort_order == SortOrder.ASCENDING:
+                return combined_result.sort_values(sort_column)
+            else:
+                return combined_result.sort_values(sort_column, ascending=False)
+        if sort_order == SortOrder.ASCENDING:
+            return combined_result.groupby(group_cols, group_keys=False).apply(
+                lambda df: df.sort_values(sort_column)
+            )
+        else:
+            return combined_result.groupby(group_cols, group_keys=False).apply(
+                lambda df: df.sort_values(sort_column, ascending=False)
+            )
+
     class Schema(DimcatResource.Schema):
         analyzed_resource = DimcatObjectField()
-        value_column = mm.fields.Str(
-            required=True,
-            metadata=dict(
-                description="Name of the column containing the values, relevant, e.g., for tallies."
-            ),
-        )
         dimension_column = mm.fields.Str(
             allow_none=True,
             metadata=dict(
                 description="Name of the column containing some dimension, e.g. to be interpreted as quantity "
                 "(durations, counts, etc.). Not all results have one, e.g. NgramTable."
+            ),
+        )
+        value_column = mm.fields.Str(
+            allow_none=True,
+            metadata=dict(
+                description="Name of the column containing the values, relevant, e.g., for tallies."
             ),
         )
         formatted_column = mm.fields.Str(
@@ -228,8 +281,8 @@ class Result(DimcatResource):
     def __init__(
         self,
         analyzed_resource: DimcatResource,
-        value_column: Optional[str],
         dimension_column: Optional[str],
+        value_column: Optional[str] = None,
         formatted_column: Optional[str] = None,
         resource: fl.Resource = None,
         descriptor_filename: Optional[str] = None,
@@ -310,6 +363,11 @@ class Result(DimcatResource):
     @formatted_column.setter
     def formatted_column(self, formatted_column: str):
         self._formatted_column = formatted_column
+
+    @property
+    def metadata(self) -> Metadata:
+        """The metadata of the analyzed resource."""
+        return self.analyzed_resource.metadata
 
     @cached_property
     def uses_line_of_fifths_colors(self) -> bool:
@@ -408,7 +466,12 @@ class Result(DimcatResource):
         else:
             normalize_by = combined_result.sum()
         combined_result = self._add_proportion_columns(combined_result, normalize_by)
-        return self._sort_combined_result(combined_result, group_cols, sort_order)
+        return self._sort_combined_result(
+            combined_result=combined_result,
+            sort_column=self.dimension_column,
+            group_cols=group_cols,
+            sort_order=sort_order,
+        )
 
     def combine_results(
         self,
@@ -943,32 +1006,6 @@ class Result(DimcatResource):
                 f"coloring."
             )
         return group_modes
-
-    def _sort_combined_result(
-        self,
-        combined_result: D,
-        group_cols: List[str],
-        sort_order: Optional[SortOrder] = SortOrder.DESCENDING,
-        sort_column: Optional[str] = None,
-    ):
-        if sort_order is None or sort_order == SortOrder.NONE:
-            return combined_result
-        if sort_column is None:
-            sort_column = self.y_column
-        if not group_cols:
-            # no grouping required
-            if sort_order == SortOrder.ASCENDING:
-                return combined_result.sort_values(sort_column)
-            else:
-                return combined_result.sort_values(sort_column, ascending=False)
-        if sort_order == SortOrder.ASCENDING:
-            return combined_result.groupby(group_cols, group_keys=False).apply(
-                lambda df: df.sort_values(sort_column)
-            )
-        else:
-            return combined_result.groupby(group_cols, group_keys=False).apply(
-                lambda df: df.sort_values(sort_column, ascending=False)
-            )
 
 
 class Counts(Result):
@@ -2489,6 +2526,40 @@ class PhraseData(Result):
 
 
 class Transitions(Result):
+    @staticmethod
+    def _sort_combined_result(
+        combined_result: D,
+        sort_column: str = "count",
+        group_cols: Optional[List[str]] = None,
+        sort_order: Optional[SortOrder] = SortOrder.DESCENDING,
+    ):
+        if sort_order is None or sort_order == SortOrder.NONE:
+            return combined_result
+
+        antecedent, consequent = combined_result.index.names[-2:]
+        ascending = sort_order == SortOrder.ASCENDING
+
+        def sort_transitions(df):
+            gpb = df.groupby(antecedent)
+            # order antecedents by overall occurrence
+            antecedent_order = (
+                gpb[sort_column].sum().sort_values(ascending=ascending).index
+            )
+            # then, order each antecedent group by occurrence of consequents
+            sorted_groups = [
+                gpb.get_group(antecedent_group).sort_values(
+                    sort_column,
+                    ascending=ascending,
+                )
+                for antecedent_group in antecedent_order
+            ]
+            return pd.concat(sorted_groups, names=[antecedent])
+
+        if group_cols:
+            gpb = combined_result.groupby(group_cols, group_keys=False)
+            return gpb.apply(sort_transitions)
+        return sort_transitions(combined_result)
+
     class Schema(Result.Schema):
         feature_columns = mm.fields.List(
             mm.fields.Str(), required=True, validate=mm.validate.Length(min=2, max=2)
@@ -2574,7 +2645,12 @@ class Transitions(Result):
         combined_result = df.groupby(groupby).sum()
         normalize_by = combined_result.groupby(groups_to_treat).sum()
         combined_result = self._add_proportion_columns(combined_result, normalize_by)
-        return self._sort_combined_result(combined_result, group_cols, sort_order)
+        return self._sort_combined_result(
+            combined_result=combined_result,
+            sort_column=self.dimension_column,
+            group_cols=group_cols,
+            sort_order=sort_order,
+        )
 
     def _compute_entropy(
         self, combined_result: D, group_cols: List[str], weighted: bool = False
@@ -2814,40 +2890,6 @@ class Transitions(Result):
             **kwargs,
         )
 
-    def _sort_combined_result(
-        self,
-        combined_result: D,
-        group_cols: List[str],
-        sort_order: Optional[SortOrder] = SortOrder.DESCENDING,
-    ):
-        if sort_order is None or sort_order == SortOrder.NONE:
-            return combined_result
-
-        antecedent, consequent = self.feature_columns
-        group_cols = self._resolve_group_cols_arg(group_cols)
-        ascending = sort_order == SortOrder.ASCENDING
-
-        def sort_transitions(df):
-            gpb = df.groupby(antecedent)
-            # order antecedents by overall occurrence
-            antecedent_order = (
-                gpb[self.dimension_column].sum().sort_values(ascending=ascending).index
-            )
-            # then, order each antecedent group by occurrence of consequents
-            sorted_groups = [
-                gpb.get_group(antecedent_group).sort_values(
-                    self.dimension_column,
-                    ascending=ascending,
-                )
-                for antecedent_group in antecedent_order
-            ]
-            return pd.concat(sorted_groups, names=[antecedent])
-
-        if group_cols:
-            gpb = combined_result.groupby(group_cols, group_keys=False)
-            return gpb.apply(sort_transitions)
-        return sort_transitions(combined_result)
-
 
 def prepare_transitions(
     df: D, max_x: Optional[int] = None, max_y: Optional[int] = None
@@ -3066,41 +3108,759 @@ def make_heatmaps_from_transitions(
     return fig
 
 
+class PrevalenceMatrix(Result):
+    """The equivalent to NLP's "frequency matrix" except that in the case of music,
+    the coefficients are not restricted to represent count frequencies (when created from a
+    :class:`~.data.resources.results.Counts` object) but can also represent durations (when created
+    from a :class:`~.data.resources.results.Durations` object).
+
+    For naming consistency with the NLP terminology, method names and documentation will refer to
+    rows as documents (which could be segments, pieces, or groups of either), and to the columns
+    as tokens (which could be any feature values such as chords, chord features, pitch classes, etc.).
+    """
+
+    @staticmethod
+    def _sort_combined_result(
+        combined_result: D,
+        sort_column: Literal[None] = None,
+        group_cols: Literal[None] = None,
+        sort_order: Optional[SortOrder | str] = SortOrder.DESCENDING,
+    ):
+        """Sort matrix columns by their summed prevalence and drop columns with zero-prevalene.
+
+        Args:
+            combined_result:
+            sort_column: Not in use.
+            group_cols: Not in use.
+            sort_order:
+
+        Returns:
+
+        """
+        type_prevalence = combined_result.sum(axis=0)
+        if not (sort_order is None or sort_order == SortOrder.NONE):
+            ascending = sort_order == SortOrder.ASCENDING
+            combined_result.sort_index(
+                axis=1, key=lambda _: type_prevalence, ascending=ascending, inplace=True
+            )
+        if (zero_column_mask := type_prevalence.eq(0)).any():
+            combined_result.drop(
+                columns=type_prevalence.index[zero_column_mask], inplace=True
+            )
+        return combined_result
+
+    # class Schema(Result.Schema):
+    #     pass
+
+    # @property
+    # def x_column(self) -> str:
+    #     """Name of the result column from which to create one marker per distinct value to show over the x-axis."""
+    #     if self.uses_line_of_fifths_colors or not self.formatted_column:
+    #         return self.value_column
+    #     else:
+    #         return self.formatted_column
+
+    # @property
+    # def y_column(self) -> str:
+    #     """Name of the numerical result column used for determining each marker's dimension along the y-axis."""
+    #     return self.dimension_column
+
+    # def _add_proportion_columns(self, combined_result: D, normalize_by: S | float) -> D:
+    #     """Normalize the combined results and concatenate them as two new column, 'proportion' and 'proportion_%'."""
+    #     return super()._add_proportion_columns(combined_result, normalize_by)
+
+    @cached_property
+    def absolute(self) -> D:
+        """Returns the prevalence matrix as dataframe with missing values filled with zeros."""
+        return self.df.fillna(0)
+
+    @property
+    def is_absolute(self) -> bool:
+        """Whether matrix represents absolute prevalences in contrast to a :class:`RelativePrevalenceMatrix`,
+        in which each row sums up to 1. An absolute matrix can be converted into a relative matrix but
+        not the other way around.
+        """
+        return True
+
+    @property
+    def is_complete(self) -> bool:
+        """Whether the matrix still contains columns for all tokens, i.e., it has not been culled
+        and can be used for computing relative frequencies.
+        """
+        return True
+
+    @cached_property
+    def n_documents(self) -> int:
+        """The number of rows."""
+        return self.df.shape[0]
+
+    @cached_property
+    def n_types(self) -> int:
+        """Overall number of types present in this matrix."""
+        return self.df.shape[1]
+
+    @cached_property
+    def overall_prevalence(self) -> int:
+        """Sums up the prevalence of all tokens in all documents. If prevalence was measured by
+        counts always, this would be called ``n_tokens``."""
+        return self.document_prevalence().sum()
+
+    @cached_property
+    def relative(self) -> D:
+        """Returns the values corresponding to the RelativePrevalenceMatrix as a dataframe.
+        Syntactic sugar for calling :meth:`get_relative_prevalence` with ``as_resource=False``.
+        """
+        return self.get_relative_prevalence(as_resource=False)
+
+    @cached_property
+    def type_count(self) -> S:
+        """Returns a series containing for each document the number of distinct tokens it contains."""
+        return self.df.notna().sum(axis=1)
+
+    @cached_property
+    def z_scores(self) -> D:
+        """Standardizes the type prevalences by subtracting the mean and dividing by the standard deviation.
+        As a result, each column has a mean of 0 and a standard deviation of 1. The standardization operates
+        on relative frequencies so that the prevalences are normalized by the length of each document.
+        """
+        return (self.relative - self.relative.mean()) / self.relative.std()
+
+    def _combine_results(
+        self,
+        group_cols: Optional[
+            UnitOfAnalysis | str | Iterable[str]
+        ] = UnitOfAnalysis.GROUP,
+        sort_order: Optional[SortOrder] = SortOrder.DESCENDING,
+    ) -> D:
+        """Aggregate results for each group by summing up the values. By default,
+        the groups correspond to those that had been applied to the analyzed resource. If no Groupers had been
+        applied, the entire dataset is treated as a single group.
+        """
+        group_cols = self._resolve_group_cols_arg(group_cols)
+        available_columns = set(self.df.index.names)
+        if not set(group_cols).issubset(available_columns):
+            if self.is_combination:
+                raise ValueError(
+                    f"Cannot group the results that are already combined by {group_cols}. "
+                    f"Available columns are {available_columns}"
+                )
+            else:
+                raise ValueError(
+                    f"{self.name} currently allows for groupby by index levels. Available levels: {available_columns}"
+                )
+        df = self.df.fillna(0.0)
+
+        if not group_cols:
+            index = self.analyzed_resource.resource_name
+            return df.sum().rename(index).to_frame().T
+
+        combined_result = df.groupby(group_cols).sum().replace(0.0, pd.NA)
+        return self._sort_combined_result(
+            combined_result=combined_result,
+            sort_column=self.dimension_column,
+            group_cols=group_cols,
+            sort_order=sort_order,
+        )
+
+    def _cull(
+        self,
+        ratio: Optional[float] = None,
+        threshold: Optional[int] = None,
+    ) -> D:
+        """
+        Removes all features that do not appear in a minimum number of
+        documents.
+
+        Args:
+            ratio:
+                Minimum ratio of documents a token must occur in to be retained. The number of
+                documents ratio * D is always rounded up. Ratios > 1 are rounded and interpreted
+                as threshold.
+            threshold:
+                Minimum number of documents a token must occur in to be retained.
+        """
+        if ratio is not None:
+            if ratio > 1:
+                threshold = round(ratio)
+            else:
+                threshold = math.ceil(ratio * self.index.size)
+        assert not (
+            threshold is None or threshold < 1
+        ), f"Threshold must be ≥ 1, got {threshold}"
+        culled = self.df.dropna(thresh=threshold, axis=1)
+        return culled
+
+    @cache
+    def document_frequencies(
+        self,
+        relative: bool = False,
+        sort_order: Optional[SortOrder] = SortOrder.DESCENDING,
+        name: str = "document_frequency",
+    ) -> S:
+        """Returns a series containing for each token the number of documents it occurs in.
+        "Documents", here, means rows of the matrix, whether they corresponds to slices, pieces, or
+        groups.
+
+
+        Args:
+            relative:
+                By default (False), absolute counts are returned. Pass True to normalize by
+                the number of documents :attr:`n_documents` (number of rows).
+            sort_order:
+                By default ("descending"), the tokens will appear in descending order of their
+                document frequency. Pass "ascending" to reverse the order or None to leave them
+                in the column order of the matrix.
+            name: Name of the returned series. Defaults to "document_frequency".
+
+        Returns:
+
+        """
+        doc_freq = self.df.notna().sum()
+        if relative:
+            doc_freq = doc_freq / self.n_documents
+        if sort_order and sort_order != SortOrder.NONE:
+            ascending = sort_order == SortOrder.ASCENDING
+            doc_freq = doc_freq.sort_values(ascending=ascending)
+        return doc_freq.rename(name)
+
+    @cache
+    def document_frequency(
+        self,
+        token: str,
+        relative: bool = False,
+    ) -> bool | float:
+        doc_freq = self.document_frequencies(relative=relative)
+        return doc_freq[token]
+
+    @cache
+    def document_prevalence(
+        self,
+        name: str = "document_prevalence",
+    ) -> S:
+        return self.df.sum(axis=1).rename(name)
+
+    def get_culled_matrix(
+        self,
+        ratio: Optional[float] = None,
+        threshold: Optional[int] = None,
+    ) -> CulledPrevalenceMatrix:
+        """
+        Removes all features that do not appear in a minimum number of
+        documents.
+
+        Args:
+            ratio:
+                Minimum ratio of documents a token must occur in to be retained. The number of
+                documents ratio * D is always rounded up. Ratios > 1 are rounded and interpreted
+                as threshold.
+            threshold:
+                Minimum number of documents a token must occur in to be retained.
+        """
+        culled = self._cull(ratio, threshold)
+        return CulledPrevalenceMatrix.from_resource_and_dataframe(self, culled)
+
+    def _get_groupwise_prevalence(
+        self, column_levels: int | str | Iterable[int | str] = 0
+    ) -> D:
+        transposed = self.absolute.T
+        levels = resolve_levels_argument(column_levels, transposed.index.names)
+        normalized_groups = transposed.groupby(level=levels).transform(
+            lambda df: df / df.sum()
+        )
+        return normalized_groups.T
+
+    def get_groupwise_prevalence(
+        self,
+        column_levels: int | str | Iterable[int | str] = 0,
+    ) -> GroupwisePrevalenceMatrix:
+        """Returns a new PrevalenceMatrix in which each row sums up to 1 for each group of columns (i.e.,
+        each row sums up to the number of non-empty groups). Groups are given in the first column level(s).
+        """
+        normalized_groups = self._get_groupwise_prevalence(column_levels)
+        return GroupwisePrevalenceMatrix.from_resource_and_dataframe(
+            self, normalized_groups
+        )
+
+    def _get_relative_prevalence(self) -> D:
+        return self.df.div(self.df.sum(axis=1), axis=0)
+
+    def get_relative_prevalence(
+        self, fillna: Optional[Number] = 0.0, as_resource: bool = True
+    ) -> RelativePrevalenceMatrix:
+        """Returns a new PrevalenceMatrix in which each row sums up to 1."""
+        normalized_df = self._get_relative_prevalence()
+        if fillna is not None:
+            normalized_df = normalized_df.fillna(fillna)
+        if not as_resource:
+            return normalized_df
+        return RelativePrevalenceMatrix.from_resource_and_dataframe(self, normalized_df)
+
+    @cache
+    def inverse_document_frequencies(
+        self,
+        flavor: InverseDocumentFrequencyFlavor = "vanilla",
+        log_base: log_base_ = 2,
+        sort_order: Optional[SortOrder] = SortOrder.DESCENDING,
+    ):
+        flavor = InverseDocumentFrequencyFlavor(flavor)
+        logarithm = logarithm_function(log_base, numpy=True)
+        n = self.document_frequencies(relative=False)
+        N = self.n_documents
+        if flavor == InverseDocumentFrequencyFlavor.VANILLA:
+            result = logarithm(N / n)
+        elif flavor == InverseDocumentFrequencyFlavor.SMOOTH:
+            # Note: The Wikipedia formula does not add 1 to N although the verbal explanation of smoothing does.
+            # The formula used by sklearn.feature_extraction.text.TfidfTransformer, however, does
+            result = logarithm((N + 1) / (n + 1)) + 1
+        elif flavor == InverseDocumentFrequencyFlavor.MAX:
+            result = logarithm(n.max() / (n + 1))
+        elif flavor == InverseDocumentFrequencyFlavor.PROBABILITY:
+            result = logarithm((N - n) / n)
+        name = (
+            "idf" if flavor == InverseDocumentFrequencyFlavor.VANILLA else flavor.value
+        )
+        result = pd.Series(result, index=n.index, name=name)
+        if sort_order and sort_order != SortOrder.NONE:
+            ascending = sort_order == SortOrder.ASCENDING
+            result = result.sort_values(ascending=ascending)
+        return result
+
+    @cache
+    def inverse_document_frequency(
+        self,
+        token: str,
+        flavor: InverseDocumentFrequencyFlavor.VANILLA,
+        log_base: log_base_ = 2,
+    ):
+        idf = self.inverse_document_frequencies(flavor=flavor, log_base=log_base)
+        return idf[token]
+
+    def make_bar_plot(
+        self,
+        df: Optional[D] = None,
+        x_col: Optional[str] = None,
+        y_col: Optional[str] = None,
+        group_cols: Optional[str | Iterable[str]] = None,
+        group_modes: Optional[GroupMode | Iterable[GroupMode]] = None,
+        title: Optional[str] = None,
+        labels: Optional[dict] = None,
+        hover_data: Optional[List[str]] = None,
+        height: Optional[int] = None,
+        width: Optional[int] = None,
+        layout: Optional[dict] = None,
+        font_size: Optional[int] = None,
+        x_axis: Optional[dict] = None,
+        y_axis: Optional[dict] = None,
+        color_axis: Optional[dict] = None,
+        traces_settings: Optional[dict] = None,
+        output: Optional[str] = None,
+        **kwargs,
+    ) -> go.Figure:
+        """
+
+        Args:
+            layout: Keyword arguments passed to fig.update_layout()
+            **kwargs: Keyword arguments passed to the Plotly plotting function.
+
+        Returns:
+            A Plotly Figure object.
+        """
+        raise NotImplementedError
+        # return super().make_bar_plot(
+        #     df=df,
+        #     x_col=x_col,
+        #     y_col=y_col,
+        #     group_cols=group_cols,
+        #     group_modes=group_modes,
+        #     title=title,
+        #     labels=labels,
+        #     hover_data=hover_data,
+        #     height=height,
+        #     width=width,
+        #     layout=layout,
+        #     font_size=font_size,
+        #     x_axis=x_axis,
+        #     y_axis=y_axis,
+        #     color_axis=color_axis,
+        #     traces_settings=traces_settings,
+        #     output=output,
+        #     **kwargs,
+        # )
+
+    def make_bubble_plot(
+        self,
+        df: Optional[D] = None,
+        x_col: Optional[str] = None,
+        y_col: Optional[str] = None,
+        group_cols: Optional[str | Iterable[str]] = None,
+        group_modes: Optional[GroupMode | Iterable[GroupMode]] = (
+            GroupMode.ROWS,
+            GroupMode.COLUMNS,
+        ),
+        normalize: bool = True,
+        dimension_column: Optional[str] = None,
+        title: Optional[str] = None,
+        labels: Optional[dict] = None,
+        hover_data: Optional[List[str]] = None,
+        width: Optional[int] = None,
+        height: Optional[int] = None,
+        layout: Optional[dict] = None,
+        font_size: Optional[int] = None,
+        x_axis: Optional[dict] = None,
+        y_axis: Optional[dict] = None,
+        color_axis: Optional[dict] = None,
+        traces_settings: Optional[dict] = None,
+        output: Optional[str] = None,
+        **kwargs,
+    ) -> go.Figure:
+        """
+
+        Args:
+            layout: Keyword arguments passed to fig.update_layout()
+            **kwargs: Keyword arguments passed to the Plotly plotting function.
+
+        Returns:
+            A Plotly Figure object.
+        """
+        raise NotImplementedError
+        # return super().make_bubble_plot(
+        #     df=df,
+        #     x_col=x_col,
+        #     y_col=y_col,
+        #     group_cols=group_cols,
+        #     group_modes=group_modes,
+        #     normalize=normalize,
+        #     dimension_column=dimension_column,
+        #     title=title,
+        #     labels=labels,
+        #     hover_data=hover_data,
+        #     width=width,
+        #     height=height,
+        #     layout=layout,
+        #     font_size=font_size,
+        #     x_axis=x_axis,
+        #     y_axis=y_axis,
+        #     color_axis=color_axis,
+        #     traces_settings=traces_settings,
+        #     output=output,
+        #     **kwargs,
+        # )
+
+    def make_pie_chart(
+        self,
+        df: Optional[D] = None,
+        x_col: Optional[str] = None,
+        y_col: Optional[str] = None,
+        group_cols: Optional[str | Iterable[str]] = None,
+        group_modes: Optional[GroupMode | Iterable[GroupMode]] = None,
+        title: Optional[str] = None,
+        labels: Optional[dict] = None,
+        hover_data: Optional[List[str]] = None,
+        height: Optional[int] = None,
+        width: Optional[int] = None,
+        layout: Optional[dict] = None,
+        font_size: Optional[int] = None,
+        x_axis: Optional[dict] = None,
+        y_axis: Optional[dict] = None,
+        color_axis: Optional[dict] = None,
+        traces_settings: Optional[dict] = None,
+        output: Optional[str] = None,
+        **kwargs,
+    ) -> go.Figure:
+        """
+
+        Args:
+            layout: Keyword arguments passed to fig.update_layout()
+            **kwargs: Keyword arguments passed to the Plotly plotting function.
+
+        Returns:
+            A Plotly Figure object.
+        """
+        raise NotImplementedError
+        # return super().make_pie_chart(
+        #     df=df,
+        #     x_col=x_col,
+        #     y_col=y_col,
+        #     group_cols=group_cols,
+        #     group_modes=group_modes,
+        #     title=title,
+        #     labels=labels,
+        #     hover_data=hover_data,
+        #     height=height,
+        #     width=width,
+        #     layout=layout,
+        #     font_size=font_size,
+        #     x_axis=x_axis,
+        #     y_axis=y_axis,
+        #     color_axis=color_axis,
+        #     traces_settings=traces_settings,
+        #     output=output,
+        #     **kwargs,
+        # )
+
+    def make_ranking_table(
+        self,
+        /,
+        group_cols: Optional[
+            UnitOfAnalysis | str | Iterable[str]
+        ] = UnitOfAnalysis.GROUP,
+        sort_column: Optional[str | Tuple[str, ...]] = None,
+        sort_order: Literal[
+            SortOrder.DESCENDING, SortOrder.ASCENDING
+        ] = SortOrder.DESCENDING,
+        top_k: Optional[int] = None,
+        drop_cols: Optional[str | Iterable[str]] = None,
+    ) -> D:
+        """Sorts the values
+
+        Args:
+            group_cols:
+                Ranking tables for groups will be concatenated side-by-side. Defaults to the default groupby.
+                To fully prevent grouping, pass False or a falsy value except None.
+            sort_column: By which column to rank. Defaults to the :attr:`dimension_column`.
+            sort_order: Defaults to "descending", i.e., the highest values will be ranked first.
+            top_k: The number of top ranks to retain. Defaults to 50. Pass None to retain all.
+
+        Returns:
+
+        """
+        raise NotImplementedError
+        # return super().make_ranking_table(
+        #     group_cols=group_cols,
+        #     sort_column=sort_column,
+        #     sort_order=sort_order,
+        #     top_k=top_k,
+        #     drop_cols=drop_cols,
+        # )
+
+    def plot(
+        self,
+        title: Optional[str] = None,
+        labels: Optional[dict] = None,
+        hover_data: Optional[List[str]] = None,
+        height: Optional[int] = None,
+        width: Optional[int] = None,
+        layout: Optional[dict] = None,
+        font_size: Optional[int] = None,
+        x_axis: Optional[dict] = None,
+        y_axis: Optional[dict] = None,
+        color_axis: Optional[dict] = None,
+        traces_settings: Optional[dict] = None,
+        output: Optional[str] = None,
+        **kwargs,
+    ) -> go.Figure:
+        raise NotImplementedError
+        # return super.plot(
+        #     title=title,
+        #     labels=labels,
+        #     hover_data=hover_data,
+        #     height=height,
+        #     width=width,
+        #     layout=layout,
+        #     font_size=font_size,
+        #     x_axis=x_axis,
+        #     y_axis=y_axis,
+        #     color_axis=color_axis,
+        #     traces_settings=traces_settings,
+        #     output=output,
+        #     **kwargs,
+        # )
+
+    def plot_grouped(
+        self,
+        group_cols: Optional[
+            UnitOfAnalysis | str | Iterable[str]
+        ] = UnitOfAnalysis.GROUP,
+        group_modes: Optional[GroupMode | Iterable[GroupMode]] = None,
+        title: Optional[str] = None,
+        labels: Optional[dict] = None,
+        hover_data: Optional[List[str]] = None,
+        height: Optional[int] = None,
+        width: Optional[int] = None,
+        layout: Optional[dict] = None,
+        font_size: Optional[int] = None,
+        x_axis: Optional[dict] = None,
+        y_axis: Optional[dict] = None,
+        color_axis: Optional[dict] = None,
+        traces_settings: Optional[dict] = None,
+        output: Optional[str] = None,
+        **kwargs,
+    ) -> go.Figure:
+        raise NotImplementedError
+        # return super().plot_grouped(
+        #     group_cols=group_cols,
+        #     group_modes=group_modes,
+        #     title=title,
+        #     labels=labels,
+        #     hover_data=hover_data,
+        #     height=height,
+        #     width=width,
+        #     layout=layout,
+        #     font_size=font_size,
+        #     x_axis=x_axis,
+        #     y_axis=y_axis,
+        #     color_axis=color_axis,
+        #     traces_settings=traces_settings,
+        #     output=output,
+        #     **kwargs,
+        # )
+
+    @cache
+    def tf_idf(
+        self,
+        flavor: InverseDocumentFrequencyFlavor = "vanilla",
+        log_base: log_base_ = 2,
+        sort_order: Optional[SortOrder] = None,
+    ) -> D:
+        return self.relative.mul(
+            self.inverse_document_frequencies(
+                flavor=flavor, log_base=log_base, sort_order=sort_order
+            )
+        )
+
+    @cache
+    def type_prevalence(
+        self,
+        name: str = "type_prevalence",
+    ):
+        return self.df.sum(axis=0).rename(name)
+
+
+class RelativePrevalenceMatrix(PrevalenceMatrix):
+    @property
+    def absolute(self):
+        """Raises a TypeError for relative matrices."""
+        raise TypeError(
+            "The matrix is normalized, absolute values cannot be retrieved."
+        )
+
+    @property
+    def is_absolute(self) -> bool:
+        """Whether matrix represents absolute prevalences in contrast to a :class:`RelativePrevalenceMatrix`,
+        in which each row sums up to 1. An absolute matrix can be converted into a relative matrix but
+        not the other way around.
+        """
+        return False
+
+    @cached_property
+    def overall_prevalence(self) -> int:
+        """Raises a TypeError for relative matrices."""
+        raise TypeError(
+            "The matrix is normalized, so the overall prevalence is just the number of documents."
+        )
+
+    @cached_property
+    def relative(self) -> D:
+        """Returns the values corresponding to the RelativePrevalenceMatrix as a dataframe.
+        Syntactic sugar for ``.fillna(0.0)``.
+        """
+        return self.df.fillna(0.0)
+
+    def get_culled_matrix(
+        self,
+        ratio: Optional[float] = None,
+        threshold: Optional[int] = None,
+    ) -> CulledRelativePrevalenceMatrix:
+        """
+        Removes all features that do not appear in a minimum number of
+        documents.
+
+        Args:
+            ratio:
+                Minimum ratio of documents a token must occur in to be retained. The number of
+                documents ratio * D is always rounded up. Ratios > 1 are rounded and interpreted
+                as threshold.
+            threshold:
+                Minimum number of documents a token must occur in to be retained.
+        """
+        culled = self._cull(ratio, threshold)
+        return CulledRelativePrevalenceMatrix.from_resource_and_dataframe(self, culled)
+
+    def _get_relative_prevalence(self) -> D:
+        return self.df
+
+    def document_prevalence(self) -> S:
+        """Raises a TypeError for relative matrices."""
+        raise TypeError("The matrix is normalized, so all prevalences sum to 1")
+
+    def type_prevalence(self) -> S:
+        """Raises a TypeError for relative matrices."""
+        raise TypeError(
+            "The rows are normalized, so summin the columns would be meaningless."
+        )
+
+
+class GroupwisePrevalenceMatrix(RelativePrevalenceMatrix):
+    pass
+
+
+class _CulledMatrixMixin:
+    """Mixin for subclasses of PrevalenceMatrix that are the result of a culling (feature
+    selection by removal of underpopulated rows) operations, The common characteristic of culled
+    matrices is that they do not represent the full vocabulary (are incomplete) and therefore
+    cannot be used for computing relative prevalence over documents.
+    """
+
+    @property
+    def is_complete(self):
+        """Whether the matrix still contains columns for all tokens, i.e., it has not been culled
+        and can be used for computing relative frequencies.
+        """
+        return False
+
+    def get_relative_matrix(self) -> RelativePrevalenceMatrix:
+        """Raises a TypeErrror for culled matrices."""
+        raise TypeError(
+            f"Cannot create relative prevalence values from a {self.name!r}."
+        )
+
+
+class CulledPrevalenceMatrix(_CulledMatrixMixin, PrevalenceMatrix):
+    pass
+
+
+class CulledRelativePrevalenceMatrix(_CulledMatrixMixin, RelativePrevalenceMatrix):
+    pass
+
+
 # SKELETON FOR MAKING NEW RESULT
 
 # class ResultSubClass(Result):
-#     class Schema(Result.Schema):
-#         pass
 #
-#     @property
-#     def x_column(self) -> str:
-#         """Name of the result column from which to create one marker per distinct value to show over the x-axis."""
-#         if self.uses_line_of_fifths_colors or not self.formatted_column:
-#             return self.value_column
-#         else:
-#             return self.formatted_column
+#     # class Schema(Result.Schema):
+#     #     pass
 #
-#     @property
-#     def y_column(self) -> str:
-#         """Name of the numerical result column used for determining each marker's dimension along the y-axis."""
-#         return self.dimension_column
+#     # @property
+#     # def x_column(self) -> str:
+#     #     """Name of the result column from which to create one marker per distinct value to show over the x-axis."""
+#     #     if self.uses_line_of_fifths_colors or not self.formatted_column:
+#     #         return self.value_column
+#     #     else:
+#     #         return self.formatted_column
 #
-#     def _add_proportion_columns(self, combined_result: D, normalize_by: S | float) -> D:
-#         """Normalize the combined results and concatenate them as two new column, 'proportion' and 'proportion_%'."""
-#         return super()._add_proportion_columns(combined_result, normalize_by)
+#     # @property
+#     # def y_column(self) -> str:
+#     #     """Name of the numerical result column used for determining each marker's dimension along the y-axis."""
+#     #     return self.dimension_column
 #
-#     def _combine_results(
-#         self,
-#         group_cols: Optional[
-#             UnitOfAnalysis | str | Iterable[str]
-#         ] = UnitOfAnalysis.GROUP,
-#         sort_order: Optional[SortOrder] = SortOrder.DESCENDING,
-#     ) -> D:
-#         """Aggregate results for each group, typically by summing up and normalizing the values. By default,
-#         the groups correspond to those that had been applied to the analyzed resource. If no Groupers had been
-#         applied, the entire dataset is treated as a single group.
-#         """
-#         return super()._combine_results(group_cols, sort_order)
+#     # def _add_proportion_columns(self, combined_result: D, normalize_by: S | float) -> D:
+#     #     """Normalize the combined results and concatenate them as two new column, 'proportion' and
+#     #     'proportion_%'.
+#     #     """
+#     #     return super()._add_proportion_columns(combined_result, normalize_by)
+#
+#     # def _combine_results(
+#     #     self,
+#     #     group_cols: Optional[
+#     #         UnitOfAnalysis | str | Iterable[str]
+#     #     ] = UnitOfAnalysis.GROUP,
+#     #     sort_order: Optional[SortOrder] = SortOrder.DESCENDING,
+#     # ) -> D:
+#     #     """Aggregate results for each group, typically by summing up and normalizing the values. By default,
+#     #     the groups correspond to those that had been applied to the analyzed resource. If no Groupers had been
+#     #     applied, the entire dataset is treated as a single group.
+#     #     """
+#     #     return super()._combine_results(group_cols, sort_order)
 #
 #     def make_bar_plot(
 #         self,
@@ -3132,26 +3892,27 @@ def make_heatmaps_from_transitions(
 #         Returns:
 #             A Plotly Figure object.
 #         """
-#         return super().make_bar_plot(
-#             df=df,
-#             x_col=x_col,
-#             y_col=y_col,
-#             group_cols=group_cols,
-#             group_modes=group_modes,
-#             title=title,
-#             labels=labels,
-#             hover_data=hover_data,
-#             height=height,
-#             width=width,
-#             layout=layout,
-#             font_size=font_size,
-#             x_axis=x_axis,
-#             y_axis=y_axis,
-#             color_axis=color_axis,
-#             traces_settings=traces_settings,
-#             output=output,
-#             **kwargs,
-#         )
+#         raise NotImplementedError
+#         # return super().make_bar_plot(
+#         #     df=df,
+#         #     x_col=x_col,
+#         #     y_col=y_col,
+#         #     group_cols=group_cols,
+#         #     group_modes=group_modes,
+#         #     title=title,
+#         #     labels=labels,
+#         #     hover_data=hover_data,
+#         #     height=height,
+#         #     width=width,
+#         #     layout=layout,
+#         #     font_size=font_size,
+#         #     x_axis=x_axis,
+#         #     y_axis=y_axis,
+#         #     color_axis=color_axis,
+#         #     traces_settings=traces_settings,
+#         #     output=output,
+#         #     **kwargs,
+#         # )
 #
 #     def make_bubble_plot(
 #         self,
@@ -3188,28 +3949,29 @@ def make_heatmaps_from_transitions(
 #         Returns:
 #             A Plotly Figure object.
 #         """
-#         return super().make_bubble_plot(
-#             df=df,
-#             x_col=x_col,
-#             y_col=y_col,
-#             group_cols=group_cols,
-#             group_modes=group_modes,
-#             normalize=normalize,
-#             dimension_column=dimension_column,
-#             title=title,
-#             labels=labels,
-#             hover_data=hover_data,
-#             width=width,
-#             height=height,
-#             layout=layout,
-#             font_size=font_size,
-#             x_axis=x_axis,
-#             y_axis=y_axis,
-#             color_axis=color_axis,
-#             traces_settings=traces_settings,
-#             output=output,
-#             **kwargs,
-#         )
+#         raise NotImplementedError
+#         # return super().make_bubble_plot(
+#         #     df=df,
+#         #     x_col=x_col,
+#         #     y_col=y_col,
+#         #     group_cols=group_cols,
+#         #     group_modes=group_modes,
+#         #     normalize=normalize,
+#         #     dimension_column=dimension_column,
+#         #     title=title,
+#         #     labels=labels,
+#         #     hover_data=hover_data,
+#         #     width=width,
+#         #     height=height,
+#         #     layout=layout,
+#         #     font_size=font_size,
+#         #     x_axis=x_axis,
+#         #     y_axis=y_axis,
+#         #     color_axis=color_axis,
+#         #     traces_settings=traces_settings,
+#         #     output=output,
+#         #     **kwargs,
+#         # )
 #
 #     def make_pie_chart(
 #         self,
@@ -3241,26 +4003,27 @@ def make_heatmaps_from_transitions(
 #         Returns:
 #             A Plotly Figure object.
 #         """
-#         return super().make_pie_chart(
-#             df=df,
-#             x_col=x_col,
-#             y_col=y_col,
-#             group_cols=group_cols,
-#             group_modes=group_modes,
-#             title=title,
-#             labels=labels,
-#             hover_data=hover_data,
-#             height=height,
-#             width=width,
-#             layout=layout,
-#             font_size=font_size,
-#             x_axis=x_axis,
-#             y_axis=y_axis,
-#             color_axis=color_axis,
-#             traces_settings=traces_settings,
-#             output=output,
-#             **kwargs,
-#         )
+#         raise NotImplementedError
+#         # return super().make_pie_chart(
+#         #     df=df,
+#         #     x_col=x_col,
+#         #     y_col=y_col,
+#         #     group_cols=group_cols,
+#         #     group_modes=group_modes,
+#         #     title=title,
+#         #     labels=labels,
+#         #     hover_data=hover_data,
+#         #     height=height,
+#         #     width=width,
+#         #     layout=layout,
+#         #     font_size=font_size,
+#         #     x_axis=x_axis,
+#         #     y_axis=y_axis,
+#         #     color_axis=color_axis,
+#         #     traces_settings=traces_settings,
+#         #     output=output,
+#         #     **kwargs,
+#         # )
 #
 #     def make_ranking_table(
 #         self,
@@ -3288,13 +4051,14 @@ def make_heatmaps_from_transitions(
 #         Returns:
 #
 #         """
-#         return super().make_ranking_table(
-#             group_cols=group_cols,
-#             sort_column=sort_column,
-#             sort_order=sort_order,
-#             top_k=top_k,
-#             drop_cols=drop_cols,
-#         )
+#         raise NotImplementedError
+#         # return super().make_ranking_table(
+#         #     group_cols=group_cols,
+#         #     sort_column=sort_column,
+#         #     sort_order=sort_order,
+#         #     top_k=top_k,
+#         #     drop_cols=drop_cols,
+#         # )
 #
 #     def plot(
 #         self,
@@ -3312,21 +4076,22 @@ def make_heatmaps_from_transitions(
 #         output: Optional[str] = None,
 #         **kwargs,
 #     ) -> go.Figure:
-#         return super.plot(
-#             title=title,
-#             labels=labels,
-#             hover_data=hover_data,
-#             height=height,
-#             width=width,
-#             layout=layout,
-#             font_size=font_size,
-#             x_axis=x_axis,
-#             y_axis=y_axis,
-#             color_axis=color_axis,
-#             traces_settings=traces_settings,
-#             output=output,
-#             **kwargs,
-#         )
+#         raise NotImplementedError
+#         # return super.plot(
+#         #     title=title,
+#         #     labels=labels,
+#         #     hover_data=hover_data,
+#         #     height=height,
+#         #     width=width,
+#         #     layout=layout,
+#         #     font_size=font_size,
+#         #     x_axis=x_axis,
+#         #     y_axis=y_axis,
+#         #     color_axis=color_axis,
+#         #     traces_settings=traces_settings,
+#         #     output=output,
+#         #     **kwargs,
+#         # )
 #
 #     def plot_grouped(
 #         self,
@@ -3348,20 +4113,21 @@ def make_heatmaps_from_transitions(
 #         output: Optional[str] = None,
 #         **kwargs,
 #     ) -> go.Figure:
-#         return super().plot_grouped(
-#             group_cols=group_cols,
-#             group_modes=group_modes,
-#             title=title,
-#             labels=labels,
-#             hover_data=hover_data,
-#             height=height,
-#             width=width,
-#             layout=layout,
-#             font_size=font_size,
-#             x_axis=x_axis,
-#             y_axis=y_axis,
-#             color_axis=color_axis,
-#             traces_settings=traces_settings,
-#             output=output,
-#             **kwargs,
-#         )
+#         raise NotImplementedError
+#         # return super().plot_grouped(
+#         #     group_cols=group_cols,
+#         #     group_modes=group_modes,
+#         #     title=title,
+#         #     labels=labels,
+#         #     hover_data=hover_data,
+#         #     height=height,
+#         #     width=width,
+#         #     layout=layout,
+#         #     font_size=font_size,
+#         #     x_axis=x_axis,
+#         #     y_axis=y_axis,
+#         #     color_axis=color_axis,
+#         #     traces_settings=traces_settings,
+#         #     output=output,
+#         #     **kwargs,
+#         # )

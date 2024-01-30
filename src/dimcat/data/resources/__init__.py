@@ -19,6 +19,7 @@ from .results import (
     NgramTable,
     NgramTuples,
     PhraseData,
+    PrevalenceMatrix,
     Result,
     Transitions,
 )

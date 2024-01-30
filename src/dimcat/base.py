@@ -357,6 +357,20 @@ class FriendlyEnum(LowercaseEnum):
             )
         raise ValueError(f"ValueError: {value!r} is not a valid {cls.__name__}.")
 
+    def __eq__(self, other) -> bool:
+        if self.name == other:
+            return True
+        if isinstance(other, str):
+            try:
+                other = self.__class__(other)
+            except ValueError:
+                return False
+            return self.name == other.name
+        return False
+
+    def __hash__(self):
+        return hash(self.value)
+
 
 class ObjectEnum(FriendlyEnum):
     @cache
@@ -479,12 +493,40 @@ class DimcatConfig(MutableMapping, DimcatObject):
             return dict(data)
 
     def __init__(
-        self, options: Dict | DimcatConfig = (), dtype: Optional[str] = None, **kwargs
+        self,
+        options: Dict | DimcatConfig | str = (),
+        dtype: Optional[str] = None,
+        **kwargs,
     ):
+        """Creates a new DimcatConfig representing a DimcatObject. For convenience, you can omit the 'dtype' argument
+        by passing a string as the first argument and all initialization arguments as keyword arguments. For example:
+        ``dc.DimcatConfig("Notes", format="name", merge_ties=True)`` is equivalent to
+        ``dc.DimcatConfig(dtype="Notes", options=dict(format="name", merge_ties=True))`` and to
+        ``dc.DimcatConfig(dict(dtype="Notes", format="name", merge_ties=True))``
+
+        Args:
+            options:
+                A dictionary of initialization arguments for the DimcatObject of type ``dtype``.
+            dtype:
+                The class name of the DimcatObject that this DimcatConfig describes. Case insensitive, i.e. you can
+                pass "prevalenceanalyzeR" instead of "PrevalenceAnalyzer", for example. If options contain the key
+                'dtype', this argument can be omitted; if it's specified in addition, it overrides the one in options.
+            **kwargs: Additional initialization arguments that will be added to the ``options`` dictionary.
+        """
         if isinstance(options, DimcatConfig):
             options = options.options
-        elif isinstance(options, str) and dtype is None:
-            options = dict(dtype=options)
+        elif isinstance(options, str):
+            if dtype is None or dtype == options:
+                options = dict(dtype=options)
+            elif isinstance(dtype, dict):
+                # OK, assume swapped arguments
+                dt = options
+                options = dict(dtype)
+                options["dtype"] = dt
+            else:
+                raise TypeError(
+                    f"When options is a string, dtype should be None, not {type(dtype)}."
+                )
         options = dict(options, **kwargs)
         if dtype is None:
             if "dtype" not in options:

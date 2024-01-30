@@ -301,6 +301,8 @@ class Dataset(Data):
         )
         self.add_output(resource=extracted, package_name="features")
         self._pipeline.add_step(feature_extractor)
+        if feature_config.options_dtype != "Metadata":
+            extracted.metadata = self.get_metadata(raw=True)
         return extracted
 
     def get_feature(self, feature: Optional[FeatureSpecs] = None) -> F:
@@ -308,7 +310,10 @@ class Dataset(Data):
         and adds a FeatureExtractor to the dataset's pipeline otherwise."""
         feature_config = feature_specs2config(feature)
         try:
-            return self.outputs.get_feature(feature_config)
+            feature = self.outputs.get_feature(feature_config)
+            if feature._metadata is None and feature_config.options_dtype != "Metadata":
+                feature.metadata = self.get_metadata(raw=True)
+            return feature
         except (
             PackageNotFoundError,
             NoMatchingResourceFoundError,
