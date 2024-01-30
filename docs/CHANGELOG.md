@@ -1,5 +1,36 @@
 # Changelog
 
+## [3.2.0](https://github.com/DCMLab/dimcat/compare/v3.1.0...v3.2.0) (2024-01-30)
+
+
+### Features
+
+* adds basis of PrevalenceAnalyzer and PrevalenceMatrix(Result) ([1f5469f](https://github.com/DCMLab/dimcat/commit/1f5469fc54fd49be678f9fe90a056f1d274d1c1d))
+* adds DimcatResource.join_on_index() ([269c12c](https://github.com/DCMLab/dimcat/commit/269c12c10aca289f76c5149df32319c2975ff0c7))
+* adds methods .get_culled_matrix() and .get_relative_matrix() to PrevalenceMatrix, together with the relevant subclasses as result types ([523418d](https://github.com/DCMLab/dimcat/commit/523418dce8b1f660078c88d61ca5afc0e2c873db))
+* adds plotting.make_line_plot(), factoring out _make_plots() boilerplate that all plotting function share ([a1ba183](https://github.com/DCMLab/dimcat/commit/a1ba1832ce71bdab085dfe92245ae66cd892170a))
+* adds plotting.make_scatter_3d_plot() ([ec13ba8](https://github.com/DCMLab/dimcat/commit/ec13ba83072a2afe6a24ffe7f152df16e54bf476))
+* adds property DimcatResource.metadata which the Dataset populates upon feature extraction but is not serialized ([c5e2eee](https://github.com/DCMLab/dimcat/commit/c5e2eeea3ffaf3f67f3aaebe6ccacbc6a97eafe5))
+* adds relevant properties and methods to PrevalenceMatrix ([328fff6](https://github.com/DCMLab/dimcat/commit/328fff623bbb10264775925ef3c91bafd078621b))
+* adds utils.str2pd_interval ([da24cb9](https://github.com/DCMLab/dimcat/commit/da24cb9853b347d77bc569512fb76d6e1fdc41d1))
+* allows friendly comparison for FriendlyEnums, such as "desc" == SortOrder.DESCENDING -&gt; True ([03d57f6](https://github.com/DCMLab/dimcat/commit/03d57f6315810ca6d74e65c10366fe9a0b1b6346))
+* implements PrevalenceAnalyzer.compute() staticmethod, .__init__(), .groupby_apply() and Schema ([25d558b](https://github.com/DCMLab/dimcat/commit/25d558b376aa5fc3842da20ee1ca32c6636fc6ec))
+* implements PrevalenceMatrix.combine_results() ([35fbb39](https://github.com/DCMLab/dimcat/commit/35fbb393b7b8fcc26783f1b142e7707fa6e9c8ec))
+
+
+### Bug Fixes
+
+* catches pandas 2.2.0 warning(s) ([88e86bd](https://github.com/DCMLab/dimcat/commit/88e86bd60b2466afceb9dcaa3127f05b335568f2))
+* enables DimcatResource.from_resource_path() by expecting a "corpus" and a "piece" column ([6c70e61](https://github.com/DCMLab/dimcat/commit/6c70e617485b09b382abc4aa68e327cc53c92981))
+* import Self from typing_extensions (not typing) to maintain Python 3.10 compatibility ([a104358](https://github.com/DCMLab/dimcat/commit/a1043586a877e4d04b1ff35656f8b8748c8a271b))
+* infer_schema_from_df() now can deal with column MultiIndex that involves integer values ([a43fdf7](https://github.com/DCMLab/dimcat/commit/a43fdf706f473d9e944b0ced0aeafcfee94ce6ee))
+* plotting functions allow for a single string as argument to 'hover_data' ([57230df](https://github.com/DCMLab/dimcat/commit/57230df02c130475ba8e24c271e99c02c8638e64))
+
+
+### Documentation
+
+* docstring for DimcatConfig ([fe35049](https://github.com/DCMLab/dimcat/commit/fe35049352d5de349d604ee6fb720f1040212876))
+
 ## [3.1.0](https://github.com/DCMLab/dimcat/compare/v3.0.0...v3.1.0) (2024-01-16)
 
 
