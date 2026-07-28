@@ -1039,6 +1039,11 @@ class PhraseLabels(PhraseAnnotations):
     def _adapt_newly_set_df(self, feature_df: D) -> D:
         """Condense the raw PhraseAnnotations dataframe into a dataframe with one row per phrase."""
         feature_df = super()._adapt_newly_set_df(feature_df)
+        if (
+            "phrase_component" not in feature_df.index.names
+            and "phrase_component" not in feature_df.columns
+        ):
+            return feature_df
         return condense_phrases(feature_df)
 
 

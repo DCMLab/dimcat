@@ -302,21 +302,22 @@ def condense_pedal_points(df):
     group_start_mask = make_group_start_mask(df, df.index.names[:-1])
     pedal_point_mask = df.pedal.notna()
     shifted_pedals = df.pedal.shift().fillna("SENTINEL")
-    shifted_pedals.loc[
-        group_start_mask
-    ] = "SENTINEL"  # make sure to separate a terminal pedal point (ending a piece)
+    shifted_pedals.loc[group_start_mask] = (
+        "SENTINEL"  # make sure to separate a terminal pedal point (ending a piece)
+    )
     # from an initial one (beginning of next piece) on the same harmony (an extremely unlikely scenario)
     pedal_point_start_mask = (df.pedal != shifted_pedals).fillna(False)
     pedal_drop_mask = pedal_point_mask & ~pedal_point_start_mask
-    expanded_pedal_harmonies = expand_labels(
-        df.loc[pedal_point_start_mask, :"pedal"],
-        column="pedal",
-        propagate=False,
-        skip_checks=True,
-    )
-    overwrite_with = expanded_pedal_harmonies.loc(axis=1)["chord":]
-    overwrite_columns = overwrite_with.columns
-    df.loc[pedal_point_start_mask, overwrite_columns] = overwrite_with
+    if pedal_point_start_mask.any():
+        expanded_pedal_harmonies = expand_labels(
+            df.loc[pedal_point_start_mask, :"pedal"],
+            column="pedal",
+            propagate=False,
+            skip_checks=True,
+        )
+        overwrite_with = expanded_pedal_harmonies.loc(axis=1)["chord":]
+        overwrite_columns = overwrite_with.columns
+        df.loc[pedal_point_start_mask, overwrite_columns] = overwrite_with
     df = df[~pedal_drop_mask]
     update_mask = df.pedal.notna() & ~make_groups_lasts_mask(
         df.index.to_frame(index=False), ["phrase_id", "phrase_component"]
@@ -560,8 +561,7 @@ def get_time_spans_from_resource_df(
     dropna: bool,
     return_df: Literal[False],
     logger: Optional[logging.Logger],
-) -> pd.DataFrame:
-    ...
+) -> pd.DataFrame: ...
 
 
 @overload
@@ -574,8 +574,7 @@ def get_time_spans_from_resource_df(
     dropna: bool,
     return_df: Literal[True],
     logger: Optional[logging.Logger],
-) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    ...
+) -> Tuple[pd.DataFrame, pd.DataFrame]: ...
 
 
 def get_time_spans_from_resource_df(
@@ -1426,7 +1425,7 @@ def resolve_recognized_piece_columns_argument(
 
 
 def resolve_join_str_argument(
-    join_str: Optional[bool | str | Tuple[bool | str, ...]]
+    join_str: Optional[bool | str | Tuple[bool | str, ...]],
 ) -> Optional[str]:
     """Helper function that resolves a join_str argument to a string or None by replacing boolean values with the
     defaults ", " for True and "" for False.
@@ -1588,9 +1587,11 @@ def tuple2str(
             return result[1:-1]
         if recursive:
             result = join_str.join(
-                tuple2str(e, join_str=join_str, keep_parentheses=True)
-                if isinstance(e, tuple)
-                else str(e)
+                (
+                    tuple2str(e, join_str=join_str, keep_parentheses=True)
+                    if isinstance(e, tuple)
+                    else str(e)
+                )
                 for e in tup
             )
         else:
@@ -1659,9 +1660,11 @@ def append_index_levels(
     if drop_levels:
         old_index = old_index.droplevel(drop_levels)
     new_levels = [
-        level.reset_index(drop=True)
-        if isinstance(level, (pd.Series, pd.DataFrame))
-        else level.to_frame(index=False)
+        (
+            level.reset_index(drop=True)
+            if isinstance(level, (pd.Series, pd.DataFrame))
+            else level.to_frame(index=False)
+        )
         for level in new_level
     ]
     new_index_df = pd.concat([old_index.to_frame(index=False)] + new_levels, axis=1)
