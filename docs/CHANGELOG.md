@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.4.1](https://github.com/DCMLab/dimcat/compare/v3.4.0...v3.4.1) (2026-07-28)
+
+
+### Bug Fixes
+
+* phrase feature extraction crashes on corpora without pedal points ([68c19f5](https://github.com/DCMLab/dimcat/commit/68c19f57fa5221acb90375126350250dc401d731))
+
 ## [3.4.0](https://github.com/DCMLab/dimcat/compare/v3.3.0...v3.4.0) (2025-04-28)
 
 
